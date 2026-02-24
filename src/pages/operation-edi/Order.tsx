@@ -241,7 +241,9 @@ export default function Orders(): JSX.Element {
           _server: "local",
           montant_ht: o.total_ht,
           comment: o.comment,
-          updated_at: o.updated_at
+          updated_at: o.updated_at,
+          buyer_name: o.buyer_name || "-",
+          nbr_lin_article: o.lines?.length || 0
         });
       });
     } catch (err: any) {
@@ -1816,7 +1818,7 @@ export default function Orders(): JSX.Element {
           // Readonly if: (1) sent order we don't own, OR (2) order is already finalized (sent/accepted)
           readonly={(() => {
             const isSentByUs = selectedOrderForProcessing?.type === "Envoyée" && String(selectedOrderForProcessing?.id_entite_seller) !== String(currentEntiteId);
-            const isFinalized = ['sent', 'accepted'].includes(selectedOrderForProcessing?.status || selectedOrderForProcessing?.statut);
+            const isFinalized = ['sent', 'accepted', 'rejected', 'modified'].includes(selectedOrderForProcessing?.status || selectedOrderForProcessing?.statut);
             return (isSentByUs || isFinalized) && !simulateSupplierMode;
           })()}
         />

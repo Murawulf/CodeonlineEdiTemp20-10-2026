@@ -417,11 +417,15 @@ export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order,
                 </p>
                 <p className="text-sm mt-1">
                   {readonly 
-                    ? `Cette commande a été refusée${
-                        order?.updated_at && !isNaN(new Date(order.updated_at).getTime())
+                    ? (() => {
+                        const dateStr = order?.updated_at && !isNaN(new Date(order.updated_at).getTime())
                           ? ` le ${new Date(order.updated_at).toLocaleDateString('fr-FR')} à ${new Date(order.updated_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`
-                          : ""
-                      }.`
+                          : "";
+                        const isSupplier = order?.type === 'Reçue' || (order?.type !== 'Envoyée' && !['sent'].includes(order?.status || ''));
+                        return isSupplier
+                          ? `Vous avez refusé cette commande${dateStr}.`
+                          : `Cette commande a été refusée${dateStr}.`;
+                      })()
                     : "Vous êtes sur le point de refuser l'intégralité de cette commande. Un message de réponse (ORDRSP) sera envoyé au client pour l'informer."}
                 </p>
               </div>
