@@ -232,14 +232,16 @@ export default function Orders(): JSX.Element {
           seller_name: o.seller_name,
           buyer_name: o.buyer_name,
           status: o.status,
-          comment: o.comment
+          comment: o.comment,
+          updated_at: o.updated_at
         });
         receivedOrders.push({ 
           ...o, 
           type: "Reçue", 
           _server: "local",
           montant_ht: o.total_ht,
-          comment: o.comment
+          comment: o.comment,
+          updated_at: o.updated_at
         });
       });
     } catch (err: any) {
@@ -276,7 +278,8 @@ export default function Orders(): JSX.Element {
           total_ht: o.total_ht || (calculatedAmount > 0 ? calculatedAmount.toFixed(2) : "0.00"), // Ensure total_ht is set for modal
           monnaie: o.monnaie || o.currency || "TND", // Handle currency field
           statut: o.status || "sent",
-          comment: o.comment // Add comment for sent orders too
+          comment: o.comment, // Add comment for sent orders too
+          updated_at: o.updated_at // Add updated_at for sent orders too
         });
       });
     } catch (err: any) {

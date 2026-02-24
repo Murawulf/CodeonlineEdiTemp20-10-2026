@@ -4123,7 +4123,8 @@ app.get("/api/orders/incoming", async function (req, res) {
             DATE_FORMAT(eo.created_at, '%Y-%m-%dT%H:%i:%s') as date_reception,
             o.id_order as production_id_order,
             o.comment as production_comment,
-            o.status as production_status
+            o.status as production_status,
+            DATE_FORMAT(o.updated_at, '%Y-%m-%dT%H:%i:%s') as production_updated_at
         FROM edi_orders eo
         LEFT JOIN orders o ON eo.document_number = o.num_commande AND o.id_entite_seller = ?
         WHERE eo.supplier_gln = ? 
@@ -4222,12 +4223,11 @@ app.get("/api/orders/incoming", async function (req, res) {
             // Use production status if available, else map PENDING_VALIDATION to 'received'
             status: so.production_status || (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut), 
             statut: so.production_status || (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut),
-            monnaie: so.monnaie,
-            buyer_name: buyerName,
-            seller_name: sellerName,
+            type: "Reçue",
+            _server: "local",
+            montant_ht: so.total_ht,
             comment: so.production_comment, // Include the global comment from production
-            lines: lines,
-            nbr_lin_article: lines.length
+            updated_at: so.production_updated_at
         });
         
         console.log(`[BACKEND INCOMING] Staging Order #${so.id} mapped with ${lines.length} lines`);
@@ -4548,6 +4548,7 @@ app.get("/api/orders/sent", async function (req, res) {
         o.status, 
         o.comment,
         DATE_FORMAT(o.created_at, '%Y-%m-%dT%H:%i:%s') AS created_at,
+        DATE_FORMAT(o.updated_at, '%Y-%m-%dT%H:%i:%s') AS updated_at,
         o.total_ht,
         o.date_livraison,
         o.date_livraison_demandee,
@@ -4586,6 +4587,7 @@ app.get("/api/orders/sent", async function (req, res) {
         buyer_name: o.buyer_name,
         status: o.status,
         comment: o.comment,
+        updated_at: o.updated_at,
         total_ht: o.total_ht,
         date_livraison: o.date_livraison,
         monnaie: o.monnaie,
