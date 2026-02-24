@@ -1,0 +1,47 @@
+#!/usr/bin/expect -f
+
+set timeout 20
+set host "217.182.94.86"
+set user "Consultant"
+set password "A4b6xb1s*"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    -re "\[$#%>] " {
+        # Connected
+    }
+}
+
+# Attendre un peu
+sleep 1
+
+# 1. Lire la config DEV
+send "echo '--- CONFIG DEV ---'\r"
+expect -re "\[$#%>] "
+send "cat /etc/apache2/sites-enabled/webmin.1751018487.conf\r"
+expect -re "\[$#%>] "
+
+# 2. Lire la config PROD
+send "echo '--- CONFIG PROD ---'\r"
+expect -re "\[$#%>] "
+send "cat /etc/apache2/sites-enabled/webmin.1754464885.conf\r"
+expect -re "\[$#%>] "
+
+# 3. Lister les processus PM2 pour voir les ports utilisés par Node
+send "echo '--- PM2 LIST ---'\r"
+expect -re "\[$#%>] "
+send "pm2 list\r"
+expect -re "\[$#%>] "
+
+# 4. Essayer de voir les arguments des processus node (pour voir les ports si passés en arg ou env)
+send "echo '--- PROCESS NODE ---'\r"
+expect -re "\[$#%>] "
+send "ps aux | grep node\r"
+expect -re "\[$#%>] "
+
+send "exit\r"
+expect eof

@@ -1,0 +1,21 @@
+[
+  {
+    "name": "default_Lait_Succédanés de Lait (Longue Conservation)_000 (1).html",
+    "brick": "Lait",
+    "rayon": "Succédanés de Lait (Longue Conservation)",
+    "path": "/Modeles/default_Lait_Succédanés de Lait (Longue Conservation)_000 (1).html"
+  },
+ 
+  {
+    "name": "Lait_Succédanés de Lait (Longue Conservation)_Lait_Succédanés de Lait (Longue Conservation)_000 (1).html",
+    "brick": "Lait",
+    "rayon": "Succédanés de Lait (Longue Conservation)",
+    "path": "/Modeles/Lait_Succédanés de Lait (Longue Conservation)_Lait_Succédanés de Lait (Longue Conservation)_000 (1).html"
+  },
+  {
+    "name": "model_Lait_Succédanés de Lait (Longue Conservation)_Lait_Succédanés de Lait (Longue Conservation)_fiche_produit.html",
+    "brick": "Lait",
+    "rayon": "Succédanés de Lait (Longue Conservation)",
+    "path": "/Modeles/model_Lait_Succédanés de Lait (Longue Conservation)_Lait_Succédanés de Lait (Longue Conservation)_fiche_produit.html"
+  }
+]

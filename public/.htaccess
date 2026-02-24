@@ -1,0 +1,22 @@
+# .htaccess pour React Router
+# À placer dans le dossier dist/ (ou /var/www/codeonline-edi/dist/)
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+  # ? Try to Proxy API requests to Node.js port 5001 (Requires mod_proxy enabled)
+  RewriteCond %{REQUEST_URI} ^/api/ [NC]
+  RewriteRule ^api/(.*)$ http://127.0.0.1:5001/api/$1 [P,L]
+
+  RewriteCond %{REQUEST_URI} ^/socket.io/ [NC]
+  RewriteRule ^socket.io/(.*)$ http://127.0.0.1:5001/socket.io/$1 [P,L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+  RewriteRule . /index.html [L]
+</IfModule>

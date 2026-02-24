@@ -1,0 +1,1209 @@
+import { useState, useEffect, ChangeEvent, KeyboardEvent } from 'react';
+import { Listbox } from '@headlessui/react';
+import axios from 'axios';
+import { useLocalApiUrl } from '../contexts/SettingsContext';
+
+const countries = [
+  "Tunisia", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia",
+  "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium",
+  "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria",
+  "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Central African Republic", "Chad",
+  "Chile", "China", "Colombia", "Comoros", "Congo (Brazzaville)", "Congo (Kinshasa)", "Costa Rica", "Croatia",
+  "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "East Timor",
+  "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji",
+  "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea",
+  "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq",
+  "Ireland", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati",
+  "North Korea", "South Korea", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia",
+  "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali",
+  "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia",
+  "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand",
+  "Nicaragua", "Niger", "Nigeria", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama",
+  "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda",
+  "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino",
+  "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia",
+  "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname",
+  "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga",
+  "Trinidad and Tobago", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates",
+  "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam",
+  "Yemen", "Zambia", "Zimbabwe"
+];
+
+const packagingTypes = [
+  "Carton", "Plastique", "Verre", "Métal", "Bois", "Papier", "Sachet", "Film plastique", "Barquette", "Bouteille"
+];
+
+const palletTypes = [
+  "EUR/EPAL", "CP1", "CP2", "CP3", "CP4", "CP5", "CP6", "CP7", "CP8", "CP9", "Palette personnalisée"
+];
+
+const hierarchyOptions = [
+  "PK (Lot Consommateur Homogène)", "AP (Lot Consommateur Hétérogène)", "CA (Colis Homogène)",
+  "DS (Colis Hétérogène)", "PL (Palette Homogène)", "MX (Palette Hétérogène)"
+];
+
+interface FormData {
+  segment: string;
+  family: string;
+  class: string;
+  brick: string;
+  rayon: string;
+  gln: string;
+  gtin: string;
+  marque: string;
+  sous_marque: string;
+  libelle_court: string;
+  pays_origine: string;
+}
+
+interface HierarchyData {
+  level: string;
+  fields: string[];
+}
+
+interface FieldRule {
+  type: string;
+  required: boolean;
+  length: number;
+  decimals: number;
+  description: string;
+  values: string[];
+}
+
+interface Section {
+  fields: string[];
+  collapsed: boolean;
+  subsections?: Record<string, string[]>;
+}
+
+interface CustomField {
+  section: string;
+  title: string;
+  type: string;
+  description: string;
+  required: boolean;
+  length: number;
+  decimals: number;
+}
+
+const PIMGeneratorApp = () => {
+  const API_BASE_URL = useLocalApiUrl();
+  const [formData, setFormData] = useState<FormData>({
+    segment: '',
+    family: '',
+    class: '',
+    brick: '',
+    rayon: '',
+    gln: '',
+    gtin: '',
+    marque: '',
+    sous_marque: '',
+    libelle_court: '',
+    pays_origine: 'Tunisia'
+  });
+  const [dynamicFields, setDynamicFields] = useState<Record<string, string>>({});
+  const [fieldRules, setFieldRules] = useState<Record<string, FieldRule>>({});
+  const [segments, setSegments] = useState<string[]>([]);
+  const [families, setFamilies] = useState<string[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
+  const [bricks, setBricks] = useState<string[]>([]);
+  const [rayons, setRayons] = useState<string[]>([]);
+  const [hierarchyData, setHierarchyData] = useState<HierarchyData[]>([]);
+  const [isLogisticsComplete, setIsLogisticsComplete] = useState(false);
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [sections, setSections] = useState<Record<string, Section>>({});
+  const [extraFields, setExtraFields] = useState<string[]>([]);
+  const [showCustomFieldModal, setShowCustomFieldModal] = useState(false);
+  const [customField, setCustomField] = useState<CustomField>({
+    section: '',
+    title: '',
+    type: 'text',
+    description: '',
+    required: false,
+    length: 255,
+    decimals: 0
+  });
+
+  useEffect(() => {
+    // Fetch field rules and segments on mount
+    axios.get(`${API_BASE_URL}/api/fieldrules`)
+      .then(res => {
+        const rules: Record<string, FieldRule> = {};
+        res.data.forEach((rule: any) => {
+          if (rule.field) {
+            rules[rule.field.toLowerCase()] = {
+              type: rule.type || 'text',
+              required: !!rule.required,
+              length: rule.length || 255,
+              decimals: rule.decimals || 0,
+              description: rule.description || '',
+              values: rule.values || []
+            };
+          }
+        });
+        // Add default rules as in Python app
+        rules['quantite_nette'] = { type: 'numeric', ...rules['quantite_nette'] };
+        rules['nombre_de_portions'] = { type: 'numeric', ...rules['nombre_de_portions'] };
+        rules['liste_des_ingredients'] = { type: 'multivalue', ...rules['liste_des_ingredients'] };
+        rules['declaration_des_allergenes'] = { type: 'multivalue', ...rules['declaration_des_allergenes'] };
+        rules['valeurs_nutritionnelles'] = { type: 'multivalue', ...rules['valeurs_nutritionnelles'] };
+        rules['produit_halal'] = { type: 'boolean', ...rules['produit_halal'] };
+        rules['produit_consigne'] = { type: 'boolean', ...rules['produit_consigne'] };
+        rules['produit_a_decouper'] = { type: 'boolean', ...rules['produit_a_decouper'] };
+        rules['produits_dangereux'] = { type: 'boolean', ...rules['produits_dangereux'] };
+        rules['produits_alimentaires'] = { type: 'boolean', ...rules['produits_alimentaires'] };
+        rules['produits_saisonniers'] = { type: 'boolean', ...rules['produits_saisonniers'] };
+        rules['duree_vie_minimale_livraison'] = { type: 'days', ...rules['duree_vie_minimale_livraison'] };
+        rules['duree_vie_du_produit'] = { type: 'days', ...rules['duree_vie_du_produit'] };
+        rules['gln'] = { type: 'numeric', ...rules['gln'] };
+        rules['gtin'] = { type: 'numeric', ...rules['gtin'] };
+        rules['pays_origine'] = { type: 'dropdown', values: countries, ...rules['pays_origine'] };
+        rules['produits_bio'] = { type: 'boolean', ...rules['produits_bio'] };
+        rules['date_debut_disponibilite'] = { type: 'date', ...rules['date_debut_disponibilite'] };
+        rules['type_emballage'] = { type: 'dropdown', values: packagingTypes, ...rules['type_emballage'] };
+        rules['palletTypeCode'] = { type: 'dropdown', values: palletTypes, ...rules['palletTypeCode'] };
+        setFieldRules(rules);
+      })
+      .catch(err => alert('Error loading field rules: ' + err.message));
+
+    axios.get(`${API_BASE_URL}/api/segments`)
+      .then(res => setSegments(res.data))
+      .catch(err => alert('Error fetching segments: ' + err.message));
+  }, [API_BASE_URL]);
+
+  const updateFamilies = (segment: string) => {
+    setFormData({ ...formData, segment, family: '', class: '', brick: '', rayon: '' });
+    setFamilies([]);
+    setClasses([]);
+    setBricks([]);
+    setRayons([]);
+    setDynamicFields({});
+    setHierarchyData([]);
+    setIngredients([]);
+    setSections({});
+    setExtraFields([]);
+    if (segment) {
+      axios.get(`${API_BASE_URL}/api/families/${segment}`)
+        .then(res => setFamilies(res.data))
+        .catch(err => alert('Error fetching families: ' + err.message));
+    }
+  };
+
+  const updateClasses = (family: string) => {
+    setFormData({ ...formData, family, class: '', brick: '', rayon: '' });
+    setClasses([]);
+    setBricks([]);
+    setRayons([]);
+    setDynamicFields({});
+    setHierarchyData([]);
+    setIngredients([]);
+    setSections({});
+    setExtraFields([]);
+    if (family) {
+      axios.get(`${API_BASE_URL}/api/classes/${family}`)
+        .then(res => setClasses(res.data))
+        .catch(err => alert('Error fetching classes: ' + err.message));
+    }
+  };
+
+  const updateBricks = (className: string) => {
+    setFormData({ ...formData, class: className, brick: '', rayon: '' });
+    setBricks([]);
+    setRayons([]);
+    setDynamicFields({});
+    setHierarchyData([]);
+    setIngredients([]);
+    setSections({});
+    setExtraFields([]);
+    if (className) {
+      axios.get(`${API_BASE_URL}/api/bricks/${className}`)
+        .then(res => setBricks(res.data))
+        .catch(err => alert('Error fetching bricks: ' + err.message));
+    }
+  };
+
+  const updateRayons = (brick: string) => {
+    setFormData({ ...formData, brick, rayon: '' });
+    setRayons([]);
+    setDynamicFields({});
+    setHierarchyData([]);
+    setIngredients([]);
+    setSections({});
+    setExtraFields([]);
+    if (brick) {
+      axios.get(`${API_BASE_URL}/api/rayons/${brick}`)
+        .then(res => {
+          setRayons(res.data);
+          updateDynamicFields();
+        })
+        .catch(err => alert('Error fetching rayons: ' + err.message));
+    }
+  };
+
+  const updateDynamicFields = () => {
+    const segment = formData.segment.toLowerCase();
+    if (!segment) return;
+
+    const newSections: Record<string, Section> = {};
+    if (segment === 'nourriture/boisson/tabac') {
+      newSections['Alimentation / Boissons / Tabac'] = {
+        fields: [
+          'libelle_produit', 'quantite_nette', 'unite_legale', 'liste_des_ingredients',
+          'declaration_des_allergenes', 'valeurs_nutritionnelles', 'nombre_de_portions',
+          'denomination_legale', 'conditions_de_conservation', 'etat_de_preparation',
+          'nom_de_l_exploitant', 'adresse_de_l_exploitant', 'mode_d_emploi',
+          'mentions_obligatoires_complementaires', 'produit_halal', 'argumentaire_produit',
+          'allegation_sante', 'allegation_nutritionnelle', 'libelle_internet', 'gpc',
+          'marche_cible', 'valeurs_nutritionnelles_100g', 'valeurs_nutritionnelles_a_la_portion',
+          'duree_vie_minimale_livraison', 'duree_vie_du_produit'
+        ],
+        collapsed: true
+      };
+      newSections['Données logistiques'] = {
+        fields: [
+          'dimensions_hors_emballage_diff', 'emballage_retournable', 'type_emballage',
+          'date_debut_dispo_commande', 'duree_vie_minimale_livraison', 'duree_vie_du_produit',
+          'mesures_unite_commerciale', 'article_reapprovisionnable', 'unite_logistique',
+          'unite_commande', 'unite_facturable', 'produits_dangereux', 'produits_alimentaires',
+          'produits_saisonniers', 'produits_bio', 'vrac', 'produit_a_decouper'
+        ],
+        collapsed: true,
+        subsections: {
+          'Unité de Base (EA)': [
+            'type_emballage', 'palletTypeCode', 'dimensions_hors_emballage_diff',
+            'emballage_retournable', 'produit_a_decouper'
+          ]
+        }
+      };
+    } else {
+      newSections['Information produit'] = {
+        fields: [
+          'libelle_produit', 'fournisseur', 'type_de_marque', 'unite_legale', 'quantite_nette',
+          'produit_halal', 'libelle_internet', 'argumentaire_produit', 'liste_des_ingredients',
+          'declaration_des_allergenes', 'nombre_de_portions', 'denomination_legale',
+          'conditions_de_conservation', 'etat_de_preparation', 'nom_de_l_exploitant',
+          'adresse_de_l_exploitant', 'mode_d_emploi', 'mentions_obligatoires_complementaires',
+          'allegation_sante', 'allegation_nutritionnelle', 'gpc', 'marche_cible'
+        ],
+        collapsed: true
+      };
+      newSections['Conditionnement & logistique'] = {
+        fields: [
+          'dimensions_hors_emballage_diff', 'emballage_retournable', 'type_emballage',
+          'date_debut_dispo_commande', 'duree_vie_minimale_livraison', 'duree_vie_du_produit',
+          'mesures_unite_commerciale', 'article_reapprovisionnable', 'unite_logistique',
+          'unite_commande', 'unite_facturable', 'produits_dangereux', 'produits_alimentaires',
+          'produits_saisonniers', 'produits_bio', 'vrac', 'produit_a_decouper'
+        ],
+        collapsed: true
+      };
+    }
+    setSections(newSections);
+    if (segment === 'nourriture/boisson/tabac' && !isLogisticsComplete) {
+      setHierarchyData([]);
+    }
+  };
+
+  const addHierarchy = (level: string) => {
+    if (!level) {
+      alert('Veuillez sélectionner un niveau hiérarchique.');
+      return;
+    }
+    if (hierarchyData.some(h => h.level === level)) {
+      alert(`Le niveau ${level} a déjà été ajouté.`);
+      return;
+    }
+    const hierarchyFields: Record<string, string[]> = {
+      'PK (Lot Consommateur Homogène)': [
+        'gtin_d', 'childTradeItem', 'quantityofNextLowerLevelTradeItem',
+        'quantityOfCompleteLayersContainedInATradeItem', 'quantityOfTradeItemsContainedInACompleteLayer',
+        'isTradeItemADespatchUnit', 'isTradeItemAnInvoiceUnit', 'isTradeItemAnOrderableUnit',
+        'isTradeItemAModel', 'isTradeItemADivisibleItem', 'hasDisplayReadyPackaging',
+        'isTradeItemPackedIrregularly', 'compositionDepthValue', 'compositionWidthValue',
+        'alimentaryProduct', 'TradeItemDisplayDimensions', 'contactGLN', 'orderingUnitOfMeasure',
+        'invoicingUnitOfMeasure', 'packageMarksDietAllergen', 'cataloguePriceBasisQuantity',
+        'cataloguePriceBasisUnitOfMeasure', 'tradeItemWeight', 'tradeItemVolume',
+        'packagingMaterial', 'stackingFactor', 'maxStackingWeight', 'palletLayerQuantity',
+        'type_emballage', 'palletTypeCode'
+      ],
+      'AP (Lot Consommateur Hétérogène)': [
+        'unite_logistique_ap', 'unite_facturable_ap', 'unite_commandable_ap', 'isTradeItemAModel_ap',
+        'isTradeItemADivisibleItem_ap', 'hasDisplayReadyPackaging_ap', 'isTradeItemPackedIrregularly_ap',
+        'compositionDepthValue_ap', 'compositionWidthValue_ap', 'alimentaryProduct_ap',
+        'TradeItemDisplayDimensions_ap', 'contactGLN_ap', 'orderingUnitOfMeasure_ap',
+        'invoicingUnitOfMeasure_ap', 'gtin_d_ap', 'childTradeItem_ap', 'quantityofNextLowerLevelTradeItem_ap',
+        'packageMarksDietAllergen_ap', 'tradeItemWeight_ap', 'tradeItemVolume_ap',
+        'packagingMaterial_ap', 'stackingFactor_ap', 'type_emballage', 'palletTypeCode'
+      ],
+      'CA (Colis Homogène)': [
+        'gtin_d_ca', 'childTradeItem_ca', 'quantityofNextLowerLevelTradeItem_ca', 'packagingTypeCode',
+        'palletTypeCode', 'quantityOfCompleteLayersContainedInATradeItem_ca',
+        'quantityOfTradeItemsContainedInACompleteLayer_ca', 'isTradeItemAConsumerUnit',
+        'unite_facturable_ca', 'unite_commandable_ca', 'isTradeItemAFullDisplayStand',
+        'hasDisplayReadyPackaging_ca', 'isTradeItemPackedIrregularly_ca', 'compositionDepthValue_ca',
+        'compositionWidthValue_ca', 'alimentaryProduct_ca', 'contactGLN_ca', 'orderingUnitOfMeasure_ca',
+        'invoicingUnitOfMeasure_ca', 'tradeItemWeight_ca', 'tradeItemVolume_ca',
+        'packagingMaterial_ca', 'maxStackingWeight_ca', 'palletLayerQuantity_ca', 'type_emballage'
+      ],
+      'DS (Colis Hétérogène)': [
+        'quantityofNextLowerLevelTradeItem_ds', 'packagingTypeCode', 'palletTypeCode',
+        'quantityOfCompleteLayersContainedInATradeItem_ds', 'quantityOfTradeItemsContainedInACompleteLayer_ds',
+        'unite_facturable_ds', 'isTradeItemAFullDisplayStand_ds', 'hasDisplayReadyPackaging_ds',
+        'isTradeItemPackedIrregularly_ds', 'compositionDepthValue_ds', 'compositionWidthValue_ds',
+        'contactGLN_ds', 'orderingUnitOfMeasure_ds', 'invoicingUnitOfMeasure_ds',
+        'tradeItemWeight_ds', 'tradeItemVolume_ds', 'packagingMaterial_ds',
+        'maxStackingWeight_ds', 'palletLayerQuantity_ds', 'type_emballage'
+      ],
+      'PL (Palette Homogène)': [
+        'gtin_d_pl', 'childTradeItem_pl', 'quantityofNextLowerLevelTradeItem_pl',
+        'quantityOfCompleteLayersContainedInATradeItem_pl', 'quantityOfTradeItemsContainedInACompleteLayer_pl',
+        'isTradeItemAnInvoiceUnit_pl', 'isTradeItemAnOrderableUnit_pl', 'isTradeItemAFullDisplayStand_pl',
+        'hasDisplayReadyPackaging_pl', 'isTradeItemPackedIrregularly_pl', 'compositionDepthValue_pl',
+        'compositionWidthValue_pl', 'contactGLN_pl', 'orderingUnitOfMeasure_pl', 'invoicingUnitOfMeasure_pl',
+        'palletTypeCode', 'palletLayerQuantity_pl', 'tradeItemWeight_pl', 'tradeItemVolume_pl',
+        'packagingMaterial_pl', 'maxStackingWeight_pl', 'stackingFactor_pl', 'palletDimensions_pl',
+        'type_emballage'
+      ],
+      'MX (Palette Hétérogène)': [
+        'gtin_d_mx', 'childTradeItem1', 'quantityofNextLowerLevelTradeItem1', 'childTradeItem2',
+        'quantityofNextLowerLevelTradeItem2', 'childTradeItem3', 'quantityofNextLowerLevelTradeItem3',
+        'childTradeItem4', 'quantityofNextLowerLevelTradeItem4',
+        'quantityOfCompleteLayersContainedInATradeItem_mx', 'quantityOfTradeItemsContainedInACompleteLayer_mx',
+        'isTradeItemAnInvoiceUnit_mx', 'isTradeItemAFullDisplayStand_mx', 'hasDisplayReadyPackaging_mx',
+        'isTradeItemPackedIrregularly_mx', 'compositionDepthValue_mx', 'compositionWidthValue_mx',
+        'contactGLN_mx', 'orderingUnitOfMeasure_mx', 'invoicingUnitOfMeasure_mx', 'palletTypeCode',
+        'palletLayerQuantity_mx', 'tradeItemWeight_mx', 'tradeItemVolume_mx', 'packagingMaterial_mx',
+        'maxStackingWeight_mx', 'stackingFactor_mx', 'palletDimensions_mx', 'type_emballage'
+      ]
+    };
+    setHierarchyData([...hierarchyData, { level, fields: hierarchyFields[level] || [] }]);
+  };
+
+  const showTarifaireSection = () => {
+    if (!hierarchyData.length) {
+      alert('Veuillez ajouter au moins un niveau hiérarchique.');
+      return;
+    }
+    setIsLogisticsComplete(true);
+    setSections({
+      ...sections,
+      'Données tarifaires': {
+        fields: [
+          'fournisseur', 'type_de_marque', 'prix_unitaire', 'unite_legale', 'quantite_nette',
+          'libelle_internet', 'denomination_legale', 'nom_exploitant', 'adresse_exploitant',
+          'gpc', 'marche_cible', 'unite_consommateur', 'unite_logistique', 'unite_facturable',
+          'unite_commandable', 'produit_consigne', 'produit_a_decouper', 'produits_dangereux',
+          'produits_alimentaires', 'produits_saisonniers', 'dimensions_hors_emballage_diff',
+          'produits_bio', 'libelle_court', 'nom_fonctionnel', 'emballage_retournable',
+          'type_emballage', 'date_debut_disponibilite', 'duree_vie_minimale_livraison',
+          'duree_vie_du_produit', 'article_reapprovisionnable', 'type_de_taxe',
+          'code_nomenclature_douaniere'
+        ],
+        collapsed: true
+      }
+    });
+  };
+
+  const addCustomField = () => {
+    if (!customField.title) {
+      alert('Le nom du champ est requis.');
+      return;
+    }
+    const fieldName = customField.title.toLowerCase().replace(/\s+/g, '_');
+    const newFieldRules = {
+      ...fieldRules,
+      [fieldName]: {
+        type: customField.type,
+        required: customField.required,
+        description: customField.description || customField.title,
+        length: parseInt(String(customField.length)) || 255,
+        decimals: parseInt(String(customField.decimals)) || 0,
+        values: []
+      }
+    };
+    setFieldRules(newFieldRules);
+    setSections({
+      ...sections,
+      [customField.section]: {
+        ...sections[customField.section],
+        fields: [...(sections[customField.section]?.fields || []), fieldName]
+      }
+    });
+    setExtraFields([...extraFields, fieldName]);
+    setShowCustomFieldModal(false);
+    setCustomField({ section: '', title: '', type: 'text', description: '', required: false, length: 255, decimals: 0 });
+  };
+
+  const generateProductSheet = () => {
+    const data = { ...formData, ...dynamicFields };
+    const requiredFields = Object.entries(fieldRules)
+      .filter(([_, rule]) => rule.required)
+      .map(([field]) => field);
+    
+    for (const field of requiredFields) {
+      if (!data[field] || (typeof data[field] === 'string' && !data[field].trim())) {
+        alert(`Le champ '${field.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}' est requis.`);
+        return;
+      }
+    }
+    if (!data.gln) {
+      alert('Le champ GLN est requis.');
+      return;
+    }
+    if (!data.gtin) {
+      alert('Le champ GTIN est requis.');
+      return;
+    }
+    axios.post(`${API_BASE_URL}/api/generate`, data)
+      .then(res => alert(res.data.message))
+      .catch(err => alert('Error generating product sheet: ' + err.message));
+  };
+
+  interface TagEntryProps {
+    field: string;
+    maxLength: number;
+    onTagAdded?: (tag: string) => void;
+  }
+
+  const TagEntry = ({ field, maxLength, onTagAdded }: TagEntryProps) => {
+    const [tags, setTags] = useState<string[]>([]);
+    const [input, setInput] = useState('');
+    const [unit, setUnit] = useState('');
+    const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+
+    const addTag = () => {
+      const tagText = input.trim();
+      if (!tagText) return;
+      const currentLength = tags.reduce((sum, tag) => sum + tag.length, 0) + tags.length - 1;
+      if (currentLength + tagText.length + 1 <= maxLength) {
+        setTags([...tags, tagText]);
+        setInput('');
+        setShowUnitDropdown(true);
+        if (onTagAdded) onTagAdded(tagText);
+      } else {
+        alert('La longueur maximale des tags est dépassée.');
+      }
+    };
+
+    const removeTag = (tag: string) => {
+      setTags(tags.filter(t => t !== tag));
+    };
+
+    const saveUnit = () => {
+      if (unit && tags.length) {
+        const lastTag = tags[tags.length - 1];
+        setTags([...tags.slice(0, -1), `${lastTag} (${unit})`]);
+      }
+      setShowUnitDropdown(false);
+      setUnit('');
+    };
+
+    useEffect(() => {
+      setDynamicFields({ ...dynamicFields, [field]: tags.join(', ') });
+    }, [tags]);
+
+    const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        addTag();
+      }
+    };
+
+    return (
+      <div className="relative">
+        <div className="flex flex-wrap gap-2 mb-2">
+          {tags.map((tag, index) => (
+            <span key={index} className="bg-gray-200 text-gray-800 px-2 py-1 rounded flex items-center">
+              {tag}
+              <button onClick={() => removeTag(tag)} className="ml-1 text-red-600 hover:text-red-800">✖</button>
+            </span>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={input}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
+          onKeyPress={handleKeyPress}
+          className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+        />
+        {showUnitDropdown && (
+          <div className="absolute mt-1 w-32 bg-white border rounded shadow-lg z-10">
+            <Listbox value={unit} onChange={setUnit}>
+              <Listbox.Button className="w-full p-2 text-left bg-gray-50">{unit || 'Select Unit'}</Listbox.Button>
+              <Listbox.Options className="max-h-40 overflow-auto">
+                {['ml', 'cl', 'l', 'mg', 'g', 'kg'].map((u) => (
+                  <Listbox.Option key={u} value={u} className="p-2 hover:bg-blue-100 cursor-pointer">
+                    {u}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </Listbox>
+            <button onClick={saveUnit} className="w-full p-2 bg-blue-500 text-white rounded-b hover:bg-blue-600">
+              Save
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  interface NutritionEntry {
+    ingredient: string;
+    value: string;
+    unit: string;
+  }
+
+  interface NutritionEntryProps {
+    field: string;
+    ingredients: string[];
+    maxLength: number;
+  }
+
+  const NutritionEntry = ({ field, ingredients, maxLength }: NutritionEntryProps) => {
+    const [entries, setEntries] = useState<NutritionEntry[]>([{ ingredient: '', value: '', unit: '' }]);
+
+    const addEntry = () => setEntries([...entries, { ingredient: '', value: '', unit: '' }]);
+    const removeEntry = (index: number) => {
+      if (entries.length > 1) setEntries(entries.filter((_, i) => i !== index));
+    };
+    const updateEntry = (index: number, key: keyof NutritionEntry, value: string) => {
+      const newEntries = [...entries];
+      newEntries[index][key] = value;
+      setEntries(newEntries);
+    };
+
+    useEffect(() => {
+      const results = entries
+        .filter(e => e.ingredient && e.value && e.unit)
+        .map(e => `${e.ingredient} ${e.value} ${e.unit}`)
+        .join(', ');
+      setDynamicFields({ ...dynamicFields, [field]: results });
+    }, [entries]);
+
+    return (
+      <div>
+        {entries.map((entry, index) => (
+          <div key={index} className="flex items-center gap-2 mb-2">
+            <Listbox
+              value={entry.ingredient}
+              onChange={(val: string) => updateEntry(index, 'ingredient', val)}
+            >
+              <Listbox.Button className="w-48 p-2 border rounded bg-gray-50">
+                {entry.ingredient || 'Ingredient'}
+              </Listbox.Button>
+              <Listbox.Options className="absolute mt-1 w-48 bg-white border rounded shadow-lg max-h-40 overflow-auto">
+                {ingredients.map((ing) => (
+                  <Listbox.Option key={ing} value={ing} className="p-2 hover:bg-blue-100 cursor-pointer">
+                    {ing}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </Listbox>
+            <input
+              type="text"
+              value={entry.value}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => updateEntry(index, 'value', e.target.value)}
+              placeholder="Value"
+              className="w-24 p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+            />
+            <Listbox
+              value={entry.unit}
+              onChange={(val: string) => updateEntry(index, 'unit', val)}
+            >
+              <Listbox.Button className="w-24 p-2 border rounded bg-gray-50">
+                {entry.unit || 'Unit'}
+              </Listbox.Button>
+              <Listbox.Options className="absolute mt-1 w-24 bg-white border rounded shadow-lg max-h-40 overflow-auto">
+                {['ml', 'cl', 'l', 'mg', 'g', 'kg'].map((u) => (
+                  <Listbox.Option key={u} value={u} className="p-2 hover:bg-blue-100 cursor-pointer">
+                    {u}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </Listbox>
+            <button onClick={() => removeEntry(index)} className="text-red-600 hover:text-red-800">
+              ✖
+            </button>
+          </div>
+        ))}
+        <button onClick={addEntry} className="p-2 bg-green-500 text-white rounded hover:bg-green-600">
+          + Add
+        </button>
+      </div>
+    );
+  };
+
+  interface FieldInputProps {
+    field: string;
+    rule: FieldRule;
+  }
+
+  const FieldInput = ({ field, rule }: FieldInputProps) => {
+    const { type, required, length, decimals, description, values } = rule || {
+      type: 'text',
+      required: false,
+      length: 255,
+      decimals: 0,
+      description: '',
+      values: []
+    };
+
+    const typeMapping: Record<string, string> = {
+      text: 'Texte',
+      numeric: 'Numérique',
+      multivalue: 'Valeurs multiples',
+      boolean: 'Oui/Non',
+      days: 'Nombre de jours',
+      dropdown: 'Liste déroulante',
+      date: 'Date'
+    };
+    const fieldTypeFr = typeMapping[type] || 'Texte';
+    const requiredStatus = required ? 'Obligatoire' : 'Facultatif';
+    let formatInfo = '';
+    if (type === 'text') formatInfo = `Maximum ${length} caractères`;
+    else if (type === 'numeric') formatInfo = field.toLowerCase() === 'gln' || field.toLowerCase() === 'gtin' ? 'Uniquement des chiffres (sans décimales)' : `Uniquement des chiffres, ${decimals} décimales maximum`;
+    else if (type === 'multivalue') formatInfo = `Valeurs séparées par des virgules, maximum ${length} caractères au total`;
+    else if (type === 'boolean') formatInfo = 'Sélectionnez Oui ou Non';
+    else if (type === 'days') formatInfo = 'Entrez un nombre de jours (0 à 999)';
+    else if (type === 'dropdown') formatInfo = 'Choisissez une option dans la liste';
+    else if (type === 'date') formatInfo = 'Sélectionnez une date (jj/mm/aaaa)';
+    const tooltip = `${description}\nType: ${fieldTypeFr}\nFormat: ${formatInfo}\nStatut: ${requiredStatus}`;
+
+    if (type === 'text') {
+      return (
+        <div className="group relative">
+          <input
+            type="text"
+            value={dynamicFields[field] || ''}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setDynamicFields({ ...dynamicFields, [field]: e.target.value.slice(0, length) })}
+            className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'numeric') {
+      return (
+        <div className="group relative">
+          <input
+            type="text"
+            value={dynamicFields[field] || ''}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              const value = e.target.value;
+              if ((field.toLowerCase() === 'gln' || field.toLowerCase() === 'gtin') && /^\d*$/.test(value)) {
+                setDynamicFields({ ...dynamicFields, [field]: value });
+              } else if (/^\d*\.?\d*$/.test(value)) {
+                const parts = value.split('.');
+                if (parts[1]?.length <= decimals) {
+                  setDynamicFields({ ...dynamicFields, [field]: value });
+                }
+              }
+            }}
+            className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'multivalue' && field.toLowerCase() === 'liste_des_ingredients') {
+      return (
+        <div className="group relative">
+          <TagEntry
+            field={field}
+            maxLength={length}
+            onTagAdded={(tag) => setIngredients([...ingredients, tag])}
+          />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'multivalue' && field.toLowerCase() === 'valeurs_nutritionnelles') {
+      return (
+        <div className="group relative">
+          <NutritionEntry field={field} ingredients={ingredients} maxLength={length} />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'multivalue') {
+      return (
+        <div className="group relative">
+          <TagEntry field={field} maxLength={length} />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'boolean') {
+      return (
+        <div className="group relative flex gap-4">
+          <label>
+            <input
+              type="radio"
+              name={field}
+              value="Oui"
+              checked={dynamicFields[field] === 'Oui'}
+              onChange={() => setDynamicFields({ ...dynamicFields, [field]: 'Oui' })}
+            /> Oui
+          </label>
+          <label>
+            <input
+              type="radio"
+              name={field}
+              value="Non"
+              checked={dynamicFields[field] === 'Non'}
+              onChange={() => setDynamicFields({ ...dynamicFields, [field]: 'Non' })}
+            /> Non
+          </label>
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'days') {
+      return (
+        <div className="group relative flex items-center gap-2">
+          <input
+            type="number"
+            min="0"
+            max="999"
+            value={dynamicFields[field] || ''}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setDynamicFields({ ...dynamicFields, [field]: e.target.value })}
+            className="w-24 p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+          />
+          <span>jours</span>
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'dropdown' && field.toLowerCase() === 'pays_origine') {
+      const [search, setSearch] = useState('');
+      const filteredCountries = countries.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+      return (
+        <div className="group relative flex items-center gap-2">
+          <Listbox
+            value={formData.pays_origine}
+            onChange={(val: string) => setFormData({ ...formData, pays_origine: val })}
+          >
+            <Listbox.Button className="w-64 p-2 border rounded bg-gray-50 flex justify-between items-center">
+              {formData.pays_origine || 'Select Country'}
+              <span>▼</span>
+            </Listbox.Button>
+            <Listbox.Options className="absolute mt-1 w-64 bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+              {filteredCountries.map((country) => (
+                <Listbox.Option key={country} value={country} className="p-2 hover:bg-blue-100 cursor-pointer">
+                  {country}
+                </Listbox.Option>
+              ))}
+            </Listbox.Options>
+          </Listbox>
+          <input
+            type="text"
+            value={search}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="w-32 p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'dropdown') {
+      return (
+        <div className="group relative">
+          <Listbox
+            value={dynamicFields[field] || ''}
+            onChange={(val: string) => setDynamicFields({ ...dynamicFields, [field]: val })}
+          >
+            <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+              {dynamicFields[field] || 'Select Option'}
+              <span>▼</span>
+            </Listbox.Button>
+            <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+              {(values || ['Sélectionner', 'Option 1', 'Option 2']).map((val) => (
+                <Listbox.Option key={val} value={val} className="p-2 hover:bg-blue-100 cursor-pointer">
+                  {val}
+                </Listbox.Option>
+              ))}
+            </Listbox.Options>
+          </Listbox>
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    } else if (type === 'date') {
+      return (
+        <div className="group relative">
+          <input
+            type="date"
+            value={dynamicFields[field] || ''}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setDynamicFields({ ...dynamicFields, [field]: e.target.value })}
+            className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="absolute hidden group-hover:block bg-yellow-100 text-gray-800 text-sm p-2 rounded shadow-lg -top-20 left-0 z-10">
+            {tooltip}
+          </span>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <h1 className="text-3xl font-bold text-indigo-900 mb-6 animate-pulse">🧱 PIM Generator</h1>
+      <div className="bg-white p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold text-indigo-900 mb-4">🧩 Classification du produit</h2>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <label className="w-48 text-gray-700 font-medium">🏷️ Segment:</label>
+            <Listbox value={formData.segment} onChange={updateFamilies}>
+              <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                {formData.segment || 'Select Segment'}
+                <span>▼</span>
+              </Listbox.Button>
+              <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                {segments.map((seg) => (
+                  <Listbox.Option key={seg} value={seg} className="p-2 hover:bg-blue-100 cursor-pointer">
+                    {seg}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </Listbox>
+          </div>
+          {formData.segment && (
+            <div className="flex items-center gap-4">
+              <label className="w-48 text-gray-700 font-medium">📂 Famille:</label>
+              <Listbox value={formData.family} onChange={updateClasses}>
+                <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                  {formData.family || 'Select Family'}
+                  <span>▼</span>
+                </Listbox.Button>
+                <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                  {families.map((fam) => (
+                    <Listbox.Option key={fam} value={fam} className="p-2 hover:bg-blue-100 cursor-pointer">
+                      {fam}
+                    </Listbox.Option>
+                  ))}
+                </Listbox.Options>
+              </Listbox>
+            </div>
+          )}
+          {formData.family && (
+            <div className="flex items-center gap-4">
+              <label className="w-48 text-gray-700 font-medium">🗂️ Classe:</label>
+              <Listbox value={formData.class} onChange={updateBricks}>
+                <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                  {formData.class || 'Select Class'}
+                  <span>▼</span>
+                </Listbox.Button>
+                <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                  {classes.map((cls) => (
+                    <Listbox.Option key={cls} value={cls} className="p-2 hover:bg-blue-100 cursor-pointer">
+                      {cls}
+                    </Listbox.Option>
+                  ))}
+                </Listbox.Options>
+              </Listbox>
+            </div>
+          )}
+          {formData.class && (
+            <div className="flex items-center gap-4">
+              <label className="w-48 text-gray-700 font-medium">🧱 Brick:</label>
+              <Listbox value={formData.brick} onChange={updateRayons}>
+                <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                  {formData.brick || 'Select Brick'}
+                  <span>▼</span>
+                </Listbox.Button>
+                <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                  {bricks.map((brk) => (
+                    <Listbox.Option key={brk} value={brk} className="p-2 hover:bg-blue-100 cursor-pointer">
+                      {brk}
+                    </Listbox.Option>
+                  ))}
+                </Listbox.Options>
+              </Listbox>
+            </div>
+          )}
+          {formData.brick && rayons.length > 0 && (
+            <div className="flex items-center gap-4">
+              <label className="w-48 text-gray-700 font-medium">🛒 Rayon:</label>
+              <Listbox
+                value={formData.rayon}
+                onChange={(val: string) => setFormData({ ...formData, rayon: val })}
+              >
+                <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                  {formData.rayon || 'Select Rayon'}
+                  <span>▼</span>
+                </Listbox.Button>
+                <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                  {rayons.map((ray) => (
+                    <Listbox.Option key={ray} value={ray} className="p-2 hover:bg-blue-100 cursor-pointer">
+                      {ray}
+                    </Listbox.Option>
+                  ))}
+                </Listbox.Options>
+              </Listbox>
+            </div>
+          )}
+        </div>
+
+        <h2 className="text-xl font-semibold text-indigo-900 mt-6 mb-4">🔍 Données d'identification</h2>
+        {['gln', 'gtin', 'marque', 'sous_marque', 'libelle_court', 'pays_origine'].map((field) => (
+          <div key={field} className="flex items-center gap-4 mb-4">
+            <label className="w-48 text-gray-700 font-medium capitalize">
+              {field === 'gln' ? '📍 GLN' :
+               field === 'gtin' ? '🔢 GTIN' :
+               field === 'pays_origine' ? '🌍 Pays d\'origine' : `🏷️ ${field.replace('_', ' ')}:`}
+            </label>
+            {field === 'pays_origine' ? (
+              <FieldInput field={field} rule={fieldRules[field] || { type: 'dropdown', required: true, length: 255, decimals: 0, description: '', values: [] }} />
+            ) : field === 'gln' || field === 'gtin' ? (
+              <input
+                type="text"
+                value={formData[field as keyof FormData]}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => /^\d*$/.test(e.target.value) && setFormData({ ...formData, [field]: e.target.value })}
+                className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+              />
+            ) : (
+              <input
+                type="text"
+                value={formData[field as keyof FormData]}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [field]: e.target.value })}
+                className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+              />
+            )}
+          </div>
+        ))}
+
+        <h2 className="text-xl font-semibold text-indigo-900 mt-6 mb-4">🔧 Données spécifiques du produit</h2>
+        {Object.entries(sections).map(([sectionName, section]) => (
+          <div key={sectionName} className="mb-4">
+            <button
+              onClick={() => setSections({ ...sections, [sectionName]: { ...section, collapsed: !section.collapsed } })}
+              className="w-full text-left p-4 bg-gray-100 text-indigo-900 font-semibold rounded flex items-center justify-between hover:bg-gray-200 transition"
+            >
+              <span>{sectionName}</span>
+              <span>{section.collapsed ? '▶' : '▼'}</span>
+            </button>
+            {!section.collapsed && (
+              <div className="p-4 bg-white rounded-b border">
+                {section.subsections ? (
+                  Object.entries(section.subsections).map(([subName, subFields]) => (
+                    <div key={subName} className="bg-blue-50 p-4 rounded mb-4">
+                      <h3 className="text-lg font-medium text-indigo-900 mb-2">📍 {subName}</h3>
+                      {subFields.map((field) => (
+                        <div key={field} className="flex items-center gap-4 mb-4">
+                          <label className="w-48 text-gray-700 font-medium capitalize">📋 {field.replace('_', ' ')}:</label>
+                          <FieldInput field={field} rule={fieldRules[field] || { type: 'text', required: false, length: 255, decimals: 0, description: '', values: [] }} />
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  section.fields.map((field) => (
+                    <div key={field} className="flex items-center gap-4 mb-4">
+                      <label className="w-48 text-gray-700 font-medium capitalize">📋 {field.replace('_', ' ')}:</label>
+                      <FieldInput field={field} rule={fieldRules[field] || { type: 'text', required: false, length: 255, decimals: 0, description: '', values: [] }} />
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {formData.segment.toLowerCase() === 'nourriture/boisson/tabac' && !isLogisticsComplete && (
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-indigo-900 mb-2">📏 Unité Logistique</h3>
+            <div className="flex items-center gap-4">
+              <Listbox value="" onChange={addHierarchy}>
+                <Listbox.Button className="w-64 p-2 border rounded bg-gray-50 flex justify-between items-center">
+                  Select Hierarchy
+                  <span>▼</span>
+                </Listbox.Button>
+                <Listbox.Options className="absolute mt-1 w-64 bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                  {hierarchyOptions.map((opt) => (
+                    <Listbox.Option key={opt} value={opt} className="p-2 hover:bg-blue-100 cursor-pointer">
+                      {opt}
+                    </Listbox.Option>
+                  ))}
+                </Listbox.Options>
+              </Listbox>
+              <button
+                onClick={() => {
+                  const selectElement = document.querySelector('select');
+                  if (selectElement) {
+                    addHierarchy(selectElement.value);
+                  }
+                }}
+                className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                ➕ Ajouter
+              </button>
+            </div>
+          </div>
+        )}
+
+        {hierarchyData.map((h, index) => (
+          <div key={index} className="mb-4">
+            <h3 className="text-xl font-semibold text-indigo-900 mb-4">📏 {h.level}</h3>
+            <div className="p-4 bg-white rounded border">
+              {h.fields.map((field) => (
+                <div key={field} className="flex items-center gap-4 mb-4">
+                  <label className="w-48 text-gray-700 font-medium capitalize">📋 {field.replace('_', ' ')}:</label>
+                  <FieldInput field={field} rule={fieldRules[field] || { type: 'text', required: false, length: 255, decimals: 0, description: '', values: [] }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={() => setShowCustomFieldModal(true)}
+            className="p-3 bg-blue-500 text-white rounded hover:bg-blue-600 transition transform hover:scale-105"
+          >
+            ➕ Ajouter un champ
+          </button>
+          <button
+            onClick={showTarifaireSection}
+            disabled={isLogisticsComplete}
+            className={`p-3 rounded text-white transition transform hover:scale-105 ${
+              isLogisticsComplete ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
+            }`}
+          >
+            ➡️ Suivant (Données tarifaires)
+          </button>
+        </div>
+
+        <button
+          onClick={generateProductSheet}
+          className="mt-6 w-full p-4 bg-indigo-900 text-white rounded hover:bg-indigo-800 transition transform hover:scale-105"
+        >
+          🚀 Générer la fiche produit
+        </button>
+      </div>
+
+      {showCustomFieldModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-xl font-semibold text-indigo-900 mb-4">Ajouter un champ personnalisé</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-700 font-medium">Section:</label>
+                <Listbox
+                  value={customField.section}
+                  onChange={(val: string) => setCustomField({ ...customField, section: val })}
+                >
+                  <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                    {customField.section || 'Select Section'}
+                    <span>▼</span>
+                  </Listbox.Button>
+                  <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                    {Object.keys(sections).map((sec) => (
+                      <Listbox.Option key={sec} value={sec} className="p-2 hover:bg-blue-100 cursor-pointer">
+                        {sec}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Listbox>
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium">Nom du champ:</label>
+                <input
+                  type="text"
+                  value={customField.title}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomField({ ...customField, title: e.target.value })}
+                  className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium">Type de champ:</label>
+                <Listbox
+                  value={customField.type}
+                  onChange={(val: string) => setCustomField({ ...customField, type: val })}
+                >
+                  <Listbox.Button className="w-full p-2 border rounded bg-gray-50 flex justify-between items-center">
+                    {customField.type}
+                    <span>▼</span>
+                  </Listbox.Button>
+                  <Listbox.Options className="absolute mt-1 w-full bg-white border rounded shadow-lg max-h-40 overflow-auto z-10">
+                    {['text', 'numeric', 'multivalue', 'boolean', 'days', 'dropdown', 'date'].map((type) => (
+                      <Listbox.Option key={type} value={type} className="p-2 hover:bg-blue-100 cursor-pointer">
+                        {type}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Listbox>
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium">Description:</label>
+                <input
+                  type="text"
+                  value={customField.description}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomField({ ...customField, description: e.target.value })}
+                  className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={customField.required}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomField({ ...customField, required: e.target.checked })}
+                  />
+                  Champ obligatoire
+                </label>
+              </div>
+              {['text', 'multivalue'].includes(customField.type) && (
+                <div>
+                  <label className="block text-gray-700 font-medium">Longueur max:</label>
+                  <input
+                    type="number"
+                    value={customField.length}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomField({ ...customField, length: parseInt(e.target.value) || 255 })}
+                    className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+              {customField.type === 'numeric' && (
+                <div>
+                  <label className="block text-gray-700 font-medium">Décimales:</label>
+                  <input
+                    type="number"
+                    value={customField.decimals}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomField({ ...customField, decimals: parseInt(e.target.value) || 0 })}
+                    className="w-full p-2 border rounded bg-gray-50 focus:bg-blue-50 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={addCustomField}
+                className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Ajouter
+              </button>
+              <button
+                onClick={() => setShowCustomFieldModal(false)}
+                className="p-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PIMGeneratorApp;

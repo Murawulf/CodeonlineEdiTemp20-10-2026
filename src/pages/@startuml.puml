@@ -1,0 +1,56 @@
+@startuml
+title Schéma de base de données : users.db & EntiteDb.db + autoris_profil
+
+' Entités
+entity "Entité" {
+  * id_entite : ENTIER <<PK>>
+  --
+  raison_sociale : TEXTE
+  gln : TEXTE
+  certicode : ENTIER
+  date_creation : TEXTE
+  pays : TEXTE
+  site : TEXTE
+  personne : TEXTE
+}
+
+entity "SegmentGPC" {
+  * code_segment : TEXTE <<PK>>
+  --
+  libelle_segment : TEXTE
+}
+
+entity "Entite_Segment" {
+  * id : ENTIER <<PK>>
+  --
+  id_entite : ENTIER <<FK>>
+  id_segment : TEXTE <<FK>>
+}
+
+entity "Utilisateurs" {
+  * id_utilisateur : ENTIER <<PK>>
+  --
+  email : TEXTE
+  mot_de_passe : TEXTE
+  certicode : TEXTE
+  nom_profil : TEXTE <<CONTRAINTE: ('Superviseur', 'Conseiller', 'Agent')>>
+  id_entite : ENTIER <<FK>>
+}
+
+entity "Autorisations_Profil" {
+  * id_autorisation : ENTIER <<PK>>
+  --
+  id_utilisateur : ENTIER <<FK>>
+  id_page : TEXTE
+  autorisation : TEXTE <<MULTIPLE: ('lister', 'modifier', 'supprimer', ...)>>
+  code_octal : ENTIER <<DROITS: 4=lecture, 2=écriture, 6=lecture/écriture>>
+  champ : TEXTE <<MULTI: champ:rw, autre:h, etc.>>
+}
+
+' Relations avec cardinalité
+Entite_Segment }o--|| Entité : "0..* segments pour 1 entité"
+Entite_Segment }o--|| SegmentGPC : "0..* liaisons vers 1 segment"
+Utilisateurs }o--|| Entité : "0..* utilisateurs pour 1 entité"
+Autorisations_Profil }o--|| Utilisateurs : "0..* autorisations pour 1 utilisateur"
+
+@enduml

@@ -1,0 +1,28 @@
+#!/usr/bin/expect -f
+set timeout 60
+set host "217.182.94.86"
+set user "Consultant"
+set password "A4b6xb1s*"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    -re "\[$#%>] " {
+        send "sudo kill -9 \$(sudo lsof -t -i:5001) 2>/dev/null || true\r"
+    }
+}
+expect {
+    "*?assword*" {
+        send "$password\r"
+        exp_continue
+    }
+    -re "\[$#%>] " {
+        send "pm2 restart codeonline-edi-tunisie && sleep 2 && pm2 logs codeonline-edi-tunisie --lines 20 --nostream\r"
+    }
+}
+expect -re "\[$#%>] "
+send "exit\r"
+expect eof

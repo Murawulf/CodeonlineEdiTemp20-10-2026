@@ -1,0 +1,202 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vue Modeles App</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React and ReactDOM -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <!-- Axios for HTTP requests -->
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    import { useState, useEffect } from 'react';
+    import axios from 'axios';
+
+    // Define types
+    interface FileData {
+      name: string;
+      brick: string;
+      rayon: string;
+      path: string;
+    }
+
+    const Card = ({ className, children }) => (
+      <div className={`bg-white shadow-md rounded-lg ${className}`}>{children}</div>
+    );
+
+    const CardHeader = ({ className, children }) => (
+      <div className={`p-4 ${className}`}>{children}</div>
+    );
+
+    const CardTitle = ({ className, children }) => (
+      <h2 className={`text-lg font-semibold ${className}`}>{children}</h2>
+    );
+
+    const CardContent = ({ className, children }) => (
+      <div className={`p-6 ${className}`}>{children}</div>
+    );
+
+    const VueModeles = () => {
+      const [files, setFiles] = useState<FileData[]>([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      // Fetch files from API
+      useEffect(() => {
+        const fetchFiles = async () => {
+          try {
+            const response = await axios.get('http://localhost:5000/api/modeles-files');
+            setFiles(response.data);
+          } catch (err) {
+            setError('Échec du chargement des fichiers: ' + (err.message || 'Erreur inconnue'));
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchFiles();
+        const interval = setInterval(fetchFiles, 5000); // Poll every 5 seconds
+        return () => clearInterval(interval); // Cleanup interval on unmount
+      }, []);
+
+      // Handle file download
+      const handleDownload = (file) => {
+        const link = document.createElement('a');
+        link.href = file.path;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      // Handle file edit (placeholder)
+      const handleEdit = (file) => {
+        alert(`Édition du fichier: ${file.name}`);
+        // Implement edit logic (e.g., open a modal or redirect)
+      };
+
+      // Handle file delete
+      const handleDelete = async (file) => {
+        if (window.confirm(`Voulez-vous vraiment supprimer ${file.name} ?`)) {
+          try {
+            await axios.delete(`http://localhost:5000/api/modeles-files/${file.name}`);
+            setFiles(files.filter(f => f.name !== file.name));
+            alert(`Fichier ${file.name} supprimé.`);
+          } catch (err) {
+            setError('Échec de la suppression du fichier: ' + (err.message || 'Erreur inconnue'));
+          }
+        }
+      };
+
+      if (loading) return <div className="text-center p-4">Chargement...</div>;
+      if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
+
+      return (
+        <div className="bg-gray-50 min-h-screen p-6 font-sans">
+          <Card className="shadow-lg border border-gray-200 rounded-lg">
+            <CardHeader className="bg-blue-50">
+              <CardTitle className="text-blue-900 flex items-center">📂 Liste des Modèles Fiches Produits</CardTitle>
+            </CardHeader>
+            <CardContent className="bg-white p-6">
+              <div className="max-h-[500px] overflow-y-auto">
+                {files.length === 0 ? (
+                  <p className="text-gray-500">Aucune fiche produit trouvée.</p>
+                ) : (
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="border p-2 bg-gray-100 text-left">Nom du fichier</th>
+                        <th className="border p-2 bg-gray-100 text-left">Brick</th>
+                        <th className="border p-2 bg-gray-100 text-left">Rayon</th>
+                        <th className="border p-2 bg-gray-100 text-left">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {files.map(file => (
+                        <tr key={file.name}>
+                          <td className="border p-2">{file.name}</td>
+                          <td className="border p-2">{file.brick}</td>
+                          <td className="border p-2">{file.rayon}</td>
+                          <td className="border p-2 flex gap-2">
+                            <button
+                              onClick={() => handleDownload(file)}
+                              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            >
+                              Télécharger
+                            </button>
+                            <button
+                              onClick={() => handleEdit(file)}
+                              className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                            >
+                              Éditer
+                            </button>
+                            <button
+                              onClick={() => handleDelete(file)}
+                              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                            >
+                              Supprimer
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    };
+
+    // Render the app
+    ReactDOM.render(<VueModeles />, document.getElementById('root'));
+  </script>

@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 20
+set host "217.182.94.86"
+set user "Consultant"
+set password "A4b6xb1s*"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    -re "\[$#%>] " {
+        send "grep 'Error: Cannot find module' /var/www/Edi-dev/logs/pm2-error.log | tail -n 5\r"
+    }
+}
+expect -re "\[$#%>] "
+send "exit\r"
+expect eof

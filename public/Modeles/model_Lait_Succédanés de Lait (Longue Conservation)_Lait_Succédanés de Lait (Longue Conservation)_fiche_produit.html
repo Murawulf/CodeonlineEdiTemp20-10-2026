@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fiche Produit - Lait/Succédanés de Lait (Longue Conservation)_Lait/Succédanés de Lait (Longue Conservation)_fiche_produit</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #1e3a8a; }
+    h2 { color: #1e40af; }
+    .section { margin-bottom: 20px; border: 1px solid #e5e7eb; padding: 10px; border-radius: 5px; }
+    .field { margin: 5px 0; }
+    .field-label { font-weight: bold; }
+    button { padding: 5px 10px; background-color: #3b82f6; color: white; border: none; border-radius: 3px; cursor: pointer; }
+    button:hover { background-color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Fiche Produit</h1>
+  
+      <div class="section">
+        <h2>🔍 Données d'identification</h2>
+        
+          <div class="field"><span class="field-label">GLN:</span> </div>
+        
+          <div class="field"><span class="field-label">GTIN:</span> </div>
+        
+          <div class="field"><span class="field-label">marque:</span> </div>
+        
+          <div class="field"><span class="field-label">sous_marque:</span> </div>
+        
+          <div class="field"><span class="field-label">libelle_court:</span> </div>
+        
+          <div class="field"><span class="field-label">Pays d'origine:</span> Tunisia</div>
+        
+        
+      </div>
+    
+  <button onclick="exportToExcel()">Enregistrer en Excel</button>
+  <script>
+    function exportToExcel() {
+      const sections = {"🔍 Données d'identification":{"fields":["gln","gtin","marque","sous_marque","libelle_court","pays_origine"]},"📋 Information produit":{"fields":["libelle_produit","quantite_nette","unite_legale","liste_des_ingredients","declaration_des_allergenes","valeurs_nutritionnelles","nombre_de_portions","denomination_legale","conditions_de_conservation","etat_de_preparation","nom_de_l_exploitant","adresse_de_l_exploitant","mode_d_emploi","mentions_obligatoires_complementaires","produit_halal","argumentaire_produit","allegation_sante","allegation_nutritionnelle","libelle_internet","gpc","marche_cible","valeurs_nutritionnelles_100g","valeurs_nutritionnelles_a_la_portion","duree_vie_minimale_livraison","duree_vie_du_produit"]},"📦 Conditionnement & logistique":{"fields":["dimensions_hors_emballage_diff","emballage_retournable","type_emballage","date_debut_dispo_commande","duree_vie_minimale_livraison","duree_vie_du_produit","mesures_unite_commerciale","article_reapprovisionnable","unite_logistique","unite_commande","unite_facturable","produits_dangereux","produits_alimentaires","produits_saisonniers","produits_bio","vrac","produit_a_decouper"],"subsections":{}},"💰 Données tarifaires":{"fields":["fournisseur","type_de_marque","prix_unitaire","unite_legale","quantite_nette","libelle_internet","denomination_legale","nom_exploitant","adresse_exploitant","gpc","marche_cible","unite_consommateur","unite_logistique","unite_facturable","unite_commandable","produit_consigne","produit_a_decouper","produits_dangereux","produits_alimentaires","produits_saisonniers","dimensions_hors_emballage_diff","produits_bio","libelle_court","nom_fonctionnel","emballage_retournable","type_emballage","date_debut_disponibilite","duree_vie_minimale_livraison","duree_vie_du_produit","article_reapprovisionnable","type_de_taxe","code_nomenclature_douaniere"]}};
+      const data = Object.keys(sections).map(section => ({
+        Section: section,
+        Fields: sections[section].fields.join(', ') + (sections[section].subsections ? Object.values(sections[section].subsections).flat().join(', ') : '')
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Model");
+      XLSX.writeFile(wb, "Lait/Succédanés de Lait (Longue Conservation)_Lait/Succédanés de Lait (Longue Conservation)_fiche_produit.xlsx");
+    }
+  </script>
+</body>
+</html>
+    

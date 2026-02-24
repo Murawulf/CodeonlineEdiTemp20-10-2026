@@ -1,0 +1,21 @@
+#!/usr/bin/expect -f
+set timeout 60
+set host "217.182.94.86"
+set user "Consultant"
+set password "A4b6xb1s*"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    -re "\[$#%>] " {
+        send "cd /var/www/Edi-dev/backend && npm install date-fns exceljs xlsx && pm2 restart codeonline-edi-tunisie\r"
+    }
+}
+expect -re "\[$#%>] "
+send "pm2 logs codeonline-edi-tunisie --lines 20 --nostream\r"
+expect -re "\[$#%>] "
+send "exit\r"
+expect eof

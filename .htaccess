@@ -1,0 +1,20 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # ? Allow access to existing files and folders (images, logos, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # ? Allow API routes to bypass React router
+  RewriteCond %{REQUEST_URI} ^/api/ [NC]
+  RewriteRule ^ - [L]
+
+  # ? Allow backend static assets (logos, uploads, GED, etc.)
+  RewriteCond %{REQUEST_URI} ^/(logo_entite|uploads|ged|Modeles|public)/ [NC]
+  RewriteRule ^ - [L]
+
+  # ? Fallback to React router for all other requests
+  RewriteRule . /index.html [L]
+</IfModule>

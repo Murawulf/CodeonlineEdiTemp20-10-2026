@@ -1,0 +1,166 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Table</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div class="p-4">
+    <h2 class="text-lg font-semibold text-blue-900 mb-4">Liste des Fichiers HTML</h2>
+    <div id="file-table" class="max-h-[300px] overflow-y-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr>
+            <th class="border p-2 bg-gray-200 text-left">Nom du fichier</th>
+            <th class="border p-2 bg-gray-200 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="file-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-3xl">
+      <h2 class="text-xl font-bold mb-4">Éditer <span id="edit-file-name"></span></h2>
+      <textarea id="edit-file-content" class="w-full h-96 border p-2 rounded"></textarea>
+      <div className="flex gap-4 mt-4">
+        <button id="save-file" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Sauvegarder</button>
+        <button id="cancel-edit" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadFiles() {
+      try {
+        const response = await fetch('/Modeles/files.json');
+        if (!response.ok) throw new Error('Failed to fetch files.json');
+        const files = await response.json();
+        const tableBody = document.getElementById('file-table-body');
+        tableBody.innerHTML = '';
+
+        files.forEach(file => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="border p-2">${file.name}</td>
+            <td class="border p-2 flex gap-2">
+              <button onclick="downloadFile('${file.path}', '${file.name}')" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Télécharger</button>
+              <button onclick="editFile('${file.path}', '${file.name}')" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">Éditer</button>
+              <button onclick="deleteFile('${file.name}', '${file.path}')" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Supprimer</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Error loading files:', error);
+      }
+    }
+
+    function downloadFile(path, name) {
+      const link = document.createElement('a');
+      link.href = path;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    async function editFile(path, name) {
+      try {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error('Failed to fetch file content');
+        const content = await response.text();
+        document.getElementById('edit-file-name').textContent = name;
+        document.getElementById('edit-file-content').value = content;
+        document.getElementById('edit-modal').classList.remove('hidden');
+      } catch (error) {
+        console.error('Error loading file content:', error);
+      }
+    }
+
+    async function deleteFile(name, path) {
+      if (confirm(`Voulez-vous vraiment supprimer ${name} ?`)) {
+        try {
+          const response = await fetch('http://localhost:5000/api/delete-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+          });
+          if (!response.ok) throw new Error('Failed to delete file');
+          alert(`Fichier ${name} supprimé.`);
+          loadFiles(); // Refresh table
+        } catch (error) {
+          console.error('Error deleting file:', error);
+        }
+      }
+    }
+
+    document.getElementById('save-file').addEventListener('click', async () => {
+      const content = document.getElementById('edit-file-content').value;
+      const name = document.getElementById('edit-file-name').textContent;
+      try {
+        const response = await fetch('http://localhost:5000/api/save-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: `/Modeles/${name}`, content })
+        });
+        if (!response.ok) throw new Error('Failed to save file');
+        alert('Fichier sauvegardé avec succès.');
+        document.getElementById('edit-modal').classList.add('hidden');
+      } catch (error) {
+        console.error('Error saving file:', error);
+      }
+    });
+
+    document.getElementById('cancel-edit').addEventListener('click', () => {
+      document.getElementById('edit-modal').classList.add('hidden');
+    });
+
+    // Initial load and auto-refresh every 30 seconds
+    loadFiles();
+    setInterval(loadFiles, 30000);
+  </script>
+</body>
+</html>

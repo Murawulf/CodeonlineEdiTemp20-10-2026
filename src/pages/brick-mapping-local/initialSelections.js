@@ -1,0 +1,16001 @@
+{
+  "10000002": [
+    {
+      "CodeNmc": "23107.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO"
+    },
+    {
+      "CodeNmc": "23209.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / BIO"
+    },
+    {
+      "CodeNmc": "23810.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / BIO"
+    },
+    {
+      "CodeNmc": "231042.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / KIWI"
+    },
+    {
+      "CodeNmc": "232020.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES FRUITS / CONCOMBRE"
+    },
+    {
+      "CodeNmc": "23500.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRAIS EMBALLE / FRUITS A TRANSFORMER"
+    },
+    {
+      "CodeNmc": "23501.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRAIS EMBALLE / LEGUMES A TRANSFORMER"
+    },
+    {
+      "CodeNmc": "2320901.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / BIO / TOMATES / TOMATES-VRAC"
+    },
+    {
+      "CodeNmc": "23408.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS SECS, COQUES ET OLIVES / BIO"
+    },
+    {
+      "CodeNmc": "23404.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS SECS, COQUES ET OLIVES / CORBEILLE"
+    }
+  ],
+  "10000003": [
+    {
+      "CodeNmc": "23107.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO"
+    },
+    {
+      "CodeNmc": "23209.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / BIO"
+    },
+    {
+      "CodeNmc": "23810.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / BIO"
+    },
+    {
+      "CodeNmc": "231042.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / KIWI"
+    },
+    {
+      "CodeNmc": "232020.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES FRUITS / CONCOMBRE"
+    },
+    {
+      "CodeNmc": "23500.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRAIS EMBALLE / FRUITS A TRANSFORMER"
+    },
+    {
+      "CodeNmc": "23501.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRAIS EMBALLE / LEGUMES A TRANSFORMER"
+    },
+    {
+      "CodeNmc": "2320901.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / BIO / TOMATES / TOMATES-VRAC"
+    },
+    {
+      "CodeNmc": "23408.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS SECS, COQUES ET OLIVES / BIO"
+    },
+    {
+      "CodeNmc": "23404.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS SECS, COQUES ET OLIVES / CORBEILLE"
+    }
+  ],
+  "10000005": [
+    {
+      "CodeNmc": "23107.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO"
+    },
+    {
+      "CodeNmc": "23209.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / BIO"
+    },
+    {
+      "CodeNmc": "13406.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES"
+    },
+    {
+      "CodeNmc": "23810.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / BIO"
+    },
+    {
+      "CodeNmc": "134013.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / LEGUMES SECS / AUTRES"
+    },
+    {
+      "CodeNmc": "134011.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / LEGUMES SECS / HARICOTS"
+    },
+    {
+      "CodeNmc": "134010.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / LEGUMES SECS / LENTILLES"
+    },
+    {
+      "CodeNmc": "134031.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / PUREE / AUTRES LEGUMES"
+    },
+    {
+      "CodeNmc": "134060.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / CHAMPIGNONS"
+    },
+    {
+      "CodeNmc": "134066.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / POIS"
+    }
+  ],
+  "10000006": [
+    {
+      "CodeNmc": "23107.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO"
+    },
+    {
+      "CodeNmc": "23209.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / BIO"
+    },
+    {
+      "CodeNmc": "13406.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES"
+    },
+    {
+      "CodeNmc": "23810.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / BIO"
+    },
+    {
+      "CodeNmc": "134013.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / LEGUMES SECS / AUTRES"
+    },
+    {
+      "CodeNmc": "134011.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / LEGUMES SECS / HARICOTS"
+    },
+    {
+      "CodeNmc": "134010.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / LEGUMES SECS / LENTILLES"
+    },
+    {
+      "CodeNmc": "134031.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / PUREE / AUTRES LEGUMES"
+    },
+    {
+      "CodeNmc": "134060.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / CHAMPIGNONS"
+    },
+    {
+      "CodeNmc": "134066.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / POIS"
+    }
+  ],
+  "10000007": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    },
+    {
+      "CodeNmc": "3620519.0",
+      "LibelleNmc": "BRICO/AUTO / ELECTRICITE / EQUIPEMENT DOMOTIQUE / CONFORT / AUTRES PRODUITS NON CONNECTES"
+    },
+    {
+      "CodeNmc": "2150218.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / PATES PRESSEES NON CUITES / FRANCAISE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1220220.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE ELABOREE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1220190.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "8610400.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / CAFETIÈRE FILTRE / CLASSIQUE NON PROGRAMMABLE"
+    }
+  ],
+  "10000008": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    },
+    {
+      "CodeNmc": "3620519.0",
+      "LibelleNmc": "BRICO/AUTO / ELECTRICITE / EQUIPEMENT DOMOTIQUE / CONFORT / AUTRES PRODUITS NON CONNECTES"
+    },
+    {
+      "CodeNmc": "2150218.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / PATES PRESSEES NON CUITES / FRANCAISE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1220220.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE ELABOREE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1220190.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "8610400.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / CAFETIÈRE FILTRE / CLASSIQUE NON PROGRAMMABLE"
+    }
+  ],
+  "10000016": [
+    {
+      "CodeNmc": "24802.0",
+      "LibelleNmc": "POISSON / AUTRES / CODIFICATIONS SPECIFIQUES"
+    },
+    {
+      "CodeNmc": "24600.0",
+      "LibelleNmc": "POISSON / PRODUITS ELABORES TRAD / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2480000.0",
+      "LibelleNmc": "POISSON / AUTRES / DEMARQUES / DEMARQUES / DEMARQUES"
+    },
+    {
+      "CodeNmc": "2430005.0",
+      "LibelleNmc": "POISSON / COQUILLAGES TRAD / COQUILLAGES / MOULES / AUTRES"
+    },
+    {
+      "CodeNmc": "244030.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE / PRODUITS ELABORES / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    },
+    {
+      "CodeNmc": "241.0",
+      "LibelleNmc": "POISSON / CEPHALOPODE TRAD"
+    },
+    {
+      "CodeNmc": "243.0",
+      "LibelleNmc": "POISSON / COQUILLAGES TRAD"
+    },
+    {
+      "CodeNmc": "242.0",
+      "LibelleNmc": "POISSON / CRUSTACES TRAD"
+    },
+    {
+      "CodeNmc": "244.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE"
+    }
+  ],
+  "10000017": [
+    {
+      "CodeNmc": "24802.0",
+      "LibelleNmc": "POISSON / AUTRES / CODIFICATIONS SPECIFIQUES"
+    },
+    {
+      "CodeNmc": "24600.0",
+      "LibelleNmc": "POISSON / PRODUITS ELABORES TRAD / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2480000.0",
+      "LibelleNmc": "POISSON / AUTRES / DEMARQUES / DEMARQUES / DEMARQUES"
+    },
+    {
+      "CodeNmc": "2430005.0",
+      "LibelleNmc": "POISSON / COQUILLAGES TRAD / COQUILLAGES / MOULES / AUTRES"
+    },
+    {
+      "CodeNmc": "244030.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE / PRODUITS ELABORES / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    },
+    {
+      "CodeNmc": "241.0",
+      "LibelleNmc": "POISSON / CEPHALOPODE TRAD"
+    },
+    {
+      "CodeNmc": "243.0",
+      "LibelleNmc": "POISSON / COQUILLAGES TRAD"
+    },
+    {
+      "CodeNmc": "242.0",
+      "LibelleNmc": "POISSON / CRUSTACES TRAD"
+    },
+    {
+      "CodeNmc": "244.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE"
+    }
+  ],
+  "10000018": [
+    {
+      "CodeNmc": "24802.0",
+      "LibelleNmc": "POISSON / AUTRES / CODIFICATIONS SPECIFIQUES"
+    },
+    {
+      "CodeNmc": "24600.0",
+      "LibelleNmc": "POISSON / PRODUITS ELABORES TRAD / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2480000.0",
+      "LibelleNmc": "POISSON / AUTRES / DEMARQUES / DEMARQUES / DEMARQUES"
+    },
+    {
+      "CodeNmc": "2430005.0",
+      "LibelleNmc": "POISSON / COQUILLAGES TRAD / COQUILLAGES / MOULES / AUTRES"
+    },
+    {
+      "CodeNmc": "244030.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE / PRODUITS ELABORES / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2440013.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE / DECOUPE / CABILLAUD / FILET SAUVAGE"
+    },
+    {
+      "CodeNmc": "2480200.0",
+      "LibelleNmc": "POISSON / AUTRES / CODIFICATIONS SPECIFIQUES / CODIFICATIONS SPECIFIQUES / CODIFICATIONS SPECIFIQUES"
+    },
+    {
+      "CodeNmc": "2430006.0",
+      "LibelleNmc": "POISSON / COQUILLAGES TRAD / COQUILLAGES / MOULES / ANTI GASPI MOULES"
+    },
+    {
+      "CodeNmc": "2440309.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE / PRODUITS ELABORES / FABRICATION MAISON / ANTIGASPI FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2440290.0",
+      "LibelleNmc": "POISSON / FRAIS EMBALLE / CEPHALOPODE / ANTI GASPI CEPHALOPODE EMBALLE / ANTI GASPI CEPHALOPODE EMBALLE"
+    }
+  ],
+  "10000019": [
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "2310401.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / BANANE / BANANE - EMBALLE"
+    },
+    {
+      "CodeNmc": "2310400.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / BANANE / BANANE - VRAC"
+    },
+    {
+      "CodeNmc": "2310440.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / LITCHI / LITCHI - VRAC"
+    },
+    {
+      "CodeNmc": "2310430.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / MANGUE / MANGUE - VRAC"
+    },
+    {
+      "CodeNmc": "2310110.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS ROUGES / CERISES / CERISES - VRAC"
+    },
+    {
+      "CodeNmc": "2320800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES EXOTIQUES / AVOCAT / AVOCAT - VRAC"
+    },
+    {
+      "CodeNmc": "2320510.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES FEUILLES / ENDIVE / ENDIVE - VRAC"
+    }
+  ],
+  "10000020": [
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "2310401.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / BANANE / BANANE - EMBALLE"
+    },
+    {
+      "CodeNmc": "2310400.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / BANANE / BANANE - VRAC"
+    },
+    {
+      "CodeNmc": "2310440.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / LITCHI / LITCHI - VRAC"
+    },
+    {
+      "CodeNmc": "2310430.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / MANGUE / MANGUE - VRAC"
+    },
+    {
+      "CodeNmc": "2310110.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS ROUGES / CERISES / CERISES - VRAC"
+    },
+    {
+      "CodeNmc": "2320800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES EXOTIQUES / AVOCAT / AVOCAT - VRAC"
+    },
+    {
+      "CodeNmc": "2320510.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES FEUILLES / ENDIVE / ENDIVE - VRAC"
+    }
+  ],
+  "10000021": [
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "2310401.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / BANANE / BANANE - EMBALLE"
+    },
+    {
+      "CodeNmc": "2310400.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / BANANE / BANANE - VRAC"
+    },
+    {
+      "CodeNmc": "2310440.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / LITCHI / LITCHI - VRAC"
+    },
+    {
+      "CodeNmc": "2310430.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS EXOTIQUES / MANGUE / MANGUE - VRAC"
+    },
+    {
+      "CodeNmc": "2310110.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS ROUGES / CERISES / CERISES - VRAC"
+    },
+    {
+      "CodeNmc": "2320800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES EXOTIQUES / AVOCAT / AVOCAT - VRAC"
+    },
+    {
+      "CodeNmc": "2320510.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / LEGUMES / LEGUMES FEUILLES / ENDIVE / ENDIVE - VRAC"
+    }
+  ],
+  "10000025": [
+    {
+      "CodeNmc": "21004.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS"
+    },
+    {
+      "CodeNmc": "210041.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / BREBIS"
+    },
+    {
+      "CodeNmc": "210042.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / CHEVRE"
+    },
+    {
+      "CodeNmc": "2100414.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / BREBIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2100424.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / CHEVRE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2100404.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / SOJA / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130050.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / FRAIS / BIOLOGIQUE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130102.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / ECREME / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130122.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / ENTIER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130152.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / LAIT DE CROISSANCE / BIOLOGIQUE"
+    }
+  ],
+  "10000026": [
+    {
+      "CodeNmc": "21004.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS"
+    },
+    {
+      "CodeNmc": "210041.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / BREBIS"
+    },
+    {
+      "CodeNmc": "210042.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / CHEVRE"
+    },
+    {
+      "CodeNmc": "2100414.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / BREBIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2100424.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / CHEVRE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2100404.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / SOJA / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130050.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / FRAIS / BIOLOGIQUE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130102.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / ECREME / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130122.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / ENTIER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130152.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / LAIT DE CROISSANCE / BIOLOGIQUE"
+    }
+  ],
+  "10000027": [
+    {
+      "CodeNmc": "21004.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS"
+    },
+    {
+      "CodeNmc": "210041.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / BREBIS"
+    },
+    {
+      "CodeNmc": "210042.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / CHEVRE"
+    },
+    {
+      "CodeNmc": "2100414.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / BREBIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2100424.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / CHEVRE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2100404.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / LAIT ALTERNATIFS / SOJA / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130050.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / FRAIS / BIOLOGIQUE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130102.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / ECREME / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130122.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / ENTIER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2130152.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / LAIT DE CROISSANCE / BIOLOGIQUE"
+    }
+  ],
+  "10000028": [
+    {
+      "CodeNmc": "2150623.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE BREBIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150616.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE CHEVRE AFFINE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150607.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE CHEVRE FRAIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "215083000.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / PLATEAUX DE FROMAGES / BIOLOGIQUE / NON PRECISE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150690.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / ANTI GASPI FROMAGES DE CHEVRE ET BREBIS / ANTI GASPI FROMAGES DE CHEVRE ET BREBIS"
+    },
+    {
+      "CodeNmc": "2150790.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / ANTI GASPI FROMAGES ELABORES / ANTI GASPI FROMAGES ELABORES"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150322.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU APERITIF / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150311.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU BARQUETTE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150305.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU PORTION / BIOLOGIQUE"
+    }
+  ],
+  "10000029": [
+    {
+      "CodeNmc": "2150623.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE BREBIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150616.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE CHEVRE AFFINE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150607.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE CHEVRE FRAIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "215083000.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / PLATEAUX DE FROMAGES / BIOLOGIQUE / NON PRECISE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150690.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / ANTI GASPI FROMAGES DE CHEVRE ET BREBIS / ANTI GASPI FROMAGES DE CHEVRE ET BREBIS"
+    },
+    {
+      "CodeNmc": "2150790.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / ANTI GASPI FROMAGES ELABORES / ANTI GASPI FROMAGES ELABORES"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150322.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU APERITIF / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150311.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU BARQUETTE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150305.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU PORTION / BIOLOGIQUE"
+    }
+  ],
+  "10000030": [
+    {
+      "CodeNmc": "2150623.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE BREBIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150616.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE CHEVRE AFFINE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150607.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / FROMAGE DE CHEVRE FRAIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "215083000.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / PLATEAUX DE FROMAGES / BIOLOGIQUE / NON PRECISE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150690.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES DE CHEVRE ET BREBIS / ANTI GASPI FROMAGES DE CHEVRE ET BREBIS / ANTI GASPI FROMAGES DE CHEVRE ET BREBIS"
+    },
+    {
+      "CodeNmc": "2150790.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / ANTI GASPI FROMAGES ELABORES / ANTI GASPI FROMAGES ELABORES"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "2150322.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU APERITIF / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150311.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU BARQUETTE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2150305.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES FONDUS / FONDU PORTION / BIOLOGIQUE"
+    }
+  ],
+  "10000040": [
+    {
+      "CodeNmc": "157031.0",
+      "LibelleNmc": "PARAPHARMACIE / PHYTO AROMATHERAPIE / AROMATHERAPIE / HUILES VEGETALES ET ANIMALES"
+    },
+    {
+      "CodeNmc": "456000.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / ENGRAIS / ENGRAIS POUR PLANTES DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150025.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / HUILES DE MASSAGE HORS AMANDE DOUCE"
+    },
+    {
+      "CodeNmc": "130005001.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / HUILES / DE GRAINES / COLZA"
+    },
+    {
+      "CodeNmc": "130005003.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / HUILES / DE GRAINES / FRITURE"
+    },
+    {
+      "CodeNmc": "3631956.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR AUTO / ACCESSOIRE TECHNIQUE OU DE REMPLACEMENT / AUTRE"
+    },
+    {
+      "CodeNmc": "116042200.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / LIQUIDE / GELS ET SOLUTIONS HYDROALCOOLIQUES / 100ML OU MOINS"
+    },
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    },
+    {
+      "CodeNmc": "364000.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / PELLETS"
+    },
+    {
+      "CodeNmc": "100031.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE PLANTE"
+    }
+  ],
+  "10000041": [
+    {
+      "CodeNmc": "157031.0",
+      "LibelleNmc": "PARAPHARMACIE / PHYTO AROMATHERAPIE / AROMATHERAPIE / HUILES VEGETALES ET ANIMALES"
+    },
+    {
+      "CodeNmc": "1260031.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE / DECORS PATISSIERS / COMESTIBLES"
+    },
+    {
+      "CodeNmc": "1260030.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE / DECORS PATISSIERS / ACCESOIRES NON COMESTIBLES"
+    },
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    }
+  ],
+  "10000042": [
+    {
+      "CodeNmc": "1260031.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE / DECORS PATISSIERS / COMESTIBLES"
+    },
+    {
+      "CodeNmc": "1260030.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE / DECORS PATISSIERS / ACCESOIRES NON COMESTIBLES"
+    },
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    }
+  ],
+  "10000043": [
+    {
+      "CodeNmc": "12404.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "124040.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS ENFANTS"
+    },
+    {
+      "CodeNmc": "124041.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS FAMILIAUX"
+    },
+    {
+      "CodeNmc": "124043.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SAISONNIERE"
+    },
+    {
+      "CodeNmc": "124044.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SPECIALITE"
+    },
+    {
+      "CodeNmc": "125000.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / CONFISERIE DE SUCRE / PETITE CONFISERIE DE POCHE"
+    },
+    {
+      "CodeNmc": "124049.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / ANTI GASPI CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    }
+  ],
+  "10000044": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000045": [
+    {
+      "CodeNmc": "124010.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BARRES"
+    },
+    {
+      "CodeNmc": "124014.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / ROCHERS"
+    },
+    {
+      "CodeNmc": "124015.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / TURBINES"
+    },
+    {
+      "CodeNmc": "124002.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / TABLETTES DE CHOCOLAT / PREMIUM"
+    },
+    {
+      "CodeNmc": "124020.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CHOCOLATS SAISONNIER / BOITE DE CHOCOLAT"
+    },
+    {
+      "CodeNmc": "124011.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BOITAGES PERMANENTS"
+    },
+    {
+      "CodeNmc": "124012.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / CONCEPT ENFANTS"
+    },
+    {
+      "CodeNmc": "1240103.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BARRES / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1240142.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / ROCHERS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1240151.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / TURBINES / BIOLOGIQUE"
+    }
+  ],
+  "10000047": [
+    {
+      "CodeNmc": "12404.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "124040.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS ENFANTS"
+    },
+    {
+      "CodeNmc": "124041.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS FAMILIAUX"
+    },
+    {
+      "CodeNmc": "124043.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SAISONNIERE"
+    },
+    {
+      "CodeNmc": "124044.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SPECIALITE"
+    },
+    {
+      "CodeNmc": "125000.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / CONFISERIE DE SUCRE / PETITE CONFISERIE DE POCHE"
+    },
+    {
+      "CodeNmc": "124049.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / ANTI GASPI CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "124041700.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS FAMILIAUX / BIOLOGIQUE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "125009.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / CONFISERIE DE SUCRE / ANTI GASPI CONFISERIE DE SUCRE DESSERTS"
+    },
+    {
+      "CodeNmc": "124010.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BARRES"
+    }
+  ],
+  "10000048": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000049": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000050": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000051": [
+    {
+      "CodeNmc": "130004.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES"
+    },
+    {
+      "CodeNmc": "1300042.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1300040.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / COURANT"
+    },
+    {
+      "CodeNmc": "130004100.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / GASTRONOMIQUE / AUTRES"
+    },
+    {
+      "CodeNmc": "130004101.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / GASTRONOMIQUE / BALSAMIQUE"
+    },
+    {
+      "CodeNmc": "1300049.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / ANTI GASPI VINAIGRES"
+    },
+    {
+      "CodeNmc": "13000410201.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / GASTRONOMIQUE / CIDRE / > 50CL"
+    },
+    {
+      "CodeNmc": "13000410200.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / GASTRONOMIQUE / CIDRE / < 49CL"
+    },
+    {
+      "CodeNmc": "13000410501.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / GASTRONOMIQUE / XERES / > 50CL"
+    },
+    {
+      "CodeNmc": "13000410301.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / VINAIGRES / GASTRONOMIQUE / VIN ROUGE AROMATISE / > 50CL"
+    }
+  ],
+  "10000052": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "373033.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / GADGET DE CUISINE / THERMOMÈTRE"
+    },
+    {
+      "CodeNmc": "373011.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / USTENSILE PREPARATION CULINAIRE / EPLUCHEUR/RAPE/MOULIN"
+    },
+    {
+      "CodeNmc": "373012.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / USTENSILE PREPARATION CULINAIRE / ESSOREUSE/PASSOIRE"
+    },
+    {
+      "CodeNmc": "37101.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON / ÉQUIPEMENT DE LA CUISINE"
+    },
+    {
+      "CodeNmc": "373004.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / COUTEAU/DÉCOUPE / DÉCOUPE SPÉCIFIQUE FRUITS LÉGUMES"
+    },
+    {
+      "CodeNmc": "3730320.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / GADGET DE CUISINE / MINUTEUR/SABLIER / MINUTEUR/SABLIER"
+    },
+    {
+      "CodeNmc": "3730230.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / USTENSILE DE PATISSERIE / SIPHON/RECHARGE / SIPHON/RECHARGE"
+    },
+    {
+      "CodeNmc": "130008.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / SAUCE DE NAPPAGE"
+    },
+    {
+      "CodeNmc": "373060.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE / GADGET POUR OUVRIR / GADGET POUR OUVRIR"
+    }
+  ],
+  "10000054": [
+    {
+      "CodeNmc": "134053.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / SAUCES POUR FECULENTS / SAUCES A CUISINER"
+    },
+    {
+      "CodeNmc": "120033.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / PATE A TARTINER"
+    },
+    {
+      "CodeNmc": "1340534.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / SAUCES POUR FECULENTS / SAUCES A CUISINER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1200331.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / PATE A TARTINER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "86002.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / CAVE A VIN"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    },
+    {
+      "CodeNmc": "1300094.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / A SUPPRIMER - SAUCES A CUISINER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "442052.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A CARTOUCHE"
+    },
+    {
+      "CodeNmc": "442051.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A SABLE"
+    }
+  ],
+  "10000055": [
+    {
+      "CodeNmc": "37200.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE"
+    },
+    {
+      "CodeNmc": "86105.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON"
+    },
+    {
+      "CodeNmc": "88502.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON"
+    },
+    {
+      "CodeNmc": "372005.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE / AUTOCUISEUR"
+    },
+    {
+      "CodeNmc": "861050.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / FRITEUSE"
+    },
+    {
+      "CodeNmc": "861058.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / SPÉCIALITÉS"
+    },
+    {
+      "CodeNmc": "885020.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / DIRECTE"
+    },
+    {
+      "CodeNmc": "861054.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / GRILL VIANDE"
+    },
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "861053.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / PLAQUE POSABLE"
+    }
+  ],
+  "10000056": [
+    {
+      "CodeNmc": "37200.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE"
+    },
+    {
+      "CodeNmc": "86105.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON"
+    },
+    {
+      "CodeNmc": "88502.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON"
+    },
+    {
+      "CodeNmc": "372005.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE / AUTOCUISEUR"
+    },
+    {
+      "CodeNmc": "861050.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / FRITEUSE"
+    },
+    {
+      "CodeNmc": "861058.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / SPÉCIALITÉS"
+    },
+    {
+      "CodeNmc": "885020.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / DIRECTE"
+    },
+    {
+      "CodeNmc": "861054.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / GRILL VIANDE"
+    },
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "861053.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / PLAQUE POSABLE"
+    }
+  ],
+  "10000057": [
+    {
+      "CodeNmc": "37200.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE"
+    },
+    {
+      "CodeNmc": "86105.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON"
+    },
+    {
+      "CodeNmc": "88502.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON"
+    },
+    {
+      "CodeNmc": "372005.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE / AUTOCUISEUR"
+    },
+    {
+      "CodeNmc": "861050.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / FRITEUSE"
+    },
+    {
+      "CodeNmc": "861058.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / SPÉCIALITÉS"
+    },
+    {
+      "CodeNmc": "885020.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / DIRECTE"
+    },
+    {
+      "CodeNmc": "861054.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / GRILL VIANDE"
+    },
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "861053.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / PLAQUE POSABLE"
+    }
+  ],
+  "10000064": [
+    {
+      "CodeNmc": "25401.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PERSILLEE"
+    },
+    {
+      "CodeNmc": "25404.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE CUITE"
+    },
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "2000430.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / PATE ET RILLETTE / BIOLOGIQUE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "120033.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / PATE A TARTINER"
+    },
+    {
+      "CodeNmc": "3630212.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE DEPANNAGE / DEGRIPPANT / PATE GRAISSE"
+    },
+    {
+      "CodeNmc": "1200331.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / PATE A TARTINER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2020100.0",
+      "LibelleNmc": "PFLS / TRAITEUR / CHARCUTERIE PATISSIERE / CHARCUTERIE EN CROUTE / PATE EN CROUTE"
+    },
+    {
+      "CodeNmc": "2020390.0",
+      "LibelleNmc": "PFLS / TRAITEUR / PATE FRAICHE / ANTI GASPI PATE FRAICHE / ANTI GASPI PATE FRAICHE"
+    },
+    {
+      "CodeNmc": "2000490.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / PATE ET RILLETTE / ANTI GASPI PATE ET RILLETTE / ANTI GASPI PATE ET RILLETTE"
+    }
+  ],
+  "10000068": [
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "8850212.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8850215.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "8610511.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / 21-35 LITRES"
+    },
+    {
+      "CodeNmc": "888052102.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    },
+    {
+      "CodeNmc": "888052105.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "372005.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE / AUTOCUISEUR"
+    },
+    {
+      "CodeNmc": "860083.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / ENCASTRABLE / FOUR"
+    }
+  ],
+  "10000069": [
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "8850212.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8850215.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "8610511.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / 21-35 LITRES"
+    },
+    {
+      "CodeNmc": "1170010.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / EMBALLAGE ALIMENTAIRE / PAPIER CUISSON / PAPIER CUISSON"
+    },
+    {
+      "CodeNmc": "888052102.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    },
+    {
+      "CodeNmc": "888052105.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "372005.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE / AUTOCUISEUR"
+    }
+  ],
+  "10000104": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "132081.0",
+      "LibelleNmc": "EPICERIE SALEE / ANIMALERIE / BASSE COUR / ALIMENTS BASSE COUR"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    }
+  ],
+  "10000105": [
+    {
+      "CodeNmc": "12302.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE"
+    },
+    {
+      "CodeNmc": "12305.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / FILTRE"
+    },
+    {
+      "CodeNmc": "12301.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE"
+    },
+    {
+      "CodeNmc": "12300.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE TORREFIE"
+    },
+    {
+      "CodeNmc": "12304.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION"
+    },
+    {
+      "CodeNmc": "123024.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "123020.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / GRAIN"
+    },
+    {
+      "CodeNmc": "123023.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / LIQUIDE"
+    },
+    {
+      "CodeNmc": "123021.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / MOULUE"
+    },
+    {
+      "CodeNmc": "123022.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / SOLUBLE"
+    }
+  ],
+  "10000114": [
+    {
+      "CodeNmc": "861043.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / MOULIN À CAFÉ"
+    },
+    {
+      "CodeNmc": "8610430.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / MOULIN À CAFÉ / MOULIN À CAFÉ"
+    },
+    {
+      "CodeNmc": "861055.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MACHINE À PAIN"
+    },
+    {
+      "CodeNmc": "861041.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / MACHINE À DOSETTE"
+    },
+    {
+      "CodeNmc": "1170110.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / SAC POUBELLE / À POIGNÉES/BRETELLES / 20L"
+    },
+    {
+      "CodeNmc": "1170111.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / SAC POUBELLE / À POIGNÉES/BRETELLES / 30L"
+    },
+    {
+      "CodeNmc": "861070.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / SOIN DU LINGE / FER À REPASSER"
+    },
+    {
+      "CodeNmc": "861073.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / SOIN DU LINGE / MACHINE À COUDRE"
+    },
+    {
+      "CodeNmc": "8610350.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / APPAREIL CULINAIRE / HACHOIR / HACHOIR À VIANDE"
+    },
+    {
+      "CodeNmc": "8610813.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / HYGIENE / RASAGE MASCULIN / TONDEUSE À BARBE"
+    }
+  ],
+  "10000115": [
+    {
+      "CodeNmc": "12301.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE"
+    },
+    {
+      "CodeNmc": "123022.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / SOLUBLE"
+    },
+    {
+      "CodeNmc": "861043.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / MOULIN À CAFÉ"
+    },
+    {
+      "CodeNmc": "1230220.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / SOLUBLE / SOLUBLE"
+    },
+    {
+      "CodeNmc": "123010.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE / SOLUBLE PUR"
+    },
+    {
+      "CodeNmc": "123012.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE / CAPPUCCINO ET SPECIALITES"
+    },
+    {
+      "CodeNmc": "123011.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE / SOLUBLE + ADJONCTION"
+    },
+    {
+      "CodeNmc": "1230102.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE / SOLUBLE PUR / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1230101.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE / SOLUBLE PUR / DECAFEINE"
+    },
+    {
+      "CodeNmc": "1230100.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE / SOLUBLE PUR / NORMAL"
+    }
+  ],
+  "10000116": [
+    {
+      "CodeNmc": "10313.0",
+      "LibelleNmc": "LIQUIDES / VIN TRANQUILLE / VIN EN POCHE"
+    },
+    {
+      "CodeNmc": "1160712.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COLORATION / PERMANENTE / ALLEGEE EN AMONIAQUE"
+    },
+    {
+      "CodeNmc": "8610011.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / ASPIRATEUR / BALAI / 2 EN 1"
+    },
+    {
+      "CodeNmc": "2310703.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO / AGRUMES / CITRON VRAC"
+    },
+    {
+      "CodeNmc": "2310701.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO / AGRUMES / ORANGE- VRAC"
+    },
+    {
+      "CodeNmc": "1031301.0",
+      "LibelleNmc": "LIQUIDES / VIN TRANQUILLE / VIN EN POCHE / AOC / ROSE"
+    },
+    {
+      "CodeNmc": "1031302.0",
+      "LibelleNmc": "LIQUIDES / VIN TRANQUILLE / VIN EN POCHE / AOC / ROUGE"
+    },
+    {
+      "CodeNmc": "23409.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS SECS, COQUES ET OLIVES / CONCEPT VRAC"
+    },
+    {
+      "CodeNmc": "1170001.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / EMBALLAGE ALIMENTAIRE / FILM ÉTIRABLE / 2 EN 1"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    }
+  ],
+  "10000117": [
+    {
+      "CodeNmc": "133021.0",
+      "LibelleNmc": "EPICERIE SALEE / ENTREES / POTAGE / INSTANTANE"
+    },
+    {
+      "CodeNmc": "12304.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION"
+    },
+    {
+      "CodeNmc": "123051.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / FILTRE / A THE"
+    },
+    {
+      "CodeNmc": "123042.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "123041.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION / INFUSION"
+    },
+    {
+      "CodeNmc": "123040.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION / THE"
+    },
+    {
+      "CodeNmc": "138050.0",
+      "LibelleNmc": "EPICERIE SALEE / BABY FOOD / JUS ET BOISSONS / INSTANTANE"
+    },
+    {
+      "CodeNmc": "1230402.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION / THE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "123049.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION / ANTI GASPI THE INFUSION"
+    },
+    {
+      "CodeNmc": "123040003.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION / THE /  NOIR / ASSORTIMENT"
+    }
+  ],
+  "10000118": [
+    {
+      "CodeNmc": "861055.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MACHINE À PAIN"
+    },
+    {
+      "CodeNmc": "861041.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / MACHINE À DOSETTE"
+    },
+    {
+      "CodeNmc": "861043.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / MOULIN À CAFÉ"
+    },
+    {
+      "CodeNmc": "1170110.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / SAC POUBELLE / À POIGNÉES/BRETELLES / 20L"
+    },
+    {
+      "CodeNmc": "1170111.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / SAC POUBELLE / À POIGNÉES/BRETELLES / 30L"
+    },
+    {
+      "CodeNmc": "861070.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / SOIN DU LINGE / FER À REPASSER"
+    },
+    {
+      "CodeNmc": "861073.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / SOIN DU LINGE / MACHINE À COUDRE"
+    },
+    {
+      "CodeNmc": "8610350.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / APPAREIL CULINAIRE / HACHOIR / HACHOIR À VIANDE"
+    },
+    {
+      "CodeNmc": "8610813.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / HYGIENE / RASAGE MASCULIN / TONDEUSE À BARBE"
+    },
+    {
+      "CodeNmc": "8610812.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / HYGIENE / RASAGE MASCULIN / TONDEUSE À CHEVEUX"
+    }
+  ],
+  "10000119": [
+    {
+      "CodeNmc": "2310020.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / ORANGE / ORANGE DE TABLE - VRAC"
+    },
+    {
+      "CodeNmc": "2310703.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO / AGRUMES / CITRON VRAC"
+    },
+    {
+      "CodeNmc": "2310701.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO / AGRUMES / ORANGE- VRAC"
+    },
+    {
+      "CodeNmc": "23409.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS SECS, COQUES ET OLIVES / CONCEPT VRAC"
+    },
+    {
+      "CodeNmc": "23800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / SOUPES ET JUS DE LEGUMES"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "2310705.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / BIO / AGRUMES / PETITS AGRUMES VRAC"
+    }
+  ],
+  "10000134": [
+    {
+      "CodeNmc": "86002.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / CAVE A VIN"
+    },
+    {
+      "CodeNmc": "2310240.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / ABRICOT / ABRICOT - VRAC"
+    },
+    {
+      "CodeNmc": "2310250.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / PRUNE / PRUNE - VRAC"
+    },
+    {
+      "CodeNmc": "2310380.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A PEPINS / PASTEQUE / PASTEQUE - VRAC"
+    },
+    {
+      "CodeNmc": "2310330.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A PEPINS / POIRE / POIRE - VRAC"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    },
+    {
+      "CodeNmc": "2310030.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / ORANGE A JUS / ORANGE A JUS - VRAC"
+    },
+    {
+      "CodeNmc": "2310230.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / NECTARINE BLANCHE / NECTARINE BLANCHE - VRAC"
+    },
+    {
+      "CodeNmc": "2310220.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / NECTARINE JAUNE / NECTARINE JAUNE - VRAC"
+    }
+  ],
+  "10000137": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    }
+  ],
+  "10000138": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    }
+  ],
+  "10000139": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    }
+  ],
+  "10000142": [
+    {
+      "CodeNmc": "25129.0",
+      "LibelleNmc": "PFAS / TRAITEUR / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2512901.0",
+      "LibelleNmc": "PFAS / TRAITEUR / FABRICATION MAISON / PETITS PLATS DE VERONIQUE NATIONAL / STAND"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "25029.0",
+      "LibelleNmc": "PFAS / CHARCUTERIE / FABRICATION SUR PLACE"
+    },
+    {
+      "CodeNmc": "25419.0",
+      "LibelleNmc": "PFAS / FROMAGE / FABRICATION SUR PLACE"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "86010.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR"
+    },
+    {
+      "CodeNmc": "2512902.0",
+      "LibelleNmc": "PFAS / TRAITEUR / FABRICATION MAISON / PETITS PLATS DE VERONIQUE NATIONAL / ANTI GASPI NATIONAL"
+    }
+  ],
+  "10000143": [
+    {
+      "CodeNmc": "25129.0",
+      "LibelleNmc": "PFAS / TRAITEUR / FABRICATION MAISON"
+    },
+    {
+      "CodeNmc": "2512901.0",
+      "LibelleNmc": "PFAS / TRAITEUR / FABRICATION MAISON / PETITS PLATS DE VERONIQUE NATIONAL / STAND"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "25029.0",
+      "LibelleNmc": "PFAS / CHARCUTERIE / FABRICATION SUR PLACE"
+    },
+    {
+      "CodeNmc": "25419.0",
+      "LibelleNmc": "PFAS / FROMAGE / FABRICATION SUR PLACE"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "86010.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR"
+    },
+    {
+      "CodeNmc": "2512902.0",
+      "LibelleNmc": "PFAS / TRAITEUR / FABRICATION MAISON / PETITS PLATS DE VERONIQUE NATIONAL / ANTI GASPI NATIONAL"
+    }
+  ],
+  "10000144": [
+    {
+      "CodeNmc": "12302.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE"
+    },
+    {
+      "CodeNmc": "12305.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / FILTRE"
+    },
+    {
+      "CodeNmc": "12301.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE SOLUBLE"
+    },
+    {
+      "CodeNmc": "12300.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CAFE TORREFIE"
+    },
+    {
+      "CodeNmc": "12304.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / THE INFUSION"
+    },
+    {
+      "CodeNmc": "123024.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "123020.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / GRAIN"
+    },
+    {
+      "CodeNmc": "123023.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / LIQUIDE"
+    },
+    {
+      "CodeNmc": "123021.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / MOULUE"
+    },
+    {
+      "CodeNmc": "123022.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / CHICORE / SOLUBLE"
+    }
+  ],
+  "10000145": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    },
+    {
+      "CodeNmc": "2790600.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / DEMARQUE / DEMARQUE / DEMARQUE"
+    }
+  ],
+  "10000146": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    },
+    {
+      "CodeNmc": "2790600.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / DEMARQUE / DEMARQUE / DEMARQUE"
+    }
+  ],
+  "10000147": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    },
+    {
+      "CodeNmc": "2790600.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / DEMARQUE / DEMARQUE / DEMARQUE"
+    }
+  ],
+  "10000148": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    }
+  ],
+  "10000149": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    }
+  ],
+  "10000150": [
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "2000940.0",
+      "LibelleNmc": "PFLS / CHARCUTERIE / CHARCUTERIE CUISINEE / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "2150740.0",
+      "LibelleNmc": "CREMERIE / FROMAGES LS / FROMAGES ELABORES / BIOLOGIQUE / NON PRECISE"
+    },
+    {
+      "CodeNmc": "1180210.0",
+      "LibelleNmc": "DHP / ACCESSOIRES MENAGERS / GANT / NON JETABLE / NON JETABLE"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "120041.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / LAITS INDUSTRIELS / CONCENTRES NON SUCRES"
+    }
+  ],
+  "10000151": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    },
+    {
+      "CodeNmc": "456000.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / ENGRAIS / ENGRAIS POUR PLANTES DE LA MAISON"
+    }
+  ],
+  "10000152": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    },
+    {
+      "CodeNmc": "456000.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / ENGRAIS / ENGRAIS POUR PLANTES DE LA MAISON"
+    }
+  ],
+  "10000153": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "885009.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / PAPETERIE / PEINTURE - COLORIAGE"
+    },
+    {
+      "CodeNmc": "27701.0",
+      "LibelleNmc": "BOUCHERIE / PRODUITS INDUSTRIELS - FABRICATIONS MAISON / FABRICATIONS MAISON"
+    },
+    {
+      "CodeNmc": "27991.0",
+      "LibelleNmc": "BOUCHERIE / EMBALLAGE - CESSION - CODIFICATIONS SPECIFIQUES / ANTI GASPI"
+    },
+    {
+      "CodeNmc": "884036.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / LAVAGE - PROTECTION"
+    },
+    {
+      "CodeNmc": "2310010.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CITRON / CITRON - VRAC"
+    },
+    {
+      "CodeNmc": "2310040.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / CLEMENTINES / CLEMENTINES - VRAC"
+    },
+    {
+      "CodeNmc": "2310050.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / HYBRIDES / HYBRIDES - VRAC"
+    },
+    {
+      "CodeNmc": "884037.0",
+      "LibelleNmc": "BONNES AFFAIRES / BRICO AUTO / AUTO MOTO / EQUIPEMENT INTERIEUR - DESODORISANT"
+    },
+    {
+      "CodeNmc": "456000.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / ENGRAIS / ENGRAIS POUR PLANTES DE LA MAISON"
+    }
+  ],
+  "10000155": [
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "8850212.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8850215.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "8610511.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / 21-35 LITRES"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "888052102.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    },
+    {
+      "CodeNmc": "888052105.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    }
+  ],
+  "10000156": [
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "8850212.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8850215.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "8610511.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / 21-35 LITRES"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "888052102.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    },
+    {
+      "CodeNmc": "888052105.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    }
+  ],
+  "10000157": [
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "8850212.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8850215.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "8610511.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / 21-35 LITRES"
+    },
+    {
+      "CodeNmc": "1170010.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / EMBALLAGE ALIMENTAIRE / PAPIER CUISSON / PAPIER CUISSON"
+    },
+    {
+      "CodeNmc": "888052102.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    },
+    {
+      "CodeNmc": "888052105.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "372005.0",
+      "LibelleNmc": "MAISON / CUISSON / DIRECTE / AUTOCUISEUR"
+    }
+  ],
+  "10000158": [
+    {
+      "CodeNmc": "861051.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR"
+    },
+    {
+      "CodeNmc": "8850212.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8850215.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "8610511.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / 21-35 LITRES"
+    },
+    {
+      "CodeNmc": "1170010.0",
+      "LibelleNmc": "DHP / CONSOMMABLES / EMBALLAGE ALIMENTAIRE / PAPIER CUISSON / PAPIER CUISSON"
+    },
+    {
+      "CodeNmc": "888052102.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / COCOTTE"
+    },
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    },
+    {
+      "CodeNmc": "888052105.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / CUISSON / FOUR / MICRO ONDES"
+    },
+    {
+      "CodeNmc": "22101030001.0",
+      "LibelleNmc": "SURGELES / ACCOMPAGNEMENTS ET GARNITURES / POM. DE TERRE SURGELEES / FRITES / CUISSON AU FOUR COUPE ALLUMETTE / BIO / > 1KG"
+    }
+  ],
+  "10000159": [
+    {
+      "CodeNmc": "10105.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / CIDRE"
+    },
+    {
+      "CodeNmc": "10103.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / PANACHE"
+    },
+    {
+      "CodeNmc": "10501.0",
+      "LibelleNmc": "LIQUIDES / PRODUITS DU MONDE / BIERE"
+    },
+    {
+      "CodeNmc": "10101.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / BIERE SPECIALE"
+    },
+    {
+      "CodeNmc": "10102.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / BIERE SPECIALITE"
+    },
+    {
+      "CodeNmc": "10100.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / BIERE STANDARD"
+    },
+    {
+      "CodeNmc": "861111.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / BIÈRE"
+    },
+    {
+      "CodeNmc": "10104.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / BIERE SANS ALCOOL"
+    },
+    {
+      "CodeNmc": "101000.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / BIERE STANDARD / BOITE"
+    },
+    {
+      "CodeNmc": "1010522.0",
+      "LibelleNmc": "LIQUIDES / BIERE ET CIDRE / CIDRE / AUTRE / POIRE"
+    }
+  ],
+  "10000160": [
+    {
+      "CodeNmc": "122010.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / GATEAUX MOELLEUX"
+    },
+    {
+      "CodeNmc": "125011.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ"
+    },
+    {
+      "CodeNmc": "125012.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "1250112.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250122.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    },
+    {
+      "CodeNmc": "88804030402.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / BRICO AUTO / BRICOLAGE / PLOMBERIE SANITAIRE CHAUFFAGE / TRATEMENT DE L'EAU / SEL ADOUCISSEUR"
+    },
+    {
+      "CodeNmc": "88805080200.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / PAPETERIE / ECRITURE ET ACCESSOIRE ECRITURE / ARDOISE / TABLEAU / FEUTRE EFFACABLE A SEC / FEUTRE OU MARQUEUR EFFACABLE A SEC"
+    }
+  ],
+  "10000161": [
+    {
+      "CodeNmc": "122010.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / GATEAUX MOELLEUX"
+    },
+    {
+      "CodeNmc": "125011.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ"
+    },
+    {
+      "CodeNmc": "125012.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "1250112.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250122.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    },
+    {
+      "CodeNmc": "88804030402.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / BRICO AUTO / BRICOLAGE / PLOMBERIE SANITAIRE CHAUFFAGE / TRATEMENT DE L'EAU / SEL ADOUCISSEUR"
+    },
+    {
+      "CodeNmc": "88805080200.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / PAPETERIE / ECRITURE ET ACCESSOIRE ECRITURE / ARDOISE / TABLEAU / FEUTRE EFFACABLE A SEC / FEUTRE OU MARQUEUR EFFACABLE A SEC"
+    }
+  ],
+  "10000163": [
+    {
+      "CodeNmc": "2690100.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / CODIFICATIONS SPECIFIQUES / DATES COURTES / DATES COURTES / DATES COURTES"
+    },
+    {
+      "CodeNmc": "26704.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BISCUITERIE"
+    },
+    {
+      "CodeNmc": "26705.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOISSON"
+    },
+    {
+      "CodeNmc": "26700.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOULANGERIE"
+    },
+    {
+      "CodeNmc": "26706.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / FORMULE"
+    },
+    {
+      "CodeNmc": "26708.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / GALETTES"
+    },
+    {
+      "CodeNmc": "26702.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / PATISSERIE"
+    },
+    {
+      "CodeNmc": "26703.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / RESTAURATION RAPIDE"
+    },
+    {
+      "CodeNmc": "26701.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / VIENNOISERIE"
+    },
+    {
+      "CodeNmc": "26330.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VIENNOISERIE / BIO"
+    }
+  ],
+  "10000164": [
+    {
+      "CodeNmc": "2690100.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / CODIFICATIONS SPECIFIQUES / DATES COURTES / DATES COURTES / DATES COURTES"
+    },
+    {
+      "CodeNmc": "26704.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BISCUITERIE"
+    },
+    {
+      "CodeNmc": "26705.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOISSON"
+    },
+    {
+      "CodeNmc": "26700.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOULANGERIE"
+    },
+    {
+      "CodeNmc": "26706.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / FORMULE"
+    },
+    {
+      "CodeNmc": "26708.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / GALETTES"
+    },
+    {
+      "CodeNmc": "26702.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / PATISSERIE"
+    },
+    {
+      "CodeNmc": "26703.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / RESTAURATION RAPIDE"
+    },
+    {
+      "CodeNmc": "26701.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / VIENNOISERIE"
+    },
+    {
+      "CodeNmc": "26330.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VIENNOISERIE / BIO"
+    }
+  ],
+  "10000165": [
+    {
+      "CodeNmc": "2690100.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / CODIFICATIONS SPECIFIQUES / DATES COURTES / DATES COURTES / DATES COURTES"
+    },
+    {
+      "CodeNmc": "26704.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BISCUITERIE"
+    },
+    {
+      "CodeNmc": "26705.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOISSON"
+    },
+    {
+      "CodeNmc": "26700.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOULANGERIE"
+    },
+    {
+      "CodeNmc": "26706.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / FORMULE"
+    },
+    {
+      "CodeNmc": "26708.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / GALETTES"
+    },
+    {
+      "CodeNmc": "26702.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / PATISSERIE"
+    },
+    {
+      "CodeNmc": "26703.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / RESTAURATION RAPIDE"
+    },
+    {
+      "CodeNmc": "26701.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / VIENNOISERIE"
+    },
+    {
+      "CodeNmc": "26330.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VIENNOISERIE / BIO"
+    }
+  ],
+  "10000166": [
+    {
+      "CodeNmc": "1200223.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PANIFICATION SECHE / PAIN BRAISE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1200233.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PANIFICATION SECHE / PAIN GRILLE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1200244.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PANIFICATION SECHE / PAIN SUEDOIS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "8610550.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MACHINE À PAIN / MACHINE À PAIN"
+    },
+    {
+      "CodeNmc": "8610461.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / GRILLE PAIN / LONGUES FENTES"
+    },
+    {
+      "CodeNmc": "8610460.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / PETIT DEJEUNER / GRILLE PAIN / TOASTER"
+    },
+    {
+      "CodeNmc": "120022.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PANIFICATION SECHE / PAIN BRAISE"
+    },
+    {
+      "CodeNmc": "120023.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PANIFICATION SECHE / PAIN GRILLE"
+    },
+    {
+      "CodeNmc": "120024.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PANIFICATION SECHE / PAIN SUEDOIS"
+    },
+    {
+      "CodeNmc": "861055.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MACHINE À PAIN"
+    }
+  ],
+  "10000167": [
+    {
+      "CodeNmc": "21100.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE"
+    },
+    {
+      "CodeNmc": "134061.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / HARICOTS BEURRE"
+    },
+    {
+      "CodeNmc": "2110005.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / DOUX 82% MG / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2110015.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / DEMI SEL 82% MG / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1340612.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / HARICOTS BEURRE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2110090.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / ANTI GASPI BEURRE / ANTI GASPI BEURRE"
+    },
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    }
+  ],
+  "10000168": [
+    {
+      "CodeNmc": "21100.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE"
+    },
+    {
+      "CodeNmc": "134061.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / HARICOTS BEURRE"
+    },
+    {
+      "CodeNmc": "2110005.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / DOUX 82% MG / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2110015.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / DEMI SEL 82% MG / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1340612.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / HARICOTS BEURRE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2110090.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / ANTI GASPI BEURRE / ANTI GASPI BEURRE"
+    },
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    }
+  ],
+  "10000169": [
+    {
+      "CodeNmc": "21100.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE"
+    },
+    {
+      "CodeNmc": "134061.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / HARICOTS BEURRE"
+    },
+    {
+      "CodeNmc": "2110005.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / DOUX 82% MG / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2110015.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / DEMI SEL 82% MG / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1340612.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES / HARICOTS BEURRE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "2110090.0",
+      "LibelleNmc": "CREMERIE / CORPS GRAS / BEURRE / ANTI GASPI BEURRE / ANTI GASPI BEURRE"
+    },
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    }
+  ],
+  "10000170": [
+    {
+      "CodeNmc": "122010.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / GATEAUX MOELLEUX"
+    },
+    {
+      "CodeNmc": "125011.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ"
+    },
+    {
+      "CodeNmc": "125012.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "1250112.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250122.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    },
+    {
+      "CodeNmc": "88804030402.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / BRICO AUTO / BRICOLAGE / PLOMBERIE SANITAIRE CHAUFFAGE / TRATEMENT DE L'EAU / SEL ADOUCISSEUR"
+    },
+    {
+      "CodeNmc": "88805080200.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / PAPETERIE / ECRITURE ET ACCESSOIRE ECRITURE / ARDOISE / TABLEAU / FEUTRE EFFACABLE A SEC / FEUTRE OU MARQUEUR EFFACABLE A SEC"
+    }
+  ],
+  "10000171": [
+    {
+      "CodeNmc": "122010.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / GATEAUX MOELLEUX"
+    },
+    {
+      "CodeNmc": "125011.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ"
+    },
+    {
+      "CodeNmc": "125012.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "1250112.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250122.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    },
+    {
+      "CodeNmc": "88804030402.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / BRICO AUTO / BRICOLAGE / PLOMBERIE SANITAIRE CHAUFFAGE / TRATEMENT DE L'EAU / SEL ADOUCISSEUR"
+    },
+    {
+      "CodeNmc": "88805080200.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / PAPETERIE / ECRITURE ET ACCESSOIRE ECRITURE / ARDOISE / TABLEAU / FEUTRE EFFACABLE A SEC / FEUTRE OU MARQUEUR EFFACABLE A SEC"
+    }
+  ],
+  "10000172": [
+    {
+      "CodeNmc": "122010.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / GATEAUX MOELLEUX"
+    },
+    {
+      "CodeNmc": "125011.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ"
+    },
+    {
+      "CodeNmc": "125012.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE"
+    },
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "1250112.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX RIZ / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250122.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / GATEAUX SEMOULE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    },
+    {
+      "CodeNmc": "88804030402.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / BRICO AUTO / BRICOLAGE / PLOMBERIE SANITAIRE CHAUFFAGE / TRATEMENT DE L'EAU / SEL ADOUCISSEUR"
+    },
+    {
+      "CodeNmc": "88805080200.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / MAISON / PAPETERIE / ECRITURE ET ACCESSOIRE ECRITURE / ARDOISE / TABLEAU / FEUTRE EFFACABLE A SEC / FEUTRE OU MARQUEUR EFFACABLE A SEC"
+    }
+  ],
+  "10000177": [
+    {
+      "CodeNmc": "2310240.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / ABRICOT / ABRICOT - VRAC"
+    },
+    {
+      "CodeNmc": "2310250.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / PRUNE / PRUNE - VRAC"
+    },
+    {
+      "CodeNmc": "2310380.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A PEPINS / PASTEQUE / PASTEQUE - VRAC"
+    },
+    {
+      "CodeNmc": "2310330.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A PEPINS / POIRE / POIRE - VRAC"
+    },
+    {
+      "CodeNmc": "23500.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRAIS EMBALLE / FRUITS A TRANSFORMER"
+    },
+    {
+      "CodeNmc": "23501.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRAIS EMBALLE / LEGUMES A TRANSFORMER"
+    },
+    {
+      "CodeNmc": "44402.0",
+      "LibelleNmc": "LOISIRS / CYCLE ET MOBILITE / VEHICULE A COMBUSTION"
+    },
+    {
+      "CodeNmc": "444021.0",
+      "LibelleNmc": "LOISIRS / CYCLE ET MOBILITE / VEHICULE A COMBUSTION / QUAD"
+    },
+    {
+      "CodeNmc": "2310030.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / AGRUMES / ORANGE A JUS / ORANGE A JUS - VRAC"
+    },
+    {
+      "CodeNmc": "2310230.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / FRUITS / FRUITS A NOYAU / NECTARINE BLANCHE / NECTARINE BLANCHE - VRAC"
+    }
+  ],
+  "10000178": [
+    {
+      "CodeNmc": "122017.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / LES PRET A GARNIR"
+    },
+    {
+      "CodeNmc": "86002.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / CAVE A VIN"
+    },
+    {
+      "CodeNmc": "1260030.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE / DECORS PATISSIERS / ACCESOIRES NON COMESTIBLES"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    },
+    {
+      "CodeNmc": "25405.0",
+      "LibelleNmc": "PFAS / FROMAGE / PATE PRESSEE NON CUITE"
+    },
+    {
+      "CodeNmc": "20101140001.0",
+      "LibelleNmc": "PFLS / VOLAILLE / DINDE / DECOUPES ESCALOPES / HALAL / NON PRECISE / > A 3"
+    },
+    {
+      "CodeNmc": "442052.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A CARTOUCHE"
+    },
+    {
+      "CodeNmc": "442051.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A SABLE"
+    },
+    {
+      "CodeNmc": "861055.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MACHINE À PAIN"
+    }
+  ],
+  "10000179": [
+    {
+      "CodeNmc": "122017.0",
+      "LibelleNmc": "EPICERIE SUCREE / BISCUITS PATISSERIE / PATISSERIE TRADITIONNELLE / LES PRET A GARNIR"
+    },
+    {
+      "CodeNmc": "86002.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / CAVE A VIN"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    },
+    {
+      "CodeNmc": "442052.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A CARTOUCHE"
+    },
+    {
+      "CodeNmc": "442051.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A SABLE"
+    },
+    {
+      "CodeNmc": "861055.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MACHINE À PAIN"
+    },
+    {
+      "CodeNmc": "13000.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE"
+    },
+    {
+      "CodeNmc": "12600.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE"
+    },
+    {
+      "CodeNmc": "44402.0",
+      "LibelleNmc": "LOISIRS / CYCLE ET MOBILITE / VEHICULE A COMBUSTION"
+    }
+  ],
+  "10000180": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000181": [
+    {
+      "CodeNmc": "26705.0",
+      "LibelleNmc": "BOULANGERIE-PATISSERIE / VENTES TRADITIONNELLES / BOISSON"
+    },
+    {
+      "CodeNmc": "10403.0",
+      "LibelleNmc": "LIQUIDES / VIN EFFERVESCENT / MOUSSEUX"
+    },
+    {
+      "CodeNmc": "10202.0",
+      "LibelleNmc": "LIQUIDES / BOISSON SANS ALCOOL / ENERGISANTE"
+    },
+    {
+      "CodeNmc": "104030.0",
+      "LibelleNmc": "LIQUIDES / VIN EFFERVESCENT / MOUSSEUX / AROMATISE"
+    },
+    {
+      "CodeNmc": "861113.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861111.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / BIÈRE"
+    },
+    {
+      "CodeNmc": "861112.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / CONSOMMABLES"
+    },
+    {
+      "CodeNmc": "861110.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / SODA"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "1040332.0",
+      "LibelleNmc": "LIQUIDES / VIN EFFERVESCENT / MOUSSEUX / AUTRES / AUTRE"
+    }
+  ],
+  "10000185": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000186": [
+    {
+      "CodeNmc": "88701180100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / ART DE LA TABLE SAISONNIER / BOUGIES/SENTEURS / BOUGIE PARFUMEE / BOUGIE SEULE"
+    },
+    {
+      "CodeNmc": "88701210003.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210002.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / GUIRLANDE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210001.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'EXTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210000.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / PROJECTEUR D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210004.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "88701210005.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / GUIRLANDE ELECTRIQUE / SILHOUETTE D'INTERIEUR / PICS"
+    },
+    {
+      "CodeNmc": "88701020100.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / APPLIQUE SUSPENSION PLAFONNIER"
+    },
+    {
+      "CodeNmc": "88701020108.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / AUTRES PROJECTEURS"
+    },
+    {
+      "CodeNmc": "88701020101.0",
+      "LibelleNmc": "BONNES AFFAIRES / MODE SAISONNIER / SAISONNIER MAISON JARDIN / DECORATION/MEUBLE/LUMINAIRE / LUMINAIRE / LUMINAIRE D'EXTERIEUR / BORNE ET POTEAU LUMINEUX"
+    }
+  ],
+  "10000187": [
+    {
+      "CodeNmc": "126005.0",
+      "LibelleNmc": "EPICERIE SUCREE / INGREDIENTS / AIDES A LA PATISSERIE / PATES D'AMANDES"
+    },
+    {
+      "CodeNmc": "120033.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / PATE A TARTINER"
+    },
+    {
+      "CodeNmc": "25107.0",
+      "LibelleNmc": "PFAS / TRAITEUR / PATES"
+    },
+    {
+      "CodeNmc": "1200331.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / PATE A TARTINER / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "86002.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / CAVE A VIN"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    },
+    {
+      "CodeNmc": "134022.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / PATES ALIMENTAIRES / AUTRES"
+    },
+    {
+      "CodeNmc": "134020.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / PATES ALIMENTAIRES / OEUFS"
+    },
+    {
+      "CodeNmc": "442052.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / FILTRE A CARTOUCHE"
+    }
+  ],
+  "10000188": [
+    {
+      "CodeNmc": "1160653.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / AUTRES"
+    },
+    {
+      "CodeNmc": "1160650.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / BRILLANTINE"
+    },
+    {
+      "CodeNmc": "1160651.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / CIRE"
+    },
+    {
+      "CodeNmc": "2100124.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / DESSERT / CREME DESSERT / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1160206.0",
+      "LibelleNmc": "DHP / PARFUMERIE / DEODORANT / FEMME / STICK CREME"
+    },
+    {
+      "CodeNmc": "1160500.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SOIN BEAUTE / DEPILATOIRE / CREME"
+    },
+    {
+      "CodeNmc": "153050.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / COIFFANT / GEL ET CREME"
+    },
+    {
+      "CodeNmc": "153020.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / SOINS / MASQUE ET CREME"
+    },
+    {
+      "CodeNmc": "1160431.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / SOLIDE / CREME"
+    },
+    {
+      "CodeNmc": "1160531.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SOIN BEAUTE / VISAGE / CREME HYDRATANTE"
+    }
+  ],
+  "10000189": [
+    {
+      "CodeNmc": "1160653.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / AUTRES"
+    },
+    {
+      "CodeNmc": "1160650.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / BRILLANTINE"
+    },
+    {
+      "CodeNmc": "1160651.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / CIRE"
+    },
+    {
+      "CodeNmc": "2100124.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / DESSERT / CREME DESSERT / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1160206.0",
+      "LibelleNmc": "DHP / PARFUMERIE / DEODORANT / FEMME / STICK CREME"
+    },
+    {
+      "CodeNmc": "1160500.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SOIN BEAUTE / DEPILATOIRE / CREME"
+    },
+    {
+      "CodeNmc": "153050.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / COIFFANT / GEL ET CREME"
+    },
+    {
+      "CodeNmc": "153020.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / SOINS / MASQUE ET CREME"
+    },
+    {
+      "CodeNmc": "1160431.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / SOLIDE / CREME"
+    },
+    {
+      "CodeNmc": "1160531.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SOIN BEAUTE / VISAGE / CREME HYDRATANTE"
+    }
+  ],
+  "10000190": [
+    {
+      "CodeNmc": "1160653.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / AUTRES"
+    },
+    {
+      "CodeNmc": "1160650.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / BRILLANTINE"
+    },
+    {
+      "CodeNmc": "1160651.0",
+      "LibelleNmc": "DHP / PARFUMERIE / COIFFANT / CREME / CIRE"
+    },
+    {
+      "CodeNmc": "2100124.0",
+      "LibelleNmc": "CREMERIE / ULTRA-FRAIS / DESSERT / CREME DESSERT / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1160206.0",
+      "LibelleNmc": "DHP / PARFUMERIE / DEODORANT / FEMME / STICK CREME"
+    },
+    {
+      "CodeNmc": "1160500.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SOIN BEAUTE / DEPILATOIRE / CREME"
+    },
+    {
+      "CodeNmc": "153050.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / COIFFANT / GEL ET CREME"
+    },
+    {
+      "CodeNmc": "153020.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / SOINS / MASQUE ET CREME"
+    },
+    {
+      "CodeNmc": "1160431.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / SOLIDE / CREME"
+    },
+    {
+      "CodeNmc": "1160531.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SOIN BEAUTE / VISAGE / CREME HYDRATANTE"
+    }
+  ],
+  "10000191": [
+    {
+      "CodeNmc": "125013.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / RIZ AU LAIT"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    },
+    {
+      "CodeNmc": "1250132.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / RIZ AU LAIT / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1150152.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / PETITE PUERICULTURE / SOIN DE LA MAMAN / TIRE LAIT"
+    },
+    {
+      "CodeNmc": "1160433.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / SOLIDE / LAIT"
+    },
+    {
+      "CodeNmc": "1150221.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / HYGIENE INFANTILE / TOILETTE / LAITS"
+    },
+    {
+      "CodeNmc": "151001.0",
+      "LibelleNmc": "PARAPHARMACIE / HYGIENE CORPORELLE / TOILETTE / LAIT ET CREME DE DOUCHE"
+    },
+    {
+      "CodeNmc": "123050.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / FILTRE / A CAFE"
+    },
+    {
+      "CodeNmc": "123051.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES / FILTRE / A THE"
+    },
+    {
+      "CodeNmc": "87700.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BAR A ONGLES"
+    }
+  ],
+  "10000192": [
+    {
+      "CodeNmc": "125013.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / RIZ AU LAIT"
+    },
+    {
+      "CodeNmc": "1250132.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER / RIZ AU LAIT / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    },
+    {
+      "CodeNmc": "1150152.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / PETITE PUERICULTURE / SOIN DE LA MAMAN / TIRE LAIT"
+    },
+    {
+      "CodeNmc": "1160433.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / SOLIDE / LAIT"
+    },
+    {
+      "CodeNmc": "1150221.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / HYGIENE INFANTILE / TOILETTE / LAITS"
+    },
+    {
+      "CodeNmc": "151001.0",
+      "LibelleNmc": "PARAPHARMACIE / HYGIENE CORPORELLE / TOILETTE / LAIT ET CREME DE DOUCHE"
+    },
+    {
+      "CodeNmc": "8860052.0",
+      "LibelleNmc": "BONNES AFFAIRES / TEXTILE PUERICULTURE / PETITE PUERICULTURE / SOIN DE LA MAMAN / TIRE LAIT"
+    },
+    {
+      "CodeNmc": "2130152.0",
+      "LibelleNmc": "CREMERIE / LAIT FRAIS ET LONGUE CONSERVATION / LONGUE CONSERVATION / LAIT DE CROISSANCE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "888060502.0",
+      "LibelleNmc": "BONNES AFFAIRES / TV ACHAT / TEXTILE PUERICULTURE / PETITE PUERICULTURE / SOIN DE LA MAMAN / TIRE LAIT"
+    }
+  ],
+  "10000193": [
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "12503.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "125030.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES / FAMILIALES"
+    },
+    {
+      "CodeNmc": "125031.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES / INDIVIDUELLES"
+    },
+    {
+      "CodeNmc": "11500.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / GROSSE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "11502.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / HYGIENE INFANTILE"
+    },
+    {
+      "CodeNmc": "11501.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / PETITE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    }
+  ],
+  "10000194": [
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "12503.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "125030.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES / FAMILIALES"
+    },
+    {
+      "CodeNmc": "125031.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES / INDIVIDUELLES"
+    },
+    {
+      "CodeNmc": "11500.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / GROSSE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "11502.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / HYGIENE INFANTILE"
+    },
+    {
+      "CodeNmc": "11501.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / PETITE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    }
+  ],
+  "10000195": [
+    {
+      "CodeNmc": "125022.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX"
+    },
+    {
+      "CodeNmc": "12503.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES"
+    },
+    {
+      "CodeNmc": "1250222.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER / PREPARATIONS POUR GATEAUX / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "125030.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES / FAMILIALES"
+    },
+    {
+      "CodeNmc": "125031.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / COMPOTES / INDIVIDUELLES"
+    },
+    {
+      "CodeNmc": "11500.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / GROSSE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "11502.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / HYGIENE INFANTILE"
+    },
+    {
+      "CodeNmc": "11501.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / PETITE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "12501.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A CONSOMMER"
+    },
+    {
+      "CodeNmc": "12502.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / DESSERTS A PREPARER"
+    }
+  ],
+  "10000196": [],
+  "10000197": [],
+  "10000199": [],
+  "10000200": [],
+  "10000201": [],
+  "10000202": [],
+  "10000203": [],
+  "10000204": [],
+  "10000205": [],
+  "10000206": [],
+  "10000207": [],
+  "10000210": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    }
+  ],
+  "10000211": [],
+  "10000212": [],
+  "10000213": [],
+  "10000214": [
+    {
+      "CodeNmc": "23.0",
+      "LibelleNmc": "FRUITS ET LEGUMES"
+    }
+  ],
+  "10000215": [],
+  "10000216": [],
+  "10000217": [],
+  "10000219": [],
+  "10000220": [],
+  "10000222": [
+    {
+      "CodeNmc": "23800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / SOUPES ET JUS DE LEGUMES"
+    }
+  ],
+  "10000223": [
+    {
+      "CodeNmc": "23800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / SOUPES ET JUS DE LEGUMES"
+    }
+  ],
+  "10000227": [],
+  "10000232": [],
+  "10000235": [],
+  "10000236": [],
+  "10000238": [],
+  "10000239": [],
+  "10000240": [],
+  "10000241": [],
+  "10000242": [],
+  "10000244": [],
+  "10000245": [],
+  "10000246": [],
+  "10000247": [],
+  "10000248": [],
+  "10000249": [],
+  "10000250": [],
+  "10000252": [],
+  "10000254": [],
+  "10000255": [],
+  "10000256": [],
+  "10000257": [],
+  "10000258": [],
+  "10000260": [],
+  "10000261": [],
+  "10000262": [],
+  "10000263": [],
+  "10000264": [],
+  "10000265": [],
+  "10000266": [],
+  "10000267": [],
+  "10000268": [],
+  "10000270": [],
+  "10000271": [],
+  "10000272": [],
+  "10000273": [],
+  "10000275": [
+    {
+      "CodeNmc": "10403.0",
+      "LibelleNmc": "LIQUIDES / VIN EFFERVESCENT / MOUSSEUX"
+    }
+  ],
+  "10000276": [
+    {
+      "CodeNmc": "103.0",
+      "LibelleNmc": "LIQUIDES / VIN TRANQUILLE"
+    }
+  ],
+  "10000277": [],
+  "10000278": [],
+  "10000279": [],
+  "10000280": [],
+  "10000281": [],
+  "10000282": [],
+  "10000283": [],
+  "10000284": [],
+  "10000285": [],
+  "10000286": [],
+  "10000287": [],
+  "10000288": [],
+  "10000289": [],
+  "10000290": [],
+  "10000291": [],
+  "10000292": [],
+  "10000293": [],
+  "10000294": [],
+  "10000295": [],
+  "10000296": [],
+  "10000297": [],
+  "10000298": [],
+  "10000299": [],
+  "10000300": [],
+  "10000301": [],
+  "10000302": [],
+  "10000303": [],
+  "10000304": [],
+  "10000305": [],
+  "10000306": [],
+  "10000307": [],
+  "10000308": [],
+  "10000309": [],
+  "10000310": [],
+  "10000311": [],
+  "10000312": [],
+  "10000313": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    }
+  ],
+  "10000314": [],
+  "10000315": [],
+  "10000316": [],
+  "10000317": [],
+  "10000318": [],
+  "10000319": [],
+  "10000320": [],
+  "10000321": [],
+  "10000324": [],
+  "10000327": [],
+  "10000328": [],
+  "10000329": [],
+  "10000330": [],
+  "10000332": [],
+  "10000333": [],
+  "10000334": [],
+  "10000335": [],
+  "10000336": [],
+  "10000337": [],
+  "10000338": [],
+  "10000340": [],
+  "10000341": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "105.0",
+      "LibelleNmc": "LIQUIDES / PRODUITS DU MONDE"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10000342": [],
+  "10000343": [],
+  "10000344": [],
+  "10000345": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "15304.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / COLORATION"
+    }
+  ],
+  "10000346": [],
+  "10000348": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000349": [],
+  "10000350": [],
+  "10000355": [],
+  "10000356": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "87701.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / LA POSTE"
+    }
+  ],
+  "10000358": [],
+  "10000359": [],
+  "10000360": [],
+  "10000361": [],
+  "10000362": [],
+  "10000363": [],
+  "10000365": [],
+  "10000368": [],
+  "10000369": [],
+  "10000370": [],
+  "10000373": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "105.0",
+      "LibelleNmc": "LIQUIDES / PRODUITS DU MONDE"
+    }
+  ],
+  "10000374": [
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10000375": [],
+  "10000376": [],
+  "10000377": [],
+  "10000379": [],
+  "10000381": [],
+  "10000383": [],
+  "10000385": [],
+  "10000388": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000397": [],
+  "10000400": [],
+  "10000402": [],
+  "10000405": [],
+  "10000411": [],
+  "10000423": [],
+  "10000424": [],
+  "10000426": [],
+  "10000427": [
+    {
+      "CodeNmc": "113.0",
+      "LibelleNmc": "DHP / ENTRETIEN DU LINGE"
+    }
+  ],
+  "10000432": [],
+  "10000433": [],
+  "10000434": [],
+  "10000435": [],
+  "10000436": [],
+  "10000440": [],
+  "10000441": [],
+  "10000442": [],
+  "10000443": [],
+  "10000444": [],
+  "10000445": [
+    {
+      "CodeNmc": "113.0",
+      "LibelleNmc": "DHP / ENTRETIEN DU LINGE"
+    }
+  ],
+  "10000446": [],
+  "10000447": [],
+  "10000448": [],
+  "10000449": [],
+  "10000450": [],
+  "10000451": [],
+  "10000452": [],
+  "10000453": [],
+  "10000454": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000455": [],
+  "10000456": [],
+  "10000457": [],
+  "10000458": [],
+  "10000459": [],
+  "10000460": [],
+  "10000461": [],
+  "10000462": [],
+  "10000463": [],
+  "10000464": [],
+  "10000465": [
+    {
+      "CodeNmc": "130008.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE / SAUCE DE NAPPAGE"
+    }
+  ],
+  "10000466": [],
+  "10000467": [],
+  "10000468": [],
+  "10000474": [],
+  "10000481": [],
+  "10000482": [],
+  "10000483": [],
+  "10000484": [],
+  "10000485": [],
+  "10000486": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10000487": [],
+  "10000488": [],
+  "10000489": [],
+  "10000491": [],
+  "10000492": [],
+  "10000494": [],
+  "10000495": [],
+  "10000496": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000498": [],
+  "10000500": [],
+  "10000501": [],
+  "10000502": [],
+  "10000503": [],
+  "10000504": [],
+  "10000505": [],
+  "10000506": [],
+  "10000507": [],
+  "10000508": [],
+  "10000510": [],
+  "10000513": [],
+  "10000514": [],
+  "10000515": [],
+  "10000516": [],
+  "10000521": [],
+  "10000522": [],
+  "10000523": [],
+  "10000524": [],
+  "10000525": [],
+  "10000526": [],
+  "10000527": [],
+  "10000528": [],
+  "10000529": [],
+  "10000531": [],
+  "10000532": [],
+  "10000533": [],
+  "10000534": [],
+  "10000535": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000536": [],
+  "10000543": [],
+  "10000546": [],
+  "10000547": [],
+  "10000548": [],
+  "10000549": [],
+  "10000551": [],
+  "10000552": [],
+  "10000555": [],
+  "10000556": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000564": [],
+  "10000566": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000567": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000570": [],
+  "10000572": [],
+  "10000573": [],
+  "10000574": [],
+  "10000575": [],
+  "10000576": [],
+  "10000577": [],
+  "10000578": [],
+  "10000579": [],
+  "10000580": [],
+  "10000581": [],
+  "10000583": [],
+  "10000584": [],
+  "10000585": [],
+  "10000586": [],
+  "10000587": [],
+  "10000588": [],
+  "10000589": [],
+  "10000590": [],
+  "10000591": [],
+  "10000592": [],
+  "10000593": [],
+  "10000594": [],
+  "10000595": [
+    {
+      "CodeNmc": "8610510.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / MOINS DE 20 LITRES"
+    },
+    {
+      "CodeNmc": "8610512.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / CUISSON / MINI FOUR / PLUS DE 35 LITRES"
+    }
+  ],
+  "10000596": [],
+  "10000597": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000598": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000599": [],
+  "10000600": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000601": [],
+  "10000602": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "12404.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10000603": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "12404.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10000604": [],
+  "10000605": [],
+  "10000607": [],
+  "10000608": [],
+  "10000609": [],
+  "10000610": [],
+  "10000611": [],
+  "10000612": [],
+  "10000613": [],
+  "10000614": [
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "20301.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / HARENG, MORUE, ANCHOIS"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    }
+  ],
+  "10000615": [],
+  "10000616": [],
+  "10000617": [],
+  "10000618": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000619": [],
+  "10000620": [],
+  "10000621": [],
+  "10000622": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000623": [],
+  "10000624": [],
+  "10000626": [],
+  "10000627": [],
+  "10000628": [],
+  "10000629": [],
+  "10000630": [],
+  "10000631": [],
+  "10000634": [],
+  "10000635": [],
+  "10000637": [],
+  "10000638": [],
+  "10000639": [],
+  "10000640": [],
+  "10000641": [],
+  "10000643": [],
+  "10000647": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000648": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000649": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000650": [],
+  "10000651": [],
+  "10000652": [],
+  "10000653": [],
+  "10000654": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000657": [],
+  "10000658": [],
+  "10000659": [],
+  "10000660": [],
+  "10000661": [],
+  "10000662": [],
+  "10000663": [],
+  "10000664": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000666": [
+    {
+      "CodeNmc": "1160434.0",
+      "LibelleNmc": "DHP / PARFUMERIE / SAVON DE TOILETTE / SOLIDE / SOIN"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "442068.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ANALYSE"
+    },
+    {
+      "CodeNmc": "1140000.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER / ESSUIE-TOUT / BLANCS / 0-6 ROULEAUX"
+    },
+    {
+      "CodeNmc": "120032.0",
+      "LibelleNmc": "EPICERIE SUCREE / PETIT DEJEUNER / PRODUITS TARTINABLES / CREMES DE MARRON"
+    },
+    {
+      "CodeNmc": "23800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / SOUPES ET JUS DE LEGUMES"
+    },
+    {
+      "CodeNmc": "153010.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / APRES SHAMPOOING / TOUT TYPES DE CHEVEUX"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150040.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / PODOLOGIE / HYGIENE & SOIN"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    }
+  ],
+  "10000668": [],
+  "10000669": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000671": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "87700.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BAR A ONGLES"
+    }
+  ],
+  "10000672": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000673": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000674": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000675": [],
+  "10000676": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000677": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "153010.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / APRES SHAMPOOING / TOUT TYPES DE CHEVEUX"
+    }
+  ],
+  "10000678": [],
+  "10000679": [],
+  "10000680": [],
+  "10000681": [],
+  "10000682": [],
+  "10000683": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000684": [],
+  "10000685": [],
+  "10000686": [],
+  "10000687": [],
+  "10000688": [],
+  "10000689": [],
+  "10000690": [],
+  "10000694": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000696": [],
+  "10000697": [],
+  "10000698": [],
+  "10000699": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000700": [],
+  "10000701": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000702": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "36317.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / MATERIEL DE NETTOYAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10000703": [],
+  "10000704": [],
+  "10000709": [],
+  "10000710": [],
+  "10000712": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000713": [],
+  "10000714": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000715": [],
+  "10000716": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000717": [
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000719": [],
+  "10000721": [
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "150023.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AMINCISSANTS"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    }
+  ],
+  "10000722": [],
+  "10000723": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000728": [],
+  "10000730": [],
+  "10000731": [],
+  "10000736": [],
+  "10000737": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000738": [],
+  "10000740": [
+    {
+      "CodeNmc": "41.0",
+      "LibelleNmc": "PERMANENT TEXTILE"
+    }
+  ],
+  "10000741": [
+    {
+      "CodeNmc": "41.0",
+      "LibelleNmc": "PERMANENT TEXTILE"
+    }
+  ],
+  "10000742": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000743": [
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "456000.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / ENGRAIS / ENGRAIS POUR PLANTES DE LA MAISON"
+    }
+  ],
+  "10000744": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000745": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000746": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000747": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000749": [],
+  "10000754": [],
+  "10000758": [],
+  "10000759": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000760": [],
+  "10000761": [
+    {
+      "CodeNmc": "23800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / SOUPES ET JUS DE LEGUMES"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    },
+    {
+      "CodeNmc": "442069.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ET ACCESS HIVERNAGE"
+    },
+    {
+      "CodeNmc": "20300.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / SAUMON, TRUITE ET AUTRES POISSONS FUMES"
+    }
+  ],
+  "10000762": [],
+  "10000763": [],
+  "10000764": [],
+  "10000767": [],
+  "10000768": [],
+  "10000769": [],
+  "10000770": [],
+  "10000771": [],
+  "10000772": [],
+  "10000773": [],
+  "10000774": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000775": [],
+  "10000778": [],
+  "10000779": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000780": [],
+  "10000782": [],
+  "10000783": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000784": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000785": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000786": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000787": [],
+  "10000788": [],
+  "10000789": [],
+  "10000790": [],
+  "10000791": [],
+  "10000793": [],
+  "10000794": [],
+  "10000795": [],
+  "10000796": [],
+  "10000797": [],
+  "10000800": [],
+  "10000801": [],
+  "10000802": [],
+  "10000803": [],
+  "10000804": [],
+  "10000805": [],
+  "10000806": [],
+  "10000807": [],
+  "10000808": [],
+  "10000809": [],
+  "10000810": [
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "150040.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / PODOLOGIE / HYGIENE & SOIN"
+    },
+    {
+      "CodeNmc": "150011.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / SOIN DU VISAGE"
+    },
+    {
+      "CodeNmc": "150023.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AMINCISSANTS"
+    },
+    {
+      "CodeNmc": "150032.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / SOLAIRE / AUTOBRONZANT"
+    },
+    {
+      "CodeNmc": "150034.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / SOLAIRE / CAPILLAIRES"
+    },
+    {
+      "CodeNmc": "150033.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / SOLAIRE / MONOI"
+    },
+    {
+      "CodeNmc": "150030.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / SOLAIRE / PROTECTEUR"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    }
+  ],
+  "10000811": [],
+  "10000812": [
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    }
+  ],
+  "10000813": [],
+  "10000814": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10000820": [],
+  "10000821": [],
+  "10000822": [],
+  "10000823": [],
+  "10000827": [],
+  "10000828": [],
+  "10000829": [],
+  "10000830": [],
+  "10000831": [],
+  "10000832": [],
+  "10000833": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "153010.0",
+      "LibelleNmc": "PARAPHARMACIE / PRODUITS CAPILLAIRES / APRES SHAMPOOING / TOUT TYPES DE CHEVEUX"
+    }
+  ],
+  "10000834": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000835": [],
+  "10000838": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000841": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000843": [],
+  "10000844": [],
+  "10000846": [],
+  "10000847": [],
+  "10000848": [],
+  "10000849": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000850": [],
+  "10000851": [],
+  "10000852": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000853": [],
+  "10000854": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000855": [],
+  "10000856": [],
+  "10000857": [],
+  "10000858": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000859": [],
+  "10000860": [],
+  "10000861": [],
+  "10000862": [
+    {
+      "CodeNmc": "100031.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE PLANTE"
+    },
+    {
+      "CodeNmc": "100032.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE VIN"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    }
+  ],
+  "10000863": [],
+  "10000864": [],
+  "10000865": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000866": [],
+  "10000867": [],
+  "10000868": [],
+  "10000869": [],
+  "10000870": [],
+  "10000871": [],
+  "10000872": [],
+  "10000873": [],
+  "10000874": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000875": [],
+  "10000876": [],
+  "10000877": [],
+  "10000878": [],
+  "10000879": [],
+  "10000880": [],
+  "10000881": [],
+  "10000882": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000883": [],
+  "10000884": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000885": [],
+  "10000886": [],
+  "10000887": [],
+  "10000888": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000889": [],
+  "10000890": [],
+  "10000891": [],
+  "10000892": [],
+  "10000893": [],
+  "10000894": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000895": [],
+  "10000896": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10000897": [],
+  "10000898": [],
+  "10000899": [],
+  "10000900": [],
+  "10000901": [],
+  "10000902": [],
+  "10000903": [],
+  "10000904": [],
+  "10000905": [
+    {
+      "CodeNmc": "442068.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ANALYSE"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    },
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11102.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN SPECIFIQUE"
+    },
+    {
+      "CodeNmc": "11100.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN STANDARD"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "44206.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU"
+    }
+  ],
+  "10000906": [
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    },
+    {
+      "CodeNmc": "442068.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ANALYSE"
+    },
+    {
+      "CodeNmc": "456017.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / PRODUIT DE TRAITEMENT VEGETAUX / AUTRES PRODUITS DE TRAITEMENT"
+    },
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11102.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN SPECIFIQUE"
+    },
+    {
+      "CodeNmc": "11100.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN STANDARD"
+    },
+    {
+      "CodeNmc": "1110302.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / EPONGES / COMBINES / AUTRES"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    }
+  ],
+  "10000907": [],
+  "10000908": [],
+  "10000909": [],
+  "10000910": [],
+  "10000911": [],
+  "10000912": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10000914": [],
+  "10000915": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000916": [],
+  "10000917": [],
+  "10000918": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000919": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10000920": [],
+  "10000921": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000922": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10000923": [],
+  "10000925": [],
+  "10000926": [],
+  "10000927": [],
+  "10000928": [],
+  "10000933": [],
+  "10000934": [],
+  "10000935": [],
+  "10000936": [],
+  "10000937": [],
+  "10000938": [],
+  "10000939": [],
+  "10000940": [],
+  "10000941": [],
+  "10000942": [],
+  "10000943": [],
+  "10001070": [],
+  "10001071": [],
+  "10001074": [],
+  "10001076": [],
+  "10001077": [],
+  "10001078": [],
+  "10001079": [],
+  "10001080": [],
+  "10001081": [],
+  "10001082": [],
+  "10001083": [],
+  "10001084": [],
+  "10001085": [],
+  "10001086": [],
+  "10001087": [],
+  "10001088": [],
+  "10001089": [],
+  "10001090": [],
+  "10001091": [],
+  "10001092": [],
+  "10001093": [],
+  "10001095": [],
+  "10001096": [],
+  "10001097": [],
+  "10001099": [],
+  "10001100": [],
+  "10001101": [],
+  "10001102": [],
+  "10001103": [],
+  "10001104": [],
+  "10001105": [],
+  "10001107": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001108": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "11500.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / GROSSE PUERICULTURE"
+    },
+    {
+      "CodeNmc": "11502.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / HYGIENE INFANTILE"
+    },
+    {
+      "CodeNmc": "11501.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / PETITE PUERICULTURE"
+    }
+  ],
+  "10001109": [],
+  "10001110": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001111": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001112": [],
+  "10001113": [],
+  "10001114": [],
+  "10001115": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10001116": [],
+  "10001117": [],
+  "10001118": [],
+  "10001119": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001120": [],
+  "10001121": [],
+  "10001122": [],
+  "10001123": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10001124": [],
+  "10001125": [],
+  "10001126": [],
+  "10001127": [],
+  "10001128": [],
+  "10001129": [],
+  "10001130": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001131": [],
+  "10001132": [],
+  "10001133": [],
+  "10001134": [],
+  "10001135": [],
+  "10001136": [],
+  "10001137": [],
+  "10001138": [
+    {
+      "CodeNmc": "86409.0",
+      "LibelleNmc": "TECHNOLOGIE / INFORMATIQUE / LOGICIEL"
+    }
+  ],
+  "10001139": [],
+  "10001140": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10001141": [],
+  "10001142": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001143": [],
+  "10001144": [],
+  "10001145": [],
+  "10001146": [],
+  "10001147": [],
+  "10001148": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "862035.0",
+      "LibelleNmc": "TECHNOLOGIE / AUDIO / ACCESSOIRES AUDIO / JEUX DE LUMIERE"
+    }
+  ],
+  "10001149": [],
+  "10001150": [],
+  "10001151": [],
+  "10001152": [],
+  "10001153": [],
+  "10001154": [],
+  "10001155": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10001156": [],
+  "10001158": [],
+  "10001159": [],
+  "10001160": [],
+  "10001161": [],
+  "10001162": [],
+  "10001163": [],
+  "10001164": [],
+  "10001165": [],
+  "10001166": [],
+  "10001167": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10001168": [],
+  "10001169": [],
+  "10001170": [],
+  "10001171": [],
+  "10001172": [],
+  "10001173": [],
+  "10001174": [],
+  "10001177": [],
+  "10001178": [],
+  "10001181": [],
+  "10001182": [],
+  "10001183": [],
+  "10001184": [],
+  "10001185": [],
+  "10001186": [],
+  "10001188": [],
+  "10001189": [],
+  "10001190": [],
+  "10001191": [],
+  "10001192": [],
+  "10001193": [],
+  "10001194": [],
+  "10001196": [
+    {
+      "CodeNmc": "86504.0",
+      "LibelleNmc": "TECHNOLOGIE / TELEPHONIE / CARTE SIM"
+    },
+    {
+      "CodeNmc": "865040.0",
+      "LibelleNmc": "TECHNOLOGIE / TELEPHONIE / CARTE SIM / CARTE SIM"
+    }
+  ],
+  "10001197": [],
+  "10001198": [],
+  "10001199": [],
+  "10001200": [],
+  "10001201": [],
+  "10001202": [],
+  "10001203": [],
+  "10001204": [],
+  "10001205": [],
+  "10001206": [],
+  "10001207": [],
+  "10001208": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001209": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10001212": [],
+  "10001213": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10001214": [],
+  "10001215": [],
+  "10001216": [],
+  "10001217": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001218": [],
+  "10001220": [],
+  "10001221": [],
+  "10001222": [],
+  "10001223": [],
+  "10001224": [],
+  "10001225": [],
+  "10001226": [],
+  "10001228": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001229": [],
+  "10001230": [],
+  "10001231": [],
+  "10001232": [],
+  "10001233": [],
+  "10001234": [],
+  "10001235": [],
+  "10001236": [],
+  "10001241": [],
+  "10001242": [],
+  "10001243": [],
+  "10001245": [],
+  "10001246": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10001247": [],
+  "10001248": [],
+  "10001250": [
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001251": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10001252": [],
+  "10001253": [],
+  "10001254": [],
+  "10001255": [],
+  "10001256": [],
+  "10001257": [],
+  "10001258": [],
+  "10001259": [],
+  "10001260": [],
+  "10001261": [],
+  "10001262": [],
+  "10001263": [],
+  "10001264": [],
+  "10001265": [],
+  "10001266": [],
+  "10001267": [],
+  "10001268": [],
+  "10001269": [],
+  "10001270": [],
+  "10001272": [],
+  "10001273": [],
+  "10001275": [],
+  "10001276": [],
+  "10001277": [],
+  "10001278": [],
+  "10001280": [],
+  "10001281": [],
+  "10001283": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001286": [],
+  "10001287": [],
+  "10001288": [],
+  "10001289": [],
+  "10001292": [],
+  "10001295": [],
+  "10001297": [],
+  "10001298": [],
+  "10001299": [],
+  "10001300": [],
+  "10001302": [],
+  "10001304": [],
+  "10001305": [],
+  "10001306": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001308": [],
+  "10001309": [],
+  "10001311": [],
+  "10001312": [],
+  "10001313": [],
+  "10001314": [],
+  "10001316": [],
+  "10001318": [],
+  "10001320": [],
+  "10001321": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    }
+  ],
+  "10001322": [],
+  "10001323": [
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001325": [
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001362": [],
+  "10001363": [],
+  "10001364": [],
+  "10001365": [],
+  "10001366": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    }
+  ],
+  "10001367": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "862035.0",
+      "LibelleNmc": "TECHNOLOGIE / AUDIO / ACCESSOIRES AUDIO / JEUX DE LUMIERE"
+    },
+    {
+      "CodeNmc": "36317.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / MATERIEL DE NETTOYAGE"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "85001.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / CONSOLE DE SALON"
+    },
+    {
+      "CodeNmc": "13406.0",
+      "LibelleNmc": "EPICERIE SALEE / ACCOMPAGNEMENT / CONSERVES DE LEGUMES"
+    },
+    {
+      "CodeNmc": "13300.0",
+      "LibelleNmc": "EPICERIE SALEE / ENTREES / CONSERVES DE POISSONS"
+    }
+  ],
+  "10001370": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001375": [],
+  "10001377": [],
+  "10001379": [],
+  "10001380": [],
+  "10001382": [],
+  "10001383": [],
+  "10001384": [],
+  "10001385": [],
+  "10001386": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001387": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001388": [],
+  "10001389": [],
+  "10001390": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001391": [],
+  "10001392": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001400": [],
+  "10001401": [],
+  "10001402": [],
+  "10001403": [],
+  "10001404": [],
+  "10001405": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001406": [],
+  "10001407": [],
+  "10001408": [],
+  "10001409": [],
+  "10001410": [],
+  "10001411": [],
+  "10001412": [],
+  "10001413": [],
+  "10001414": [],
+  "10001416": [],
+  "10001417": [],
+  "10001418": [],
+  "10001419": [],
+  "10001420": [],
+  "10001421": [],
+  "10001422": [],
+  "10001423": [],
+  "10001424": [],
+  "10001425": [],
+  "10001426": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10001427": [],
+  "10001428": [],
+  "10001429": [],
+  "10001430": [],
+  "10001431": [],
+  "10001432": [],
+  "10001433": [],
+  "10001434": [],
+  "10001435": [],
+  "10001436": [],
+  "10001437": [],
+  "10001439": [],
+  "10001440": [],
+  "10001441": [
+    {
+      "CodeNmc": "85001.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / CONSOLE DE SALON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "85003.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / JEU CONSOLE DE SALON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    }
+  ],
+  "10001442": [
+    {
+      "CodeNmc": "85001.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / CONSOLE DE SALON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "85003.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / JEU CONSOLE DE SALON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    }
+  ],
+  "10001443": [],
+  "10001444": [],
+  "10001446": [],
+  "10001447": [],
+  "10001448": [],
+  "10001449": [],
+  "10001450": [],
+  "10001451": [],
+  "10001452": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10001455": [],
+  "10001456": [],
+  "10001457": [],
+  "10001458": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001459": [],
+  "10001460": [],
+  "10001462": [],
+  "10001463": [],
+  "10001464": [],
+  "10001465": [],
+  "10001466": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001467": [
+    {
+      "CodeNmc": "862.0",
+      "LibelleNmc": "TECHNOLOGIE / AUDIO"
+    }
+  ],
+  "10001468": [],
+  "10001469": [],
+  "10001470": [],
+  "10001472": [],
+  "10001475": [],
+  "10001476": [],
+  "10001477": [],
+  "10001478": [],
+  "10001479": [],
+  "10001480": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001482": [],
+  "10001483": [],
+  "10001484": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001485": [],
+  "10001486": [],
+  "10001487": [],
+  "10001489": [],
+  "10001490": [],
+  "10001491": [],
+  "10001492": [],
+  "10001493": [],
+  "10001494": [],
+  "10001495": [],
+  "10001496": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001498": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001499": [],
+  "10001501": [],
+  "10001502": [],
+  "10001504": [],
+  "10001505": [],
+  "10001506": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001507": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001508": [],
+  "10001510": [],
+  "10001511": [],
+  "10001512": [],
+  "10001513": [],
+  "10001514": [],
+  "10001515": [],
+  "10001516": [],
+  "10001517": [],
+  "10001518": [],
+  "10001519": [],
+  "10001520": [],
+  "10001521": [],
+  "10001522": [],
+  "10001523": [],
+  "10001524": [],
+  "10001525": [],
+  "10001526": [],
+  "10001527": [],
+  "10001528": [],
+  "10001529": [],
+  "10001530": [],
+  "10001531": [],
+  "10001532": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001533": [],
+  "10001534": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10001674": [],
+  "10001676": [],
+  "10001677": [],
+  "10001678": [],
+  "10001679": [],
+  "10001680": [],
+  "10001681": [],
+  "10001683": [],
+  "10001684": [],
+  "10001685": [],
+  "10001686": [],
+  "10001692": [],
+  "10001693": [],
+  "10001694": [],
+  "10001695": [],
+  "10001696": [],
+  "10001699": [],
+  "10001700": [],
+  "10001701": [],
+  "10001702": [],
+  "10001706": [],
+  "10001707": [],
+  "10001710": [],
+  "10001712": [],
+  "10001713": [],
+  "10001714": [],
+  "10001717": [],
+  "10001726": [],
+  "10001729": [],
+  "10001730": [],
+  "10001732": [],
+  "10001737": [],
+  "10001742": [],
+  "10001743": [],
+  "10001748": [],
+  "10001749": [],
+  "10001750": [],
+  "10001754": [],
+  "10001755": [],
+  "10001756": [],
+  "10001760": [],
+  "10001761": [],
+  "10001762": [],
+  "10001763": [],
+  "10001764": [],
+  "10001766": [],
+  "10001767": [],
+  "10001768": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001769": [],
+  "10001770": [],
+  "10001771": [],
+  "10001772": [],
+  "10001774": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001775": [],
+  "10001776": [],
+  "10001778": [],
+  "10001779": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001780": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001787": [],
+  "10001790": [],
+  "10001792": [],
+  "10001794": [],
+  "10001795": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10001796": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001797": [
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001798": [],
+  "10001805": [],
+  "10001806": [],
+  "10001807": [],
+  "10001809": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10001810": [],
+  "10001812": [],
+  "10001813": [],
+  "10001814": [],
+  "10001815": [],
+  "10001816": [],
+  "10001819": [],
+  "10001822": [],
+  "10001823": [],
+  "10001824": [],
+  "10001825": [],
+  "10001826": [],
+  "10001827": [],
+  "10001829": [],
+  "10001830": [],
+  "10001831": [],
+  "10001832": [],
+  "10001834": [],
+  "10001835": [],
+  "10001837": [],
+  "10001838": [],
+  "10001840": [],
+  "10001841": [],
+  "10001842": [],
+  "10001843": [],
+  "10001844": [],
+  "10001845": [],
+  "10001847": [],
+  "10001848": [],
+  "10001852": [],
+  "10001853": [],
+  "10001854": [],
+  "10001855": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001859": [],
+  "10001860": [],
+  "10001862": [],
+  "10001863": [],
+  "10001865": [],
+  "10001866": [],
+  "10001867": [],
+  "10001868": [],
+  "10001869": [],
+  "10001870": [],
+  "10001871": [],
+  "10001872": [],
+  "10001873": [],
+  "10001874": [],
+  "10001877": [],
+  "10001878": [],
+  "10001879": [],
+  "10001880": [],
+  "10001883": [],
+  "10001885": [],
+  "10001886": [],
+  "10001887": [],
+  "10001889": [],
+  "10001890": [],
+  "10001891": [],
+  "10001892": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001893": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001894": [],
+  "10001896": [],
+  "10001897": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001898": [],
+  "10001899": [],
+  "10001900": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001902": [],
+  "10001903": [],
+  "10001904": [
+    {
+      "CodeNmc": "443.0",
+      "LibelleNmc": "LOISIRS / SPORT"
+    }
+  ],
+  "10001905": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "443061.0",
+      "LibelleNmc": "LOISIRS / SPORT / SPORT DE GLISSE / SKI"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001907": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "443061.0",
+      "LibelleNmc": "LOISIRS / SPORT / SPORT DE GLISSE / SKI"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001909": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "443061.0",
+      "LibelleNmc": "LOISIRS / SPORT / SPORT DE GLISSE / SKI"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10001911": [],
+  "10001912": [],
+  "10001913": [],
+  "10001914": [],
+  "10001915": [],
+  "10001916": [],
+  "10001917": [],
+  "10001918": [],
+  "10001920": [],
+  "10001921": [],
+  "10001922": [],
+  "10001923": [],
+  "10001928": [],
+  "10001929": [],
+  "10001930": [],
+  "10001931": [],
+  "10001938": [],
+  "10001939": [],
+  "10001940": [],
+  "10001941": [],
+  "10001942": [],
+  "10001950": [],
+  "10001951": [],
+  "10001952": [],
+  "10001953": [],
+  "10001954": [],
+  "10001955": [],
+  "10001956": [],
+  "10001957": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10001958": [],
+  "10001959": [],
+  "10001961": [],
+  "10001962": [],
+  "10001963": [],
+  "10001964": [],
+  "10001965": [],
+  "10001966": [],
+  "10001967": [],
+  "10001968": [],
+  "10001969": [],
+  "10001970": [],
+  "10001971": [],
+  "10001972": [],
+  "10001974": [],
+  "10001975": [],
+  "10001976": [],
+  "10001977": [],
+  "10001978": [],
+  "10001979": [],
+  "10001980": [],
+  "10001981": [],
+  "10001982": [],
+  "10001983": [],
+  "10001984": [],
+  "10001985": [],
+  "10001986": [],
+  "10001987": [],
+  "10001988": [],
+  "10001989": [],
+  "10001990": [],
+  "10001991": [],
+  "10001998": [],
+  "10002000": [],
+  "10002002": [],
+  "10002003": [],
+  "10002004": [],
+  "10002005": [],
+  "10002006": [],
+  "10002007": [],
+  "10002011": [
+    {
+      "CodeNmc": "123.0",
+      "LibelleNmc": "EPICERIE SUCREE / BOISSONS CHAUDES"
+    }
+  ],
+  "10002012": [],
+  "10002013": [],
+  "10002014": [],
+  "10002015": [],
+  "10002016": [],
+  "10002018": [],
+  "10002019": [],
+  "10002020": [],
+  "10002021": [],
+  "10002022": [],
+  "10002023": [],
+  "10002024": [],
+  "10002025": [],
+  "10002026": [],
+  "10002027": [],
+  "10002028": [],
+  "10002029": [],
+  "10002030": [],
+  "10002031": [],
+  "10002032": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10002033": [],
+  "10002034": [],
+  "10002035": [],
+  "10002069": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002070": [],
+  "10002071": [],
+  "10002072": [],
+  "10002073": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10002074": [],
+  "10002075": [],
+  "10002076": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002077": [],
+  "10002078": [],
+  "10002079": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002080": [],
+  "10002081": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002083": [],
+  "10002084": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002085": [],
+  "10002086": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002087": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002088": [],
+  "10002091": [],
+  "10002092": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002093": [],
+  "10002094": [],
+  "10002095": [],
+  "10002096": [],
+  "10002097": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10002098": [],
+  "10002099": [],
+  "10002100": [],
+  "10002101": [],
+  "10002103": [],
+  "10002117": [],
+  "10002118": [],
+  "10002125": [],
+  "10002131": [],
+  "10002153": [],
+  "10002154": [],
+  "10002155": [],
+  "10002158": [
+    {
+      "CodeNmc": "43.0",
+      "LibelleNmc": "POLE SERVICE"
+    },
+    {
+      "CodeNmc": "87.0",
+      "LibelleNmc": "SERVICE"
+    }
+  ],
+  "10002159": [],
+  "10002160": [],
+  "10002161": [],
+  "10002162": [],
+  "10002163": [],
+  "10002165": [],
+  "10002184": [],
+  "10002185": [],
+  "10002186": [],
+  "10002187": [],
+  "10002188": [],
+  "10002189": [],
+  "10002190": [],
+  "10002191": [
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    }
+  ],
+  "10002192": [],
+  "10002193": [],
+  "10002194": [],
+  "10002195": [],
+  "10002196": [],
+  "10002197": [],
+  "10002198": [],
+  "10002199": [],
+  "10002200": [],
+  "10002201": [],
+  "10002202": [],
+  "10002203": [],
+  "10002205": [],
+  "10002206": [],
+  "10002207": [],
+  "10002208": [],
+  "10002209": [],
+  "10002210": [],
+  "10002211": [],
+  "10002212": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10002213": [],
+  "10002214": [],
+  "10002215": [],
+  "10002216": [],
+  "10002217": [],
+  "10002218": [],
+  "10002219": [],
+  "10002220": [],
+  "10002221": [],
+  "10002222": [],
+  "10002223": [],
+  "10002224": [],
+  "10002225": [],
+  "10002226": [],
+  "10002227": [],
+  "10002231": [],
+  "10002232": [],
+  "10002233": [],
+  "10002234": [],
+  "10002235": [],
+  "10002236": [],
+  "10002237": [],
+  "10002238": [],
+  "10002240": [],
+  "10002241": [],
+  "10002243": [],
+  "10002245": [],
+  "10002246": [],
+  "10002247": [],
+  "10002248": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10002249": [],
+  "10002252": [],
+  "10002423": [],
+  "10002429": [],
+  "10002431": [],
+  "10002432": [],
+  "10002433": [],
+  "10002441": [],
+  "10002442": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002443": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10002444": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002446": [],
+  "10002447": [],
+  "10002448": [],
+  "10002449": [],
+  "10002450": [],
+  "10002451": [],
+  "10002452": [],
+  "10002453": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002454": [],
+  "10002456": [],
+  "10002460": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10002461": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10002462": [],
+  "10002466": [],
+  "10002481": [],
+  "10002490": [],
+  "10002501": [],
+  "10002504": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002505": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10002506": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002507": [],
+  "10002512": [],
+  "10002515": [],
+  "10002518": [],
+  "10002521": [],
+  "10002522": [],
+  "10002525": [],
+  "10002526": [],
+  "10002527": [],
+  "10002528": [
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10002529": [],
+  "10002530": [],
+  "10002532": [],
+  "10002533": [],
+  "10002534": [],
+  "10002535": [],
+  "10002536": [],
+  "10002537": [],
+  "10002538": [],
+  "10002540": [],
+  "10002542": [],
+  "10002543": [],
+  "10002544": [
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    }
+  ],
+  "10002547": [],
+  "10002548": [],
+  "10002550": [],
+  "10002551": [],
+  "10002552": [],
+  "10002553": [],
+  "10002554": [],
+  "10002557": [],
+  "10002567": [],
+  "10002568": [],
+  "10002569": [],
+  "10002570": [],
+  "10002572": [],
+  "10002573": [],
+  "10002574": [],
+  "10002575": [],
+  "10002577": [],
+  "10002578": [],
+  "10002579": [],
+  "10002581": [],
+  "10002584": [],
+  "10002585": [],
+  "10002586": [],
+  "10002587": [],
+  "10002588": [],
+  "10002589": [],
+  "10002590": [],
+  "10002592": [],
+  "10002593": [],
+  "10002595": [],
+  "10002596": [],
+  "10002597": [],
+  "10002599": [],
+  "10002600": [],
+  "10002601": [],
+  "10002602": [],
+  "10002608": [],
+  "10002609": [],
+  "10002610": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002611": [],
+  "10002612": [],
+  "10002614": [],
+  "10002623": [],
+  "10002624": [],
+  "10002627": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10002646": [],
+  "10002648": [],
+  "10002649": [],
+  "10002650": [],
+  "10002652": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "861122.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861120.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / CARAFE"
+    },
+    {
+      "CodeNmc": "861121.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / CONSOMMABLES"
+    }
+  ],
+  "10002653": [
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    },
+    {
+      "CodeNmc": "364000.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / PELLETS"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    }
+  ],
+  "10002654": [],
+  "10002657": [],
+  "10002658": [],
+  "10002660": [],
+  "10002662": [],
+  "10002663": [],
+  "10002664": [],
+  "10002665": [],
+  "10002666": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10002668": [],
+  "10002669": [],
+  "10002670": [],
+  "10002671": [],
+  "10002672": [
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10002673": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10002674": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10002677": [],
+  "10002683": [],
+  "10002684": [],
+  "10002686": [],
+  "10002687": [],
+  "10002688": [],
+  "10002689": [],
+  "10002692": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10002693": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10003156": [],
+  "10003157": [],
+  "10003159": [],
+  "10003162": [],
+  "10003163": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10003164": [],
+  "10003165": [],
+  "10003166": [],
+  "10003167": [],
+  "10003168": [],
+  "10003170": [],
+  "10003171": [],
+  "10003173": [],
+  "10003179": [],
+  "10003180": [],
+  "10003181": [],
+  "10003182": [],
+  "10003183": [],
+  "10003184": [],
+  "10003185": [],
+  "10003186": [],
+  "10003187": [],
+  "10003190": [],
+  "10003191": [],
+  "10003194": [],
+  "10003195": [],
+  "10003196": [],
+  "10003197": [],
+  "10003201": [],
+  "10003202": [],
+  "10003203": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10003204": [],
+  "10003205": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10003206": [],
+  "10003207": [],
+  "10003208": [],
+  "10003210": [
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10003211": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10003213": [],
+  "10003215": [],
+  "10003216": [],
+  "10003218": [],
+  "10003219": [],
+  "10003220": [],
+  "10003221": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10003222": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10003223": [],
+  "10003224": [],
+  "10003225": [],
+  "10003227": [],
+  "10003234": [],
+  "10003236": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003237": [],
+  "10003238": [],
+  "10003239": [],
+  "10003240": [],
+  "10003242": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003243": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003245": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003246": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003248": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003249": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003250": [],
+  "10003251": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003252": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    }
+  ],
+  "10003253": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003254": [],
+  "10003255": [],
+  "10003256": [],
+  "10003257": [],
+  "10003262": [],
+  "10003264": [],
+  "10003267": [],
+  "10003268": [],
+  "10003270": [],
+  "10003271": [],
+  "10003272": [],
+  "10003273": [],
+  "10003274": [],
+  "10003276": [],
+  "10003277": [],
+  "10003278": [],
+  "10003279": [],
+  "10003280": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003281": [],
+  "10003283": [],
+  "10003284": [],
+  "10003285": [],
+  "10003286": [],
+  "10003287": [],
+  "10003288": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003289": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003290": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10003291": [],
+  "10003305": [],
+  "10003308": [],
+  "10003311": [],
+  "10003313": [],
+  "10003314": [],
+  "10003315": [],
+  "10003316": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003321": [],
+  "10003323": [],
+  "10003324": [],
+  "10003328": [],
+  "10003330": [],
+  "10003332": [],
+  "10003334": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003335": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003336": [],
+  "10003338": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003341": [],
+  "10003347": [],
+  "10003351": [],
+  "10003352": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003353": [],
+  "10003355": [],
+  "10003359": [],
+  "10003365": [],
+  "10003367": [],
+  "10003368": [],
+  "10003370": [],
+  "10003373": [],
+  "10003375": [],
+  "10003376": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003377": [],
+  "10003379": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003380": [],
+  "10003381": [],
+  "10003383": [],
+  "10003384": [],
+  "10003385": [],
+  "10003386": [],
+  "10003387": [],
+  "10003388": [],
+  "10003389": [],
+  "10003390": [],
+  "10003391": [],
+  "10003392": [],
+  "10003393": [],
+  "10003394": [],
+  "10003395": [],
+  "10003396": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003397": [],
+  "10003398": [],
+  "10003399": [],
+  "10003400": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003401": [],
+  "10003402": [
+    {
+      "CodeNmc": "45700.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / OUTILLAGE MOTEUR"
+    }
+  ],
+  "10003403": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003404": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003405": [],
+  "10003406": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003407": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "45700.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / OUTILLAGE MOTEUR"
+    }
+  ],
+  "10003408": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "45700.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / OUTILLAGE MOTEUR"
+    }
+  ],
+  "10003409": [],
+  "10003411": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003412": [],
+  "10003414": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003415": [],
+  "10003416": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003417": [],
+  "10003418": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003419": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003421": [],
+  "10003427": [],
+  "10003430": [],
+  "10003432": [],
+  "10003433": [],
+  "10003434": [],
+  "10003435": [],
+  "10003436": [],
+  "10003437": [],
+  "10003440": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003441": [],
+  "10003443": [],
+  "10003444": [],
+  "10003446": [],
+  "10003447": [],
+  "10003451": [],
+  "10003452": [],
+  "10003453": [],
+  "10003454": [],
+  "10003455": [],
+  "10003458": [],
+  "10003459": [],
+  "10003461": [],
+  "10003463": [],
+  "10003464": [],
+  "10003465": [],
+  "10003466": [],
+  "10003468": [],
+  "10003470": [],
+  "10003473": [],
+  "10003476": [],
+  "10003479": [],
+  "10003480": [],
+  "10003481": [],
+  "10003482": [],
+  "10003483": [],
+  "10003485": [],
+  "10003486": [],
+  "10003487": [],
+  "10003488": [],
+  "10003489": [],
+  "10003490": [],
+  "10003491": [],
+  "10003492": [],
+  "10003495": [],
+  "10003496": [],
+  "10003497": [],
+  "10003498": [],
+  "10003499": [],
+  "10003500": [],
+  "10003501": [],
+  "10003502": [],
+  "10003504": [],
+  "10003505": [],
+  "10003507": [],
+  "10003508": [],
+  "10003527": [],
+  "10003528": [],
+  "10003530": [],
+  "10003532": [],
+  "10003533": [],
+  "10003534": [],
+  "10003535": [],
+  "10003536": [],
+  "10003537": [],
+  "10003538": [],
+  "10003539": [],
+  "10003540": [],
+  "10003541": [],
+  "10003542": [],
+  "10003543": [],
+  "10003544": [],
+  "10003545": [],
+  "10003546": [],
+  "10003547": [],
+  "10003548": [],
+  "10003549": [],
+  "10003550": [],
+  "10003551": [],
+  "10003552": [],
+  "10003555": [],
+  "10003562": [],
+  "10003563": [],
+  "10003564": [],
+  "10003565": [],
+  "10003572": [],
+  "10003573": [],
+  "10003576": [],
+  "10003578": [],
+  "10003594": [],
+  "10003596": [],
+  "10003597": [],
+  "10003598": [],
+  "10003601": [],
+  "10003602": [],
+  "10003603": [],
+  "10003604": [],
+  "10003605": [],
+  "10003608": [],
+  "10003609": [],
+  "10003610": [],
+  "10003611": [],
+  "10003613": [],
+  "10003615": [],
+  "10003616": [],
+  "10003618": [],
+  "10003619": [],
+  "10003620": [],
+  "10003626": [],
+  "10003627": [],
+  "10003629": [],
+  "10003631": [],
+  "10003632": [],
+  "10003638": [],
+  "10003639": [],
+  "10003640": [],
+  "10003641": [],
+  "10003642": [],
+  "10003643": [],
+  "10003644": [],
+  "10003647": [],
+  "10003648": [],
+  "10003649": [],
+  "10003651": [],
+  "10003653": [],
+  "10003654": [],
+  "10003655": [],
+  "10003656": [],
+  "10003657": [],
+  "10003658": [],
+  "10003659": [],
+  "10003660": [],
+  "10003662": [],
+  "10003663": [],
+  "10003664": [],
+  "10003665": [],
+  "10003666": [],
+  "10003668": [],
+  "10003669": [],
+  "10003672": [],
+  "10003674": [],
+  "10003676": [],
+  "10003677": [],
+  "10003678": [],
+  "10003679": [],
+  "10003685": [],
+  "10003686": [],
+  "10003688": [],
+  "10003689": [],
+  "10003690": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "860084.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / ENCASTRABLE / TABLE DE CUISSON"
+    }
+  ],
+  "10003691": [],
+  "10003692": [],
+  "10003694": [],
+  "10003695": [],
+  "10003698": [],
+  "10003710": [],
+  "10003711": [],
+  "10003712": [],
+  "10003713": [],
+  "10003714": [],
+  "10003718": [],
+  "10003730": [],
+  "10003737": [],
+  "10003738": [],
+  "10003741": [],
+  "10003742": [],
+  "10003744": [],
+  "10003746": [],
+  "10003749": [],
+  "10003765": [],
+  "10003766": [],
+  "10003767": [],
+  "10003771": [
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10003773": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10003776": [],
+  "10003777": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10003778": [],
+  "10003779": [],
+  "10003787": [],
+  "10003788": [],
+  "10003789": [],
+  "10003790": [],
+  "10003791": [],
+  "10003795": [],
+  "10003796": [],
+  "10003797": [],
+  "10003799": [],
+  "10003800": [],
+  "10003801": [],
+  "10003807": [],
+  "10003808": [],
+  "10003813": [],
+  "10003814": [],
+  "10003816": [],
+  "10003817": [],
+  "10003818": [],
+  "10003819": [],
+  "10003821": [],
+  "10003822": [],
+  "10003823": [],
+  "10003824": [],
+  "10003825": [],
+  "10003826": [],
+  "10003827": [],
+  "10003841": [],
+  "10003842": [],
+  "10003843": [],
+  "10003844": [],
+  "10003846": [],
+  "10003852": [],
+  "10003854": [],
+  "10003859": [],
+  "10003861": [],
+  "10003862": [],
+  "10003863": [],
+  "10003864": [
+    {
+      "CodeNmc": "457019.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / OUTILLAGE A MAIN / OUTILS ENFANT"
+    }
+  ],
+  "10003865": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "457019.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / OUTILLAGE A MAIN / OUTILS ENFANT"
+    }
+  ],
+  "10003866": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003867": [],
+  "10003868": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    }
+  ],
+  "10003869": [],
+  "10003870": [],
+  "10003872": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003873": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10003874": [],
+  "10003884": [],
+  "10003887": [],
+  "10003889": [],
+  "10003890": [],
+  "10003891": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    }
+  ],
+  "10003896": [],
+  "10003897": [],
+  "10003898": [],
+  "10003899": [],
+  "10003900": [],
+  "10003901": [],
+  "10003902": [],
+  "10003903": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10003904": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10003906": [],
+  "10003914": [],
+  "10003916": [],
+  "10003918": [],
+  "10003919": [],
+  "10003920": [],
+  "10003921": [],
+  "10003923": [],
+  "10003924": [],
+  "10003925": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10003926": [],
+  "10003932": [],
+  "10003933": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10003934": [],
+  "10003935": [],
+  "10003939": [],
+  "10003942": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10003943": [],
+  "10003944": [],
+  "10003946": [],
+  "10003955": [],
+  "10003956": [],
+  "10003960": [],
+  "10003961": [],
+  "10003966": [],
+  "10003968": [],
+  "10003969": [],
+  "10003974": [],
+  "10003977": [],
+  "10003980": [],
+  "10003981": [],
+  "10003982": [],
+  "10003984": [],
+  "10003985": [],
+  "10003988": [],
+  "10003990": [],
+  "10003992": [],
+  "10003993": [],
+  "10003994": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "86010.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR"
+    },
+    {
+      "CodeNmc": "860103.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR / CLIMATISEUR"
+    },
+    {
+      "CodeNmc": "860104.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR / HUMIDIFICATEUR"
+    },
+    {
+      "CodeNmc": "860102.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR / PURIFICATEUR"
+    },
+    {
+      "CodeNmc": "860100.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR / VENTILATEUR"
+    },
+    {
+      "CodeNmc": "860101.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / TRAITEMENT DE L'AIR / RAFRAICHISSEUR D'AIR"
+    },
+    {
+      "CodeNmc": "36317.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / MATERIEL DE NETTOYAGE"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    }
+  ],
+  "10003995": [],
+  "10003996": [],
+  "10003997": [],
+  "10003998": [],
+  "10004002": [],
+  "10004003": [],
+  "10004006": [],
+  "10004008": [],
+  "10004012": [],
+  "10004016": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "442053.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / FILTRATION / ABRI DE FILTRATION"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10004022": [],
+  "10004024": [],
+  "10004026": [],
+  "10004027": [],
+  "10004028": [],
+  "10004029": [],
+  "10004032": [],
+  "10004033": [],
+  "10004044": [],
+  "10004049": [],
+  "10004054": [],
+  "10004055": [],
+  "10004057": [],
+  "10004058": [
+    {
+      "CodeNmc": "442068.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ANALYSE"
+    },
+    {
+      "CodeNmc": "363015.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE FONCTIONNEMENT / EAU POUR BATTERIE"
+    },
+    {
+      "CodeNmc": "442069.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ET ACCESS HIVERNAGE"
+    }
+  ],
+  "10004062": [],
+  "10004063": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10004064": [],
+  "10004096": [
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10004097": [
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10004098": [],
+  "10004099": [
+    {
+      "CodeNmc": "441.0",
+      "LibelleNmc": "LOISIRS / CAMPING"
+    }
+  ],
+  "10004100": [],
+  "10004101": [],
+  "10004102": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10004103": [
+    {
+      "CodeNmc": "862.0",
+      "LibelleNmc": "TECHNOLOGIE / AUDIO"
+    }
+  ],
+  "10004104": [
+    {
+      "CodeNmc": "862.0",
+      "LibelleNmc": "TECHNOLOGIE / AUDIO"
+    }
+  ],
+  "10004105": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10004106": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10004107": [],
+  "10004108": [],
+  "10004109": [],
+  "10004110": [],
+  "10004111": [],
+  "10004112": [],
+  "10004116": [],
+  "10004117": [],
+  "10004118": [],
+  "10004119": [],
+  "10004120": [],
+  "10004121": [],
+  "10004122": [],
+  "10004123": [],
+  "10004124": [],
+  "10004125": [],
+  "10004126": [],
+  "10004127": [],
+  "10004128": [],
+  "10005095": [],
+  "10005096": [],
+  "10005097": [],
+  "10005098": [],
+  "10005100": [],
+  "10005101": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10005102": [],
+  "10005104": [],
+  "10005118": [],
+  "10005119": [],
+  "10005120": [],
+  "10005121": [],
+  "10005124": [],
+  "10005125": [],
+  "10005126": [],
+  "10005133": [],
+  "10005134": [],
+  "10005135": [],
+  "10005136": [],
+  "10005137": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005138": [],
+  "10005139": [],
+  "10005140": [],
+  "10005141": [],
+  "10005142": [],
+  "10005143": [],
+  "10005144": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10005145": [],
+  "10005146": [],
+  "10005147": [],
+  "10005148": [],
+  "10005149": [],
+  "10005150": [],
+  "10005151": [],
+  "10005152": [],
+  "10005153": [],
+  "10005154": [],
+  "10005155": [],
+  "10005156": [],
+  "10005157": [],
+  "10005158": [],
+  "10005159": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10005160": [],
+  "10005161": [],
+  "10005162": [],
+  "10005163": [],
+  "10005164": [],
+  "10005165": [],
+  "10005166": [],
+  "10005167": [],
+  "10005168": [],
+  "10005169": [],
+  "10005170": [],
+  "10005171": [],
+  "10005172": [],
+  "10005173": [],
+  "10005174": [],
+  "10005175": [],
+  "10005176": [],
+  "10005177": [],
+  "10005178": [],
+  "10005179": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10005180": [
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "85003.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / JEU CONSOLE DE SALON"
+    }
+  ],
+  "10005181": [],
+  "10005182": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "85003.0",
+      "LibelleNmc": "EDITION / LOISIR INTERACTIF / JEU CONSOLE DE SALON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10005183": [],
+  "10005184": [],
+  "10005185": [],
+  "10005186": [],
+  "10005187": [],
+  "10005188": [],
+  "10005189": [],
+  "10005190": [],
+  "10005191": [],
+  "10005192": [],
+  "10005193": [],
+  "10005194": [],
+  "10005195": [],
+  "10005196": [],
+  "10005197": [],
+  "10005198": [
+    {
+      "CodeNmc": "861122.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861120.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / CARAFE"
+    },
+    {
+      "CodeNmc": "861121.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / CONSOMMABLES"
+    }
+  ],
+  "10005199": [],
+  "10005200": [],
+  "10005204": [],
+  "10005205": [],
+  "10005206": [],
+  "10005207": [],
+  "10005210": [],
+  "10005211": [],
+  "10005213": [],
+  "10005214": [],
+  "10005215": [],
+  "10005216": [],
+  "10005217": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10005218": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10005219": [],
+  "10005220": [],
+  "10005221": [],
+  "10005223": [],
+  "10005224": [],
+  "10005225": [],
+  "10005226": [],
+  "10005227": [],
+  "10005228": [],
+  "10005229": [],
+  "10005230": [],
+  "10005231": [],
+  "10005248": [],
+  "10005250": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10005252": [],
+  "10005253": [],
+  "10005254": [],
+  "10005255": [],
+  "10005258": [],
+  "10005262": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005263": [
+    {
+      "CodeNmc": "10.0",
+      "LibelleNmc": "LIQUIDES"
+    },
+    {
+      "CodeNmc": "740.0",
+      "LibelleNmc": "CARBURANT-GAZ / CARBURANTS"
+    },
+    {
+      "CodeNmc": "100.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL"
+    }
+  ],
+  "10005264": [
+    {
+      "CodeNmc": "740.0",
+      "LibelleNmc": "CARBURANT-GAZ / CARBURANTS"
+    }
+  ],
+  "10005265": [
+    {
+      "CodeNmc": "740.0",
+      "LibelleNmc": "CARBURANT-GAZ / CARBURANTS"
+    }
+  ],
+  "10005266": [
+    {
+      "CodeNmc": "740.0",
+      "LibelleNmc": "CARBURANT-GAZ / CARBURANTS"
+    }
+  ],
+  "10005267": [],
+  "10005268": [],
+  "10005269": [],
+  "10005270": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10005272": [],
+  "10005273": [],
+  "10005275": [],
+  "10005277": [],
+  "10005280": [],
+  "10005283": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005284": [],
+  "10005285": [],
+  "10005286": [],
+  "10005287": [],
+  "10005288": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10005289": [],
+  "10005290": [],
+  "10005291": [],
+  "10005292": [],
+  "10005293": [
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    }
+  ],
+  "10005294": [],
+  "10005295": [],
+  "10005296": [],
+  "10005297": [],
+  "10005298": [],
+  "10005306": [],
+  "10005316": [],
+  "10005317": [],
+  "10005318": [],
+  "10005319": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10005320": [],
+  "10005321": [],
+  "10005322": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10005323": [],
+  "10005331": [],
+  "10005332": [],
+  "10005333": [],
+  "10005334": [],
+  "10005335": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10005336": [],
+  "10005337": [],
+  "10005342": [],
+  "10005345": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10005355": [],
+  "10005356": [],
+  "10005357": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005358": [],
+  "10005359": [],
+  "10005360": [],
+  "10005361": [],
+  "10005362": [],
+  "10005365": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10005366": [],
+  "10005367": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005368": [],
+  "10005369": [],
+  "10005370": [],
+  "10005371": [],
+  "10005372": [],
+  "10005373": [],
+  "10005374": [],
+  "10005375": [],
+  "10005376": [],
+  "10005377": [],
+  "10005378": [],
+  "10005379": [],
+  "10005380": [],
+  "10005381": [],
+  "10005382": [],
+  "10005383": [],
+  "10005384": [],
+  "10005385": [],
+  "10005386": [],
+  "10005387": [],
+  "10005388": [],
+  "10005389": [],
+  "10005390": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    }
+  ],
+  "10005391": [],
+  "10005392": [],
+  "10005393": [],
+  "10005394": [],
+  "10005395": [],
+  "10005396": [],
+  "10005397": [],
+  "10005398": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005399": [],
+  "10005400": [],
+  "10005401": [],
+  "10005402": [],
+  "10005403": [],
+  "10005405": [],
+  "10005406": [],
+  "10005407": [],
+  "10005408": [],
+  "10005409": [],
+  "10005410": [],
+  "10005411": [],
+  "10005412": [],
+  "10005413": [],
+  "10005414": [],
+  "10005415": [],
+  "10005416": [],
+  "10005417": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    }
+  ],
+  "10005418": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005424": [],
+  "10005425": [],
+  "10005427": [],
+  "10005428": [],
+  "10005431": [],
+  "10005432": [],
+  "10005436": [],
+  "10005437": [],
+  "10005438": [],
+  "10005439": [],
+  "10005440": [],
+  "10005441": [],
+  "10005442": [],
+  "10005443": [
+    {
+      "CodeNmc": "23.0",
+      "LibelleNmc": "FRUITS ET LEGUMES"
+    }
+  ],
+  "10005444": [],
+  "10005445": [],
+  "10005446": [],
+  "10005447": [],
+  "10005448": [],
+  "10005449": [],
+  "10005450": [],
+  "10005451": [],
+  "10005452": [],
+  "10005453": [],
+  "10005454": [
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005455": [],
+  "10005456": [],
+  "10005457": [],
+  "10005458": [],
+  "10005459": [],
+  "10005460": [],
+  "10005461": [],
+  "10005462": [],
+  "10005463": [],
+  "10005464": [],
+  "10005465": [],
+  "10005466": [],
+  "10005467": [],
+  "10005468": [],
+  "10005469": [],
+  "10005471": [],
+  "10005472": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005473": [],
+  "10005474": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10005475": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10005476": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10005478": [],
+  "10005479": [],
+  "10005480": [],
+  "10005481": [],
+  "10005496": [],
+  "10005505": [],
+  "10005541": [],
+  "10005546": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005559": [],
+  "10005560": [],
+  "10005567": [],
+  "10005568": [],
+  "10005570": [],
+  "10005571": [],
+  "10005572": [],
+  "10005573": [],
+  "10005575": [],
+  "10005576": [],
+  "10005577": [],
+  "10005583": [],
+  "10005585": [],
+  "10005586": [],
+  "10005588": [],
+  "10005599": [],
+  "10005622": [],
+  "10005625": [],
+  "10005626": [],
+  "10005627": [],
+  "10005628": [],
+  "10005630": [],
+  "10005631": [],
+  "10005632": [],
+  "10005633": [],
+  "10005634": [],
+  "10005635": [],
+  "10005636": [],
+  "10005637": [],
+  "10005638": [],
+  "10005640": [],
+  "10005641": [],
+  "10005642": [],
+  "10005643": [],
+  "10005644": [],
+  "10005645": [],
+  "10005646": [],
+  "10005647": [],
+  "10005648": [],
+  "10005649": [],
+  "10005650": [],
+  "10005651": [],
+  "10005653": [],
+  "10005654": [],
+  "10005655": [],
+  "10005657": [],
+  "10005658": [],
+  "10005659": [],
+  "10005660": [],
+  "10005661": [],
+  "10005662": [],
+  "10005667": [],
+  "10005668": [],
+  "10005670": [],
+  "10005672": [],
+  "10005673": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005674": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005676": [],
+  "10005677": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10005678": [
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452016.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE / DECORATION DE NOEL / ACCESSOIRES"
+    }
+  ],
+  "10005679": [],
+  "10005680": [],
+  "10005681": [],
+  "10005682": [],
+  "10005683": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005684": [
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11102.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN SPECIFIQUE"
+    },
+    {
+      "CodeNmc": "11100.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN STANDARD"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10005685": [
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    }
+  ],
+  "10005686": [],
+  "10005687": [],
+  "10005688": [],
+  "10005689": [],
+  "10005690": [],
+  "10005691": [],
+  "10005692": [],
+  "10005693": [],
+  "10005695": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10005697": [],
+  "10005700": [],
+  "10005702": [],
+  "10005703": [],
+  "10005704": [],
+  "10005705": [],
+  "10005706": [],
+  "10005707": [],
+  "10005708": [],
+  "10005709": [],
+  "10005710": [],
+  "10005711": [],
+  "10005712": [
+    {
+      "CodeNmc": "440.0",
+      "LibelleNmc": "LOISIRS / JOUET"
+    }
+  ],
+  "10005714": [],
+  "10005715": [],
+  "10005716": [],
+  "10005717": [],
+  "10005718": [],
+  "10005719": [],
+  "10005721": [],
+  "10005722": [],
+  "10005723": [],
+  "10005724": [],
+  "10005725": [],
+  "10005726": [],
+  "10005727": [],
+  "10005728": [],
+  "10005729": [],
+  "10005730": [],
+  "10005731": [],
+  "10005732": [],
+  "10005733": [],
+  "10005735": [],
+  "10005736": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005738": [],
+  "10005739": [],
+  "10005740": [],
+  "10005741": [],
+  "10005742": [],
+  "10005743": [],
+  "10005744": [],
+  "10005745": [],
+  "10005746": [],
+  "10005747": [],
+  "10005748": [],
+  "10005749": [],
+  "10005750": [
+    {
+      "CodeNmc": "86604.0",
+      "LibelleNmc": "TECHNOLOGIE / PHOTO OPTIQUE / ACCESSOIRES"
+    }
+  ],
+  "10005751": [],
+  "10005752": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    }
+  ],
+  "10005753": [],
+  "10005754": [],
+  "10005755": [],
+  "10005756": [],
+  "10005757": [],
+  "10005758": [],
+  "10005759": [],
+  "10005760": [],
+  "10005762": [],
+  "10005763": [],
+  "10005764": [],
+  "10005765": [],
+  "10005766": [],
+  "10005767": [
+    {
+      "CodeNmc": "270.0",
+      "LibelleNmc": "BOUCHERIE / VIANDE BOVINE"
+    }
+  ],
+  "10005768": [],
+  "10005769": [],
+  "10005770": [],
+  "10005771": [],
+  "10005772": [],
+  "10005773": [],
+  "10005774": [
+    {
+      "CodeNmc": "274.0",
+      "LibelleNmc": "BOUCHERIE / CHEVAL"
+    }
+  ],
+  "10005776": [],
+  "10005777": [],
+  "10005778": [],
+  "10005779": [],
+  "10005780": [],
+  "10005781": [],
+  "10005782": [],
+  "10005783": [],
+  "10005784": [],
+  "10005785": [
+    {
+      "CodeNmc": "271.0",
+      "LibelleNmc": "BOUCHERIE / VEAU"
+    }
+  ],
+  "10005786": [
+    {
+      "CodeNmc": "270.0",
+      "LibelleNmc": "BOUCHERIE / VIANDE BOVINE"
+    }
+  ],
+  "10005787": [],
+  "10005788": [],
+  "10005789": [],
+  "10005790": [],
+  "10005791": [],
+  "10005792": [],
+  "10005793": [],
+  "10005795": [],
+  "10005796": [],
+  "10005797": [],
+  "10005798": [],
+  "10005799": [],
+  "10005800": [],
+  "10005801": [],
+  "10005802": [],
+  "10005803": [],
+  "10005804": [],
+  "10005805": [],
+  "10005806": [],
+  "10005807": [],
+  "10005808": [],
+  "10005809": [],
+  "10005810": [],
+  "10005811": [],
+  "10005812": [],
+  "10005814": [],
+  "10005815": [],
+  "10005816": [],
+  "10005817": [],
+  "10005822": [],
+  "10005823": [],
+  "10005824": [],
+  "10005825": [],
+  "10005826": [],
+  "10005827": [],
+  "10005828": [],
+  "10005829": [],
+  "10005830": [],
+  "10005831": [],
+  "10005832": [],
+  "10005833": [],
+  "10005834": [],
+  "10005835": [],
+  "10005836": [],
+  "10005837": [],
+  "10005838": [],
+  "10005839": [],
+  "10005840": [],
+  "10005841": [],
+  "10005842": [],
+  "10005843": [],
+  "10005844": [],
+  "10005845": [],
+  "10005846": [],
+  "10005847": [],
+  "10005848": [],
+  "10005849": [],
+  "10005850": [],
+  "10005851": [],
+  "10005852": [],
+  "10005853": [],
+  "10005854": [],
+  "10005855": [],
+  "10005856": [],
+  "10005857": [],
+  "10005858": [],
+  "10005859": [],
+  "10005860": [],
+  "10005861": [],
+  "10005862": [],
+  "10005863": [],
+  "10005864": [],
+  "10005865": [],
+  "10005866": [],
+  "10005867": [],
+  "10005868": [],
+  "10005869": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005870": [],
+  "10005872": [],
+  "10005873": [],
+  "10005874": [
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10005875": [],
+  "10005876": [],
+  "10005877": [],
+  "10005878": [],
+  "10005879": [],
+  "10005880": [],
+  "10005881": [],
+  "10005882": [],
+  "10005883": [],
+  "10005884": [],
+  "10005885": [],
+  "10005886": [],
+  "10005887": [],
+  "10005888": [],
+  "10005889": [],
+  "10005893": [],
+  "10005895": [],
+  "10005896": [],
+  "10005897": [],
+  "10005898": [],
+  "10005899": [],
+  "10005900": [],
+  "10005901": [],
+  "10005902": [],
+  "10005903": [],
+  "10005905": [],
+  "10005907": [],
+  "10005908": [],
+  "10005909": [],
+  "10005910": [],
+  "10005911": [],
+  "10005912": [],
+  "10005913": [],
+  "10005914": [],
+  "10005915": [],
+  "10005916": [],
+  "10005917": [],
+  "10005918": [],
+  "10005921": [],
+  "10005922": [],
+  "10005923": [],
+  "10005924": [],
+  "10005925": [],
+  "10005927": [],
+  "10005928": [],
+  "10005929": [],
+  "10005930": [],
+  "10005932": [],
+  "10005934": [],
+  "10005935": [],
+  "10005937": [],
+  "10005938": [],
+  "10005939": [],
+  "10005940": [],
+  "10005941": [],
+  "10005942": [],
+  "10005946": [],
+  "10005948": [],
+  "10005949": [],
+  "10005950": [],
+  "10005951": [],
+  "10005952": [],
+  "10005953": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10005954": [],
+  "10005955": [],
+  "10005956": [],
+  "10005957": [],
+  "10005959": [],
+  "10005960": [],
+  "10005961": [],
+  "10005963": [],
+  "10005964": [],
+  "10005965": [],
+  "10005966": [],
+  "10005967": [],
+  "10005968": [],
+  "10005969": [],
+  "10005970": [],
+  "10005971": [],
+  "10005972": [],
+  "10005973": [],
+  "10005974": [],
+  "10005976": [],
+  "10005979": [],
+  "10005980": [],
+  "10005981": [],
+  "10005982": [],
+  "10005984": [],
+  "10005985": [],
+  "10005986": [],
+  "10005987": [],
+  "10005988": [],
+  "10005996": [],
+  "10005997": [],
+  "10005999": [],
+  "10006000": [],
+  "10006003": [],
+  "10006004": [],
+  "10006005": [],
+  "10006006": [],
+  "10006007": [],
+  "10006009": [],
+  "10006014": [],
+  "10006015": [],
+  "10006031": [],
+  "10006032": [],
+  "10006033": [],
+  "10006034": [],
+  "10006035": [],
+  "10006036": [],
+  "10006037": [],
+  "10006038": [],
+  "10006040": [],
+  "10006041": [],
+  "10006044": [],
+  "10006045": [],
+  "10006046": [],
+  "10006047": [],
+  "10006048": [],
+  "10006049": [],
+  "10006050": [],
+  "10006051": [],
+  "10006052": [],
+  "10006053": [],
+  "10006054": [],
+  "10006055": [],
+  "10006056": [],
+  "10006057": [],
+  "10006058": [],
+  "10006059": [],
+  "10006060": [],
+  "10006061": [],
+  "10006063": [],
+  "10006065": [],
+  "10006066": [],
+  "10006071": [],
+  "10006072": [],
+  "10006074": [],
+  "10006075": [],
+  "10006076": [],
+  "10006077": [],
+  "10006078": [],
+  "10006079": [],
+  "10006085": [],
+  "10006086": [],
+  "10006088": [],
+  "10006089": [],
+  "10006090": [],
+  "10006091": [],
+  "10006092": [],
+  "10006093": [],
+  "10006094": [],
+  "10006095": [],
+  "10006097": [],
+  "10006100": [],
+  "10006102": [],
+  "10006104": [],
+  "10006107": [],
+  "10006108": [],
+  "10006109": [],
+  "10006110": [],
+  "10006111": [],
+  "10006112": [],
+  "10006113": [],
+  "10006114": [],
+  "10006115": [],
+  "10006116": [],
+  "10006117": [],
+  "10006118": [],
+  "10006119": [],
+  "10006120": [],
+  "10006121": [],
+  "10006122": [],
+  "10006123": [],
+  "10006124": [],
+  "10006125": [],
+  "10006126": [],
+  "10006127": [],
+  "10006128": [],
+  "10006129": [],
+  "10006130": [],
+  "10006131": [],
+  "10006133": [],
+  "10006134": [],
+  "10006135": [],
+  "10006136": [],
+  "10006137": [],
+  "10006143": [],
+  "10006144": [],
+  "10006145": [],
+  "10006146": [],
+  "10006147": [],
+  "10006148": [],
+  "10006155": [],
+  "10006157": [],
+  "10006158": [],
+  "10006159": [],
+  "10006160": [],
+  "10006161": [],
+  "10006162": [],
+  "10006163": [],
+  "10006164": [],
+  "10006165": [],
+  "10006166": [],
+  "10006167": [],
+  "10006168": [],
+  "10006169": [],
+  "10006171": [],
+  "10006172": [],
+  "10006173": [],
+  "10006190": [],
+  "10006191": [],
+  "10006192": [],
+  "10006193": [],
+  "10006194": [],
+  "10006195": [],
+  "10006196": [],
+  "10006197": [],
+  "10006198": [],
+  "10006199": [],
+  "10006200": [],
+  "10006201": [],
+  "10006202": [],
+  "10006203": [],
+  "10006204": [],
+  "10006210": [
+    {
+      "CodeNmc": "214.0",
+      "LibelleNmc": "CREMERIE / OEUFS"
+    }
+  ],
+  "10006211": [
+    {
+      "CodeNmc": "214.0",
+      "LibelleNmc": "CREMERIE / OEUFS"
+    }
+  ],
+  "10006212": [],
+  "10006213": [
+    {
+      "CodeNmc": "214.0",
+      "LibelleNmc": "CREMERIE / OEUFS"
+    }
+  ],
+  "10006214": [],
+  "10006215": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10006216": [],
+  "10006217": [],
+  "10006218": [],
+  "10006219": [],
+  "10006220": [],
+  "10006221": [
+    {
+      "CodeNmc": "100031.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE PLANTE"
+    },
+    {
+      "CodeNmc": "100032.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE VIN"
+    },
+    {
+      "CodeNmc": "45601.0",
+      "LibelleNmc": "MAISON JARDIN / TRAITEMENT / PRODUIT DE TRAITEMENT VEGETAUX"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    },
+    {
+      "CodeNmc": "363020.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE DEPANNAGE / DEGIVRANT"
+    },
+    {
+      "CodeNmc": "363021.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE DEPANNAGE / DEGRIPPANT"
+    },
+    {
+      "CodeNmc": "363026.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE DEPANNAGE / ANTI HUMIDITE"
+    },
+    {
+      "CodeNmc": "363022.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE DEPANNAGE / LUBRIFIANT MULTIFONCTION"
+    },
+    {
+      "CodeNmc": "363010.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE FONCTIONNEMENT / LAVE GLACE"
+    },
+    {
+      "CodeNmc": "132043.0",
+      "LibelleNmc": "EPICERIE SALEE / ANIMALERIE / ACCESSOIRE CHAT / PRODUIT DE SANTE"
+    }
+  ],
+  "10006222": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "100031.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE PLANTE"
+    },
+    {
+      "CodeNmc": "100032.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE VIN"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    },
+    {
+      "CodeNmc": "442068.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ANALYSE"
+    },
+    {
+      "CodeNmc": "1150011.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE / GROSSE PUERICULTURE / REPAS / REHAUSSEUR DE TABLE"
+    },
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "36317.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / MATERIEL DE NETTOYAGE"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    }
+  ],
+  "10006223": [],
+  "10006224": [],
+  "10006225": [],
+  "10006226": [],
+  "10006227": [],
+  "10006228": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "100031.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE PLANTE"
+    },
+    {
+      "CodeNmc": "100032.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / APERITIF / BASE DE VIN"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    }
+  ],
+  "10006229": [
+    {
+      "CodeNmc": "23800.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / PRODUITS INDUSTRIELS / SOUPES ET JUS DE LEGUMES"
+    },
+    {
+      "CodeNmc": "442069.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ET ACCESS HIVERNAGE"
+    }
+  ],
+  "10006230": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "25500.0",
+      "LibelleNmc": "PFAS / MATIERE PREMIERE / A BASE DE VIANDE"
+    }
+  ],
+  "10006231": [],
+  "10006232": [],
+  "10006233": [],
+  "10006234": [],
+  "10006235": [],
+  "10006236": [
+    {
+      "CodeNmc": "86409.0",
+      "LibelleNmc": "TECHNOLOGIE / INFORMATIQUE / LOGICIEL"
+    }
+  ],
+  "10006237": [],
+  "10006238": [],
+  "10006239": [],
+  "10006240": [],
+  "10006241": [],
+  "10006242": [],
+  "10006243": [],
+  "10006244": [],
+  "10006245": [],
+  "10006246": [],
+  "10006247": [],
+  "10006248": [],
+  "10006249": [],
+  "10006250": [],
+  "10006251": [],
+  "10006252": [],
+  "10006253": [],
+  "10006254": [],
+  "10006255": [],
+  "10006256": [],
+  "10006257": [],
+  "10006258": [],
+  "10006259": [],
+  "10006260": [],
+  "10006261": [],
+  "10006262": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    },
+    {
+      "CodeNmc": "20300.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / SAUMON, TRUITE ET AUTRES POISSONS FUMES"
+    }
+  ],
+  "10006263": [],
+  "10006264": [],
+  "10006265": [],
+  "10006266": [],
+  "10006267": [],
+  "10006268": [],
+  "10006269": [],
+  "10006270": [],
+  "10006271": [],
+  "10006272": [],
+  "10006273": [],
+  "10006274": [],
+  "10006275": [],
+  "10006276": [],
+  "10006277": [],
+  "10006278": [],
+  "10006279": [],
+  "10006280": [],
+  "10006281": [],
+  "10006282": [],
+  "10006283": [],
+  "10006284": [],
+  "10006285": [],
+  "10006286": [],
+  "10006287": [],
+  "10006288": [],
+  "10006289": [],
+  "10006290": [],
+  "10006291": [],
+  "10006292": [],
+  "10006293": [],
+  "10006294": [],
+  "10006295": [],
+  "10006296": [],
+  "10006297": [],
+  "10006298": [],
+  "10006299": [],
+  "10006300": [],
+  "10006301": [],
+  "10006302": [],
+  "10006303": [],
+  "10006304": [],
+  "10006305": [],
+  "10006306": [],
+  "10006307": [],
+  "10006308": [],
+  "10006309": [],
+  "10006311": [],
+  "10006312": [],
+  "10006313": [],
+  "10006314": [],
+  "10006315": [],
+  "10006316": [],
+  "10006317": [],
+  "10006318": [],
+  "10006319": [],
+  "10006320": [],
+  "10006321": [],
+  "10006322": [],
+  "10006323": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10006324": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10006325": [],
+  "10006327": [],
+  "10006330": [],
+  "10006334": [],
+  "10006335": [],
+  "10006336": [],
+  "10006337": [],
+  "10006338": [],
+  "10006339": [],
+  "10006340": [],
+  "10006341": [],
+  "10006342": [],
+  "10006343": [],
+  "10006344": [],
+  "10006345": [],
+  "10006346": [],
+  "10006347": [],
+  "10006348": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10006349": [],
+  "10006350": [],
+  "10006351": [],
+  "10006352": [],
+  "10006353": [],
+  "10006354": [],
+  "10006355": [],
+  "10006356": [],
+  "10006357": [],
+  "10006358": [],
+  "10006359": [],
+  "10006360": [],
+  "10006361": [],
+  "10006362": [],
+  "10006363": [],
+  "10006364": [],
+  "10006365": [],
+  "10006366": [],
+  "10006367": [],
+  "10006368": [],
+  "10006369": [],
+  "10006370": [],
+  "10006371": [],
+  "10006372": [],
+  "10006390": [],
+  "10006391": [],
+  "10006392": [],
+  "10006393": [],
+  "10006394": [],
+  "10006395": [],
+  "10006396": [],
+  "10006397": [],
+  "10006398": [],
+  "10006399": [],
+  "10006400": [],
+  "10006401": [],
+  "10006402": [],
+  "10006403": [],
+  "10006404": [],
+  "10006405": [],
+  "10006406": [],
+  "10006407": [],
+  "10006408": [],
+  "10006409": [],
+  "10006410": [],
+  "10006411": [],
+  "10006412": [],
+  "10006414": [],
+  "10006415": [],
+  "10006416": [],
+  "10006417": [],
+  "10006418": [],
+  "10006419": [],
+  "10006420": [],
+  "10006421": [],
+  "10006422": [],
+  "10006423": [],
+  "10006424": [],
+  "10006425": [],
+  "10006426": [],
+  "10006427": [],
+  "10006428": [],
+  "10006429": [],
+  "10006430": [],
+  "10006431": [],
+  "10006432": [],
+  "10006433": [],
+  "10006434": [],
+  "10006435": [],
+  "10006436": [],
+  "10006437": [],
+  "10006438": [],
+  "10006439": [],
+  "10006440": [],
+  "10006441": [],
+  "10006442": [],
+  "10006443": [],
+  "10006444": [],
+  "10006445": [],
+  "10006446": [],
+  "10006447": [],
+  "10006449": [],
+  "10006450": [],
+  "10006451": [],
+  "10006452": [],
+  "10006453": [],
+  "10006454": [],
+  "10006455": [],
+  "10006456": [],
+  "10006457": [],
+  "10006458": [],
+  "10006459": [
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10006460": [],
+  "10006461": [],
+  "10006462": [],
+  "10006463": [],
+  "10006464": [],
+  "10006465": [],
+  "10006466": [],
+  "10006467": [],
+  "10006468": [],
+  "10006469": [],
+  "10006470": [],
+  "10006471": [],
+  "10006472": [],
+  "10006473": [],
+  "10006474": [],
+  "10006476": [],
+  "10006477": [],
+  "10006478": [],
+  "10006479": [],
+  "10006480": [],
+  "10006481": [],
+  "10006482": [],
+  "10006483": [],
+  "10006484": [],
+  "10006485": [],
+  "10006486": [],
+  "10006487": [],
+  "10006488": [],
+  "10006489": [],
+  "10006490": [],
+  "10006491": [],
+  "10006492": [],
+  "10006493": [],
+  "10006494": [],
+  "10006495": [],
+  "10006496": [],
+  "10006497": [],
+  "10006498": [],
+  "10006499": [],
+  "10006500": [],
+  "10006501": [],
+  "10006502": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10006503": [],
+  "10006504": [],
+  "10006505": [],
+  "10006506": [],
+  "10006507": [],
+  "10006508": [],
+  "10006509": [],
+  "10006510": [],
+  "10006511": [],
+  "10006512": [],
+  "10006513": [],
+  "10006514": [],
+  "10006515": [],
+  "10006516": [],
+  "10006517": [],
+  "10006518": [],
+  "10006519": [],
+  "10006520": [],
+  "10006521": [],
+  "10006522": [],
+  "10006523": [],
+  "10006524": [],
+  "10006525": [],
+  "10006526": [],
+  "10006527": [],
+  "10006528": [],
+  "10006529": [],
+  "10006530": [],
+  "10006531": [],
+  "10006532": [],
+  "10006533": [],
+  "10006534": [],
+  "10006535": [],
+  "10006536": [],
+  "10006537": [],
+  "10006538": [],
+  "10006539": [],
+  "10006540": [],
+  "10006541": [],
+  "10006542": [],
+  "10006543": [],
+  "10006544": [],
+  "10006545": [],
+  "10006546": [],
+  "10006547": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10006548": [],
+  "10006549": [],
+  "10006550": [],
+  "10006551": [],
+  "10006552": [],
+  "10006553": [],
+  "10006554": [],
+  "10006555": [],
+  "10006556": [],
+  "10006557": [],
+  "10006558": [],
+  "10006559": [],
+  "10006560": [],
+  "10006561": [],
+  "10006562": [],
+  "10006563": [],
+  "10006564": [],
+  "10006565": [],
+  "10006566": [],
+  "10006567": [],
+  "10006568": [],
+  "10006569": [],
+  "10006570": [],
+  "10006571": [],
+  "10006572": [],
+  "10006573": [],
+  "10006574": [],
+  "10006575": [],
+  "10006576": [],
+  "10006577": [],
+  "10006578": [],
+  "10006579": [],
+  "10006580": [],
+  "10006581": [],
+  "10006582": [],
+  "10006583": [],
+  "10006584": [],
+  "10006585": [],
+  "10006586": [],
+  "10006587": [],
+  "10006588": [],
+  "10006589": [],
+  "10006590": [],
+  "10006591": [],
+  "10006592": [],
+  "10006593": [],
+  "10006594": [],
+  "10006595": [],
+  "10006596": [],
+  "10006597": [],
+  "10006598": [],
+  "10006599": [],
+  "10006600": [],
+  "10006601": [],
+  "10006602": [],
+  "10006603": [],
+  "10006604": [],
+  "10006605": [],
+  "10006606": [],
+  "10006607": [],
+  "10006608": [],
+  "10006609": [],
+  "10006610": [],
+  "10006611": [],
+  "10006612": [],
+  "10006613": [],
+  "10006614": [],
+  "10006615": [],
+  "10006616": [],
+  "10006617": [],
+  "10006618": [],
+  "10006619": [],
+  "10006620": [],
+  "10006621": [],
+  "10006622": [],
+  "10006623": [],
+  "10006624": [],
+  "10006625": [],
+  "10006626": [],
+  "10006627": [],
+  "10006628": [],
+  "10006629": [],
+  "10006630": [],
+  "10006631": [],
+  "10006632": [],
+  "10006633": [],
+  "10006634": [],
+  "10006635": [],
+  "10006636": [],
+  "10006637": [],
+  "10006638": [],
+  "10006639": [],
+  "10006640": [],
+  "10006641": [],
+  "10006642": [],
+  "10006643": [],
+  "10006644": [],
+  "10006645": [],
+  "10006646": [],
+  "10006647": [],
+  "10006648": [],
+  "10006649": [],
+  "10006650": [],
+  "10006651": [],
+  "10006652": [],
+  "10006653": [],
+  "10006654": [],
+  "10006655": [],
+  "10006656": [],
+  "10006657": [],
+  "10006658": [],
+  "10006659": [],
+  "10006660": [],
+  "10006661": [],
+  "10006662": [],
+  "10006663": [],
+  "10006664": [],
+  "10006665": [],
+  "10006666": [],
+  "10006667": [],
+  "10006668": [],
+  "10006669": [],
+  "10006670": [],
+  "10006671": [],
+  "10006672": [],
+  "10006673": [],
+  "10006674": [],
+  "10006675": [],
+  "10006676": [],
+  "10006677": [],
+  "10006678": [],
+  "10006679": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10006680": [],
+  "10006681": [],
+  "10006682": [],
+  "10006683": [],
+  "10006684": [],
+  "10006685": [],
+  "10006686": [],
+  "10006687": [],
+  "10006688": [],
+  "10006689": [],
+  "10006690": [],
+  "10006691": [],
+  "10006692": [],
+  "10006693": [],
+  "10006694": [],
+  "10006695": [],
+  "10006696": [],
+  "10006697": [],
+  "10006698": [],
+  "10006699": [],
+  "10006700": [],
+  "10006701": [],
+  "10006703": [],
+  "10006704": [],
+  "10006705": [],
+  "10006706": [],
+  "10006707": [],
+  "10006708": [],
+  "10006709": [],
+  "10006710": [],
+  "10006711": [],
+  "10006712": [],
+  "10006713": [],
+  "10006714": [],
+  "10006715": [],
+  "10006716": [],
+  "10006717": [],
+  "10006718": [],
+  "10006719": [],
+  "10006720": [],
+  "10006721": [],
+  "10006722": [],
+  "10006723": [],
+  "10006724": [],
+  "10006725": [],
+  "10006726": [],
+  "10006728": [],
+  "10006729": [],
+  "10006730": [],
+  "10006731": [],
+  "10006732": [],
+  "10006733": [],
+  "10006734": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10006735": [],
+  "10006736": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10006737": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10006738": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10006739": [
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10006740": [],
+  "10006742": [
+    {
+      "CodeNmc": "372.0",
+      "LibelleNmc": "MAISON / CUISSON"
+    }
+  ],
+  "10006743": [],
+  "10006744": [],
+  "10006745": [],
+  "10006746": [],
+  "10006747": [],
+  "10006748": [],
+  "10006749": [],
+  "10006750": [],
+  "10006751": [],
+  "10006752": [],
+  "10006753": [],
+  "10006754": [],
+  "10006755": [],
+  "10006759": [],
+  "10006760": [],
+  "10006761": [],
+  "10006763": [],
+  "10006764": [],
+  "10006765": [],
+  "10006766": [],
+  "10006767": [],
+  "10006768": [],
+  "10006769": [],
+  "10006770": [],
+  "10006771": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10006774": [],
+  "10006776": [],
+  "10006777": [],
+  "10006778": [],
+  "10006779": [],
+  "10006780": [],
+  "10006781": [],
+  "10006782": [],
+  "10006783": [],
+  "10006784": [],
+  "10006785": [],
+  "10006786": [],
+  "10006791": [],
+  "10006792": [],
+  "10006793": [],
+  "10006794": [],
+  "10006795": [],
+  "10006796": [],
+  "10006797": [],
+  "10006798": [],
+  "10006806": [],
+  "10006807": [],
+  "10006808": [],
+  "10006809": [],
+  "10006810": [],
+  "10006811": [],
+  "10006812": [],
+  "10006813": [],
+  "10006815": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    }
+  ],
+  "10006816": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "442068.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ANALYSE"
+    },
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "36317.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / MATERIEL DE NETTOYAGE"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "364004.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / AUTRE"
+    },
+    {
+      "CodeNmc": "364000.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE / PELLETS"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11102.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN SPECIFIQUE"
+    }
+  ],
+  "10006817": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "150027.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / CORPS / AUTRES PRODUITS CORPS"
+    },
+    {
+      "CodeNmc": "150012.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU / VISAGE / AUTRES PRODUITS VISAGE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10006818": [],
+  "10006819": [],
+  "10006820": [],
+  "10006821": [],
+  "10006822": [],
+  "10006823": [],
+  "10006824": [],
+  "10006825": [],
+  "10006826": [],
+  "10006827": [],
+  "10006828": [],
+  "10006829": [],
+  "10006830": [],
+  "10006831": [],
+  "10006832": [],
+  "10006833": [],
+  "10006834": [],
+  "10006835": [],
+  "10006836": [],
+  "10006837": [],
+  "10006841": [],
+  "10006842": [],
+  "10006843": [],
+  "10006845": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10006847": [],
+  "10006848": [],
+  "10006849": [],
+  "10006850": [],
+  "10006851": [],
+  "10006852": [],
+  "10006853": [],
+  "10006854": [],
+  "10006855": [],
+  "10006856": [],
+  "10006857": [],
+  "10006858": [],
+  "10006859": [],
+  "10006860": [],
+  "10006861": [],
+  "10006862": [],
+  "10006863": [],
+  "10006864": [],
+  "10006865": [],
+  "10006866": [],
+  "10006867": [],
+  "10006868": [],
+  "10006869": [],
+  "10006870": [],
+  "10006871": [],
+  "10006872": [],
+  "10006873": [],
+  "10006874": [],
+  "10006875": [],
+  "10006876": [],
+  "10006877": [],
+  "10006878": [],
+  "10006879": [],
+  "10006880": [],
+  "10006881": [],
+  "10006882": [],
+  "10006883": [],
+  "10006884": [],
+  "10006885": [],
+  "10006886": [],
+  "10006887": [],
+  "10006888": [],
+  "10006889": [],
+  "10006890": [],
+  "10006891": [],
+  "10006892": [],
+  "10006893": [],
+  "10006894": [],
+  "10006895": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10006896": [],
+  "10006897": [],
+  "10006898": [],
+  "10006899": [],
+  "10006900": [],
+  "10006901": [],
+  "10006902": [],
+  "10006905": [],
+  "10006906": [],
+  "10006907": [],
+  "10006908": [],
+  "10006909": [],
+  "10006910": [],
+  "10006911": [],
+  "10006913": [],
+  "10006914": [],
+  "10006915": [],
+  "10006916": [],
+  "10006917": [],
+  "10006918": [],
+  "10006919": [],
+  "10006920": [],
+  "10006921": [],
+  "10006922": [],
+  "10006923": [],
+  "10006924": [],
+  "10006925": [],
+  "10006926": [],
+  "10006927": [],
+  "10006928": [],
+  "10006929": [],
+  "10006930": [],
+  "10006931": [],
+  "10006932": [],
+  "10006933": [],
+  "10006934": [],
+  "10006935": [],
+  "10006936": [],
+  "10006937": [],
+  "10006938": [],
+  "10006939": [],
+  "10006940": [],
+  "10006941": [],
+  "10006942": [],
+  "10006943": [],
+  "10006944": [],
+  "10006945": [],
+  "10006946": [],
+  "10006947": [],
+  "10006948": [],
+  "10006949": [],
+  "10006950": [],
+  "10006951": [],
+  "10006952": [],
+  "10006953": [],
+  "10006954": [],
+  "10006955": [],
+  "10006956": [],
+  "10006957": [],
+  "10006958": [],
+  "10006960": [],
+  "10006961": [],
+  "10006962": [],
+  "10006966": [],
+  "10006967": [],
+  "10006968": [],
+  "10006969": [],
+  "10006970": [],
+  "10006971": [],
+  "10006972": [],
+  "10006973": [],
+  "10006974": [],
+  "10006975": [],
+  "10006976": [],
+  "10006977": [],
+  "10006978": [],
+  "10006979": [],
+  "10006980": [],
+  "10006981": [],
+  "10006982": [],
+  "10006983": [],
+  "10006984": [],
+  "10006985": [],
+  "10006986": [],
+  "10006987": [],
+  "10006988": [],
+  "10006989": [],
+  "10006990": [],
+  "10006991": [],
+  "10006992": [],
+  "10006993": [],
+  "10006994": [],
+  "10006995": [],
+  "10006996": [],
+  "10006997": [],
+  "10006998": [],
+  "10006999": [],
+  "10007000": [],
+  "10007001": [],
+  "10007002": [],
+  "10007003": [],
+  "10007004": [],
+  "10007005": [],
+  "10007006": [],
+  "10007007": [],
+  "10007008": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10007009": [],
+  "10007011": [],
+  "10007012": [],
+  "10007013": [],
+  "10007014": [
+    {
+      "CodeNmc": "45.0",
+      "LibelleNmc": "MAISON JARDIN"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    }
+  ],
+  "10007015": [],
+  "10007016": [],
+  "10007017": [],
+  "10007018": [],
+  "10007020": [],
+  "10007021": [],
+  "10007022": [],
+  "10007023": [
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11102.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN SPECIFIQUE"
+    },
+    {
+      "CodeNmc": "11100.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN STANDARD"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10007024": [],
+  "10007026": [],
+  "10007027": [],
+  "10007028": [],
+  "10007029": [],
+  "10007030": [],
+  "10007031": [],
+  "10007032": [],
+  "10007033": [],
+  "10007034": [],
+  "10007035": [],
+  "10007036": [],
+  "10007037": [],
+  "10007038": [],
+  "10007039": [],
+  "10007040": [],
+  "10007041": [],
+  "10007042": [],
+  "10007043": [],
+  "10007044": [],
+  "10007045": [],
+  "10007046": [],
+  "10007047": [],
+  "10007048": [],
+  "10007049": [],
+  "10007050": [],
+  "10007051": [],
+  "10007052": [],
+  "10007053": [],
+  "10007054": [],
+  "10007055": [],
+  "10007056": [],
+  "10007057": [],
+  "10007058": [],
+  "10007059": [],
+  "10007060": [],
+  "10007061": [],
+  "10007062": [],
+  "10007063": [],
+  "10007064": [],
+  "10007065": [],
+  "10007066": [],
+  "10007067": [],
+  "10007068": [],
+  "10007069": [],
+  "10007070": [
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "860084.0",
+      "LibelleNmc": "TECHNOLOGIE / GEM / ENCASTRABLE / TABLE DE CUISSON"
+    },
+    {
+      "CodeNmc": "861004.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / ASPIRATEUR / ASPIRATEUR DE TABLE"
+    }
+  ],
+  "10007071": [],
+  "10007072": [],
+  "10007073": [],
+  "10007074": [],
+  "10007075": [],
+  "10007076": [],
+  "10007077": [],
+  "10007078": [],
+  "10007079": [],
+  "10007080": [],
+  "10007081": [],
+  "10007082": [],
+  "10007083": [],
+  "10007084": [],
+  "10007085": [],
+  "10007086": [],
+  "10007087": [],
+  "10007088": [],
+  "10007089": [],
+  "10007090": [],
+  "10007091": [],
+  "10007092": [],
+  "10007093": [],
+  "10007094": [],
+  "10007095": [],
+  "10007096": [],
+  "10007097": [],
+  "10007098": [],
+  "10007099": [],
+  "10007100": [],
+  "10007101": [],
+  "10007102": [],
+  "10007103": [],
+  "10007104": [],
+  "10007105": [],
+  "10007106": [],
+  "10007107": [],
+  "10007108": [],
+  "10007109": [],
+  "10007110": [],
+  "10007111": [],
+  "10007112": [],
+  "10007113": [],
+  "10007114": [],
+  "10007115": [],
+  "10007116": [],
+  "10007117": [],
+  "10007118": [],
+  "10007119": [],
+  "10007120": [],
+  "10007121": [],
+  "10007122": [],
+  "10007123": [],
+  "10007124": [],
+  "10007125": [],
+  "10007126": [],
+  "10007127": [],
+  "10007128": [],
+  "10007129": [],
+  "10007130": [],
+  "10007131": [],
+  "10007132": [],
+  "10007133": [],
+  "10007134": [],
+  "10007135": [],
+  "10007136": [],
+  "10007137": [],
+  "10007138": [],
+  "10007139": [],
+  "10007140": [],
+  "10007141": [],
+  "10007142": [],
+  "10007143": [],
+  "10007144": [],
+  "10007145": [],
+  "10007146": [],
+  "10007147": [],
+  "10007148": [],
+  "10007149": [],
+  "10007150": [],
+  "10007151": [],
+  "10007152": [],
+  "10007153": [],
+  "10007154": [],
+  "10007155": [],
+  "10007156": [],
+  "10007157": [],
+  "10007158": [],
+  "10007159": [],
+  "10007160": [],
+  "10007161": [],
+  "10007162": [],
+  "10007163": [],
+  "10007164": [],
+  "10007165": [],
+  "10007166": [],
+  "10007167": [],
+  "10007168": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10007169": [],
+  "10007170": [],
+  "10007171": [],
+  "10007172": [],
+  "10007173": [],
+  "10007174": [],
+  "10007175": [],
+  "10007176": [],
+  "10007177": [],
+  "10007178": [],
+  "10007179": [],
+  "10007180": [],
+  "10007181": [],
+  "10007182": [],
+  "10007183": [],
+  "10007184": [],
+  "10007185": [],
+  "10007186": [],
+  "10007187": [],
+  "10007188": [],
+  "10007189": [],
+  "10007190": [],
+  "10007191": [],
+  "10007192": [],
+  "10007193": [],
+  "10007194": [],
+  "10007195": [],
+  "10007196": [],
+  "10007197": [],
+  "10007198": [],
+  "10007199": [],
+  "10007200": [],
+  "10007201": [],
+  "10007202": [],
+  "10007203": [],
+  "10007204": [],
+  "10007205": [],
+  "10007206": [],
+  "10007207": [],
+  "10007208": [],
+  "10007209": [],
+  "10007210": [],
+  "10007211": [],
+  "10007212": [],
+  "10007213": [],
+  "10007214": [],
+  "10007215": [],
+  "10007216": [],
+  "10007217": [],
+  "10007218": [],
+  "10007219": [],
+  "10007220": [],
+  "10007221": [],
+  "10007222": [],
+  "10007223": [],
+  "10007224": [],
+  "10007225": [],
+  "10007226": [],
+  "10007227": [],
+  "10007228": [],
+  "10007229": [],
+  "10007230": [],
+  "10007231": [],
+  "10007232": [],
+  "10007233": [],
+  "10007234": [],
+  "10007235": [],
+  "10007236": [],
+  "10007237": [],
+  "10007238": [],
+  "10007242": [],
+  "10007243": [],
+  "10007244": [],
+  "10007245": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "10000.0",
+      "LibelleNmc": "LIQUIDES / ALCOOL / BASE COCKTAIL"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10007246": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007247": [],
+  "10007248": [],
+  "10007249": [],
+  "10007250": [],
+  "10007251": [],
+  "10007252": [],
+  "10007253": [],
+  "10007254": [],
+  "10007255": [],
+  "10007256": [],
+  "10007257": [],
+  "10007258": [
+    {
+      "CodeNmc": "43.0",
+      "LibelleNmc": "POLE SERVICE"
+    },
+    {
+      "CodeNmc": "87.0",
+      "LibelleNmc": "SERVICE"
+    }
+  ],
+  "10007259": [],
+  "10007260": [],
+  "10007261": [],
+  "10007262": [],
+  "10007263": [],
+  "10007264": [],
+  "10007265": [
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10007266": [],
+  "10007267": [
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10007268": [],
+  "10007269": [],
+  "10007270": [],
+  "10007271": [],
+  "10007272": [],
+  "10007273": [],
+  "10007274": [],
+  "10007275": [],
+  "10007276": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10007277": [],
+  "10007278": [],
+  "10007279": [],
+  "10007280": [],
+  "10007281": [],
+  "10007282": [],
+  "10007283": [],
+  "10007284": [],
+  "10007285": [],
+  "10007286": [],
+  "10007287": [],
+  "10007288": [],
+  "10007289": [],
+  "10007290": [],
+  "10007291": [],
+  "10007292": [],
+  "10007293": [],
+  "10007294": [],
+  "10007295": [],
+  "10007296": [],
+  "10007297": [],
+  "10007298": [],
+  "10007299": [],
+  "10007300": [],
+  "10007301": [],
+  "10007302": [],
+  "10007303": [],
+  "10007304": [],
+  "10007305": [],
+  "10007306": [],
+  "10007307": [],
+  "10007308": [],
+  "10007309": [],
+  "10007310": [],
+  "10007311": [],
+  "10007312": [],
+  "10007313": [],
+  "10007314": [],
+  "10007315": [],
+  "10007316": [],
+  "10007317": [],
+  "10007318": [],
+  "10007319": [],
+  "10007320": [],
+  "10007321": [],
+  "10007322": [],
+  "10007323": [],
+  "10007324": [],
+  "10007325": [],
+  "10007326": [],
+  "10007327": [],
+  "10007328": [],
+  "10007329": [],
+  "10007330": [],
+  "10007331": [],
+  "10007332": [],
+  "10007333": [],
+  "10007334": [],
+  "10007335": [],
+  "10007336": [],
+  "10007337": [],
+  "10007338": [],
+  "10007339": [],
+  "10007340": [],
+  "10007341": [],
+  "10007342": [],
+  "10007343": [],
+  "10007344": [],
+  "10007345": [],
+  "10007346": [],
+  "10007347": [],
+  "10007348": [],
+  "10007349": [],
+  "10007350": [],
+  "10007351": [],
+  "10007352": [],
+  "10007353": [],
+  "10007354": [],
+  "10007355": [],
+  "10007356": [],
+  "10007357": [],
+  "10007359": [],
+  "10007360": [],
+  "10007361": [],
+  "10007362": [],
+  "10007363": [],
+  "10007364": [],
+  "10007365": [],
+  "10007366": [],
+  "10007367": [],
+  "10007368": [],
+  "10007369": [],
+  "10007370": [],
+  "10007371": [],
+  "10007372": [],
+  "10007373": [],
+  "10007374": [],
+  "10007375": [],
+  "10007376": [],
+  "10007377": [],
+  "10007378": [],
+  "10007379": [],
+  "10007380": [],
+  "10007381": [],
+  "10007382": [],
+  "10007383": [],
+  "10007384": [],
+  "10007385": [],
+  "10007386": [],
+  "10007387": [],
+  "10007388": [],
+  "10007389": [],
+  "10007390": [],
+  "10007391": [],
+  "10007392": [],
+  "10007393": [],
+  "10007394": [],
+  "10007395": [],
+  "10007396": [],
+  "10007397": [],
+  "10007398": [],
+  "10007399": [],
+  "10007400": [],
+  "10007401": [],
+  "10007402": [],
+  "10007403": [],
+  "10007404": [],
+  "10007405": [],
+  "10007406": [],
+  "10007407": [],
+  "10007408": [],
+  "10007409": [],
+  "10007410": [],
+  "10007411": [],
+  "10007412": [],
+  "10007413": [],
+  "10007414": [],
+  "10007415": [],
+  "10007416": [],
+  "10007417": [],
+  "10007418": [],
+  "10007419": [],
+  "10007420": [],
+  "10007421": [],
+  "10007422": [],
+  "10007423": [],
+  "10007424": [],
+  "10007425": [],
+  "10007426": [],
+  "10007427": [],
+  "10007428": [],
+  "10007429": [],
+  "10007430": [],
+  "10007431": [],
+  "10007432": [],
+  "10007433": [],
+  "10007434": [],
+  "10007435": [],
+  "10007436": [],
+  "10007437": [],
+  "10007438": [],
+  "10007439": [],
+  "10007440": [],
+  "10007441": [],
+  "10007442": [],
+  "10007443": [],
+  "10007444": [],
+  "10007445": [],
+  "10007446": [],
+  "10007447": [],
+  "10007448": [],
+  "10007449": [],
+  "10007450": [],
+  "10007451": [],
+  "10007452": [],
+  "10007453": [],
+  "10007454": [],
+  "10007455": [],
+  "10007456": [],
+  "10007457": [],
+  "10007458": [],
+  "10007459": [],
+  "10007460": [],
+  "10007461": [],
+  "10007462": [],
+  "10007463": [],
+  "10007464": [],
+  "10007465": [],
+  "10007466": [],
+  "10007467": [],
+  "10007468": [],
+  "10007469": [],
+  "10007470": [],
+  "10007471": [],
+  "10007472": [],
+  "10007473": [],
+  "10007474": [],
+  "10007475": [],
+  "10007476": [],
+  "10007477": [],
+  "10007478": [],
+  "10007479": [],
+  "10007480": [],
+  "10007481": [],
+  "10007482": [],
+  "10007483": [],
+  "10007485": [],
+  "10007486": [],
+  "10007487": [],
+  "10007488": [],
+  "10007489": [],
+  "10007490": [],
+  "10007491": [],
+  "10007492": [],
+  "10007493": [],
+  "10007494": [],
+  "10007495": [],
+  "10007496": [],
+  "10007497": [],
+  "10007498": [],
+  "10007499": [],
+  "10007500": [],
+  "10007501": [],
+  "10007502": [],
+  "10007503": [],
+  "10007504": [],
+  "10007505": [],
+  "10007506": [],
+  "10007507": [],
+  "10007508": [],
+  "10007509": [],
+  "10007510": [],
+  "10007511": [],
+  "10007512": [],
+  "10007513": [],
+  "10007514": [],
+  "10007515": [],
+  "10007516": [],
+  "10007517": [],
+  "10007518": [],
+  "10007519": [],
+  "10007520": [],
+  "10007521": [],
+  "10007522": [],
+  "10007523": [],
+  "10007524": [],
+  "10007525": [],
+  "10007526": [],
+  "10007527": [],
+  "10007528": [],
+  "10007529": [],
+  "10007530": [],
+  "10007531": [],
+  "10007532": [],
+  "10007534": [],
+  "10007535": [],
+  "10007536": [],
+  "10007537": [],
+  "10007538": [],
+  "10007539": [],
+  "10007540": [],
+  "10007541": [],
+  "10007542": [],
+  "10007543": [],
+  "10007544": [],
+  "10007546": [],
+  "10007547": [],
+  "10007548": [],
+  "10007549": [],
+  "10007550": [],
+  "10007551": [],
+  "10007552": [],
+  "10007553": [],
+  "10007554": [],
+  "10007555": [],
+  "10007556": [],
+  "10007557": [],
+  "10007558": [],
+  "10007559": [],
+  "10007560": [],
+  "10007561": [],
+  "10007562": [],
+  "10007563": [],
+  "10007564": [],
+  "10007565": [],
+  "10007567": [],
+  "10007568": [],
+  "10007569": [],
+  "10007570": [],
+  "10007571": [],
+  "10007572": [],
+  "10007573": [],
+  "10007574": [],
+  "10007575": [],
+  "10007576": [],
+  "10007577": [],
+  "10007578": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007579": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007580": [],
+  "10007581": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "87704.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BILLETTERIE LOCALE"
+    },
+    {
+      "CodeNmc": "87701.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / LA POSTE"
+    },
+    {
+      "CodeNmc": "87700.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BAR A ONGLES"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10007582": [],
+  "10007583": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007584": [
+    {
+      "CodeNmc": "87702.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / AUTRES"
+    },
+    {
+      "CodeNmc": "87704.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BILLETTERIE LOCALE"
+    },
+    {
+      "CodeNmc": "87701.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / LA POSTE"
+    },
+    {
+      "CodeNmc": "87700.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BAR A ONGLES"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "360040.0",
+      "LibelleNmc": "BRICO/AUTO / BRICOLAGE / REVETEMENT ET ISOLATION / MATERIAUX DE CONSTRUCTION"
+    },
+    {
+      "CodeNmc": "8770430.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / BILLETTERIE LOCALE / AUTRE / AUTRE"
+    }
+  ],
+  "10007585": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007586": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007587": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007588": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007589": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007590": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007591": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007592": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007593": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007594": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007595": [],
+  "10007596": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007597": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007598": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007599": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007600": [],
+  "10007601": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007602": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007603": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007605": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10007606": [],
+  "10007607": [],
+  "10007608": [],
+  "10007609": [],
+  "10007610": [],
+  "10007611": [],
+  "10007612": [],
+  "10007613": [],
+  "10007614": [],
+  "10007615": [],
+  "10007616": [],
+  "10007617": [],
+  "10007618": [],
+  "10007619": [],
+  "10007620": [],
+  "10007621": [],
+  "10007622": [],
+  "10007623": [],
+  "10007624": [],
+  "10007625": [],
+  "10007626": [],
+  "10007627": [],
+  "10007628": [],
+  "10007629": [],
+  "10007630": [],
+  "10007631": [],
+  "10007632": [],
+  "10007633": [],
+  "10007634": [],
+  "10007635": [],
+  "10007636": [],
+  "10007637": [],
+  "10007638": [],
+  "10007639": [],
+  "10007640": [],
+  "10007641": [],
+  "10007642": [],
+  "10007643": [],
+  "10007644": [],
+  "10007645": [],
+  "10007646": [],
+  "10007647": [],
+  "10007648": [],
+  "10007649": [
+    {
+      "CodeNmc": "457051.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / CONTENANTS ET ACCESSOIRES / CONTENANT D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "360040.0",
+      "LibelleNmc": "BRICO/AUTO / BRICOLAGE / REVETEMENT ET ISOLATION / MATERIAUX DE CONSTRUCTION"
+    },
+    {
+      "CodeNmc": "361046.0",
+      "LibelleNmc": "BRICO/AUTO / ENTRETIEN ET DECORATION / DROGUERIE / SEL DE DENEIGEMENT"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "45305.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN / BARBECUE"
+    },
+    {
+      "CodeNmc": "45407.0",
+      "LibelleNmc": "MAISON JARDIN / SEMENCES BULBES ET VEGETAUX / PLANTE DE TOUSSAINT"
+    },
+    {
+      "CodeNmc": "45406.0",
+      "LibelleNmc": "MAISON JARDIN / SEMENCES BULBES ET VEGETAUX / SAPIN DE NOEL"
+    },
+    {
+      "CodeNmc": "4410018.0",
+      "LibelleNmc": "LOISIRS / CAMPING / TENTE ET ACCESSOIRES / ACCESSOIRE TENTE / KIT DE REPARATION"
+    },
+    {
+      "CodeNmc": "457050.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / CONTENANTS ET ACCESSOIRES / CONTENANT DE JARDIN"
+    }
+  ],
+  "10007650": [],
+  "10007651": [],
+  "10007652": [],
+  "10007653": [],
+  "10007654": [],
+  "10007655": [],
+  "10007656": [],
+  "10007657": [],
+  "10007658": [],
+  "10007659": [],
+  "10007660": [],
+  "10007661": [],
+  "10007663": [],
+  "10007665": [],
+  "10007666": [],
+  "10007667": [],
+  "10007668": [],
+  "10007669": [],
+  "10007670": [],
+  "10007671": [],
+  "10007672": [],
+  "10007673": [],
+  "10007674": [],
+  "10007675": [],
+  "10007676": [],
+  "10007677": [],
+  "10007678": [],
+  "10007679": [],
+  "10007680": [],
+  "10007681": [],
+  "10007682": [],
+  "10007683": [],
+  "10007684": [],
+  "10007685": [],
+  "10007686": [],
+  "10007687": [],
+  "10007688": [],
+  "10007689": [],
+  "10007690": [],
+  "10007691": [],
+  "10007692": [],
+  "10007693": [],
+  "10007694": [],
+  "10007695": [],
+  "10007696": [],
+  "10007697": [],
+  "10007698": [],
+  "10007699": [],
+  "10007700": [],
+  "10007701": [],
+  "10007702": [],
+  "10007703": [],
+  "10007704": [],
+  "10007705": [],
+  "10007706": [],
+  "10007707": [],
+  "10007708": [],
+  "10007709": [],
+  "10007710": [],
+  "10007711": [],
+  "10007712": [],
+  "10007713": [],
+  "10007714": [],
+  "10007715": [],
+  "10007716": [],
+  "10007717": [],
+  "10007718": [],
+  "10007719": [],
+  "10007720": [],
+  "10007721": [],
+  "10007722": [],
+  "10007723": [],
+  "10007724": [],
+  "10007725": [],
+  "10007726": [],
+  "10007727": [],
+  "10007728": [],
+  "10007729": [],
+  "10007730": [],
+  "10007731": [],
+  "10007732": [],
+  "10007733": [],
+  "10007734": [],
+  "10007735": [],
+  "10007736": [],
+  "10007737": [],
+  "10007738": [],
+  "10007739": [],
+  "10007740": [],
+  "10007741": [],
+  "10007742": [],
+  "10007743": [],
+  "10007744": [],
+  "10007745": [],
+  "10007746": [],
+  "10007747": [],
+  "10007748": [],
+  "10007749": [],
+  "10007750": [],
+  "10007752": [],
+  "10007753": [],
+  "10007754": [],
+  "10007755": [],
+  "10007756": [],
+  "10007757": [],
+  "10007758": [],
+  "10007759": [],
+  "10007760": [],
+  "10007761": [],
+  "10007762": [],
+  "10007763": [],
+  "10007764": [],
+  "10007765": [],
+  "10007766": [],
+  "10007767": [],
+  "10007768": [],
+  "10007769": [],
+  "10007770": [],
+  "10007771": [],
+  "10007772": [],
+  "10007773": [],
+  "10007774": [],
+  "10007775": [],
+  "10007776": [],
+  "10007777": [],
+  "10007778": [],
+  "10007779": [],
+  "10007780": [],
+  "10007781": [],
+  "10007782": [],
+  "10007783": [],
+  "10007784": [],
+  "10007785": [],
+  "10007786": [],
+  "10007787": [],
+  "10007788": [],
+  "10007789": [],
+  "10007790": [],
+  "10007791": [],
+  "10007792": [],
+  "10007793": [],
+  "10007794": [],
+  "10007795": [],
+  "10007796": [],
+  "10007797": [],
+  "10007798": [],
+  "10007799": [],
+  "10007800": [],
+  "10007801": [],
+  "10007802": [],
+  "10007803": [],
+  "10007804": [],
+  "10007805": [],
+  "10007806": [],
+  "10007807": [],
+  "10007808": [],
+  "10007809": [],
+  "10007810": [],
+  "10007811": [],
+  "10007812": [],
+  "10007813": [],
+  "10007814": [],
+  "10007815": [],
+  "10007816": [],
+  "10007817": [],
+  "10007818": [],
+  "10007819": [],
+  "10007820": [],
+  "10007821": [],
+  "10007822": [],
+  "10007823": [],
+  "10007824": [],
+  "10007825": [],
+  "10007826": [],
+  "10007827": [],
+  "10007828": [],
+  "10007829": [],
+  "10007830": [],
+  "10007831": [],
+  "10007832": [],
+  "10007833": [],
+  "10007834": [],
+  "10007835": [],
+  "10007836": [],
+  "10007837": [],
+  "10007838": [],
+  "10007839": [],
+  "10007840": [],
+  "10007841": [],
+  "10007842": [],
+  "10007843": [],
+  "10007844": [],
+  "10007845": [],
+  "10007846": [],
+  "10007847": [],
+  "10007848": [],
+  "10007849": [],
+  "10007850": [],
+  "10007851": [],
+  "10007852": [],
+  "10007853": [],
+  "10007854": [],
+  "10007855": [],
+  "10007856": [],
+  "10007857": [],
+  "10007858": [],
+  "10007859": [],
+  "10007860": [],
+  "10007861": [],
+  "10007862": [],
+  "10007863": [],
+  "10007864": [],
+  "10007865": [],
+  "10007866": [],
+  "10007867": [],
+  "10007868": [],
+  "10007869": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10007870": [],
+  "10007871": [],
+  "10007872": [],
+  "10007873": [],
+  "10007874": [],
+  "10007875": [],
+  "10007876": [],
+  "10007877": [],
+  "10007878": [],
+  "10007879": [],
+  "10007880": [],
+  "10007881": [],
+  "10007882": [],
+  "10007883": [],
+  "10007884": [],
+  "10007885": [],
+  "10007886": [],
+  "10007887": [],
+  "10007888": [],
+  "10007889": [],
+  "10007890": [],
+  "10007891": [],
+  "10007892": [],
+  "10007893": [],
+  "10007894": [],
+  "10007895": [],
+  "10007896": [],
+  "10007897": [],
+  "10007898": [],
+  "10007899": [],
+  "10007900": [],
+  "10007901": [],
+  "10007902": [],
+  "10007903": [],
+  "10007904": [],
+  "10007905": [],
+  "10007906": [],
+  "10007907": [],
+  "10007908": [],
+  "10007909": [],
+  "10007910": [],
+  "10007911": [],
+  "10007912": [],
+  "10007913": [],
+  "10007914": [],
+  "10007915": [],
+  "10007916": [],
+  "10007917": [],
+  "10007918": [],
+  "10007919": [],
+  "10007920": [],
+  "10007921": [],
+  "10007922": [],
+  "10007923": [],
+  "10007924": [],
+  "10007925": [],
+  "10007926": [],
+  "10007927": [],
+  "10007928": [],
+  "10007929": [],
+  "10007930": [],
+  "10007931": [],
+  "10007932": [],
+  "10007934": [],
+  "10007935": [
+    {
+      "CodeNmc": "861113.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861122.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / ACCESSOIRES"
+    }
+  ],
+  "10007936": [],
+  "10007937": [],
+  "10007938": [],
+  "10007939": [],
+  "10007941": [
+    {
+      "CodeNmc": "861113.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861122.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    }
+  ],
+  "10007942": [],
+  "10007943": [],
+  "10007944": [
+    {
+      "CodeNmc": "248.0",
+      "LibelleNmc": "POISSON / AUTRES"
+    }
+  ],
+  "10007946": [],
+  "10007949": [],
+  "10007950": [],
+  "10007951": [],
+  "10007952": [],
+  "10007953": [],
+  "10007954": [],
+  "10007955": [],
+  "10007956": [],
+  "10007957": [],
+  "10007958": [],
+  "10007959": [],
+  "10007969": [],
+  "10007970": [],
+  "10007971": [],
+  "10007972": [],
+  "10007973": [],
+  "10007974": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "151001.0",
+      "LibelleNmc": "PARAPHARMACIE / HYGIENE CORPORELLE / TOILETTE / LAIT ET CREME DE DOUCHE"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "861113.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861122.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "457051.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / CONTENANTS ET ACCESSOIRES / CONTENANT D'INTERIEUR"
+    }
+  ],
+  "10007975": [],
+  "10007976": [],
+  "10007977": [],
+  "10007978": [],
+  "10007979": [],
+  "10007980": [],
+  "10007981": [],
+  "10007982": [],
+  "10007983": [],
+  "10007984": [],
+  "10007985": [],
+  "10007986": [],
+  "10007987": [],
+  "10007988": [],
+  "10007990": [],
+  "10007991": [],
+  "10007992": [],
+  "10007993": [],
+  "10007994": [],
+  "10007995": [],
+  "10007996": [],
+  "10007997": [],
+  "10007998": [],
+  "10007999": [],
+  "10008000": [],
+  "10008001": [],
+  "10008002": [],
+  "10008003": [],
+  "10008004": [],
+  "10008005": [],
+  "10008006": [],
+  "10008007": [],
+  "10008008": [],
+  "10008009": [],
+  "10008010": [],
+  "10008011": [
+    {
+      "CodeNmc": "442069.0",
+      "LibelleNmc": "LOISIRS / PISCINE-NAUTISME / TRAITEMENT DE L EAU / PRODUITS ET ACCESS HIVERNAGE"
+    },
+    {
+      "CodeNmc": "457051.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / CONTENANTS ET ACCESSOIRES / CONTENANT D'INTERIEUR"
+    },
+    {
+      "CodeNmc": "453051.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN / BARBECUE / BARBECUE GAZ"
+    },
+    {
+      "CodeNmc": "4410018.0",
+      "LibelleNmc": "LOISIRS / CAMPING / TENTE ET ACCESSOIRES / ACCESSOIRE TENTE / KIT DE REPARATION"
+    },
+    {
+      "CodeNmc": "457050.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN / CONTENANTS ET ACCESSOIRES / CONTENANT DE JARDIN"
+    },
+    {
+      "CodeNmc": "881022.0",
+      "LibelleNmc": "BONNES AFFAIRES / DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "363015.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / PRODUIT DE FONCTIONNEMENT / EAU POUR BATTERIE"
+    },
+    {
+      "CodeNmc": "360040.0",
+      "LibelleNmc": "BRICO/AUTO / BRICOLAGE / REVETEMENT ET ISOLATION / MATERIAUX DE CONSTRUCTION"
+    },
+    {
+      "CodeNmc": "364011.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / CHEMINEE ET ACCESSOIRES / ACCESSOIRE CHEMINEE"
+    },
+    {
+      "CodeNmc": "364010.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / CHEMINEE ET ACCESSOIRES / KIT RAMONAGE"
+    }
+  ],
+  "10008012": [],
+  "10008013": [],
+  "10008014": [],
+  "10008015": [],
+  "10008016": [],
+  "10008022": [],
+  "10008023": [],
+  "10008024": [],
+  "10008025": [],
+  "10008026": [],
+  "10008027": [],
+  "10008028": [
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    }
+  ],
+  "10008029": [],
+  "10008030": [
+    {
+      "CodeNmc": "10403.0",
+      "LibelleNmc": "LIQUIDES / VIN EFFERVESCENT / MOUSSEUX"
+    }
+  ],
+  "10008031": [
+    {
+      "CodeNmc": "103.0",
+      "LibelleNmc": "LIQUIDES / VIN TRANQUILLE"
+    }
+  ],
+  "10008032": [],
+  "10008033": [],
+  "10008034": [],
+  "10008035": [],
+  "10008036": [],
+  "10008037": [],
+  "10008038": [],
+  "10008039": [],
+  "10008040": [],
+  "10008041": [],
+  "10008042": [],
+  "10008043": [],
+  "10008044": [],
+  "10008045": [],
+  "10008046": [],
+  "10008047": [],
+  "10008048": [],
+  "10008051": [],
+  "10008052": [],
+  "10008053": [],
+  "10008054": [],
+  "10008055": [],
+  "10008056": [],
+  "10008057": [],
+  "10008058": [],
+  "10008059": [],
+  "10008060": [],
+  "10008061": [],
+  "10008062": [],
+  "10008063": [],
+  "10008064": [],
+  "10008069": [],
+  "10008070": [],
+  "10008071": [],
+  "10008072": [],
+  "10008073": [
+    {
+      "CodeNmc": "12404.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "124040.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS ENFANTS"
+    },
+    {
+      "CodeNmc": "124041.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS FAMILIAUX"
+    },
+    {
+      "CodeNmc": "124043.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SAISONNIERE"
+    },
+    {
+      "CodeNmc": "124044.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SPECIALITE"
+    },
+    {
+      "CodeNmc": "125000.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / CONFISERIE DE SUCRE / PETITE CONFISERIE DE POCHE"
+    },
+    {
+      "CodeNmc": "124049.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / ANTI GASPI CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "124041700.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS FAMILIAUX / BIOLOGIQUE / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "125009.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / CONFISERIE DE SUCRE / ANTI GASPI CONFISERIE DE SUCRE DESSERTS"
+    },
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10008074": [
+    {
+      "CodeNmc": "124010.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BARRES"
+    },
+    {
+      "CodeNmc": "124014.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / ROCHERS"
+    },
+    {
+      "CodeNmc": "124015.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / TURBINES"
+    },
+    {
+      "CodeNmc": "124002.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / TABLETTES DE CHOCOLAT / PREMIUM"
+    },
+    {
+      "CodeNmc": "124020.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CHOCOLATS SAISONNIER / BOITE DE CHOCOLAT"
+    },
+    {
+      "CodeNmc": "124011.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BOITAGES PERMANENTS"
+    },
+    {
+      "CodeNmc": "124012.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / CONCEPT ENFANTS"
+    },
+    {
+      "CodeNmc": "1240103.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BARRES / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1240142.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / ROCHERS / BIOLOGIQUE"
+    },
+    {
+      "CodeNmc": "1240151.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / TURBINES / BIOLOGIQUE"
+    }
+  ],
+  "10008075": [
+    {
+      "CodeNmc": "12404.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE"
+    },
+    {
+      "CodeNmc": "124040.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS ENFANTS"
+    },
+    {
+      "CodeNmc": "124041.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / BONBONS FAMILIAUX"
+    },
+    {
+      "CodeNmc": "124043.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SAISONNIERE"
+    },
+    {
+      "CodeNmc": "124044.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE SUCRE / CONFISERIE SPECIALITE"
+    },
+    {
+      "CodeNmc": "125000.0",
+      "LibelleNmc": "EPICERIE SUCREE / DESSERTS / CONFISERIE DE SUCRE / PETITE CONFISERIE DE POCHE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "124020.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CHOCOLATS SAISONNIER / BOITE DE CHOCOLAT"
+    },
+    {
+      "CodeNmc": "124010.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BARRES"
+    },
+    {
+      "CodeNmc": "124011.0",
+      "LibelleNmc": "EPICERIE SUCREE / CONFISERIE / CONFISERIE DE CHOCOLAT / BOITAGES PERMANENTS"
+    }
+  ],
+  "10008076": [],
+  "10008077": [],
+  "10008078": [],
+  "10008079": [],
+  "10008080": [],
+  "10008081": [],
+  "10008082": [],
+  "10008083": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    }
+  ],
+  "10008084": [],
+  "10008085": [],
+  "10008086": [],
+  "10008087": [],
+  "10008088": [],
+  "10008089": [],
+  "10008090": [],
+  "10008091": [],
+  "10008093": [],
+  "10008094": [],
+  "10008095": [],
+  "10008096": [],
+  "10008097": [],
+  "10008098": [],
+  "10008099": [],
+  "10008100": [],
+  "10008101": [],
+  "10008102": [],
+  "10008105": [],
+  "10008106": [],
+  "10008107": [],
+  "10008108": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    }
+  ],
+  "10008109": [],
+  "10008110": [],
+  "10008111": [],
+  "10008112": [],
+  "10008113": [
+    {
+      "CodeNmc": "23.0",
+      "LibelleNmc": "FRUITS ET LEGUMES"
+    }
+  ],
+  "10008114": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "155010.0",
+      "LibelleNmc": "PARAPHARMACIE / PARFUMERIE / PARFUM / EAUX DE TOILETTES ET PARFUMS FEMME"
+    },
+    {
+      "CodeNmc": "155011.0",
+      "LibelleNmc": "PARAPHARMACIE / PARFUMERIE / PARFUM / EAUX DE TOILETTES ET PARFUMS HOMME"
+    },
+    {
+      "CodeNmc": "45305.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN / BARBECUE"
+    },
+    {
+      "CodeNmc": "152011.0",
+      "LibelleNmc": "PARAPHARMACIE / HYGIENE BUCCALE / BAINS DE BOUCHE / AUTRE"
+    },
+    {
+      "CodeNmc": "152010.0",
+      "LibelleNmc": "PARAPHARMACIE / HYGIENE BUCCALE / BAINS DE BOUCHE / HALEINE"
+    },
+    {
+      "CodeNmc": "155012.0",
+      "LibelleNmc": "PARAPHARMACIE / PARFUMERIE / PARFUM / EAUX DE TOILETTES ENFANTS"
+    },
+    {
+      "CodeNmc": "36317.0",
+      "LibelleNmc": "BRICO/AUTO / AUTO MOTO / MATERIEL DE NETTOYAGE"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    }
+  ],
+  "10008115": [],
+  "10008116": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "453.0",
+      "LibelleNmc": "MAISON JARDIN / MOBILIER ET ENVIRONNEMENT DE JARDIN"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    }
+  ],
+  "10008117": [],
+  "10008118": [],
+  "10008119": [],
+  "10008120": [],
+  "10008121": [],
+  "10008122": [],
+  "10008123": [],
+  "10008124": [],
+  "10008125": [],
+  "10008126": [],
+  "10008127": [],
+  "10008128": [],
+  "10008129": [],
+  "10008130": [],
+  "10008131": [],
+  "10008132": [],
+  "10008133": [],
+  "10008134": [],
+  "10008135": [],
+  "10008136": [
+    {
+      "CodeNmc": "113.0",
+      "LibelleNmc": "DHP / ENTRETIEN DU LINGE"
+    }
+  ],
+  "10008137": [],
+  "10008138": [],
+  "10008139": [],
+  "10008140": [],
+  "10008141": [],
+  "10008142": [],
+  "10008143": [],
+  "10008144": [],
+  "10008145": [
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11102.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN SPECIFIQUE"
+    },
+    {
+      "CodeNmc": "11100.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / ENTRETIEN STANDARD"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    }
+  ],
+  "10008146": [],
+  "10008147": [],
+  "10008148": [],
+  "10008149": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "87701.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / LA POSTE"
+    },
+    {
+      "CodeNmc": "88501.0",
+      "LibelleNmc": "BONNES AFFAIRES / MAISON / EQUIPEMENT DE LA MAISON"
+    }
+  ],
+  "10008150": [],
+  "10008151": [],
+  "10008152": [],
+  "10008153": [],
+  "10008154": [],
+  "10008155": [],
+  "10008156": [],
+  "10008157": [],
+  "10008158": [],
+  "10008159": [],
+  "10008160": [],
+  "10008161": [],
+  "10008162": [],
+  "10008163": [],
+  "10008164": [],
+  "10008165": [],
+  "10008166": [],
+  "10008167": [],
+  "10008168": [],
+  "10008169": [],
+  "10008170": [],
+  "10008171": [],
+  "10008172": [],
+  "10008173": [],
+  "10008174": [],
+  "10008175": [],
+  "10008176": [],
+  "10008177": [],
+  "10008178": [],
+  "10008179": [],
+  "10008180": [],
+  "10008181": [],
+  "10008182": [],
+  "10008183": [],
+  "10008184": [],
+  "10008185": [],
+  "10008186": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    }
+  ],
+  "10008187": [],
+  "10008188": [],
+  "10008189": [],
+  "10008190": [],
+  "10008191": [],
+  "10008192": [],
+  "10008193": [],
+  "10008194": [],
+  "10008195": [],
+  "10008196": [],
+  "10008197": [],
+  "10008198": [],
+  "10008199": [],
+  "10008200": [],
+  "10008201": [],
+  "10008202": [],
+  "10008203": [],
+  "10008204": [],
+  "10008205": [],
+  "10008206": [],
+  "10008207": [],
+  "10008208": [],
+  "10008209": [],
+  "10008210": [],
+  "10008211": [],
+  "10008212": [],
+  "10008213": [],
+  "10008214": [],
+  "10008215": [],
+  "10008216": [],
+  "10008217": [],
+  "10008218": [],
+  "10008219": [],
+  "10008220": [],
+  "10008221": [],
+  "10008222": [],
+  "10008223": [],
+  "10008224": [],
+  "10008225": [],
+  "10008226": [],
+  "10008227": [],
+  "10008228": [],
+  "10008229": [],
+  "10008230": [],
+  "10008231": [],
+  "10008232": [],
+  "10008233": [],
+  "10008234": [
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    },
+    {
+      "CodeNmc": "20301.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / HARENG, MORUE, ANCHOIS"
+    },
+    {
+      "CodeNmc": "20300.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / SAUMON, TRUITE ET AUTRES POISSONS FUMES"
+    },
+    {
+      "CodeNmc": "203049.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / BLINI ET TARTINABLE / ANTI GASPI BLINI ET TARTINABLE"
+    }
+  ],
+  "10008235": [],
+  "10008236": [],
+  "10008237": [],
+  "10008238": [],
+  "10008239": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "11104.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON / JAVEL"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "87701.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / LA POSTE"
+    }
+  ],
+  "10008240": [],
+  "10008241": [],
+  "10008242": [],
+  "10008244": [],
+  "10008245": [],
+  "10008246": [],
+  "10008247": [],
+  "10008248": [],
+  "10008249": [],
+  "10008250": [],
+  "10008251": [],
+  "10008252": [],
+  "10008253": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "373.0",
+      "LibelleNmc": "MAISON / USTENSILE DE CUISINE"
+    },
+    {
+      "CodeNmc": "464.0",
+      "LibelleNmc": "MODE / LINGERIE DE NUIT"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "452.0",
+      "LibelleNmc": "MAISON JARDIN / DECORATION DE FETE"
+    },
+    {
+      "CodeNmc": "457.0",
+      "LibelleNmc": "MAISON JARDIN / MATERIEL DE JARDIN"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10008254": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    }
+  ],
+  "10008255": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    }
+  ],
+  "10008256": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    }
+  ],
+  "10008257": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    }
+  ],
+  "10008258": [
+    {
+      "CodeNmc": "233.0",
+      "LibelleNmc": "FRUITS ET LEGUMES / POMME DE TERRE"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    },
+    {
+      "CodeNmc": "20307.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER / CRUSTACES, MOLLUSQUES"
+    },
+    {
+      "CodeNmc": "36400.0",
+      "LibelleNmc": "BRICO/AUTO / CHAUFFAGE / BOIS DE CHAUFFAGE"
+    },
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "11608.0",
+      "LibelleNmc": "DHP / PARFUMERIE / EAU DE TOILETTE"
+    },
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    },
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "37002.0",
+      "LibelleNmc": "MAISON / PAPETERIE / MACHINE DE BUREAU"
+    }
+  ],
+  "10008259": [],
+  "10008260": [],
+  "10008261": [],
+  "10008262": [],
+  "10008263": [],
+  "10008264": [],
+  "10008265": [],
+  "10008266": [],
+  "10008267": [],
+  "10008268": [],
+  "10008269": [],
+  "10008270": [],
+  "10008271": [],
+  "10008272": [],
+  "10008273": [],
+  "10008274": [
+    {
+      "CodeNmc": "87703.0",
+      "LibelleNmc": "SERVICE / PRESTATIONS DE SERVICES / REPASSAGE - PRESSING"
+    },
+    {
+      "CodeNmc": "861113.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / DISTRIBUTEUR DE BOISSON / ACCESSOIRES"
+    },
+    {
+      "CodeNmc": "861122.0",
+      "LibelleNmc": "TECHNOLOGIE / PEM / TRAITEMENT DE L'EAU / ACCESSOIRES"
+    }
+  ],
+  "10008275": [],
+  "10008276": [],
+  "10008277": [],
+  "10008278": [],
+  "10008279": [],
+  "10008280": [],
+  "10008281": [],
+  "10008282": [],
+  "10008283": [],
+  "10008284": [],
+  "10008285": [],
+  "10008286": [],
+  "10008287": [],
+  "10008288": [],
+  "10008289": [],
+  "10008290": [],
+  "10008292": [],
+  "10008293": [],
+  "10008294": [],
+  "10008295": [],
+  "10008296": [],
+  "10008297": [],
+  "10008298": [],
+  "10008299": [],
+  "10008300": [],
+  "10008301": [
+    {
+      "CodeNmc": "114.0",
+      "LibelleNmc": "DHP / PRODUITS DE PAPIER"
+    }
+  ],
+  "10008302": [],
+  "10008303": [
+    {
+      "CodeNmc": "36205.0",
+      "LibelleNmc": "BRICO/AUTO / ELECTRICITE / EQUIPEMENT DOMOTIQUE"
+    }
+  ],
+  "10008304": [],
+  "10008305": [
+    {
+      "CodeNmc": "375.0",
+      "LibelleNmc": "MAISON / ART DE LA TABLE PERMANENT"
+    },
+    {
+      "CodeNmc": "451.0",
+      "LibelleNmc": "MAISON JARDIN / ART DE LA TABLE SAISONNIER"
+    },
+    {
+      "CodeNmc": "13000.0",
+      "LibelleNmc": "EPICERIE SALEE / INGREDIENTS / AIDE A LA CUISINE"
+    }
+  ],
+  "10008306": [],
+  "10008307": [],
+  "10008308": [],
+  "10008309": [],
+  "10008310": [],
+  "10008311": [],
+  "10008312": [],
+  "10008313": [],
+  "10008314": [],
+  "10008315": [],
+  "10008316": [
+    {
+      "CodeNmc": "78.0",
+      "LibelleNmc": "CROQUE LE FRAIS"
+    }
+  ],
+  "10008317": [],
+  "10008318": [],
+  "10008319": [],
+  "10008320": [],
+  "10008321": [],
+  "10008322": [],
+  "10008323": [],
+  "10008324": [],
+  "10008325": [],
+  "10008326": [],
+  "10008327": [],
+  "10008328": [],
+  "10008329": [],
+  "10008330": [],
+  "10008331": [],
+  "10008332": [],
+  "10008333": [],
+  "10008334": [],
+  "10008335": [],
+  "10008336": [],
+  "10008337": [],
+  "10008338": [],
+  "10008340": [],
+  "10008341": [],
+  "10008342": [],
+  "10008343": [],
+  "10008344": [],
+  "10008345": [],
+  "10008346": [],
+  "10008347": [],
+  "10008348": [],
+  "10008349": [],
+  "10008350": [],
+  "10008351": [],
+  "10008352": [],
+  "10008353": [],
+  "10008354": [],
+  "10008355": [],
+  "10008356": [],
+  "10008357": [],
+  "10008358": [],
+  "10008359": [],
+  "10008360": [],
+  "10008361": [],
+  "10008362": [],
+  "10008363": [],
+  "10008364": [],
+  "10008365": [],
+  "10008366": [],
+  "10008367": [],
+  "10008368": [],
+  "10008369": [],
+  "10008370": [
+    {
+      "CodeNmc": "111.0",
+      "LibelleNmc": "DHP / ENTRETIEN DE LA MAISON"
+    },
+    {
+      "CodeNmc": "371.0",
+      "LibelleNmc": "MAISON / EQUIPEMENT DE LA MAISON"
+    },
+    {
+      "CodeNmc": "376.0",
+      "LibelleNmc": "MAISON / TEXTILE DE LA MAISON"
+    },
+    {
+      "CodeNmc": "150.0",
+      "LibelleNmc": "PARAPHARMACIE / SOINS DE LA PEAU"
+    },
+    {
+      "CodeNmc": "203.0",
+      "LibelleNmc": "PFLS / TRAITEUR DE LA MER"
+    }
+  ],
+  "10008371": [],
+  "10008372": [],
+  "10008373": [],
+  "10008374": [],
+  "10008375": [],
+  "10008376": [],
+  "10008377": [],
+  "10008378": [],
+  "10008379": [],
+  "10008380": [],
+  "10008381": [],
+  "10008382": [],
+  "10008383": [],
+  "10008384": [],
+  "10008385": [],
+  "10008386": [],
+  "10008387": [],
+  "10008388": [],
+  "10008389": [],
+  "10008390": [],
+  "10008391": [],
+  "10008392": [],
+  "10008393": [],
+  "10008394": [],
+  "10008395": [],
+  "10008396": [],
+  "10008397": [],
+  "10008398": [],
+  "10008399": [],
+  "10008400": [],
+  "10008401": [],
+  "10008402": [],
+  "10008403": [],
+  "10008404": [],
+  "10008405": [],
+  "10008406": [],
+  "10008407": [],
+  "10008408": [
+    {
+      "CodeNmc": "96.0",
+      "LibelleNmc": "SERVICES"
+    },
+    {
+      "CodeNmc": "965.0",
+      "LibelleNmc": "SERVICES / ACHAT"
+    },
+    {
+      "CodeNmc": "960.0",
+      "LibelleNmc": "SERVICES / BILLETTERIE"
+    },
+    {
+      "CodeNmc": "961.0",
+      "LibelleNmc": "SERVICES / CARTES"
+    },
+    {
+      "CodeNmc": "962.0",
+      "LibelleNmc": "SERVICES / COFFRETS"
+    }
+  ],
+  "10008409": [],
+  "10008410": [],
+  "10008411": [],
+  "10008412": [],
+  "10008413": [],
+  "10008414": [],
+  "10008415": [],
+  "10008416": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10008417": [],
+  "10008418": [],
+  "10008419": [],
+  "10008420": [],
+  "10008421": [],
+  "10008422": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10008423": [],
+  "10008424": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10008425": [],
+  "10008426": [],
+  "10008427": [],
+  "10008428": [],
+  "10008429": [],
+  "10008430": [
+    {
+      "CodeNmc": "115.0",
+      "LibelleNmc": "DHP / PRODUITS POUR BEBE"
+    }
+  ],
+  "10008431": [],
+  "10008432": [],
+  "10008433": [],
+  "10008434": [],
+  "10008435": [],
+  "10008436": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10008437": [],
+  "10008438": [],
+  "10008439": [],
+  "10008440": [],
+  "10008441": [],
+  "10008442": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10008443": [],
+  "10008444": [
+    {
+      "CodeNmc": "117.0",
+      "LibelleNmc": "DHP / CONSOMMABLES"
+    }
+  ],
+  "10008445": [],
+  "10008446": [],
+  "10008447": [],
+  "10008448": [],
+  "99999999": []
+}
