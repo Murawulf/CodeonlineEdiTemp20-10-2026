@@ -44,7 +44,12 @@ async function initDb() {
 
     if (!db) {
         console.log('[AuditSyncWorker] Using SQLite fallback.');
-        const DB_PATH = path.join(__dirname, '../EntiteDb.db');
+        // Use custom path from workerData if available (for E2E tests), otherwise default
+        const DB_PATH = (workerData && workerData.ENTITE_DB_PATH) 
+            ? workerData.ENTITE_DB_PATH 
+            : path.join(__dirname, '../EntiteDb.db');
+            
+        console.log(`[AuditSyncWorker] Opening DB at: ${DB_PATH}`);
         db = new sqlite3.Database(DB_PATH);
     }
 

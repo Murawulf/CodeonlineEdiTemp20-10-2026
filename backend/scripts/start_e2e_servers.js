@@ -60,13 +60,19 @@ console.log('--- Starting E2E Test Servers ---');
 
 const tunisiaServer = startServer('TUNISIA', tunisiaEnv, '\x1b[32m'); // Green
 const senegalServer = startServer('SENEGAL', senegalEnv, '\x1b[33m'); // Yellow
-const orchestratorServer = startServer('ORCHESTRATOR', orchestratorEnv, '\x1b[35m'); // Magenta
+
+let orchestratorServer;
+if (!process.argv.includes('--no-orchestrator')) {
+    orchestratorServer = startServer('ORCHESTRATOR', orchestratorEnv, '\x1b[35m'); // Magenta
+} else {
+    console.log('⚠️  Skipping Orchestrator (P2P Fallback Mode)');
+}
 
 // Handle exit
 process.on('SIGINT', () => {
     console.log('\nStopping servers...');
     tunisiaServer.kill();
     senegalServer.kill();
-    orchestratorServer.kill();
+    if (orchestratorServer) orchestratorServer.kill();
     process.exit();
 });
