@@ -25,6 +25,8 @@ const EDIWorker = require('./workers/edi_worker');
 const { router: ediWorkerRouter, initializeRoutes: initEdiWorkerRoutes } = require('./routes/edi_worker_routes');
 const ediWorkerConfig = require('./config/edi_worker_config');
 const configService = require('./services/configService');
+const discoveryCache = require('./services/communication/DiscoveryCache');
+const auditLogger = require('./services/communication/AuditLogger');
 const settingsRoutes = require('./routes/settings_routes');
 const apiProxyRoutes = require('./routes/api_proxy');
 const app = express();
@@ -279,6 +281,7 @@ function generatePassword() {
 // Environment variables
 const MODELES_DIR = process.env.MODELES_DIR || path.join(__dirname, 'Modeles');
 const ALLGPC_DB_PATH = process.env.ALLGPC_DB_PATH || path.join(__dirname, 'allgpc.db');
+const ENTITE_DB_PATH = process.env.ENTITE_DB_PATH || path.join(__dirname, 'entite.db');
 
 // Centralized Database Config
 const { pool: entitePool, dbConfig } = require('./config/database');
@@ -2392,7 +2395,7 @@ app.get('/api/companies', async (req, res) => {
       LEFT JOIN segmentgpc s ON ps.id_segment = s.codeSegment
     `;
     if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
-    query += ' GROUP BY p.id_entite ORDER BY p.id_entite DESC';
+    query += ' GROUP BY p.id_entite ORDER BY p.raison_socialle ASC';
 
     const companies = await queryDB(entiteDB, query, params);
 
@@ -3076,6 +3079,7 @@ async function ensureOrdersColumns() {
     // Orders table columns
     const ordersColumns = [
       { name: 'date_livraison_demandee', type: 'DATETIME', comment: 'Date de livraison demandée (DTM+2)' },
+      { name: 'date_livraison_confirmee', type: 'DATETIME', comment: 'Date de livraison confirmée (DTM+69)' },
       { name: 'date_livraison_plus_tot', type: 'DATETIME', comment: 'Date de livraison au plus tôt (DTM+64)' },
       { name: 'date_livraison_plus_tard', type: 'DATETIME', comment: 'Date de livraison au plus tard (DTM+63)' },
       { name: 'lieu_livraison_gln', type: 'VARCHAR(20)', comment: 'GLN du lieu de livraison (NAD+DP)' }
@@ -3773,7 +3777,11 @@ function generateOrderEANCOM(data) {
     var code = String(data.dateenlevement).length > 8 ? "203" : "204";
     add("DTM+200:" + data.dateenlevement + ":" + code + "'");
   }
-  if (data.Acheteur) add("NAD+BY+" + data.Acheteur + "::9'");
+  if (data.Acheteur) {
+    // Include buyer name in NAD segment for inter-country orders (4th field)
+    const buyerName = data.buyerName || '';
+    add("NAD+BY+" + data.Acheteur + "::9++" + buyerName + "'");
+  }
   if (data.lieu_livraison_primaire) {
     add("NAD+DP+" + data.lieu_livraison_primaire + "::9'");
     add("NAD+UC+" + data.lieu_livraison_primaire + "::9'");
@@ -3856,7 +3864,12 @@ app.post("/api/orders/eancom", async function (req, res) {
         hint: similarGLNs.length > 0 ? `Similar GLNs found: ${similarGLNs.map(e => e.gln).join(', ')}` : "No similar GLNs found"
       });
     }
+    
+    // Force Buyer Name from DB to ensure it's the Company Name (not User Name)
+    data.buyerName = buyerCheck[0].raison_socialle;
+    
     console.log("[ORDER VALIDATION] ✅ Buyer found:", buyerCheck[0]);
+    console.log("[ORDER VALIDATION] Using Buyer Name:", data.buyerName);
     console.log("=== [ORDER VALIDATION] GLN Checks Complete ===\n");
 
     // Validate Articles
@@ -3906,7 +3919,7 @@ app.post("/api/orders/eancom", async function (req, res) {
       // Insert Header
       // NOTE: Transport fields removed from orders table (managed in edi_transport_orders)
       const insertRes = await runUpdate(entiteDB,
-        "INSERT INTO orders (num_commande, order_number, id_entite_buyer, acheteur_gln, id_entite_seller, seller_name, fournisseur_gln, lieu_livraison_gln, status, total_ht, monnaie, articles, currency, date_commande, date_livraison, date_livraison_demandee, date_livraison_plus_tot, date_livraison_plus_tard, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+        "INSERT INTO orders (num_commande, order_number, id_entite_buyer, acheteur_gln, id_entite_seller, seller_name, fournisseur_gln, lieu_livraison_gln, status, total_ht, monnaie, articles, currency, date_commande, date_livraison, date_livraison_demandee, date_livraison_plus_tot, date_livraison_plus_tard, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
         [
           data.numCommande, 
           data.numCommande, 
@@ -3985,8 +3998,19 @@ app.post("/api/orders/eancom", async function (req, res) {
 
       // --- 3. Send EANCOM file to EDI server (async, non-blocking) ---
       // Determine target EDI server dynamically using configService
-      // This works for both intra-country (Tunisia -> Tunisia) and inter-country (Tunisia -> Senegal) routing
-      const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.fournisseur);
+      // Works for both intra-country and inter-country routing.
+      // For inter-country: supplier GLN may not exist locally, so we use 'supplierServer' hint from payload.
+      let ediTarget = await configService.getEdiTargetUrl(entiteDB, data.fournisseur);
+      
+      // If GLN-based routing failed (supplier not in local DB) AND the payload provides a server hint, use it
+      if (!ediTarget.countryCode && data.supplierServer) {
+        const hintedEdiUrl = configService.get(`EDI_URL_${data.supplierServer.toUpperCase()}`);
+        if (hintedEdiUrl) {
+          console.log(`[EDI SEND] 🔀 GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
+          ediTarget = { url: hintedEdiUrl, countryCode: data.supplierServer.toUpperCase(), countryName: data.supplierServer };
+        }
+      }
+      
       const ediServerUrl = ediTarget.url;
       
       console.log(`[EDI SEND] 🎯 EDI Routing Details:`);
@@ -4094,14 +4118,25 @@ app.get("/api/orders/incoming", async function (req, res) {
     console.log("\n=== [BACKEND] GET /api/orders/incoming (STAGING) - START ===");
     if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     
-    var sellerId = Number(req.headers["x-entite-id"]);
-    console.log("[BACKEND INCOMING] sellerId (from x-entite-id):", sellerId);
-    if (!sellerId) return res.status(400).json({ error: "Missing x-entite-id" });
+    var rawSellerId = Number(req.headers["x-entite-id"]);
+    console.log("[BACKEND INCOMING] rawSellerId (from x-entite-id):", rawSellerId);
+    if (!rawSellerId) return res.status(400).json({ error: "Missing x-entite-id" });
+
+    // Resolve: x-entite-id may be id_entite OR id_compte
+    var sellerId = rawSellerId;
+    const directSellerEntity = await queryOne(entiteDB, "SELECT id_entite FROM Entite WHERE id_entite = ?", [rawSellerId]);
+    if (!directSellerEntity) {
+      const accountRow = await queryOne(entiteDB, "SELECT id_entite FROM comptes WHERE id_compte = ?", [rawSellerId]);
+      if (accountRow && accountRow.id_entite) {
+        sellerId = accountRow.id_entite;
+        console.log(`[BACKEND INCOMING] Resolved id_compte ${rawSellerId} -> id_entite ${sellerId}`);
+      }
+    }
 
     // 1. Get Seller GLN
     const sellerRows = await queryDB(entiteDB, "SELECT gln, raison_socialle FROM Entite WHERE id_entite = ?", [sellerId]);
     if (sellerRows.length === 0) {
-        console.log("[BACKEND INCOMING] Seller not found");
+        console.log("[BACKEND INCOMING] Seller not found for id_entite:", sellerId);
         return res.json({ orders: [] });
     }
     const sellerGln = sellerRows[0].gln;
@@ -4124,7 +4159,9 @@ app.get("/api/orders/incoming", async function (req, res) {
             o.id_order as production_id_order,
             o.comment as production_comment,
             o.status as production_status,
-            DATE_FORMAT(o.updated_at, '%Y-%m-%dT%H:%i:%s') as production_updated_at
+            DATE_FORMAT(o.updated_at, '%Y-%m-%dT%H:%i:%s') as production_updated_at,
+            DATE_FORMAT(o.date_livraison, '%Y-%m-%dT%H:%i:%s') as production_date_livraison,
+            DATE_FORMAT(o.date_livraison_confirmee, '%Y-%m-%dT%H:%i:%s') as production_date_livraison_confirmee
         FROM edi_orders eo
         LEFT JOIN orders o ON eo.document_number = o.num_commande AND o.id_entite_seller = ?
         WHERE eo.supplier_gln = ? 
@@ -4200,8 +4237,11 @@ app.get("/api/orders/incoming", async function (req, res) {
                     qty: item.qty || item.qtyOrdered,
                     price: item.price,
                     confirmedQty: confirmedQty,
+                    confirmed_qty: confirmedQty, // Add snake_case alias
                     confirmedPrice: confirmedPrice,
+                    confirmed_price: confirmedPrice, // Add snake_case alias
                     comment: lineComment,
+                    line_comment: lineComment, // Add snake_case alias
                     images: imageUrl
                 });
             }
@@ -4211,23 +4251,36 @@ app.get("/api/orders/incoming", async function (req, res) {
             id_order: so.id, // Use staging ID as temporary order ID
             is_staging: true, // Flag to indicate this is from staging
             num_order: so.num_order,
+            num_commande: so.num_order, // Add num_commande for deduplication
             date_reception: so.date_reception,
-            date_livraison: so.delivery_date,
+            date_livraison: so.production_date_livraison || so.delivery_date,
+            date_livraison_confirmee: so.production_date_livraison_confirmee || so.production_date_livraison || null,
             date_livraison_demandee: formatEancomDate(raw.deliveryDateRequested),
             date_livraison_plus_tot: formatEancomDate(raw.deliveryDateEarliest),
             date_livraison_plus_tard: formatEancomDate(raw.deliveryDateLatest),
             lieu_livraison_gln: raw.deliveryParty?.gln || raw.lieu_livraison_primaire,
             id_entite_seller: sellerId,
             id_entite_buyer: buyerId,
+            buyer_name: buyerName, // Add buyer_name
+            seller_name: sellerName, // Add seller_name
             total_ht: so.total_ht,
-            // Use production status if available, else map PENDING_VALIDATION to 'received'
-            status: so.production_status || (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut), 
-            statut: so.production_status || (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut),
+            monnaie: so.monnaie, // Currency from edi_orders
+            // Use production status if available and meaningful for supplier
+            // 'sent' is a buyer-side status (means buyer sent the order) - supplier should see 'received'
+            // 'new' is also buyer-side (order just created, not yet sent) - supplier should see 'received'
+            // Only use production_status if it reflects a supplier action (accepted, rejected, modified)
+            status: (so.production_status && !['sent', 'new'].includes(so.production_status)) 
+              ? so.production_status 
+              : (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut), 
+            statut: (so.production_status && !['sent', 'new'].includes(so.production_status)) 
+              ? so.production_status 
+              : (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut),
             type: "Reçue",
             _server: "local",
             montant_ht: so.total_ht,
             comment: so.production_comment, // Include the global comment from production
-            updated_at: so.production_updated_at
+            updated_at: so.production_updated_at,
+            lines: lines // Include parsed lines for articles count
         });
         
         console.log(`[BACKEND INCOMING] Staging Order #${so.id} mapped with ${lines.length} lines`);
@@ -4241,13 +4294,197 @@ app.get("/api/orders/incoming", async function (req, res) {
   }
 });
 
+// 4.1. ACCEPT MODIFICATIONS (ORDCHG) - Buyer accepts Supplier's modifications
+let generateOrderChangeEANCOM;
+try {
+  generateOrderChangeEANCOM = require('./generateOrderChangeEANCOM');
+  console.log("✅ generateOrderChangeEANCOM loaded successfully");
+} catch (e) {
+  console.error("❌ Failed to load generateOrderChangeEANCOM:", e);
+}
+
+app.get("/api/orders/test-ordchg", (req, res) => {
+  res.json({ message: "Test ORDCHG route works", moduleLoaded: !!generateOrderChangeEANCOM });
+});
+
+app.post("/api/orders/accept-modifications", async function (req, res) {
+  console.log("👉 ENTERING POST /api/orders/accept-modifications");
+  try {
+    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
+    
+    const rawId = Number(req.headers["x-entite-id"]);
+    if (!rawId) return res.status(400).json({ error: "Missing x-entite-id" });
+
+    // Resolve buyer ID
+    let buyerId = rawId;
+    const directEntity = await queryOne(entiteDB, "SELECT id_entite FROM Entite WHERE id_entite = ?", [rawId]);
+    if (!directEntity) {
+      const accountRow = await queryOne(entiteDB, "SELECT id_entite FROM comptes WHERE id_compte = ?", [rawId]);
+      if (accountRow && accountRow.id_entite) {
+        buyerId = accountRow.id_entite;
+      } else {
+        return res.status(400).json({ error: "Could not resolve entity from x-entite-id" });
+      }
+    }
+
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId" });
+    }
+
+    console.log(`[ORDCHG] Buyer #${buyerId} accepting modifications for order #${orderId}`);
+
+    // 1. Fetch original order details to verify state and ownership
+    const order = await queryOne(entiteDB, 
+      "SELECT * FROM orders WHERE id_order = ? AND id_entite_buyer = ?", 
+      [orderId, buyerId]
+    );
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found or access denied" });
+    }
+
+    if (order.status !== 'modified' && order.status !== 'modifiée') {
+      return res.status(400).json({ error: "Order must be in 'modified' status to accept changes. Current status: " + order.status });
+    }
+
+    // Resolve Names
+    let buyerName = "Buyer";
+    const buyerEntity = await queryOne(entiteDB, "SELECT raison_socialle FROM Entite WHERE id_entite = ?", [buyerId]);
+    if (buyerEntity) buyerName = buyerEntity.raison_socialle;
+
+    let supplierName = order.seller_name || "Supplier";
+    if (order.id_entite_seller) {
+        const supplierEntity = await queryOne(entiteDB, "SELECT raison_socialle FROM Entite WHERE id_entite = ?", [order.id_entite_seller]);
+        if (supplierEntity) supplierName = supplierEntity.raison_socialle;
+    } else if (order.fournisseur_gln) {
+         const supplierEntity = await queryOne(entiteDB, "SELECT raison_socialle FROM Entite WHERE gln = ?", [order.fournisseur_gln]);
+         if (supplierEntity) supplierName = supplierEntity.raison_socialle;
+    }
+
+    // Fetch lines
+    const lines = await queryDB(entiteDB, "SELECT * FROM order_lines WHERE id_order = ?", [orderId]);
+
+    // 2. Prepare data for EANCOM ORDCHG
+    const changeNumber = "CHG" + Date.now();
+    
+    const ordchgData = {
+      changeNumber: changeNumber,
+      originalOrderNumber: order.num_commande,
+      buyerGln: order.acheteur_gln,
+      supplierGln: order.fournisseur_gln,
+      buyerName: buyerName,
+      supplierName: supplierName,
+      comment: "Modifications approuvées par l'acheteur",
+      articles: lines.map(line => ({
+        gtin: line.gtin,
+        qty: line.confirmed_qty !== null ? line.confirmed_qty : line.qty,
+        price: line.confirmed_price !== null ? line.confirmed_price : line.price
+      }))
+    };
+
+    // 3. Generate EANCOM file
+    const ordchgContent = generateOrderChangeEANCOM(ordchgData);
+    
+    // Save file
+    const ediOrdersPath = configService.getEdiOrdersPath();
+    const dir = path.join(ediOrdersPath, "changes", order.acheteur_gln, order.num_commande);
+    await fs.promises.mkdir(dir, { recursive: true });
+    const filePath = path.join(dir, `ordchg_${changeNumber}.txt`);
+    await fs.promises.writeFile(filePath, ordchgContent, "utf8");
+    console.log(`[ORDCHG] File generated: ${filePath}`);
+
+    // 4. Update Order Status in DB locally (Buyer side)
+    const newStatus = 'accepted'; // Internal status representing final mutual agreement
+    await runUpdate(entiteDB, 
+      "UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id_order = ?", 
+      [newStatus, orderId]
+    );
+
+    // 5. Create EDI Transmission record
+    const transmissionId = await createEdiTransmission(entiteDB, {
+      related_id: orderId,
+      related_type: 'ORDER_CHANGE', 
+      document_type: 'ORDCHG',
+      direction: 'OUTBOUND',
+      partner_id: order.id_entite_seller, 
+      partner_gln: order.fournisseur_gln,
+      filename: `ordchg_${changeNumber}.txt`,
+      file_path: filePath,
+      file_content: ordchgContent,
+      status: 'PENDING',
+      logs: `Order Change (Accept Modifications) for order ${order.num_commande} generated`
+    });
+
+    // 6. Send to EDI Server (Async)
+    const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.fournisseur_gln);
+    const ediServerUrl = ediTarget.url;
+    
+    console.log(`[ORDCHG SEND] 🎯 EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
+    
+    setImmediate(async () => {
+      try {
+        const ediResponse = await axios.post(ediServerUrl, {
+          eancomContent: ordchgContent,
+          filename: `ordchg_${order.num_commande}_${changeNumber}.txt`,
+          partnerGln: order.fournisseur_gln, // Send TO the supplier
+          senderGln: order.acheteur_gln
+        }, {
+          headers: { 'x-api-pin': configService.get('API_PIN') }
+        });
+
+        console.log(`[ORDCHG SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        
+        await updateEdiTransmissionStatus(
+          entiteDB, 
+          transmissionId, 
+          'SENT',
+          `Successfully sent to EDI server.`,
+          null
+        );
+      } catch (ediErr) {
+        console.error(`[ORDCHG SEND] ❌ Failed to send:`, ediErr.message);
+        await updateEdiTransmissionStatus(
+          entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
+        );
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Modifications accepted successfully`, 
+      changeNumber,
+      transmissionId 
+    });
+
+  } catch (err) {
+    console.error("[ORDCHG] Error:", err);
+    res.status(500).json({ error: "Failed to process modification acceptance", details: err.message });
+  }
+});
+
 // 4. RESPOND TO ORDER (ORDRSP) - Accept, Reject, Modify
 app.post("/api/orders/respond", async function (req, res) {
   try {
     if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     
-    const sellerId = Number(req.headers["x-entite-id"]);
-    if (!sellerId) return res.status(400).json({ error: "Missing x-entite-id" });
+    const rawId = Number(req.headers["x-entite-id"]);
+    if (!rawId) return res.status(400).json({ error: "Missing x-entite-id" });
+
+    // Resolve: x-entite-id may be an id_entite OR an id_compte (account ID).
+    // Try direct entity lookup first; if not found, resolve via comptes table.
+    let sellerId = rawId;
+    const directEntity = await queryOne(entiteDB, "SELECT id_entite FROM Entite WHERE id_entite = ?", [rawId]);
+    
+    if (!directEntity) {
+      const accountRow = await queryOne(entiteDB, "SELECT id_entite FROM comptes WHERE id_compte = ?", [rawId]);
+      if (accountRow && accountRow.id_entite) {
+        sellerId = accountRow.id_entite;
+        console.log(`[ORDRSP] Resolved id_compte ${rawId} -> id_entite ${sellerId}`);
+      } else {
+        return res.status(400).json({ error: "Could not resolve entity from x-entite-id" });
+      }
+    }
 
     const { orderId, status, comment, modifiedArticles, confirmedDeliveryDate, isStaging } = req.body;
     
@@ -4289,7 +4526,12 @@ app.post("/api/orders/respond", async function (req, res) {
         let buyerId = null;
         if (stagingOrder.buyer_gln) {
             const buyerRow = await queryOne(entiteDB, "SELECT id_entite FROM Entite WHERE gln = ?", [stagingOrder.buyer_gln]);
-            if (buyerRow) buyerId = buyerRow.id_entite;
+            if (buyerRow) {
+                buyerId = buyerRow.id_entite;
+                console.log(`[ORDRSP] Buyer GLN ${stagingOrder.buyer_gln} resolved to id_entite: ${buyerId}`);
+            } else {
+                console.log(`[ORDRSP] Buyer GLN ${stagingOrder.buyer_gln} not found in local DB (inter-country order). buyerId will be NULL.`);
+            }
         }
 
         // 2. Check if already exists in Production to avoid duplicates
@@ -4316,13 +4558,18 @@ app.post("/api/orders/respond", async function (req, res) {
                 total_ht, total_tax_amount, total_amount_with_tax,
                 currency, 
                 date_commande, date_livraison,
+                date_livraison_demandee, date_livraison_plus_tot, date_livraison_plus_tard,
                 contract_reference,
                 created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             `;
 
-            // Determine initial status based on response
-            // If we are responding, it means it's processed. But we store 'received' as base, then update to status.
+            // Helper to convert EANCOM YYYYMMDD to YYYY-MM-DD
+            const parseEancomDate = (str) => {
+              if (!str || str.length < 8) return null;
+              return `${str.substring(0, 4)}-${str.substring(4, 6)}-${str.substring(6, 8)} 00:00:00`;
+            };
+
             const orderParams = [
               stagingOrder.document_number, stagingOrder.document_number,
               buyerId, stagingOrder.buyer_gln,
@@ -4335,6 +4582,9 @@ app.post("/api/orders/respond", async function (req, res) {
               stagingOrder.currency || 'EUR',
               stagingOrder.order_date,
               stagingOrder.delivery_date,
+              parseEancomDate(rawData.deliveryDateRequested),
+              parseEancomDate(rawData.deliveryDateEarliest),
+              parseEancomDate(rawData.deliveryDateLatest),
               rawData.contractReference || null
             ];
 
@@ -4347,20 +4597,20 @@ app.post("/api/orders/respond", async function (req, res) {
                 for (const item of rawData.items) {
                      await runUpdate(entiteDB, `
                       INSERT INTO order_lines (
-                        id_order, line_number, gtin, libelle, qty, unit, price, line_net_amount
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        id_order, line_number, gtin, libelle, qty, unit, price
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     `, [
                       productionOrderId, item.lineNumber,
                       item.gtin, item.description,
                       item.qty, item.unit || 'PCE',
-                      item.price, item.lineAmount
+                      item.price
                     ]);
                 }
             }
         }
 
-        // 4. Update Staging Status to match the decision
-        await runUpdate(entiteDB, "UPDATE edi_orders SET status = ? WHERE id = ?", [status, orderId]);
+        // 4. Update Staging Status to match the decision (also save comment and confirmed delivery date)
+        await runUpdate(entiteDB, "UPDATE edi_orders SET status = ?, production_comment = ?, production_updated_at = CURRENT_TIMESTAMP WHERE id = ?", [status, comment || null, orderId]);
         
         // 5. Fetch the newly created order and lines for ORDRSP generation
         order = await queryOne(entiteDB, "SELECT * FROM orders WHERE id_order = ?", [productionOrderId]);
@@ -4393,16 +4643,53 @@ app.post("/api/orders/respond", async function (req, res) {
     // 2. Prepare data for EANCOM ORDRSP
     const responseNumber = "RSP" + Date.now(); // Simple ID generation
     
+    // Resolve Names for EANCOM
+    let supplierName = order.seller_name || "Supplier";
+    const supplierEntity = await queryOne(entiteDB, "SELECT raison_socialle FROM Entite WHERE id_entite = ?", [sellerId]);
+    if (supplierEntity) supplierName = supplierEntity.raison_socialle;
+
+    let buyerName = "Buyer";
+    if (order.id_entite_buyer) {
+        const buyerEntity = await queryOne(entiteDB, "SELECT raison_socialle FROM Entite WHERE id_entite = ?", [order.id_entite_buyer]);
+        if (buyerEntity) buyerName = buyerEntity.raison_socialle;
+    } else if (order.acheteur_gln) {
+         const buyerEntity = await queryOne(entiteDB, "SELECT raison_socialle FROM Entite WHERE gln = ?", [order.acheteur_gln]);
+         if (buyerEntity) buyerName = buyerEntity.raison_socialle;
+    }
+    
+    // Fallback: Try to get Buyer Name from original EDI Order if not found in local DB
+    if (buyerName === "Buyer") {
+         const originalEdiOrder = await queryOne(entiteDB, "SELECT raw_data FROM edi_orders WHERE document_number = ? LIMIT 1", [order.num_commande]);
+         if (originalEdiOrder) {
+             try {
+                 const raw = JSON.parse(originalEdiOrder.raw_data);
+                 if (raw.buyer && raw.buyer.name) {
+                     buyerName = raw.buyer.name;
+                     console.log(`[ORDRSP] Resolved buyerName from edi_orders: ${buyerName}`);
+                 }
+             } catch(e) {
+                 console.error("[ORDRSP] Failed to parse raw_data for buyer name fallback", e);
+             }
+         }
+    }
+
     // Merge original lines with modifications if any
+    console.log(`[ORDRSP] modifiedArticles received:`, JSON.stringify(modifiedArticles));
     let finalArticles = lines.map(line => {
       const mod = modifiedArticles ? modifiedArticles.find(m => m.gtin === line.gtin) : null;
-      return {
-        ...line,
+      const result = {
+        gtin: line.gtin,
+        libelle: line.libelle,
+        lineNumber: line.line_number,
         qty: line.qty, // Original qty
+        price: line.price, // Original price
+        unit: line.unit || 'PCE',
         confirmedQty: mod ? mod.qty : (status === 'rejected' ? 0 : line.qty),
         confirmedPrice: mod && mod.price !== undefined ? mod.price : line.price,
         comment: mod ? mod.comment : null
       };
+      console.log(`[ORDRSP] Line ${line.gtin}: original price=${line.price}, mod.price=${mod?.price}, confirmedPrice=${result.confirmedPrice}`);
+      return result;
     });
 
     const ordrspData = {
@@ -4414,6 +4701,8 @@ app.post("/api/orders/respond", async function (req, res) {
       status: status, // accepted, rejected, modified
       buyerGln: order.acheteur_gln,
       supplierGln: order.fournisseur_gln,
+      buyerName: buyerName,
+      supplierName: supplierName,
       currency: order.monnaie || 'TND',
       comment: comment,
       articles: finalArticles
@@ -4436,10 +4725,18 @@ app.post("/api/orders/respond", async function (req, res) {
     // 'rejected' -> 'rejected'
     // 'modified' -> 'modified' (or 'processing' with flag)
     
-    await runUpdate(entiteDB, 
-      "UPDATE orders SET status = ?, comment = ? WHERE id_order = ?", 
-      [status, comment || null, productionOrderId]
-    );
+    // Save confirmed delivery date to date_livraison_confirmee (never overwrite date_livraison / date_livraison_demandee)
+    if (confirmedDeliveryDate) {
+      await runUpdate(entiteDB,
+        "UPDATE orders SET status = ?, comment = ?, date_livraison_confirmee = ? WHERE id_order = ?",
+        [status, comment || null, confirmedDeliveryDate, productionOrderId]
+      );
+    } else {
+      await runUpdate(entiteDB, 
+        "UPDATE orders SET status = ?, comment = ? WHERE id_order = ?", 
+        [status, comment || null, productionOrderId]
+      );
+    }
 
     // Update order_lines with confirmed prices and quantities
     for (const article of finalArticles) {
@@ -4530,12 +4827,23 @@ app.get("/api/orders/sent", async function (req, res) {
       return res.status(403).json({ error: "Invalid PIN" });
     }
     
-    const buyerId = Number(req.headers["x-entite-id"]);
-    console.log("[BACKEND SENT] buyerId (from x-entite-id):", buyerId);
+    const rawBuyerId = Number(req.headers["x-entite-id"]);
+    console.log("[BACKEND SENT] rawBuyerId (from x-entite-id):", rawBuyerId);
     
-    if (!buyerId) {
+    if (!rawBuyerId) {
       console.log("[BACKEND SENT] Missing x-entite-id");
       return res.status(400).json({ error: "Missing x-entite-id" });
+    }
+
+    // Resolve: x-entite-id may be id_entite OR id_compte
+    let buyerId = rawBuyerId;
+    const directBuyerEntity = await queryOne(entiteDB, "SELECT id_entite FROM Entite WHERE id_entite = ?", [rawBuyerId]);
+    if (!directBuyerEntity) {
+      const accountRow = await queryOne(entiteDB, "SELECT id_entite FROM comptes WHERE id_compte = ?", [rawBuyerId]);
+      if (accountRow && accountRow.id_entite) {
+        buyerId = accountRow.id_entite;
+        console.log(`[BACKEND SENT] Resolved id_compte ${rawBuyerId} -> id_entite ${buyerId}`);
+      }
     }
 
     // Récupérer les commandes envoyées (où l'entité est l'acheteur)
@@ -4550,10 +4858,11 @@ app.get("/api/orders/sent", async function (req, res) {
         DATE_FORMAT(o.created_at, '%Y-%m-%dT%H:%i:%s') AS created_at,
         DATE_FORMAT(o.updated_at, '%Y-%m-%dT%H:%i:%s') AS updated_at,
         o.total_ht,
-        o.date_livraison,
-        o.date_livraison_demandee,
-        o.date_livraison_plus_tot,
-        o.date_livraison_plus_tard,
+        DATE_FORMAT(o.date_livraison, '%Y-%m-%dT%H:%i:%s') AS date_livraison,
+        DATE_FORMAT(COALESCE(o.date_livraison_confirmee, o.date_livraison), '%Y-%m-%dT%H:%i:%s') AS date_livraison_confirmee,
+        DATE_FORMAT(o.date_livraison_demandee, '%Y-%m-%dT%H:%i:%s') AS date_livraison_demandee,
+        DATE_FORMAT(o.date_livraison_plus_tot, '%Y-%m-%dT%H:%i:%s') AS date_livraison_plus_tot,
+        DATE_FORMAT(o.date_livraison_plus_tard, '%Y-%m-%dT%H:%i:%s') AS date_livraison_plus_tard,
         o.lieu_livraison_gln,
         COALESCE(o.monnaie, o.currency, 'TND') as monnaie,
         o.id_entite_seller,
@@ -4613,9 +4922,13 @@ app.get("/api/orders/sent", async function (req, res) {
         libelle: l.libelle,
         qty: l.qty,
         prix: l.prix,
+        price: l.prix, // Add price alias for compatibility
         confirmedQty: l.confirmedQty !== null ? l.confirmedQty : l.qty,
+        confirmed_qty: l.confirmedQty !== null ? l.confirmedQty : l.qty, // Add snake_case alias
         confirmedPrice: l.confirmedPrice !== null ? l.confirmedPrice : l.prix,
+        confirmed_price: l.confirmedPrice !== null ? l.confirmedPrice : l.prix, // Add snake_case alias
         comment: l.lineComment,
+        line_comment: l.lineComment, // Add snake_case alias
         images: l.images
       }));
 
@@ -4681,7 +4994,17 @@ app.get("/api/orders/:id", async (req, res) => {
     const order = orderRows[0];
     
     // Fetch order lines
-    const lines = await queryDB(entiteDB, "SELECT * FROM order_lines WHERE id_order = ?", [id]);
+    const rawLines = await queryDB(entiteDB, "SELECT * FROM order_lines WHERE id_order = ?", [id]);
+    const lines = rawLines.map(l => ({
+      ...l,
+      price: l.price || l.prix,
+      confirmedQty: l.confirmed_qty !== null ? l.confirmed_qty : l.qty,
+      confirmedPrice: l.confirmed_price !== null ? l.confirmed_price : (l.price || l.prix),
+      confirmed_qty: l.confirmed_qty !== null ? l.confirmed_qty : l.qty,
+      confirmed_price: l.confirmed_price !== null ? l.confirmed_price : (l.price || l.prix),
+      comment: l.line_comment,
+      line_comment: l.line_comment
+    }));
     
     // Fetch related DESADV
     const desadvRows = await queryDB(entiteDB, "SELECT desadv_number FROM edi_desadv WHERE id_order = ? ORDER BY created_at DESC LIMIT 1", [id]);
@@ -4702,7 +5025,7 @@ app.post("/api/orders/:id/response", async function (req, res) {
     if (["accept", "reject", "validate"].indexOf(action) === -1)
       return res.status(400).json({ error: "Invalid action" });
     var newStatus = action === "accept" ? "accepted" : action === "reject" ? "rejected" : "valid";
-    await queryDB(entiteDB, "INSERT INTO order_responses (id_order, id_entite_responder, action, created_at) VALUES (?, ?, ?, NOW())",
+    await queryDB(entiteDB, "INSERT INTO order_responses (id_order, id_entite_responder, action, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
       [orderId, responderId, action]
     );
     await queryDB(entiteDB, "UPDATE orders SET status = ? WHERE id_order = ?", [newStatus, orderId]);
@@ -4716,7 +5039,7 @@ app.post("/api/orders/:id/response", async function (req, res) {
          // We need to construct the orders row. WARNING: invalid_orders might miss columns like id_entite_buyer
          // Best effort mapping:
          await queryDB(entiteDB, 
-            "INSERT INTO orders (num_commande, order_number, id_entite_buyer, id_entite_seller, status, total_ht, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())", 
+            "INSERT INTO orders (num_commande, order_number, id_entite_buyer, id_entite_seller, status, total_ht, created_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)", 
             [io.num_order, io.num_order, io.id_entite, io.id_fournisseur, 'new', io.total_ht]
          );
          await queryDB(entiteDB, "DELETE FROM invalid_orders WHERE id_order = ?", [orderId]);
@@ -4861,7 +5184,7 @@ app.post('/api/edi/transmissions/:id/reset', async (req, res) => {
     // Reset retry_count to 0 and update timestamp for immediate processing
     await runUpdate(
       entiteDB,
-      'UPDATE edi_transmissions SET retry_count = 0, status = ?, updated_at = NOW(), logs = ? WHERE id = ?',
+      'UPDATE edi_transmissions SET retry_count = 0, status = ?, updated_at = CURRENT_TIMESTAMP, logs = ? WHERE id = ?',
       ['PENDING', `Reset for immediate retry at ${new Date().toISOString()}`, transmissionId]
     );
     
@@ -4935,13 +5258,16 @@ app.post('/api/edi/receive', async (req, res) => {
       return res.status(403).json({ error: "Invalid PIN" });
     }
 
-    const { eancomContent, filename, partnerGln } = req.body;
+    const { eancomContent, filename, partnerGln, senderGln } = req.body;
+    
+    // Prioritize senderGln (from Hub) over partnerGln, or fall back to unknown
+    const incomingGln = senderGln || partnerGln;
 
     if (!eancomContent) {
       return res.status(400).json({ error: 'Missing EANCOM content' });
     }
 
-    console.log(`[EDI RECEIVE] Processing incoming message from ${partnerGln || 'unknown'}`);
+    console.log(`[EDI RECEIVE] Processing incoming message from ${incomingGln || 'unknown'}`);
 
     // Parse EANCOM message
     const { parseEANCOM, validateParsedEANCOM } = require('./eancom_parser');
@@ -4960,10 +5286,11 @@ app.post('/api/edi/receive', async (req, res) => {
         related_type: parsedData.messageType === 'ORDERS' ? 'ORDER' : 
                       parsedData.messageType === 'INVOIC' ? 'INVOICE' :
                       parsedData.messageType === 'ORDRSP' ? 'ORDER_RESPONSE' :
+                      parsedData.messageType === 'ORDCHG' ? 'ORDER_CHANGE' :
                       parsedData.messageType === 'DESADV' ? 'DESPATCH_ADVICE' : 'UNKNOWN',
         document_type: parsedData.messageType || 'UNKNOWN',
         direction: 'INBOUND',
-        partner_gln: partnerGln || parsedData.supplier.gln || parsedData.buyer.gln,
+        partner_gln: incomingGln || parsedData.supplier.gln || parsedData.buyer.gln,
         filename: filename || `inbound_${parsedData.messageType}_${Date.now()}.txt`,
         file_content: eancomContent,
         status: 'ERROR',
@@ -4979,7 +5306,7 @@ app.post('/api/edi/receive', async (req, res) => {
     }
 
     // Look up partner entity
-    const partnerGlnToUse = partnerGln || parsedData.supplier.gln || parsedData.buyer.gln;
+    const partnerGlnToUse = incomingGln || parsedData.supplier.gln || parsedData.buyer.gln;
     let partnerId = null;
     
     if (partnerGlnToUse) {
@@ -5014,6 +5341,7 @@ app.post('/api/edi/receive', async (req, res) => {
       related_type: parsedData.messageType === 'ORDERS' ? 'ORDER' : 
                     parsedData.messageType === 'INVOIC' ? 'INVOICE' :
                     parsedData.messageType === 'ORDRSP' ? 'ORDER_RESPONSE' :
+                    parsedData.messageType === 'ORDCHG' ? 'ORDER_CHANGE' :
                     parsedData.messageType === 'DESADV' ? 'DESPATCH_ADVICE' : 'UNKNOWN',
       document_type: parsedData.messageType || 'UNKNOWN',
       direction: 'INBOUND',
@@ -5068,12 +5396,12 @@ app.post('/api/edi/receive', async (req, res) => {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           transmissionId,
-          parsedData.documentNumber,
-          parsedData.buyer.gln,
-          parsedData.supplier.gln,
-          parsedData.documentDate,
-          parsedData.deliveryDateRequested,
-          parsedData.currency,
+          parsedData.documentNumber || null,
+          parsedData.buyer.gln || null,
+          parsedData.supplier.gln || null,
+          parsedData.documentDate || null,
+          parsedData.deliveryDateRequested || null,
+          parsedData.currency || null,
           parsedData.totals.totalAmount || 0,
           'PENDING_VALIDATION',
           JSON.stringify(parsedData)
@@ -5198,9 +5526,20 @@ app.post('/api/edi/receive', async (req, res) => {
                    else if (parsedData.responseCode === '27') newStatus = 'rejected';
                    else if (parsedData.responseCode === '4') newStatus = 'modified';
                    
+                   let dateLivraisonConfirmee = null;
+                   if (parsedData.deliveryDateConfirmed) {
+                     dateLivraisonConfirmee = new Date(parsedData.deliveryDateConfirmed.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                   } else if (parsedData.deliveryDateRequested) {
+                     dateLivraisonConfirmee = new Date(parsedData.deliveryDateRequested.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                   }
+
                    // Update the order header
-                   await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ? WHERE id_order = ?", [newStatus, parsedData.comment || null, targetOrder.id_order]);
-                   console.log(`[EDI RECEIVE] ✅ Updated buyer order ${orderRef} to status: ${newStatus}`);
+                   if (dateLivraisonConfirmee) {
+                     await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, date_livraison_confirmee = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, parsedData.comment || null, dateLivraisonConfirmee, targetOrder.id_order]);
+                   } else {
+                     await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, parsedData.comment || null, targetOrder.id_order]);
+                   }
+                   console.log(`[EDI RECEIVE] ✅ Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
 
                    // Update the order lines with confirmed quantities and prices
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5243,6 +5582,89 @@ app.post('/api/edi/receive', async (req, res) => {
 
       } catch (err) {
         console.error('[EDI RECEIVE] Error processing ORDRSP:', err);
+        await updateEdiTransmissionStatus(entiteDB, transmissionId, 'ERROR', `Processing Error: ${err.message}`);
+      }
+    }
+
+    // PROCESS ORDCHG (Purchase Order Change)
+    if (parsedData.messageType === 'ORDCHG') {
+      try {
+        console.log('[EDI RECEIVE] Processing ORDCHG message...');
+        
+        // Update transmission status
+        await updateEdiTransmissionStatus(entiteDB, transmissionId, 'PROCESSED', 'ORDCHG received and processed');
+
+        // Supplier is the one receiving the ORDCHG
+        if (parsedData.supplier.gln) {
+            const supplierRows = await queryDB(entiteDB, "SELECT id_entite FROM Entite WHERE gln = ?", [parsedData.supplier.gln]);
+            if (supplierRows.length > 0) {
+                const sellerIds = supplierRows.map(row => row.id_entite);
+                
+                // Use orderReference if available, otherwise documentNumber
+                const orderRef = parsedData.orderReference || parsedData.documentNumber;
+
+                // UPDATE SUPPLIER ORDER STATUS
+                // We search for the order belonging to ANY of the entities sharing this GLN
+                const placeholders = sellerIds.map(() => '?').join(',');
+                const targetOrder = await queryOne(entiteDB, 
+                    `SELECT id_order, id_entite_seller FROM orders WHERE num_commande = ? AND id_entite_seller IN (${placeholders})`, 
+                    [orderRef, ...sellerIds]
+                );
+                
+                if (targetOrder) {
+                   const sellerId = targetOrder.id_entite_seller;
+                   const newStatus = 'accepted'; // Buyer accepted modifications
+                   const commentMsg = parsedData.comment ? `Modifications acceptées : ${parsedData.comment}` : "Modifications acceptées par l'acheteur via ORDCHG";
+
+                   await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, commentMsg, targetOrder.id_order]);
+                   console.log(`[EDI RECEIVE] ✅ Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
+
+                   // Update the order lines with confirmed quantities and prices from ORDCHG if provided
+                   if (parsedData.items && parsedData.items.length > 0) {
+                      for (const item of parsedData.items) {
+                         if (item.gtin) {
+                            await runUpdate(entiteDB, 
+                               "UPDATE order_lines SET confirmed_qty = ?, confirmed_price = ? WHERE id_order = ? AND gtin = ?", 
+                               [item.qtyConfirmed !== undefined ? item.qtyConfirmed : item.qty, item.priceConfirmed !== undefined ? item.priceConfirmed : item.price, targetOrder.id_order, item.gtin]
+                            );
+                         }
+                      }
+                   }
+                   
+                   // Emit WebSocket update for live UI refresh
+                   if (global.io) {
+                     const eventData = {
+                       orderId: targetOrder.id_order,
+                       status: newStatus,
+                       comment: commentMsg,
+                       timestamp: new Date().toISOString(),
+                       sellerId: sellerId,
+                       numCommande: orderRef
+                     };
+                     global.io.emit('order:status:updated', eventData);
+                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
+                   }
+
+                    // Notify via accounts if needed
+                    try {
+                        const accounts = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
+                        for (const acc of accounts) {
+                            const notifContent = `La modification de la commande ${orderRef} a été acceptée par l'acheteur.`;
+                            await runUpdate(entiteDB, "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'success', NOW(), 0)", [acc.id_compte, notifContent]);
+                        }
+                        console.log(`[EDI RECEIVE] 🔔 Notified ${accounts.length} accounts for order ${orderRef}`);
+                    } catch (notifErr) {
+                        console.error('[EDI RECEIVE] ⚠️ Failed to send notifications:', notifErr.message);
+                    }
+
+                } else {
+                   console.log(`[EDI RECEIVE] ⚠️ Supplier order ${orderRef} not found in database to update.`);
+                }
+            }
+        }
+
+      } catch (err) {
+        console.error('[EDI RECEIVE] Error processing ORDCHG:', err);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'ERROR', `Processing Error: ${err.message}`);
       }
     }
@@ -9696,13 +10118,66 @@ async function startServer() {
   console.log(`[SERVER] 🚀 Attempting to start server on port ${PORT}...`);
   try {
     await initializeDatabases();
+    app.set('entiteDB', entiteDB); // Expose DB to routes
+    
+    // Initialize Singleton Services with DB
+    discoveryCache.setDb(entiteDB);
+    auditLogger.setDb(entiteDB);
+    console.log('[Services] ✅ DiscoveryCache & AuditLogger initialized with DB');
+
     await ensureOrdersColumns(); // Auto-create Orders date columns
+    
+const { Worker } = require('worker_threads');
+
+    // Initialize Orchestrator Routes (E2EE & Audit)
+    try {
+      const initOrchestratorRoutes = require('./routes/orchestrator_routes');
+      app.use('/api/orchestrator', initOrchestratorRoutes(entiteDB));
+      console.log('[Orchestrator] ✅ Routes initialized at /api/orchestrator');
+    } catch (orchErr) {
+      console.error('[Orchestrator] ⚠️ Failed to initialize routes:', orchErr.message);
+    }
+
+    // Initialize P2P Routes (Receiver)
+    try {
+      const p2pRoutes = require('./routes/p2p');
+      app.use('/api/p2p', p2pRoutes);
+      console.log('[P2P] ✅ Routes initialized at /api/p2p');
+    } catch (p2pErr) {
+      console.error('[P2P] ⚠️ Failed to initialize routes:', p2pErr.message);
+    }
     
     // Initialize ConfigService with database connection
     try {
       await configService.initialize(entiteDB);
       console.log('[ConfigService] ✅ Global parameters loaded from database');
       
+      // Start Background Workers (Discovery & Audit Sync)
+      // Only start if not in dev/test mode that inhibits workers, or check a config flag
+      const enableWorkers = configService.get('ENABLE_P2P_WORKERS') !== 'false';
+      
+      if (enableWorkers) {
+          const discoveryWorkerPath = path.join(__dirname, 'workers/discovery_worker.js');
+          const auditWorkerPath = path.join(__dirname, 'workers/audit_sync_worker.js');
+          
+          const workerConfig = {
+              ORCHESTRATOR_URL: configService.get('ORCHESTRATOR_URL'),
+              MY_GLN: configService.get('MY_GLN'),
+              // Pass DB config for workers if they need their own connection
+              dbConfig: require('./config/database').dbConfig
+          };
+
+          if (fs.existsSync(discoveryWorkerPath)) {
+             new Worker(discoveryWorkerPath, { workerData: workerConfig });
+             console.log('[Worker] Discovery Worker started');
+          }
+          
+          if (fs.existsSync(auditWorkerPath)) {
+             new Worker(auditWorkerPath, { workerData: workerConfig });
+             console.log('[Worker] Audit Sync Worker started');
+          }
+      }
+
       // Initialize Mailer after config is ready
       await initMailer();
     } catch (err) {
@@ -9735,8 +10210,20 @@ async function startServer() {
         const [result] = await entiteDB.pool.query(fixQuery);
         console.log(`[STARTUP] ✅ Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
       } else {
-        // SQLite fallback (though unlikely for orders)
-        await runUpdate(entiteDB, fixQuery);
+        // SQLite fallback (SQLite does not support JOIN in UPDATE, use subquery)
+        const sqliteFixQuery = `
+          UPDATE orders
+          SET status = 'sent'
+          WHERE status = 'new'
+          AND id_order IN (
+            SELECT related_id 
+            FROM edi_transmissions 
+            WHERE related_type = 'ORDER' 
+            AND status = 'SENT' 
+            AND direction = 'OUTBOUND'
+          )
+        `;
+        await runUpdate(entiteDB, sqliteFixQuery);
         console.log(`[STARTUP] ✅ Data correction query executed`);
       }
     } catch (err) {

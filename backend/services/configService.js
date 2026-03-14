@@ -74,6 +74,15 @@ const loadAllParameters = async () => {
       console.log(`[ConfigService] 🔧 Overriding LOCAL_API_URL with env: ${process.env.LOCAL_API_URL}`);
     }
 
+    if (process.env.MY_GLN) {
+      if (!configCache['MY_GLN']) {
+        configCache['MY_GLN'] = { type: 'string', isPublic: true, value: process.env.MY_GLN };
+      } else {
+        configCache['MY_GLN'].value = process.env.MY_GLN;
+      }
+      console.log(`[ConfigService] 🔧 Overriding MY_GLN with env: ${process.env.MY_GLN}`);
+    }
+
     if (process.env.CURRENT_INSTANCE_CODE) {
       if (!configCache['CURRENT_INSTANCE_CODE']) {
         configCache['CURRENT_INSTANCE_CODE'] = { type: 'string', isPublic: true, value: process.env.CURRENT_INSTANCE_CODE };
@@ -116,7 +125,7 @@ const hydrateFromTopology = () => {
     }
 
     Object.entries(nodes).forEach(([nodeCode, nodeConfig]) => {
-      const isMe = nodeCode === currentInstance;
+      const isMe = String(nodeCode).trim().toLowerCase() === String(currentInstance).trim().toLowerCase();
       
       // Determine effective URLs
       // If I am this node, use my local URL. Otherwise use the public topology URL.
@@ -197,6 +206,34 @@ const initializeDefaults = () => {
     DEFAULT_LANGUAGE: { value: 'fr', type: 'string', isPublic: true },
     DEFAULT_PAGE_SIZE: { value: 20, type: 'number', isPublic: true },
   };
+
+  // --- Environment Variable Overrides (Crucial for Local Dev with Remote DB) ---
+  if (process.env.LOCAL_API_URL) {
+    if (!configCache['LOCAL_API_URL']) {
+      configCache['LOCAL_API_URL'] = { type: 'string', isPublic: true, value: process.env.LOCAL_API_URL };
+    } else {
+      configCache['LOCAL_API_URL'].value = process.env.LOCAL_API_URL;
+    }
+    console.log(`[ConfigService] 🔧 Overriding LOCAL_API_URL with env: ${process.env.LOCAL_API_URL}`);
+  }
+
+  if (process.env.MY_GLN) {
+    if (!configCache['MY_GLN']) {
+      configCache['MY_GLN'] = { type: 'string', isPublic: true, value: process.env.MY_GLN };
+    } else {
+      configCache['MY_GLN'].value = process.env.MY_GLN;
+    }
+    console.log(`[ConfigService] 🔧 Overriding MY_GLN with env: ${process.env.MY_GLN}`);
+  }
+
+  if (process.env.CURRENT_INSTANCE_CODE) {
+    if (!configCache['CURRENT_INSTANCE_CODE']) {
+      configCache['CURRENT_INSTANCE_CODE'] = { type: 'string', isPublic: true, value: process.env.CURRENT_INSTANCE_CODE };
+    } else {
+      configCache['CURRENT_INSTANCE_CODE'].value = process.env.CURRENT_INSTANCE_CODE;
+    }
+    console.log(`[ConfigService] 🔧 Overriding CURRENT_INSTANCE_CODE with env: ${process.env.CURRENT_INSTANCE_CODE}`);
+  }
   
   // Hydrate defaults too
   hydrateFromTopology();
@@ -295,35 +332,68 @@ const getEdiTargetUrl = async (db, partnerGln) => {
     throw new Error('Partner GLN is required for EDI routing');
   }
 
-  try {
-    // Query partner's country from database
-    let partnerInfo;
-    if (db.__isMysql) {
-      partnerInfo = await db.all('SELECT pays FROM Entite WHERE gln = ? LIMIT 1', [partnerGln]);
-    } else if (typeof db.query === 'function') {
-      const [rows] = await db.execute('SELECT pays FROM Entite WHERE gln = ? LIMIT 1', [partnerGln]);
-      partnerInfo = rows;
-    } else {
-      // SQLite fallback
-      partnerInfo = await new Promise((resolve, reject) => {
-        db.all('SELECT pays FROM Entite WHERE gln = ? LIMIT 1', [partnerGln], (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        });
-      });
-    }
-
-    if (!partnerInfo || partnerInfo.length === 0 || !partnerInfo[0].pays) {
-      console.warn(`[ConfigService] Partner GLN ${partnerGln} not found or has no country. Using local URL.`);
+    // 0. Check for Central EDI Orchestrator (Hub)
+    // If a Hub URL is configured, we route ALL outbound EDI traffic through it.
+    // The Hub handles country resolution and dispatching.
+    const hubUrl = get('EDI_HUB_URL');
+    if (hubUrl) {
+      console.log(`[ConfigService] 🚀 Routing EDI via Orchestrator: ${partnerGln} -> ${hubUrl}`);
       return {
-        url: `${get('LOCAL_API_URL')}/api/edi/receive`,
-        countryCode: null,
-        countryName: 'Unknown'
+        url: hubUrl,
+        countryCode: 'HUB',
+        countryName: 'EDI Orchestrator'
       };
     }
 
-    const partnerCountry = partnerInfo[0].pays;
-    
+    try {
+      // Query partner's country from database
+    let partnerInfo;
+    try {
+      if (db.__isMysql) {
+        // Use generic query helper if available or direct driver
+        // Assuming db is a connection pool or connection
+         const [rows] = await db.execute('SELECT pays FROM Entite WHERE gln = ? LIMIT 1', [partnerGln]);
+         partnerInfo = rows;
+      } else if (typeof db.query === 'function') {
+         // Generic wrapper support
+         const result = await db.query('SELECT pays FROM Entite WHERE gln = ? LIMIT 1', [partnerGln]);
+         partnerInfo = Array.isArray(result) ? result : [result];
+      } else {
+        // SQLite fallback (for tests/dev)
+        partnerInfo = await new Promise((resolve, reject) => {
+          db.all('SELECT pays FROM Entite WHERE gln = ? LIMIT 1', [partnerGln], (err, rows) => {
+            if (err) resolve([]); // Resolve empty on error to trigger fallback
+            else resolve(rows);
+          });
+        });
+      }
+    } catch (dbErr) {
+      console.warn(`[ConfigService] DB lookup failed for GLN ${partnerGln}: ${dbErr.message}. Proceeding to prefix fallback.`);
+      partnerInfo = [];
+    }
+
+    let partnerCountry = null;
+
+    if (partnerInfo && partnerInfo.length > 0 && partnerInfo[0].pays) {
+      partnerCountry = partnerInfo[0].pays;
+    } else {
+      // FALLBACK: Infer country from GLN prefix for inter-country routing
+      if (partnerGln.startsWith('SN')) {
+        partnerCountry = 'Senegal';
+        console.log(`[ConfigService] GLN ${partnerGln} not in DB. Inferred country 'Senegal' from prefix 'SN'.`);
+      } else if (partnerGln.startsWith('619')) {
+        partnerCountry = 'Tunisie';
+        console.log(`[ConfigService] GLN ${partnerGln} not in DB. Inferred country 'Tunisie' from prefix '619'.`);
+      } else {
+        console.warn(`[ConfigService] Partner GLN ${partnerGln} not found or has no country. Using local URL.`);
+        return {
+          url: `${get('LOCAL_API_URL')}/api/edi/receive`,
+          countryCode: null,
+          countryName: 'Unknown'
+        };
+      }
+    }
+
     // Get NETWORK_TOPOLOGY from config
     const topology = get('NETWORK_TOPOLOGY');
     if (!topology) {
@@ -338,6 +408,18 @@ const getEdiTargetUrl = async (db, partnerGln) => {
     // Parse topology if needed
     const nodes = typeof topology === 'string' ? JSON.parse(topology) : topology;
 
+    // ISO 3166-1 numeric codes for countries in the topology (stored in Entite.pays)
+    const NUMERIC_COUNTRY_MAP = {
+      '788': ['tunisie', 'tunisia', 'tunis'],
+      '686': ['senegal', 'sénégal', 'senegalais'],
+      '250': ['france'],
+      '504': ['maroc', 'morocco'],
+      '012': ['algerie', 'algeria', 'algérie'],
+    };
+
+    // Normalize: if pays is a numeric code, resolve to country name aliases
+    const numericAliases = NUMERIC_COUNTRY_MAP[partnerCountry.trim()] || null;
+
     // Find matching node by comparing country name (case-insensitive, partial match)
     let matchedNode = null;
     let matchedNodeCode = null;
@@ -349,7 +431,11 @@ const getEdiTargetUrl = async (db, partnerGln) => {
       const partnerCountryLower = partnerCountry.toLowerCase().trim();
       
       // Match if either contains the other (handles variations like "Tunisie" vs "Tunisia")
-      if (configCountry.includes(partnerCountryLower) || partnerCountryLower.includes(configCountry)) {
+      const nameMatch = configCountry.includes(partnerCountryLower) || partnerCountryLower.includes(configCountry);
+      // Also match if the numeric code maps to this country's name/aliases
+      const numericMatch = numericAliases ? numericAliases.some(alias => configCountry.includes(alias) || alias.includes(configCountry)) : false;
+      
+      if (nameMatch || numericMatch) {
         matchedNode = nodeConfig;
         matchedNodeCode = nodeCode;
         break;
