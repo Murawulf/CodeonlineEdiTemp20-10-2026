@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { resolveRoute, dispatchMessage } = require('../services/routingService');
 
 class HubController {
@@ -58,14 +58,14 @@ class HubController {
       }
 
       // 3. Forward Message
-      console.log(`[Hub] Routing to ${route.name} (${route.url})`);
+      // Smart-route: encrypted payloads go to /api/p2p/receive, plaintext to /api/edi/receive
+      let forwardUrl = route.url;
+      if (header && envelope) {
+        forwardUrl = forwardUrl.replace('/api/edi/receive', '/api/p2p/receive');
+        console.log(`[Hub] Encrypted payload detected, routing to P2P endpoint`);
+      }
+      console.log(`[Hub] Routing to ${route.name} (${forwardUrl})`);
       
-      const forwardUrl = route.url;
-      
-      // Prepare Payload
-      // If we received header/envelope, we forward that. 
-      // If we received flat fields, we might need to restructure or forward as is depending on recipient expectation.
-      // For now, we forward exactly what we received to maintain transparency.
       const payload = req.body;
 
       // Add Headers
