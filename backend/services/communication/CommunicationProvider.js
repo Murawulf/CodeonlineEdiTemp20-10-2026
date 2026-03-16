@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const cryptoService = require('../crypto/CryptoService');
 const discoveryCache = require('./DiscoveryCache');
 const auditLogger = require('./AuditLogger');
@@ -28,7 +28,7 @@ class CommunicationProvider {
         console.error('[CommunicationProvider] Env MY_GLN:', process.env.MY_GLN);
     }
 
-    const transactionId = uuidv4();
+    const transactionId = crypto.randomUUID();
     
     // Prepare Payload
     const payload = {

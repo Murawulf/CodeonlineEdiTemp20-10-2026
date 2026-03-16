@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { runUpdate } = require('../../db_utils');
 
 class AuditLogger {
@@ -25,7 +25,7 @@ class AuditLogger {
         (id, transaction_id, sender_gln, receiver_gln, message_type, status, transport_mode, created_at, error_reason, synced_to_hub)
         VALUES (?, ?, ?, ?, ?, ?, 'P2P', CURRENT_TIMESTAMP, ?, 0)
       `, [
-        uuidv4(),
+        crypto.randomUUID(),
         transactionId,
         senderGLN,
         receiverGLN,

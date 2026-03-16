@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { queryDB, runUpdate } = require('../db_utils');
 const configService = require('../services/configService');
 const axios = require('axios');
@@ -35,7 +35,7 @@ class OrchestratorController {
         return res.status(400).json({ error: 'Missing required header fields' });
     }
 
-    const auditId = uuidv4();
+    const auditId = crypto.randomUUID();
     const receivedAt = new Date();
 
     try {
@@ -197,7 +197,7 @@ class OrchestratorController {
                 (id, transaction_id, sender_gln, receiver_gln, message_type, status, transport_mode, received_at, delivered_at, error_reason)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               `, [
-                  uuidv4(), // Generate new Hub ID for this sync record
+                  crypto.randomUUID(), // Generate new Hub ID for this sync record
                   log.transaction_id,
                   log.sender_gln,
                   log.receiver_gln,

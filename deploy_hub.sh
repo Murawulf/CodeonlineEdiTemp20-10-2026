@@ -58,8 +58,7 @@ module.exports = {
       PORT: $PM2_PORT,
       DB_NAME: '$DB_NAME',
       DB_HOST: '127.0.0.1',
-      DB_USER: 'Consultant',
-      // Note: DB_PASSWORD must be set in .env on server or handled securely
+      DB_USER: 'Consultant'
     },
     error_file: '$REMOTE_ROOT/logs/${PM2_APP_NAME}-error.log',
     out_file: '$REMOTE_ROOT/logs/${PM2_APP_NAME}-out.log',
@@ -109,9 +108,23 @@ ssh -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST << EOF
         echo "⚠️  ATTENTION: Fichier .env manquant. Création d'un template..."
         echo "DB_HOST=127.0.0.1" > .env
         echo "DB_USER=Consultant" >> .env
+        echo "DB_PASSWORD=" >> .env
         echo "DB_NAME=$DB_NAME" >> .env
         echo "PORT=$PM2_PORT" >> .env
-        echo "# DB_PASSWORD=... (A Remplir)" >> .env
+        echo "API_PIN=12345" >> .env
+        echo "⚠️  IMPORTANT: Editez .env et renseignez DB_PASSWORD !"
+    fi
+
+    # Initialisation du schéma MySQL
+    echo "🗄️  Initialisation du schéma MySQL ($DB_NAME)..."
+    mysql -u Consultant -p\$(grep DB_PASSWORD .env | cut -d= -f2) -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;" 2>/dev/null || \
+    mysql -u Consultant -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;" 2>/dev/null || \
+    echo "⚠️  Impossible de créer la base. Vérifiez les accès MySQL."
+    
+    if [ -f sql/schema.sql ]; then
+        mysql -u Consultant -p\$(grep DB_PASSWORD .env | cut -d= -f2) $DB_NAME < sql/schema.sql 2>/dev/null || \
+        mysql -u Consultant $DB_NAME < sql/schema.sql 2>/dev/null || \
+        echo "⚠️  Impossible d'exécuter le schéma. Vérifiez les accès MySQL."
     fi
 
     # PM2
