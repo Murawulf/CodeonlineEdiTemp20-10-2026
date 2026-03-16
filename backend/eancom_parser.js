@@ -1,3 +1,8 @@
+function unescapeEancom(str) {
+  if (!str) return str;
+  return str.replace(/\?([?+:'"])/g, '$1');
+}
+
 // =====================================================
 // EANCOM PARSER - Parse incoming EDI messages
 // Supports: ORDERS, INVOIC, ORDRSP, DESADV
@@ -15,7 +20,10 @@ function parseEANCOM(eancomContent) {
      content = content.replace(/'/g, "'\n");
   }
 
-  const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  // EANCOM segments are separated by apostrophes that are NOT preceded by a question mark.
+  // We remove newlines first because some transmissions wrap them randomly, then split.
+  const contentNoNewlines = content.replace(/\r?\n/g, '');
+  const lines = contentNoNewlines.split(/(?<!\?)'/).map(l => l.trim()).filter(l => l.length > 0);
   
   const result = {
     messageType: null,
@@ -48,7 +56,7 @@ function parseEANCOM(eancomContent) {
     result.rawSegments.push(line);
 
     // Split segment by + (EDIFACT separator)
-    const parts = line.split('+');
+    const parts = line.split(/(?<!\?)\+/);
     const segmentCode = parts[0];
 
     try {
@@ -56,7 +64,7 @@ function parseEANCOM(eancomContent) {
         case 'UNH': // Message header
           result.messageNumber = parts[1];
           if (parts[2]) {
-            const messageInfo = parts[2].split(':');
+            const messageInfo = parts[2].split(/(?<!\?):/);
             result.messageType = messageInfo[0]; // ORDERS, INVOIC, ORDRSP, DESADV
           } else {
              console.error('[PARSER ERROR] UNH segment missing message type part:', line);
@@ -71,11 +79,12 @@ function parseEANCOM(eancomContent) {
           break;
 
         case 'DTM': // Date/time/period
-          const dateQualifier = parts[1].split(':')[0];
-          const dateValue = parts[1].split(':')[1];
+          const dateQualifier = parts[1].split(/(?<!\?):/)[0];
+          const dateValue = parts[1].split(/(?<!\?):/)[1];
           
           if (dateQualifier === '137') result.documentDate = dateValue; // Document date
           else if (dateQualifier === '2') result.deliveryDateRequested = dateValue; // Delivery date
+          else if (dateQualifier === '69') result.deliveryDateConfirmed = dateValue; // Confirmed delivery date
           else if (dateQualifier === '64') result.deliveryDateEarliest = dateValue;
           else if (dateQualifier === '63') result.deliveryDateLatest = dateValue;
           else if (dateQualifier === '171') result.contractDate = dateValue; // Contract/price list date
@@ -83,7 +92,7 @@ function parseEANCOM(eancomContent) {
 
         case 'PAI': // Payment instructions
           if (parts[1]) {
-            const paymentParts = parts[1].split(':');
+            const paymentParts = parts[1].split(/(?<!\?):/);
             result.paymentTerms = paymentParts[paymentParts.length - 1];
           }
           break;
@@ -100,21 +109,21 @@ function parseEANCOM(eancomContent) {
           // or inside parts[4] separated by colons.
           if (parts[4] && parts[4].includes(':')) {
             // Replace colons with spaces if it's colon separated
-            ftxText = parts[4].split(':').filter(Boolean).join(' ');
+            ftxText = parts[4].split(/(?<!\?):/).filter(Boolean).join(' ');
           }
           
           if (currentItem) {
-             currentItem.comment = ftxText;
+             currentItem.comment = unescapeEancom(ftxText);
           } else {
              result.freeText = ftxText;
              // ORDRSP specific general comment
-             if (ftxType === 'AAI') result.comment = ftxText;
+             if (ftxType === 'AAI') result.comment = unescapeEancom(ftxText);
           }
           break;
 
         case 'RFF': // Reference
-          const refQualifier = parts[1].split(':')[0];
-          const refValue = parts[1].split(':')[1];
+          const refQualifier = parts[1].split(/(?<!\?):/)[0];
+          const refValue = parts[1].split(/(?<!\?):/)[1];
           
           if (refQualifier === 'CT') result.contractReference = refValue;
           else if (refQualifier === 'PL') result.priceListReference = refValue;
@@ -128,27 +137,37 @@ function parseEANCOM(eancomContent) {
 
         case 'NAD': // Name and address
           const partyQualifier = parts[1];
-          const partyGLN = parts[2] ? parts[2].split(':')[0] : null;
+          const partyGLN = parts[2] ? parts[2].split(/(?<!\?):/)[0] : null;
+          const partyName = parts[4] || null; // 4th field contains the party name
           
           currentPartyType = partyQualifier;
           
-          if (partyQualifier === 'BY') result.buyer.gln = partyGLN;
-          else if (partyQualifier === 'SU') result.supplier.gln = partyGLN;
-          else if (partyQualifier === 'DP') result.deliveryParty.gln = partyGLN;
+          if (partyQualifier === 'BY') {
+            result.buyer.gln = partyGLN;
+            if (partyName) result.buyer.name = partyName;
+          }
+          else if (partyQualifier === 'SU') {
+            result.supplier.gln = partyGLN;
+            if (partyName) result.supplier.name = partyName;
+          }
+          else if (partyQualifier === 'DP') {
+            result.deliveryParty.gln = partyGLN;
+            if (partyName) result.deliveryParty.name = partyName;
+          }
           else if (partyQualifier === 'UC') result.ultimateConsignee = partyGLN;
           else if (partyQualifier === 'IV') result.invoicee = partyGLN;
           break;
 
         case 'CTA': // Contact information
           if (parts[2]) {
-            const contactName = parts[2].split(':')[1];
+            const contactName = parts[2].split(/(?<!\?):/)[1];
             if (currentPartyType === 'BY') result.buyer.contact = contactName;
           }
           break;
 
         case 'COM': // Communication contact
           if (parts[1]) {
-            const commParts = parts[1].split(':');
+            const commParts = parts[1].split(/(?<!\?):/);
             const commValue = commParts[0];
             const commType = commParts[1]; // TE=telephone, EM=email
             
@@ -161,11 +180,11 @@ function parseEANCOM(eancomContent) {
 
         case 'CUX': // Currencies
           if (parts[1]) {
-            const currencyParts = parts[1].split(':');
+            const currencyParts = parts[1].split(/(?<!\?):/);
             result.currency = currencyParts[1];
           }
           if (parts[2]) {
-            const targetCurrencyParts = parts[2].split(':');
+            const targetCurrencyParts = parts[2].split(/(?<!\?):/);
             result.exchangeRateCurrency = targetCurrencyParts[1];
           }
           if (parts[3]) {
@@ -194,7 +213,7 @@ function parseEANCOM(eancomContent) {
 
         case 'GIN': // Goods Identity Number (SSCC)
            if (parts[1] === 'BJ' && parts[2]) { // BJ = Serial shipping container code
-             const sscc = parts[2].split(':')[0];
+             const sscc = parts[2].split(/(?<!\?):/)[0];
              // Attach to the last defined package or item
              if (currentItem && currentItem.packageCount) {
                 currentItem.sscc = sscc;
@@ -217,7 +236,7 @@ function parseEANCOM(eancomContent) {
 
         case 'TOD': // Terms of delivery
           if (parts[3]) {
-            const incoterms = parts[3].split(':')[0];
+            const incoterms = parts[3].split(/(?<!\?):/)[0];
             result.deliveryTerms = incoterms;
           }
           break;
@@ -237,7 +256,7 @@ function parseEANCOM(eancomContent) {
           if (currentItem) result.items.push(currentItem);
           
           const lineNumber = parts[1];
-          const gtin = parts[3] ? parts[3].split(':')[0] : null;
+          const gtin = parts[3] ? parts[3].split(/(?<!\?):/)[0] : null;
           
           currentItem = {
             lineNumber: parseInt(lineNumber),
@@ -259,7 +278,7 @@ function parseEANCOM(eancomContent) {
 
         case 'PIA': // Additional product identification
           if (currentItem && parts[2]) {
-            const productParts = parts[2].split(':');
+            const productParts = parts[2].split(/(?<!\?):/);
             const productCode = productParts[0];
             const productQualifier = productParts[1];
             
@@ -275,14 +294,16 @@ function parseEANCOM(eancomContent) {
           break;
 
         case 'QTY': // Quantity
-          const qtyQualifier = parts[1].split(':')[0];
-          const qtyValue = parts[1].split(':')[1];
+          const qtyQualifier = parts[1].split(/(?<!\?):/)[0];
+          const qtyValue = parts[1].split(/(?<!\?):/)[1];
           
           if (qtyQualifier === '21' && currentItem) {
             // Ordered quantity
             currentItem.qtyOrdered = parseInt(qtyValue);
             // Fallback for ORDERS message where 21 is the main qty
             if (!currentItem.qty) currentItem.qty = parseInt(qtyValue);
+            // For ORDCHG, quantity 21 is the newly confirmed/changed quantity
+            if (result.messageType === 'ORDCHG' || result.messageType === 'ORDRSP') currentItem.qtyConfirmed = parseInt(qtyValue);
           } else if (qtyQualifier === '185' && currentItem) {
             // Confirmed quantity
             currentItem.qtyConfirmed = parseInt(qtyValue);
@@ -302,8 +323,8 @@ function parseEANCOM(eancomContent) {
           break;
 
         case 'MOA': // Monetary amount
-          const moaQualifier = parts[1].split(':')[0];
-          const moaValue = parseFloat(parts[1].split(':')[1]);
+          const moaQualifier = parts[1].split(/(?<!\?):/)[0];
+          const moaValue = parseFloat(parts[1].split(/(?<!\?):/)[1]);
           
           if (moaQualifier === '203' && currentItem) {
             currentItem.lineAmount = moaValue;
@@ -326,16 +347,21 @@ function parseEANCOM(eancomContent) {
 
         case 'PRI': // Price details
           if (currentItem && parts[1]) {
-            const priceParts = parts[1].split(':');
+            const priceParts = parts[1].split(/(?<!\?):/);
             currentItem.priceQualifier = priceParts[0]; // AAA, AAB, etc.
             
             if (priceParts[0] === 'AAB') {
               currentItem.priceConfirmed = parseFloat(priceParts[1]);
+            } else if (priceParts[0] === 'AAA') {
+              currentItem.price = parseFloat(priceParts[1]);
+              if (result.messageType === 'ORDCHG' || result.messageType === 'ORDRSP') {
+                currentItem.priceConfirmed = parseFloat(priceParts[1]);
+              }
             } else {
               currentItem.price = parseFloat(priceParts[1]);
             }
             
-            if (priceParts[5]) currentItem.unit = priceParts[5];
+            if (priceParts[2]) currentItem.priceType = priceParts[2];
           }
           break;
 
@@ -348,7 +374,7 @@ function parseEANCOM(eancomContent) {
 
         case 'TAX': // Tax
           if (currentItem && parts[1] === '7' && parts[5]) {
-            const taxParts = parts[5].split(':');
+            const taxParts = parts[5].split(/(?<!\?):/);
             currentItem.taxRate = parseFloat(taxParts[taxParts.length - 1]);
           }
           break;
@@ -363,7 +389,7 @@ function parseEANCOM(eancomContent) {
 
         case 'CNT': // Control total
           if (parts[1]) {
-            const cntParts = parts[1].split(':');
+            const cntParts = parts[1].split(/(?<!\?):/);
             if (cntParts[0] === '2') {
               result.itemCount = parseInt(cntParts[1]);
             }
@@ -373,9 +399,9 @@ function parseEANCOM(eancomContent) {
 
       // Handle delivery location completion
       if (currentDeliveryLocation && segmentCode === 'DTM') {
-        const dateQualifier = parts[1].split(':')[0];
+        const dateQualifier = parts[1].split(/(?<!\?):/)[0];
         if (dateQualifier === '2') {
-          currentDeliveryLocation.date = parts[1].split(':')[1];
+          currentDeliveryLocation.date = parts[1].split(/(?<!\?):/)[1];
           if (currentItem) {
             currentItem.deliveryLocations.push(currentDeliveryLocation);
           }

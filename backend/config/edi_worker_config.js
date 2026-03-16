@@ -49,8 +49,10 @@ module.exports = {
   // Configuration des serveurs EDI externes
   ediServers: {
     default: {
-      url: process.env.TARGET_EDI_URL || 'http://localhost:5000/api/edi/receive',
-      apiPin: '3311',
+      // Utilise le préfixe LOCAL_API_URL depuis le .env, ou construit dynamiquement avec le PORT (5001 ou 5000)
+      // Le suffixe /api/edi/receive reste fixe.
+      url: `${process.env.LOCAL_API_URL || `http://localhost:${process.env.PORT || 5000}`}/api/edi/receive`,
+      apiPin: process.env.API_PIN || '3311',
     },
     // Possibilité d'ajouter d'autres serveurs
     // senegal: {

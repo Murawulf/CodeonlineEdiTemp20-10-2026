@@ -66,7 +66,7 @@ async function logWorkerActivity(db, params) {
       INSERT INTO edi_worker_logs (
         log_type, worker_type, transmission_id, level,
         message, details, duration_ms, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `;
 
     const detailsJson = details ? JSON.stringify(details) : null;
@@ -201,14 +201,19 @@ async function getWorkerLogs(db, filters = {}) {
 
   const { queryDB } = require('./db_utils');
   
+  // Calculate cutoff date in JS for compatibility
+  const cutoffDate = new Date(Date.now() - (hours * 60 * 60 * 1000));
+  // Format as 'YYYY-MM-DD HH:mm:ss' which works for both MySQL and SQLite
+  const cutoffDateStr = cutoffDate.toISOString().slice(0, 19).replace('T', ' ');
+
   let query = `
     SELECT 
       id, log_type, worker_type, transmission_id, level,
       message, details, duration_ms, created_at
     FROM edi_worker_logs
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+    WHERE created_at >= ?
   `;
-  const params = [hours];
+  const params = [cutoffDateStr];
 
   if (workerType) {
     query += ` AND worker_type = ?`;
@@ -242,6 +247,10 @@ async function getWorkerLogs(db, filters = {}) {
 async function getWorkerStats(db, hours = 24) {
   const { queryDB } = require('./db_utils');
   
+  // Calculate cutoff date in JS for compatibility
+  const cutoffDate = new Date(Date.now() - (hours * 60 * 60 * 1000));
+  const cutoffDateStr = cutoffDate.toISOString().slice(0, 19).replace('T', ' ');
+
   const query = `
     SELECT 
       worker_type,
@@ -253,13 +262,13 @@ async function getWorkerStats(db, hours = 24) {
       MIN(created_at) as first_log,
       MAX(created_at) as last_log
     FROM edi_worker_logs
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+    WHERE created_at >= ?
     GROUP BY worker_type, log_type, level
     ORDER BY worker_type, log_type, level
   `;
 
   try {
-    return await queryDB(db, query, [hours]);
+    return await queryDB(db, query, [cutoffDateStr]);
   } catch (err) {
     console.error('[WORKER LOGGER] Failed to get stats:', err.message);
     return [];

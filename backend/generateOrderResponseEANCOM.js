@@ -2,6 +2,11 @@
 // Based on GS1 EANCOM ORDRSP D.01B standard
 // Used to Accept, Reject, or Modify an order
 
+function escapeEancom(str) {
+  if (!str) return str;
+  return str.replace(/[?+:'"]/g, match => '?' + match);
+}
+
 function generateOrderResponseEANCOM(data) {
   const lines = [];
   let segmentCount = 0;
@@ -55,12 +60,14 @@ function generateOrderResponseEANCOM(data) {
   // === NAD - Name and Address ===
   // BY = Buyer (The one who sent the order)
   if (data.buyerGln) {
-    add("NAD+BY+" + data.buyerGln + "::9'");
+    const buyerName = data.buyerName || "";
+    add("NAD+BY+" + data.buyerGln + "::9++" + buyerName + "'");
   }
 
   // SU = Supplier (The one sending this response)
   if (data.supplierGln) {
-    add("NAD+SU+" + data.supplierGln + "::9'");
+    const supplierName = data.supplierName || "";
+    add("NAD+SU+" + data.supplierGln + "::9++" + supplierName + "'");
   }
 
   // === CUX - Currencies ===
@@ -72,7 +79,7 @@ function generateOrderResponseEANCOM(data) {
   // General comment on the order response
   if (data.comment) {
     // AAI = General information
-    add("FTX+AAI+++: " + data.comment + "'");
+    add("FTX+AAI+++: " + escapeEancom(data.comment) + "'");
   }
 
   // === LINE ITEMS ===
@@ -128,7 +135,7 @@ function generateOrderResponseEANCOM(data) {
     
     // FTX on line level
     if (item.comment) {
-        add("FTX+LIN+++: " + item.comment + "'");
+        add("FTX+LIN+++: " + escapeEancom(item.comment) + "'");
     }
   });
 

@@ -1,4 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise');
 const path = require('path');
 const { Worker } = require('worker_threads');
 const fs = require('fs');
@@ -7,10 +8,17 @@ const fs = require('fs');
 const ORCHESTRATOR_PORT = 5010;
 const ORCHESTRATOR_URL = `http://localhost:${ORCHESTRATOR_PORT}`;
 const TUNISIA_DB_PATH = path.join(__dirname, '../data/tunisia.db');
-const ORCH_DB_PATH = path.join(__dirname, '../data/orchestrator.db');
 
-// Helper to query DB
-function queryDB(dbPath, sql, params = []) {
+// Orchestrator MySQL Config (Matches edi_orchestrator/.env)
+const ORCH_DB_CONFIG = {
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'codeonline_edi_db'
+};
+
+// Helper to query SQLite
+function querySQLite(dbPath, sql, params = []) {
     return new Promise((resolve, reject) => {
         const db = new sqlite3.Database(dbPath);
         db.all(sql, params, (err, rows) => {
@@ -21,8 +29,8 @@ function queryDB(dbPath, sql, params = []) {
     });
 }
 
-// Helper to run update
-function runUpdate(dbPath, sql, params = []) {
+// Helper to run update on SQLite
+function runSQLiteUpdate(dbPath, sql, params = []) {
     return new Promise((resolve, reject) => {
         const db = new sqlite3.Database(dbPath);
         db.run(sql, params, function (err) {
@@ -33,6 +41,14 @@ function runUpdate(dbPath, sql, params = []) {
     });
 }
 
+// Helper to query MySQL
+async function queryMySQL(sql, params = []) {
+    const connection = await mysql.createConnection(ORCH_DB_CONFIG);
+    const [rows] = await connection.execute(sql, params);
+    await connection.end();
+    return rows;
+}
+
 // Helper to wait
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -41,13 +57,29 @@ async function runAuditSyncTest() {
 
     const testTxId = `TX_OFFLINE_${Math.floor(Math.random() * 100000)}`;
     
-    // 1. Insert Offline Log in Tunisia DB
+    // 1. Insert Offline Log in Tunisia DB (SQLite)
     console.log(`1️⃣  Injecting Offline Log ${testTxId} into Tunisia DB...`);
     
-    // Create table if not exists (AuditLogger should assume it exists, but for test safety)
-    // The setup_e2e_dbs.js should have created it.
-    
-    await runUpdate(TUNISIA_DB_PATH, `
+    // Ensure table exists (idempotent)
+    const db = new sqlite3.Database(TUNISIA_DB_PATH);
+    db.serialize(() => {
+        db.run(`CREATE TABLE IF NOT EXISTS offline_audit_logs (
+            id TEXT PRIMARY KEY,
+            transaction_id TEXT,
+            sender_gln TEXT,
+            receiver_gln TEXT,
+            message_type TEXT,
+            status TEXT,
+            transport_mode TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            synced_to_hub INTEGER DEFAULT 0,
+            error_reason TEXT,
+            delivered_at DATETIME
+        )`);
+    });
+    db.close();
+
+    await runSQLiteUpdate(TUNISIA_DB_PATH, `
         INSERT INTO offline_audit_logs 
         (id, transaction_id, sender_gln, receiver_gln, message_type, status, transport_mode, created_at, synced_to_hub)
         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 0)
@@ -70,7 +102,7 @@ async function runAuditSyncTest() {
         workerData: {
             ENTITE_DB_PATH: TUNISIA_DB_PATH,
             ORCHESTRATOR_URL: ORCHESTRATOR_URL,
-            dbConfig: {}
+            dbConfig: {} // Worker uses SQLite fallback
         }
     });
 
@@ -82,25 +114,36 @@ async function runAuditSyncTest() {
     console.log('   🛑 Terminating worker...');
     await worker.terminate();
 
-    // 3. Verify Orchestrator Received it
-    console.log('3️⃣  Verifying Orchestrator DB...');
-    const hubRows = await queryDB(ORCH_DB_PATH, `SELECT * FROM audit_ledger WHERE transaction_id = ?`, [testTxId]);
-    
-    if (hubRows.length > 0) {
-        console.log(`   ✅ Success! Found transaction ${testTxId} in Orchestrator Audit Ledger.`);
-        if (hubRows[0].transport_mode === 'P2P_SYNC') {
-            console.log('      ✅ Correct transport_mode: P2P_SYNC');
+    // 3. Verify Orchestrator Received it (MySQL)
+    console.log('3️⃣  Verifying Orchestrator DB (MySQL)...');
+    try {
+        // Note: Orchestrator schema uses 'transactions' table, not 'audit_ledger'
+        // But let's check what I mapped in HubController.syncOfflineLogs
+        // HubController maps it to 'transactions' table with transport_mode = 'P2P_SYNC'
+        const hubRows = await queryMySQL(`SELECT * FROM transactions WHERE transaction_ref = ?`, [testTxId]);
+        
+        if (hubRows.length > 0) {
+            console.log(`   ✅ Success! Found transaction ${testTxId} in Orchestrator Transactions table.`);
+            if (hubRows[0].transport_mode === 'P2P_SYNC') {
+                console.log('      ✅ Correct transport_mode: P2P_SYNC');
+            } else {
+                 console.warn(`      ⚠️  Unexpected transport_mode: ${hubRows[0].transport_mode}`);
+            }
         } else {
-             console.warn(`      ⚠️  Unexpected transport_mode: ${hubRows[0].transport_mode}`);
+            console.error(`   ❌ Failed! Transaction ${testTxId} not found in Orchestrator DB.`);
+            console.log('      Debug: Checking recent transactions...');
+            const recent = await queryMySQL(`SELECT * FROM transactions ORDER BY created_at DESC LIMIT 5`);
+            console.log('      Recent:', recent);
+            process.exit(1);
         }
-    } else {
-        console.error(`   ❌ Failed! Transaction ${testTxId} not found in Orchestrator DB.`);
+    } catch (dbErr) {
+        console.error('   ❌ Failed to query Orchestrator MySQL:', dbErr.message);
         process.exit(1);
     }
 
-    // 4. Verify Local DB Marked as Synced
+    // 4. Verify Local DB Marked as Synced (SQLite)
     console.log('4️⃣  Verifying Local DB Synced Status...');
-    const localRows = await queryDB(TUNISIA_DB_PATH, `SELECT synced_to_hub FROM offline_audit_logs WHERE transaction_id = ?`, [testTxId]);
+    const localRows = await querySQLite(TUNISIA_DB_PATH, `SELECT synced_to_hub FROM offline_audit_logs WHERE transaction_id = ?`, [testTxId]);
     
     if (localRows.length > 0) {
         if (localRows[0].synced_to_hub === 1) {

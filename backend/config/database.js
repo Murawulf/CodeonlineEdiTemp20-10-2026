@@ -13,13 +13,24 @@ const dbConfig = {
   connectTimeout: 10000
 };
 
-const pool = mysql.createPool(dbConfig);
+// Only create pool if DB_HOST is set and not 'sqlite'
+// If DB_HOST is explicitly empty string, we should probably not default to localhost if we want to force SQLite
+// But the current logic is process.env.DB_HOST || 'localhost'.
+// We need a way to disable MySQL.
+const shouldDisableMySQL = process.env.DB_HOST === '' || process.env.DB_HOST === 'sqlite';
+
+const pool = shouldDisableMySQL ? null : mysql.createPool(dbConfig);
 
 const createConnection = async () => {
+  if (shouldDisableMySQL) return null;
   return await mysql.createConnection(dbConfig);
 };
 
-console.log(`[Database] Initializing connection pool to ${dbConfig.host}:${dbConfig.port} (User: ${dbConfig.user}, DB: ${dbConfig.database})`);
+if (!shouldDisableMySQL) {
+  console.log(`[Database] Initializing connection pool to ${dbConfig.host}:${dbConfig.port} (User: ${dbConfig.user}, DB: ${dbConfig.database})`);
+} else {
+  console.log('[Database] MySQL disabled (DB_HOST is empty or "sqlite"), using SQLite fallback');
+}
 
 module.exports = {
   pool,

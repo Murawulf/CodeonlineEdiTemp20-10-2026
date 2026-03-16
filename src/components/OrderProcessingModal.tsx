@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, AlertTriangle, Save } from "lucide-react";
+import SafeAcceptModificationsAction from "@/components/edi/AcceptModificationsAction";
 
 interface OrderProcessingModalProps {
   isOpen: boolean;
@@ -13,9 +14,11 @@ interface OrderProcessingModalProps {
   onSubmit: (data: any) => void;
   order: any;
   readonly?: boolean;
+  currentEntiteId?: string | number;
+  onSuccess?: () => void;
 }
 
-export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order, readonly = false }: OrderProcessingModalProps) {
+export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order, readonly = false, currentEntiteId, onSuccess }: OrderProcessingModalProps) {
   const [action, setAction] = useState<"accepted" | "rejected" | "modified">("accepted");
   const [comment, setComment] = useState("");
   const [articles, setArticles] = useState<any[]>([]);
@@ -46,15 +49,18 @@ export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order,
       
       setArticles(order.lines.map((line: any) => ({
         ...line,
-        confirmedQty: line.confirmedQty !== undefined ? line.confirmedQty : line.qty,
-        confirmedPrice: line.confirmedPrice !== undefined ? line.confirmedPrice : (line.price || line.prix || 0),
+        confirmedQty: line.confirmedQty !== undefined ? line.confirmedQty : (line.confirmed_qty !== undefined ? line.confirmed_qty : line.qty),
+        confirmedPrice: line.confirmedPrice !== undefined ? line.confirmedPrice : (line.confirmed_price !== undefined ? line.confirmed_price : (line.price || line.prix || 0)),
         comment: line.lineComment || line.line_comment || line.comment || ""
       })));
       
-      // Initialize confirmed delivery date
-      if (order.date_livraison) {
-        const date = new Date(order.date_livraison);
-        setConfirmedDeliveryDate(date.toISOString().split('T')[0]);
+      // Initialize confirmed delivery date (prefer confirmed over requested)
+      const deliveryDateSource = order.date_livraison_confirmee || order.date_livraison;
+      if (deliveryDateSource) {
+        try {
+          const date = new Date(deliveryDateSource);
+          setConfirmedDeliveryDate(date.toISOString().split('T')[0]);
+        } catch(e) { /* ignore invalid date */ }
       }
       
       // Si la commande a déjà un statut, on essaie de le refléter
@@ -413,20 +419,22 @@ export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order,
               <AlertTriangle className="mt-0.5" />
               <div>
                 <p className="font-semibold">
-                  {readonly ? "Commande Refusée" : "Attention : Refus de commande"}
+                  {order?.status === 'rejected' || order?.statut === 'rejected' || readonly ? "Commande Refusée" : "Attention : Refus de commande"}
                 </p>
                 <p className="text-sm mt-1">
-                  {readonly 
-                    ? (() => {
-                        const dateStr = order?.updated_at && !isNaN(new Date(order.updated_at).getTime())
-                          ? ` le ${new Date(order.updated_at).toLocaleDateString('fr-FR')} à ${new Date(order.updated_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`
-                          : "";
-                        const isSupplier = order?.type === 'Reçue' || (order?.type !== 'Envoyée' && !['sent'].includes(order?.status || ''));
-                        return isSupplier
-                          ? `Vous avez refusé cette commande${dateStr}.`
-                          : `Cette commande a été refusée${dateStr}.`;
-                      })()
-                    : "Vous êtes sur le point de refuser l'intégralité de cette commande. Un message de réponse (ORDRSP) sera envoyé au client pour l'informer."}
+                  {(() => {
+                    const isAlreadyRejected = order?.status === 'rejected' || order?.statut === 'rejected';
+                    if (readonly || isAlreadyRejected) {
+                      const dateStr = order?.updated_at && !isNaN(new Date(order.updated_at).getTime())
+                        ? ` le ${new Date(order.updated_at).toLocaleDateString('fr-FR')} à ${new Date(order.updated_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`
+                        : "";
+                      const isSupplier = order?.type === 'Reçue' || (order?.type !== 'Envoyée' && !['sent'].includes(order?.status || ''));
+                      return isSupplier
+                        ? `Vous avez refusé cette commande${dateStr}.`
+                        : `Cette commande a été refusée${dateStr}.`;
+                    }
+                    return "Vous êtes sur le point de refuser l'intégralité de cette commande. Un message de réponse (ORDRSP) sera envoyé au client pour l'informer.";
+                  })()}
                 </p>
               </div>
             </div>
@@ -436,6 +444,19 @@ export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order,
 
         <DialogFooter className="sm:justify-between gap-4">
           <Button variant="ghost" onClick={onClose}>{readonly ? "Fermer" : "Annuler"}</Button>
+          
+          {/* Action pour Accepter les modifications (Acheteur) */}
+          {readonly && currentEntiteId && onSuccess && (
+            <SafeAcceptModificationsAction 
+              order={order} 
+              currentEntiteId={currentEntiteId} 
+              onSuccess={() => {
+                onSuccess();
+                onClose();
+              }} 
+            />
+          )}
+
           {!readonly && (
             <Button onClick={handleSubmit} className="w-full sm:w-auto gap-2">
               <Save size={18} />

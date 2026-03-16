@@ -46,7 +46,7 @@ async function createEdiTransmission(db, params) {
       related_id, related_type, document_type, direction,
       partner_gln, partner_id, filename, file_path, 
       file_content, status, logs, error_message, transmission_date, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `;
 
   const values = [
@@ -70,6 +70,15 @@ async function createEdiTransmission(db, params) {
     console.log(`[EDI TRANSMISSION] ✅ Transmission created with ID: ${result.lastID}`);
     return result.lastID;
   } catch (err) {
+    // Retry with partner_id = NULL if Foreign Key fails (errno 1452)
+    if (err.errno === 1452 && partner_id) {
+      console.warn(`[EDI TRANSMISSION] ⚠️ Partner ID ${partner_id} not found locally. Retrying with partner_id=NULL.`);
+      values[5] = null; // index 5 is partner_id
+      const retryResult = await runUpdate(db, query, values);
+      console.log(`[EDI TRANSMISSION] ✅ Transmission created with ID: ${retryResult.lastID} (partner_id=NULL)`);
+      return retryResult.lastID;
+    }
+
     console.error(`[EDI TRANSMISSION] ❌ Error creating transmission:`, err);
     throw err;
   }
@@ -88,7 +97,7 @@ async function updateEdiTransmissionStatus(db, transmissionId, status, logs = nu
 
   let query = `
     UPDATE edi_transmissions 
-    SET status = ?, logs = ?, error_message = ?, updated_at = NOW()
+    SET status = ?, logs = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
   `;
   let values = [status, logs, errorMessage];
 
@@ -96,7 +105,7 @@ async function updateEdiTransmissionStatus(db, transmissionId, status, logs = nu
   if (status === 'SENT') {
     query = `
       UPDATE edi_transmissions 
-      SET status = ?, transmission_date = NOW(), logs = ?, error_message = ?, updated_at = NOW()
+      SET status = ?, transmission_date = CURRENT_TIMESTAMP, logs = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
     `;
   }
 
@@ -104,7 +113,7 @@ async function updateEdiTransmissionStatus(db, transmissionId, status, logs = nu
   if (status === 'ACKNOWLEDGED') {
     query = `
       UPDATE edi_transmissions 
-      SET status = ?, acknowledgment_date = NOW(), logs = ?, error_message = ?, updated_at = NOW()
+      SET status = ?, acknowledgment_date = CURRENT_TIMESTAMP, logs = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
     `;
   }
 
@@ -184,7 +193,7 @@ async function getPendingTransmissions(db, documentType = null) {
 async function incrementRetryCount(db, transmissionId) {
   const query = `
     UPDATE edi_transmissions 
-    SET retry_count = retry_count + 1, updated_at = NOW()
+    SET retry_count = retry_count + 1, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `;
 

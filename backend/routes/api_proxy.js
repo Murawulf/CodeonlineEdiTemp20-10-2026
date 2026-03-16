@@ -10,6 +10,8 @@
 
 const express = require('express');
 const axios = require('axios');
+const https = require('https');
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const router = express.Router();
 const configService = require('../services/configService');
 
@@ -103,6 +105,7 @@ router.all(/^\/proxy\/([^\/]+)\/(.*)/, async (req, res) => {
     }
     
     // Faire la requête
+    axiosConfig.httpsAgent = httpsAgent;
     const response = await axios(axiosConfig);
     
     // Logger le résultat
@@ -169,6 +172,7 @@ router.post('/login', async (req, res) => {
     console.log(`[API Proxy] 🌐 Forwarding login to: ${loginUrl}`);
     
     const response = await axios.post(loginUrl, req.body, {
+      httpsAgent,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -242,6 +246,7 @@ router.get('/proxy/notifications', async (req, res) => {
     console.log(`[API Proxy] 🌐 Fetching from: ${notificationsUrl}`);
 
     const response = await axios.get(notificationsUrl, {
+      httpsAgent,
       params: { id_compte },
       headers: {
         'Content-Type': 'application/json'
@@ -315,6 +320,7 @@ router.put('/proxy/notifications/:id/read', async (req, res) => {
     const response = await axios.put(notificationsUrl, 
       { id_compte },
       {
+        httpsAgent,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -372,6 +378,7 @@ router.delete('/proxy/notifications/:id', async (req, res) => {
     console.log(`[API Proxy] 📡 DELETE /api/proxy/notifications/${id}`);
 
     const response = await axios.delete(notificationsUrl, {
+      httpsAgent,
       data: { id_compte },
       headers: {
         'Content-Type': 'application/json'
@@ -441,6 +448,7 @@ router.get('/edi/suppliers/:country', async (req, res) => {
     const apiPin = configService.get('API_PIN') || '3311';
 
     const response = await axios.get(serverUrl, {
+      httpsAgent,
       headers: {
         'x-api-pin': apiPin,
         'Content-Type': 'application/json'
@@ -520,6 +528,7 @@ router.get('/edi/products/:country', async (req, res) => {
     const apiPin = configService.get('API_PIN') || '3311';
 
     const response = await axios.get(serverUrl, {
+      httpsAgent,
       params: { id_entite },
       headers: {
         'x-api-pin': apiPin,

@@ -7,6 +7,7 @@ const axios = require('axios');
 const https = require('https');
 const config = require('../config/edi_worker_config');
 const configService = require('../services/configService');
+const communicationProvider = require('../services/communication/CommunicationProvider');
 const { queryDB, runUpdate, isMySQLConnection } = require('../db_utils');
 const { updateEdiTransmissionStatus, incrementRetryCount } = require('../edi_transmission_helper');
 const { 
@@ -252,62 +253,39 @@ class EDIWorker {
          throw new Error(`Missing partner GLN for routing transmission #${id}`);
       }
 
-      // 2. Get EDI target URL using centralized routing (no hardcoded country names)
-      let ediServerUrl = null;
-      let ediTarget = null;
+      // 2. Dispatch via CommunicationProvider (E2EE + Hybrid Fallback)
+      this.logVerbose(`[OUTBOUND] 🚀 Dispatching via CommunicationProvider to ${targetGln}...`);
       
-      try {
-        ediTarget = await configService.getEdiTargetUrl(this.db, targetGln);
-        ediServerUrl = ediTarget.url;
-        
-        this.logVerbose(`[OUTBOUND] 🎯 EDI Routing: GLN ${targetGln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
-      } catch (routingErr) {
-        console.error(`[OUTBOUND] Failed to determine EDI target URL: ${routingErr.message}`);
-        throw new Error(`EDI routing failed for GLN ${targetGln}: ${routingErr.message}`);
-      }
-
-      // Retrieve API PIN
-      const apiPin = configService.get('API_PIN') || process.env.API_PIN || '3311';
-
-      // Create HTTPS agent to ignore SSL errors (for dev environments)
-      const httpsAgent = new https.Agent({  
-        rejectUnauthorized: false,
-        checkServerIdentity: () => undefined
-      });
-
-      this.logVerbose(`[OUTBOUND] 🛠️ DEBUG: Using custom HTTPS Agent. rejectUnauthorized: ${httpsAgent.options.rejectUnauthorized}`);
-
-      // Envoyer le message
-      const response = await axios.post(
-        ediServerUrl,
-        {
+      const messagePayload = {
           eancomContent: file_content,
           filename: transmission.filename || `${document_type}_${id}.txt`,
           partnerGln: partner_gln,
-        },
-        {
-          headers: {
-            'x-api-pin': apiPin,
-            'Content-Type': 'application/json',
-          },
-          timeout: config.timeouts.httpRequest,
-          httpsAgent: httpsAgent
-        }
+      };
+
+      const dispatchResult = await communicationProvider.dispatch(
+          messagePayload, 
+          targetGln, 
+          document_type
       );
+
+      this.logVerbose(`[OUTBOUND] Dispatch result: ${dispatchResult.status} (${dispatchResult.mode})`);
+      
+      // Response object to match existing logging logic
+      const response = { data: dispatchResult };
 
       // Mise à jour du statut en succès
       await updateEdiTransmissionStatus(
         this.db,
         id,
         'SENT',
-        `Successfully sent at ${new Date().toISOString()}. Response: ${JSON.stringify(response.data)}`,
+        `Successfully sent via ${dispatchResult.mode} at ${new Date().toISOString()}. Response: ${JSON.stringify(dispatchResult)}`,
         null
       );
 
       // Mettre à jour transmission_date
       await runUpdate(
         this.db,
-        'UPDATE edi_transmissions SET transmission_date = NOW() WHERE id = ?',
+        'UPDATE edi_transmissions SET transmission_date = CURRENT_TIMESTAMP WHERE id = ?',
         [id]
       );
 
@@ -588,7 +566,7 @@ class EDIWorker {
       // Mettre à jour processing_date et related_id
       await runUpdate(
         this.db,
-        'UPDATE edi_transmissions SET processing_date = NOW(), related_id = ? WHERE id = ?',
+        'UPDATE edi_transmissions SET processing_date = CURRENT_TIMESTAMP, related_id = ? WHERE id = ?',
         [processResult.relatedId || null, id]
       );
 

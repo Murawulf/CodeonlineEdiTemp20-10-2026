@@ -74,7 +74,8 @@ function generateOrderEANCOM_Enhanced(data) {
   // === NAD - Name and Address ===
   // BY = Buyer
   if (data.Acheteur) {
-    add("NAD+BY+" + data.Acheteur + "::9'");
+    const buyerName = data.buyerName || data.AcheteurName || "";
+    add("NAD+BY+" + data.Acheteur + "::9++" + buyerName + "'");
     
     // RFF+VA = VAT registration number
     if (data.buyerVatNumber) {
@@ -97,7 +98,8 @@ function generateOrderEANCOM_Enhanced(data) {
 
   // SU = Supplier
   if (data.fournisseur) {
-    add("NAD+SU+" + data.fournisseur + "::9'");
+    const supplierName = data.supplierName || data.FournisseurName || "";
+    add("NAD+SU+" + data.fournisseur + "::9++" + supplierName + "'");
     
     if (data.supplierVatNumber) {
       add("RFF+VA:" + data.supplierVatNumber + "'");

@@ -19,6 +19,7 @@ import OrderSummaryModal from "@/components/OrderSummaryModal";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import OrderProcessingModal from "@/components/OrderProcessingModal";
 import InfoTooltip from "@/components/ui/InfoTooltip";
+import SafeAcceptModificationsAction from "@/components/edi/AcceptModificationsAction";
 import { useSettings } from "@/contexts/SettingsContext";
 
 const CURRENCIES = [
@@ -838,6 +839,8 @@ export default function Orders(): JSX.Element {
       fournisseur: selectedSupplier.gln, // Supplier GLN
       fournisseurIdEntite: selectedSupplier.id_entite || selectedSupplier.id, // Supplier id_entite from remote server
       supplierName: selectedSupplier.raison_socialle || selectedSupplier.nom || "Fournisseur", // Add supplier name for persistence
+      supplierServer: selectedSupplier._server, // Server where supplier lives (for inter-country EDI routing)
+      buyerName: currentUser.raison_socialle || currentUser.nom || "Acheteur", // Add buyer name for inter-country orders
       lieu_livraison_primaire: siteLivraison.trim() || currentGLN,
       facture: "",
       monnaie: selectedCurrency.value,
@@ -854,17 +857,15 @@ export default function Orders(): JSX.Element {
     console.log("  - Articles count:", payload.articles.length);
     console.log("  - Full payload:", JSON.stringify(payload, null, 2));
 
-    const server = SERVERS.find(s => s.id === selectedSupplier._server);
-    if (!server) {
-      console.error("[FRONTEND] ❌ Server not found for supplier._server:", selectedSupplier._server);
-      toast({ title: "Erreur", description: "Serveur du fournisseur introuvable", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
-    console.log("[FRONTEND] Using server:", server.label, "| Base URL:", server.baseURL);
+    // Always send to LOCAL server (buyer's own server)
+    // The backend handles EDI routing to the supplier's remote server via supplierServer field
+    // Sending to the remote server directly would fail because the buyer doesn't exist there
+    console.log("[FRONTEND] Using LOCAL server for order creation (inter-country routing handled by backend)");
+    const localSupplierServer = SERVERS.find(s => s.id === selectedSupplier._server);
+    console.log("[FRONTEND] Supplier is on server:", localSupplierServer?.label || selectedSupplier._server, "| EDI will be routed by backend");
 
     try {
-      const api = createApi(server.baseURL);
+      const api = createApi(""); // Empty = DEFAULT_BACKEND_URL = local server
       console.log("[FRONTEND] Sending POST to /api/orders/eancom...");
       const res = await api.post("/api/orders/eancom", payload, {
         headers: { "x-entite-id": currentEntiteId },
@@ -1065,11 +1066,14 @@ export default function Orders(): JSX.Element {
     (p.gtin + " " + p.libelle).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Fusionner les commandes en évitant les doublons (priorité à sentOrdersLocal pour les nouvelles commandes)
+  // Fusionner les commandes en évitant les doublons.
+  // Priorité aux données serveur (allOrders) car elles contiennent toutes les dates et le lieu de livraison.
+  // Les sentOrdersLocal sont gardés uniquement pour les commandes sans id_order (non encore confirmées par le serveur).
   const allAvailableOrders = useMemo(() => {
-    const localIds = new Set(sentOrdersLocal.map(o => o.id_order));
-    const uniqueAllOrders = allOrders.filter(o => !localIds.has(o.id_order));
-    return [...sentOrdersLocal, ...uniqueAllOrders];
+    const serverIds = new Set(allOrders.map(o => o.id_order).filter(Boolean));
+    // Keep only local orders that haven't been confirmed by server yet (no id_order match)
+    const onlyLocalPending = sentOrdersLocal.filter(o => !o.id_order || !serverIds.has(o.id_order));
+    return [...allOrders, ...onlyLocalPending];
   }, [allOrders, sentOrdersLocal]);
 
   const filteredOrders = useMemo(() => {
@@ -1240,8 +1244,12 @@ export default function Orders(): JSX.Element {
                         <tr><td colSpan={7} className="text-center py-12 text-gray-500">Aucune commande trouvée</td></tr>
                       ) : (
                         paginatedOrders.map((order, i) => (
-                          <tr key={i} className="hover:bg-blue-50/30 transition-colors">
-                            <td className="px-6 py-4 font-mono text-sm">{order.num_order || order.numCommande}</td>
+                          <tr 
+                            key={i} 
+                            className="hover:bg-blue-50/30 transition-colors cursor-pointer"
+                            onClick={() => openProcessingModal(order, false)}
+                          >
+                            <td className="px-6 py-4 font-mono text-sm font-medium">{order.num_order || order.numCommande}</td>
                             <td className="px-6 py-4 text-sm">{parseServerDate(order.date_reception || order.datecommande).toLocaleString()}</td>
                             <td className="px-6 py-4 text-sm">{order.type === "Envoyée" ? order.fournisseur_name : order.buyer_name || "-"}</td>
                             <td className="px-6 py-4 text-center text-sm">{order.nbr_lin_article || "-"}</td>
@@ -1286,34 +1294,34 @@ export default function Orders(): JSX.Element {
                               })()}
                             </td>
                             <td className="px-6 py-4 text-right">
-                              {order.type === "Reçue" ? (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openProcessingModal(order);
-                                  }}
-                                >
-                                  Traiter
-                                </Button>
-                              ) : (
-                                <div className="flex gap-2">
+                              <div className="flex gap-2 justify-end items-center">
+                                {order.type === "Reçue" ? (
                                   <Button 
                                     size="sm" 
-                                    variant="ghost"
-                                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      openProcessingModal(order, false); 
+                                      openProcessingModal(order);
+                                    }}
+                                  >
+                                    Traiter
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openProcessingModal(order, false);
                                     }}
                                     title="Voir les détails"
                                   >
-                                    <Info size={18} />
+                                    <Info size={16} className="mr-1" />
+                                    Détails
                                   </Button>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -1818,9 +1826,11 @@ export default function Orders(): JSX.Element {
           // Readonly if: (1) sent order we don't own, OR (2) order is already finalized (sent/accepted)
           readonly={(() => {
             const isSentByUs = selectedOrderForProcessing?.type === "Envoyée" && String(selectedOrderForProcessing?.id_entite_seller) !== String(currentEntiteId);
-            const isFinalized = ['sent', 'accepted', 'rejected', 'modified'].includes(selectedOrderForProcessing?.status || selectedOrderForProcessing?.statut);
+            const isFinalized = ['sent', 'accepted'].includes(selectedOrderForProcessing?.status || selectedOrderForProcessing?.statut);
             return (isSentByUs || isFinalized) && !simulateSupplierMode;
           })()}
+          currentEntiteId={currentEntiteId}
+          onSuccess={loadAllOrders}
         />
       </div>
     </>
