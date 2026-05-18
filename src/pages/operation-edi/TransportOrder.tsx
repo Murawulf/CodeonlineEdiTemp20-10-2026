@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api`;
+import { useLocalApiUrl } from "@/contexts/SettingsContext";
 
 interface TransportOrder {
   id: number;
@@ -15,6 +14,7 @@ interface TransportOrder {
 }
 
 const TransportOrders: React.FC = () => {
+  const API_BASE_URL = `${useLocalApiUrl()}/api`;
   const [orders, setOrders] = useState<TransportOrder[]>([]);
   const [form, setForm] = useState<Partial<TransportOrder>>({});
   const [editingId, setEditingId] = useState<number | null>(null);

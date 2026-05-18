@@ -1,11 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const axios = require('axios');
+const configService = require('../configService');
+const { serviceAuthHeaders } = require('../serviceAuth');
+const { queryDB, runUpdate } = require('../../db_utils');
 
 class KeyManager {
   constructor() {
-    this.keysDir = process.env.KEYS_DIR || path.join(__dirname, '../../config/keys');
+    this.keysDir = process.env.KEYS_DIR || path.join(__dirname, '../../../config/keys');
     this.ensureKeysDir();
+    this.db = null;
+  }
+
+  setDb(db) {
+    this.db = db;
   }
 
   ensureKeysDir() {
@@ -75,18 +84,85 @@ class KeyManager {
   }
 
   /**
-   * Récupère la clé publique d'un partenaire (GLN).
-   * Dans un système réel, cela pourrait venir d'une PKI ou de l'annuaire central.
-   * Pour l'instant, on suppose qu'elles sont stockées dans config/keys/partners/<GLN>.pem
+   * Récupère la clé publique d'un partenaire (GLN) via DB ou Orchestrator.
    */
-  getPublicKeyForGLN(gln) {
-    // TODO: Implement Discovery/PKI lookup.
-    // Fallback: look in local partners folder
-    const partnerKeyPath = path.join(this.keysDir, 'partners', `${gln}.pem`);
-    if (!fs.existsSync(partnerKeyPath)) {
-        throw new Error(`Public key not found for GLN: ${gln}`);
+  async getPublicKeyForGLN(gln) {
+    // 1. Try Local DB Cache
+    if (this.db) {
+        try {
+            const rows = await queryDB(this.db, "SELECT public_key FROM network_directory WHERE gln = ?", [gln]);
+            if (rows && rows.length > 0 && rows[0].public_key) {
+                return rows[0].public_key;
+            }
+        } catch (e) {
+            console.warn('[KeyManager] DB lookup failed:', e.message);
+        }
     }
-    return fs.readFileSync(partnerKeyPath, 'utf8');
+
+    // 2. Try Orchestrator
+    const orchestratorUrl = configService.get('ORCHESTRATOR_URL');
+    if (orchestratorUrl) {
+        try {
+            const response = await axios.get(`${orchestratorUrl}/api/orchestrator/keys/${gln}`, {
+                timeout: 5000,
+                headers: serviceAuthHeaders()
+            });
+            if (response.data && response.data.public_key) {
+                const pubKey = response.data.public_key;
+                
+                // Save to local DB cache
+                if (this.db) {
+                    await runUpdate(this.db, `
+                        INSERT INTO network_directory (gln, public_key, updated_at) 
+                        VALUES (?, ?, CURRENT_TIMESTAMP)
+                        ON DUPLICATE KEY UPDATE public_key = VALUES(public_key), updated_at = CURRENT_TIMESTAMP
+                    `, [gln, pubKey]).catch(e => console.error('[KeyManager] Failed to cache key:', e.message));
+                }
+                console.log(`[KeyManager] Fetched and cached public key for ${gln} from Orchestrator`);
+                return pubKey;
+            }
+        } catch (e) {
+            console.warn(`[KeyManager] Failed to fetch key for ${gln} from Orchestrator:`, e.message);
+        }
+    }
+
+    // 3. Fallback: look in local partners folder (legacy)
+    const partnerKeyPath = path.join(this.keysDir, 'partners', `${gln}.pem`);
+    if (fs.existsSync(partnerKeyPath)) {
+        return fs.readFileSync(partnerKeyPath, 'utf8');
+    }
+
+    throw new Error(`Public key not found for GLN: ${gln}`);
+  }
+  /**
+   * Publie la clé publique locale vers l'Orchestrateur (si configuré)
+   */
+  async publishKeyToOrchestrator() {
+      const orchestratorUrl = configService.get('ORCHESTRATOR_URL');
+      const myGln = configService.get('MY_GLN');
+      
+      if (!orchestratorUrl || !myGln) {
+          console.log('[KeyManager] Orchestrator URL or MY_GLN not configured, skipping key publication.');
+          return;
+      }
+
+      try {
+          const publicKey = this.getLocalPublicKey();
+          const apiUrl = configService.get('LOCAL_API_URL') || `http://localhost:${process.env.PORT || 5001}`;
+          
+          await axios.post(`${orchestratorUrl}/api/orchestrator/register`, {
+              gln: myGln,
+              url: apiUrl,
+              public_key: publicKey
+          }, {
+              timeout: 10000,
+              headers: serviceAuthHeaders()
+          });
+          
+          console.log(`[KeyManager] ✅ Successfully published public key for ${myGln} to Orchestrator`);
+      } catch (err) {
+          console.error(`[KeyManager] ❌ Failed to publish key to Orchestrator:`, err.message);
+      }
   }
 }
 

@@ -1,43 +1,110 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+// src/contexts/TranslationContext.tsx
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { translations } from "../pages/src/translations";
 
-type Lang = "en" | "fr" | "ar";
+export type Language = "fr" | "en" | "ar";
 
-interface TranslationContextProps {
-  lang: Lang;
-  setLang: (lang: Lang) => void;
-  t: (key: string) => string;
+interface TranslationContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string, fallback?: string) => string;
 }
 
-const TranslationContext = createContext<TranslationContextProps | undefined>(undefined);
+const TranslationContext = createContext<TranslationContextType | undefined>(
+  undefined
+);
 
-export const TranslationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [lang, setLangState] = useState<Lang>("en");
+export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [language, setLanguageState] = useState<Language>(() => {
+    return (localStorage.getItem("app-language") as Language) || "fr";
+  });
 
-  // Load from localStorage
-  useEffect(() => {
-    const storedLang = localStorage.getItem("lang") as Lang | null;
-    if (storedLang) setLangState(storedLang);
+  const setLanguage = useCallback((lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem("app-language", lang);
+    document.documentElement.lang = lang;
   }, []);
 
-  const setLang = (newLang: Lang) => {
-    setLangState(newLang);
-    localStorage.setItem("lang", newLang);
-  };
+  // ✅ SAFE TRANSLATE FUNCTION with fallback chain: lang → fr → key
+  const t = useCallback(
+    (key: string, fallback?: string): string => {
+      if (!key) return "";
 
-  const t = (key: string) => {
-    return translations[lang][key] || key;
-  };
+      const langDict = translations[language];
+      const frDict = translations["fr"];
+
+      if (langDict && key in langDict) return langDict[key];
+      if (frDict && key in frDict) return frDict[key];
+
+      return fallback ?? key;
+    },
+    [language]
+  );
+
+  // 🔥 AUTO DOM TRANSLATION (MutationObserver)
+  useEffect(() => {
+    const shouldSkip = (el: HTMLElement) => {
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SCRIPT" ||
+        tag === "STYLE"
+      );
+    };
+
+    const translateNode = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent?.trim();
+
+        if (!text || text.length < 2) return;
+
+        const parent = node.parentElement;
+        if (!parent || shouldSkip(parent)) return;
+
+        node.textContent = t(text);
+      }
+
+      node.childNodes.forEach(translateNode);
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          translateNode(node);
+        });
+      });
+    });
+
+    // initial pass
+    translateNode(document.body);
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, [language, t]);
 
   return (
-    <TranslationContext.Provider value={{ lang, setLang, t }}>
+    <TranslationContext.Provider value={{ language, setLanguage, t }}>
       {children}
     </TranslationContext.Provider>
   );
 };
 
-export const useTranslation = () => {
+export const useTranslation = (): TranslationContextType => {
   const ctx = useContext(TranslationContext);
-  if (!ctx) throw new Error("useTranslation must be used within TranslationProvider");
+  if (!ctx)
+    throw new Error("useTranslation must be inside <TranslationProvider>");
   return ctx;
 };

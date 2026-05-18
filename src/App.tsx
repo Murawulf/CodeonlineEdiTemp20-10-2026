@@ -28,6 +28,8 @@ import Parametre from "./pages/parametres/Parametre";
 import Deconnexion from "./pages/parametres/Deconnexion";
 import NotFound from "./pages/NotFound";
 import CatalogueFp from "./pages/Catalogue";
+import CatalogueComplet from "./pages/CatalogueComplet";
+import Tarification from "./pages/Tarification"; 
 import EditProfile from "./pages/ProfileManagement";
 import Ged from "./pages/Ged";
 import Caracteristiques from "./pages/Caracteristiques";
@@ -35,9 +37,12 @@ import Operations from "./pages/Operations";
 // import OrdreDeTransport from "./pages/OrdreDetransport"; // Placeholder replaced by functional component
 import TransportOrders from "./pages/operation-edi/TransportOrder";
 import Shipments from "./pages/operation-edi/Shipment";
+import DesadvManager from "./pages/operation-edi/DesadvManager";
 import GlobalLoader from "./components/ui/GlobalLoader";
+import ChatbotWidget from "./components/ChatbotWidget";
 import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
 import axios from "axios";
+import type { Compte, Permission } from "./types/compte";
 
 const queryClient = new QueryClient();
 
@@ -47,32 +52,6 @@ const ErrorFallback = ({ error }: { error: Error }) => (
     <p className="text-red-500">{error.message}</p>
   </div>
 );
-
-interface Permission {
-  page_id: number;
-  read: number;
-  write: number;
-  hide: number;
-  page_name?: string;
-}
-
-interface Compte {
-  id_compte: number;
-  id_entite?: number;
-  email: string;
-  name: string;
-  prenom?: string | null;
-  initials?: string;
-  profile_id: number;
-  permissions: Permission[];
-  certicode?: string | null;
-  role?: string | null;
-  is_suspended: number;
-  created_at: string;
-  id_producteur: number;
-  producer_name: string | null;
-  avatar_url?: string | null;
-}
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const user = localStorage.getItem("currentUser");
@@ -111,24 +90,12 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Compte | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    console.log('[App] 🚀 Application mounted');
-    console.log('[App] 🔍 Checking localStorage for currentUser...');
-    
+  const hydrateCurrentUser = () => {
     const storedUser = localStorage.getItem("currentUser");
     if (storedUser) {
-      console.log('[App] 📦 Found user in localStorage, parsing...');
       try {
         const parsedUser: Compte = JSON.parse(storedUser);
-        console.log('[App] 👤 Parsed user:', { 
-          id_compte: parsedUser.id_compte, 
-          email: parsedUser.email, 
-          name: parsedUser.name,
-          profile_id: parsedUser.profile_id
-        });
-        
         if (!parsedUser.id_compte) {
-          console.warn("[App] ⚠️ id_compte missing in stored user:", parsedUser);
           localStorage.removeItem("currentUser");
           setCurrentUser(null);
           return;
@@ -138,20 +105,34 @@ const App: React.FC = () => {
           initials: parsedUser.name ? parsedUser.name.slice(0, 2).toUpperCase() : "UA",
         };
         setCurrentUser(userWithInitials);
-        console.log("[App] ✅ currentUser set with id_compte:", parsedUser.id_compte);
       } catch (err) {
         console.error("[App] ❌ Failed to parse stored user:", err);
         localStorage.removeItem("currentUser");
         setCurrentUser(null);
       }
-    } else {
-      console.warn("[App] ⚠️ No user found in localStorage");
     }
+    // Note: l'injection du Bearer token est centralisée dans src/main.tsx
+    // (axios.interceptors.request.use + window.fetch wrapper). Plus de
+    // axios.defaults.headers.common ici pour éviter les doublons et les
+    // tokens périmés non purgés sur logout.
+  };
 
-    // Set PIN header globally for Axios
-    const pin = localStorage.getItem('pin') || '3311';
-    axios.defaults.headers.common['x-api-pin'] = pin;
-    console.log('[App] 🔐 Set global x-api-pin header:', pin);
+  useEffect(() => {
+    // Hydrate on mount (page reload scenario)
+    hydrateCurrentUser();
+
+    // Listen for login event dispatched by Login.tsx (SPA navigation scenario)
+    const handleAuthLogin = () => hydrateCurrentUser();
+    const handleAuthLogout = () => {
+      delete axios.defaults.headers.common['Authorization'];
+      setCurrentUser(null);
+    };
+    window.addEventListener('auth:login', handleAuthLogin);
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => {
+      window.removeEventListener('auth:login', handleAuthLogin);
+      window.removeEventListener('auth:logout', handleAuthLogout);
+    };
   }, []);
 
   // Axios interceptors with active request counting for fast loader
@@ -194,15 +175,7 @@ const App: React.FC = () => {
         <TranslationProvider>
           {isLoading && <GlobalLoader text="Chargement..." />}
 
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              className:
-                "bg-white/90 backdrop-blur-lg shadow-lg border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 font-medium transition-all duration-300 hover:scale-[1.02] hover:shadow-xl flex items-center justify-between gap-2",
-              style: { maxWidth: "300px" },
-            }}
-            containerStyle={{ top: "1rem", right: "1rem" }}
-          />
+          <Toaster />
 
           <ReactErrorBoundary FallbackComponent={ErrorFallback}>
             <BrowserRouter>
@@ -213,12 +186,6 @@ const App: React.FC = () => {
                   <Route path="/forgot-password" element={<div>Forgot Password Page</div>} />
                   <Route path="/login" element={<Login />} />
                   <Route element={<DashboardLayout currentUser={currentUser} />}>
-                  {/* Always shown EDI pages */}
-<Route path="/operation-edi/order" element={<Order />} />
-<Route path="/operation-edi/invoice" element={<Invoice />} />
-<Route path="/operation-edi/tracking" element={<Tracking />} />
-<Route path="/operation-edi/shipments" element={<Shipments />} />
-<Route path="/ordre-de-transport" element={<TransportOrders />} />
                     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                     <Route path="/parametres/profils" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                     <Route path="/parametres/comptes" element={<ProtectedRoute><Comptes /></ProtectedRoute>} />
@@ -227,29 +194,33 @@ const App: React.FC = () => {
                     <Route path="/produit" element={<ProtectedRoute><Produit /></ProtectedRoute>} />
                     <Route path="/trafic" element={<ProtectedRoute><Trafic /></ProtectedRoute>} />
                     <Route path="/gpc" element={<ProtectedRoute><Gpc /></ProtectedRoute>} />
-                    <Route path="/flash" element={<ProtectedRoute><Flashnotif /></ProtectedRoute>} />
+                    <Route path="/flash" element={<ProtectedRoute><Flashnotif profileId={currentUser?.profile_id ?? 0} idEntite={currentUser?.id_entite ?? 0} idCompte={currentUser?.id_compte ?? 0} /></ProtectedRoute>} />
                     <Route path="/generateur-modele" element={<ProtectedRoute><GenerateurModele /></ProtectedRoute>} />
                     <Route path="/vue-modeles" element={<ProtectedRoute><VueModeles /></ProtectedRoute>} />
                     <Route path="/catalogue" element={<ProtectedRoute><CatalogueFp /></ProtectedRoute>} />
+                    <Route path="/catalogueComplet" element={<ProtectedRoute><CatalogueComplet /></ProtectedRoute>} />
+                    <Route path="/tarification" element={<ProtectedRoute><Tarification /></ProtectedRoute>} />
                     <Route path="/operation-edi/order" element={<ProtectedRoute><Order /></ProtectedRoute>} />
 
                     <Route path="/operation-edi/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
                     <Route path="/operation-edi/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
                     <Route path="/operation-edi/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
-                    <Route path="/caracteristiques" element={<ProtectedRoute><Caracteristiques /></ProtectedRoute>} />
+                    <Route path="/operation-edi/desadv" element={<ProtectedRoute><DesadvManager /></ProtectedRoute>} />
+                    <Route path="/caracteristiques" element={<ProtectedRoute><Caracteristiques id_entite={currentUser?.id_entite ?? 0} /></ProtectedRoute>} />
                     <Route path="/ordre-de-transport" element={<ProtectedRoute><TransportOrders /></ProtectedRoute>} />
                     <Route path="/operations" element={<ProtectedRoute><Operations /></ProtectedRoute>} />
                     <Route path="/parametres/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
                     <Route path="/parametres/parametre" element={<ProtectedRoute><Parametre /></ProtectedRoute>} />
                     <Route path="/parametres/deconnexion" element={<ProtectedRoute><Deconnexion /></ProtectedRoute>} />
                     <Route path="/EditProfile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-                    <Route path="/ged" element={<ProtectedRoute><Ged compte={currentUser} /></ProtectedRoute>} />
+                    <Route path="/ged" element={<ProtectedRoute><Ged compte={currentUser as any} /></ProtectedRoute>} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </NotificationProvider>
             </BrowserRouter>
           </ReactErrorBoundary>
+          <ChatbotWidget />
         </TranslationProvider>
       </TooltipProvider>
       </SettingsProvider>

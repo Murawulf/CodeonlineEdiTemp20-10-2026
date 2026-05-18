@@ -5,11 +5,9 @@ const Operations: React.FC = () => {
   const text = "Service    ultérieur ( Phase 3 )".split("");
 
   return (
-    <div className="min-h-screen">
-      <nav className="flex items-center space-x-2 text-sm">
-        <span style={{ color: '#3b82f6', position: 'relative', top: '-14px', fontWeight: '500' }}>
-          Opérations
-        </span>
+    <div className="min-h-screen bg-white">
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Opérations</span>
       </nav>
       <div className="space-y-6 p-6">
         <Card className="w-full">

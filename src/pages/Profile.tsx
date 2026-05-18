@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useApi } from '@/hooks/useApi';
 
 interface Profile {
   id_profile: number;
@@ -49,9 +50,8 @@ interface Company {
   raison_socialle: string;
 }
 
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api`;
-
 const Profile: React.FC = () => {
+  const api = useApi();
   const { addNotification } = useNotifications();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
@@ -112,10 +112,10 @@ const Profile: React.FC = () => {
 
   // === USER FROM LOCALSTORAGE ===
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const raw = localStorage.getItem('currentUser') || localStorage.getItem('user');
+    if (raw) {
       try {
-        const parsedUser = JSON.parse(storedUser);
+        const parsedUser = JSON.parse(raw);
         if (parsedUser.id_compte) {
           setIdCompte(parsedUser.id_compte);
         }
@@ -138,7 +138,7 @@ const Profile: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, profiles: true }));
       setError(null);
-      const res = await axios.get(`${API_BASE_URL}/profiles`, {
+      const res = await api.get(`/api/profiles`, {
         withCredentials: true,
         timeout: 10000,
       });
@@ -158,7 +158,7 @@ const Profile: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, pages: true }));
       setError(null);
-      const res = await axios.get(`${API_BASE_URL}/pages`, {
+      const res = await api.get(`/api/pages`, {
         withCredentials: true,
         timeout: 10000,
       });
@@ -202,7 +202,7 @@ const Profile: React.FC = () => {
     try {
       setLoading(prev => ({ ...prev, companies: true }));
       setError(null);
-      const res = await axios.get(`${API_BASE_URL}/companies`, {
+      const res = await api.get(`/api/companies`, {
         withCredentials: true,
         timeout: 10000,
       });
@@ -221,7 +221,7 @@ const Profile: React.FC = () => {
   const fetchSuspendedAccounts = useCallback(async (profileId: number) => {
     try {
       setLoading(prev => ({ ...prev, suspendedAccounts: true }));
-      const res = await axios.get(`${API_BASE_URL}/comptes?profile_id=${profileId}&is_suspended=1`, {
+      const res = await api.get(`/api/comptes?profile_id=${profileId}&is_suspended=1`, {
         withCredentials: true,
         timeout: 10000,
       });
@@ -241,7 +241,8 @@ const Profile: React.FC = () => {
     fetchProfiles();
     fetchPages();
     fetchCompanies();
-  }, [fetchProfiles, fetchPages, fetchCompanies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // === CLICK OUTSIDE MODALS ===
   useEffect(() => {
@@ -439,10 +440,10 @@ const Profile: React.FC = () => {
     };
     try {
       if (editingProfile) {
-        await axios.put(`${API_BASE_URL}/profiles/${editingProfile.id_profile}`, profileData, { withCredentials: true });
+        await api.put(`/api/profiles/${editingProfile.id_profile}`, profileData, { withCredentials: true });
         addNotification('Profil mis à jour avec succès', 'success');
       } else {
-        await axios.post(`${API_BASE_URL}/profiles`, profileData, { withCredentials: true });
+        await api.post(`/api/profiles`, profileData, { withCredentials: true });
         addNotification('Profil créé avec succès', 'success');
       }
       setModalOpen(false);
@@ -461,7 +462,7 @@ const Profile: React.FC = () => {
     if (!window.confirm(`Voulez-vous vraiment ${isSuspended ? 'réactiver' : 'suspendre'} ce profil ?`)) return;
     setSuspending(id);
     try {
-      await axios.patch(`${API_BASE_URL}/profiles/${id}/suspend`, { is_suspended: isSuspended ? 0 : 1 }, { withCredentials: true });
+      await api.patch(`/api/profiles/${id}/suspend`, { is_suspended: isSuspended ? 0 : 1 }, { withCredentials: true });
       addNotification(`Profil ${isSuspended ? 'réactivé' : 'suspendu'}`, 'success');
       fetchProfiles();
     } catch (error: any) {
@@ -530,9 +531,9 @@ const Profile: React.FC = () => {
 
   const models = useMemo(() => {
     const netId = netconsultingId;
-    if (!netId || !userIdEntite) return [];
-    return profiles.filter(p => p.created_by_Entite === netId && p.id_entite === null);
-  }, [profiles, netconsultingId, userIdEntite]);
+    if (!netId) return profiles.filter(p => p.id_entite === null);
+    return profiles.filter(p => p.id_entite === null && (p.created_by_Entite === netId || p.created_by_Entite == null));
+  }, [profiles, netconsultingId]);
 
   const ownProfiles = useMemo(() => {
     if (!userIdEntite) return [];
@@ -611,12 +612,12 @@ const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Paramètres</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Profils</span>
+      </nav>
       <div className="p-6">
-        <nav className="flex items-center space-x-2 text-sm">
-          <span style={{ color: '#3b82f6', position: 'relative', top: '-14px', fontWeight: '500' }}>Paramètres</span>
-          <span style={{ color: '#3b82f6', position: 'relative', top: '-14px' }}>/</span>
-          <span style={{ color: '#3b82f6', position: 'relative', top: '-14px', fontWeight: '500' }}>Profils</span>
-        </nav>
 
         <div className="max-w-7xl mx-auto mt-6">
           <div className="flex justify-between items-center mb-4">
@@ -760,7 +761,7 @@ const Profile: React.FC = () => {
                 <p>Aucun compte suspendu.</p>
               ) : (
                 <table className="w-full border-collapse border border-gray-300">
-                  <thead className="bg-blue-950 text-white">
+                  <thead className="bg-slate-800 text-white">
                     <tr>
                       <th className="border p-2">ID</th>
                       <th className="border p-2">Email</th>

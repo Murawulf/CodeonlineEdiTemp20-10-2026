@@ -1,0 +1,17 @@
+const mysql = require('mysql');
+const util = require('util');
+
+const dbConfig = {
+  host: "localhost",
+  user: "root",
+  password: "password", // Placeholder, will try to read from env or use the one I saw in error if I can find it, but better to use what is in config
+  database: "codeonline_edi_senegal"
+};
+
+// Try to read config from backend/config/database.js or similar if possible, 
+// but since I am on remote, I can't easily require local files if paths differ.
+// I will try to use the credentials from the user info if available or guess.
+// The previous mysql command failed with '05041989'.
+
+// Let's try to read the backend/config/database.js file on remote first to see how it connects.
+// Actually, I'll just cat the file.

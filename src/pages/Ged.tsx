@@ -7,6 +7,8 @@ import 'react-resizable/css/styles.css';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useLocalApiUrl } from '../contexts/SettingsContext';
+import type { Compte } from '../types/compte';
 
 type GedItem = {
   id_ged: number;
@@ -35,21 +37,6 @@ type GedLog = {
   performer_email?: string | null;
 };
 
-interface Compte {
-  id_compte: number;
-  email: string;
-  name: string;
-  profile_id: number;
-  permissions: { page_id: number; read: number; write: number; hide: number }[];
-  certicode?: string | null;
-  role?: string | null;
-  is_suspended: number;
-  created_at: string;
-  id_entite: number;
-  producer_name: string | null;
-  avatar_url?: string | null;
-}
-
 interface GedProps {
   compte: Compte | null;
 }
@@ -67,25 +54,6 @@ interface Folder {
   deleted_at?: string | null;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
-
-const API = {
-  list: `${API_BASE}/api/ged/list`,
-  folders: `${API_BASE}/api/ged/folders?include_deleted=true`,
-  upload: `${API_BASE}/api/ged/upload`,
-  item: (id: number | string) => `${API_BASE}/api/ged/${id}`,
-  download: (id: number | string) => `${API_BASE}/api/ged/${id}/download`,
-  restore: (id: number | string) => `${API_BASE}/api/ged/${id}/restore`,
-  hardDelete: (id: number | string) => `${API_BASE}/api/ged/${id}/hard`,
-  logs: (id: number | string) => `${API_BASE}/api/ged/${id}/logs`,
-  createFolder: `${API_BASE}/api/ged/folders`,
-  addToFolder: (id: string) => `${API_BASE}/api/ged/folders/${id}/files`,
-  removeFromFolder: (id: string, gedId: number) => `${API_BASE}/api/ged/folders/${id}/files/${gedId}`,
-  folderSoftDelete: (id: string) => `${API_BASE}/api/ged/folders/${id}`,
-  folderRestore: (id: string) => `${API_BASE}/api/ged/folders/${id}/restore`,
-  folderHardDelete: (id: string) => `${API_BASE}/api/ged/folders/${id}/hard`,
-};
-
 const B_READABLE = (bytes?: number) => {
   if (!bytes) return '0 o';
   const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
@@ -100,6 +68,23 @@ const B_READABLE = (bytes?: number) => {
 
 export default function Ged({ compte }: GedProps) {
   const { addNotification } = useNotifications();
+  const API_BASE = useLocalApiUrl();
+  const API = {
+    list: `${API_BASE}/api/ged/list`,
+    folders: `${API_BASE}/api/ged/folders?include_deleted=true`,
+    upload: `${API_BASE}/api/ged/upload`,
+    item: (id: number | string) => `${API_BASE}/api/ged/${id}`,
+    download: (id: number | string) => `${API_BASE}/api/ged/${id}/download`,
+    restore: (id: number | string) => `${API_BASE}/api/ged/${id}/restore`,
+    hardDelete: (id: number | string) => `${API_BASE}/api/ged/${id}/hard`,
+    logs: (id: number | string) => `${API_BASE}/api/ged/${id}/logs`,
+    createFolder: `${API_BASE}/api/ged/folders`,
+    addToFolder: (id: string) => `${API_BASE}/api/ged/folders/${id}/files`,
+    removeFromFolder: (id: string, gedId: number) => `${API_BASE}/api/ged/folders/${id}/files/${gedId}`,
+    folderSoftDelete: (id: string) => `${API_BASE}/api/ged/folders/${id}`,
+    folderRestore: (id: string) => `${API_BASE}/api/ged/folders/${id}/restore`,
+    folderHardDelete: (id: string) => `${API_BASE}/api/ged/folders/${id}/hard`,
+  };
   const [items, setItems] = useState<GedItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -1033,7 +1018,7 @@ async function fetchList() {
           boxShadow: isOver && !isDeleted ? '0 0 10px rgba(59, 130, 246, 0.5)' : isDeleted ? '0 0 0 1px #ef4444' : activeFolderId === folder.id ? '0 0 0 1px #3b82f6' : 'none',
         }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className={`flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer text-gray-800 ${isDeleted ? 'opacity-60' : ''}`}
+        className={`flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer text-gray-800 ${isDeleted ? 'opacity-60' : ''}`}
         style={{ paddingLeft: `${level * 16}px` }}
         onClick={() => toggleFolder(folder.id)}
       >
@@ -1326,15 +1311,8 @@ async function fetchList() {
   if (!compte?.id_compte) {
     return (
       <div className="min-h-screen bg-white">
-        <nav className="flex items-center space-x-2 text-sm">
-          <span
-            style={{
-              color: "#3b82f6",
-              position: "relative",
-              top: "-14px",
-              fontWeight: "500",
-            }}
-          >
+        <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+          <span className="text-blue-600 font-medium">
             GED
           </span>
         </nav>
@@ -1349,15 +1327,8 @@ async function fetchList() {
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-white">
-        <nav className="flex items-center space-x-2 text-sm">
-          <span
-            style={{
-              color: "#3b82f6",
-              position: "relative",
-              top: "-14px",
-              fontWeight: "500",
-            }}
-          >
+        <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+          <span className="text-blue-600 font-medium">
             GED
           </span>
         </nav>
@@ -1709,7 +1680,7 @@ async function fetchList() {
       ) : currentLogs.length === 0 ? (
         <p className="text-gray-500">Aucun historique disponible.</p>
       ) : (
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div className="space-y-2 max-h-96 overflow-y-auto scroll-smooth">
           {currentLogs.map((log) => (
             <div key={log.id_log} className="border-b border-gray-200 pb-2">
               <p className="text-sm text-gray-700">
@@ -1741,7 +1712,7 @@ async function fetchList() {
                 </strong>{' '}
                 par{' '}
                 <span className="text-blue-600">
-                  {log.performed_by_email || 'inconnu'}
+                  {log.performer_email || 'inconnu'}
                 </span>
               </p>
 

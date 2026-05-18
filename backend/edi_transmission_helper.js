@@ -29,6 +29,7 @@ async function createEdiTransmission(db, params) {
     direction = 'OUTBOUND',
     partner_id,
     partner_gln,
+    sender_gln,
     filename,
     file_path,
     file_content,
@@ -39,14 +40,14 @@ async function createEdiTransmission(db, params) {
   } = params;
 
   console.log(`[EDI TRANSMISSION] Creating transmission: ${document_type} for ${related_type} #${related_id}`);
-  console.log(`[EDI TRANSMISSION] Partner ID: ${partner_id}, Partner GLN: ${partner_gln}`);
+  console.log(`[EDI TRANSMISSION] Sender GLN: ${sender_gln}, Partner ID: ${partner_id}, Partner GLN: ${partner_gln}`);
 
   const query = `
     INSERT INTO edi_transmissions (
       related_id, related_type, document_type, direction,
-      partner_gln, partner_id, filename, file_path, 
+      partner_gln, sender_gln, partner_id, filename, file_path, 
       file_content, status, logs, error_message, transmission_date, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `;
 
   const values = [
@@ -55,6 +56,7 @@ async function createEdiTransmission(db, params) {
     document_type || null,
     direction || 'OUTBOUND',
     partner_gln || null,
+    sender_gln || null,
     partner_id || null,
     filename || null,
     file_path || null,
@@ -73,7 +75,7 @@ async function createEdiTransmission(db, params) {
     // Retry with partner_id = NULL if Foreign Key fails (errno 1452)
     if (err.errno === 1452 && partner_id) {
       console.warn(`[EDI TRANSMISSION] ⚠️ Partner ID ${partner_id} not found locally. Retrying with partner_id=NULL.`);
-      values[5] = null; // index 5 is partner_id
+      values[6] = null; // index 6 is partner_id now
       const retryResult = await runUpdate(db, query, values);
       console.log(`[EDI TRANSMISSION] ✅ Transmission created with ID: ${retryResult.lastID} (partner_id=NULL)`);
       return retryResult.lastID;

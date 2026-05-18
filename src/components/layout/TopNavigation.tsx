@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { useLocalApiUrl } from "@/contexts/SettingsContext";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -12,8 +13,6 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
 interface User {
   id_compte: number;
@@ -25,6 +24,7 @@ interface User {
 
 export const TopNavigation: React.FC = () => {
   const { t } = useTranslation();
+  const API_BASE_URL = useLocalApiUrl();
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
@@ -38,11 +38,11 @@ export const TopNavigation: React.FC = () => {
       try {
         const parsedUser: User = JSON.parse(storedUser);
         console.log("Parsed user:", parsedUser); // Debug log
-        if (parsedUser.id_compte && parsedUser.email && parsedUser.id_entite && parsedUser.producer_name) {
+        if (parsedUser.id_compte) {
           setUser(parsedUser);
           console.log("Set user state:", parsedUser); // Debug log
         } else {
-          console.error("Invalid user data structure:", parsedUser);
+          console.error("Invalid user data structure (missing id_compte):", parsedUser);
           localStorage.removeItem("currentUser"); // Clear invalid data
         }
       } catch (error) {
@@ -78,8 +78,26 @@ export const TopNavigation: React.FC = () => {
       .toUpperCase();
   };
 
-  const isProduitsActive = location.pathname === "/produit" || location.pathname === "/vue-modeles";
-  const isEdiActive = location.pathname === "/operation-edi/order" || location.pathname === "/operation-edi/invoice" || location.pathname === "/ordre-de-transport" || location.pathname === "/operation-edi/tracking";
+  const isProduitsActive = [
+    "/produit",
+    "/vue-modeles",
+    "/catalogue",
+    "/catalogueComplet",
+  ].includes(location.pathname);
+
+  const isOperationsActive = [
+    "/operations",
+    "/tarification",
+  ].includes(location.pathname);
+
+  const isEdiActive = [
+    "/operation-edi/order",
+    "/operation-edi/shipments",
+    "/operation-edi/desadv",
+    "/operation-edi/invoice",
+    "/operation-edi/tracking",
+    "/ordre-de-transport",
+  ].includes(location.pathname);
 
   return (
     <div className="flex items-center justify-between px-6 py-3 bg-white shadow-sm">
@@ -141,6 +159,16 @@ export const TopNavigation: React.FC = () => {
                     {t("generateur-modele") || "Générateur de modèle"}
                   </NavLink>
                 </NavigationMenuLink>
+                <NavigationMenuLink asChild>
+                  <NavLink
+                    to="/catalogueComplet"
+                    className={({ isActive }) =>
+                      cn("block p-2 rounded hover:bg-gray-100 text-gray-700", isActive ? "text-[#1c74e9]" : "")
+                    }
+                  >
+                    {t("CatalogueFP") || "Catalogue FP"}
+                  </NavLink>
+                </NavigationMenuLink>
               </div>
             </NavigationMenuContent>
           </NavigationMenuItem>
@@ -160,19 +188,33 @@ export const TopNavigation: React.FC = () => {
             </NavigationMenuLink>
           </NavigationMenuItem>
           <NavigationMenuItem>
-            <NavigationMenuLink asChild>
-              <NavLink
-                to="/operations"
-                className={({ isActive }) =>
-                  cn(
-                    "px-3 py-2 rounded text-gray-700 hover:bg-gray-100",
-                    isActive ? "text-[#1c74e9] font-medium" : ""
-                  )
-                }
-              >
-                {t("Opérations") || "Opérations"}
-              </NavLink>
-            </NavigationMenuLink>
+            <NavigationMenuTrigger className={cn("bg-transparent hover:bg-gray-100 text-gray-700", isOperationsActive ? "text-[#1c74e9] font-medium" : "")}>
+              {t("Opérations") || "Opérations"}
+            </NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <div className="grid gap-2 p-3 w-48 bg-white text-gray-700 rounded shadow-sm">
+                <NavigationMenuLink asChild>
+                  <NavLink
+                    to="/operations"
+                    className={({ isActive }) =>
+                      cn("block p-2 rounded hover:bg-gray-100 text-gray-700", isActive ? "text-[#1c74e9]" : "")
+                    }
+                  >
+                    {t("Opérations") || "Opérations"}
+                  </NavLink>
+                </NavigationMenuLink>
+                <NavigationMenuLink asChild>
+                  <NavLink
+                    to="/tarification"
+                    className={({ isActive }) =>
+                      cn("block p-2 rounded hover:bg-gray-100 text-gray-700", isActive ? "text-[#1c74e9]" : "")
+                    }
+                  >
+                    {t("Tarification") || "Tarification"}
+                  </NavLink>
+                </NavigationMenuLink>
+              </div>
+            </NavigationMenuContent>
           </NavigationMenuItem>
           <NavigationMenuItem>
             <NavigationMenuTrigger className={cn("bg-transparent hover:bg-gray-100 text-gray-700", isEdiActive ? "text-[#1c74e9] font-medium" : "")}>
@@ -192,12 +234,32 @@ export const TopNavigation: React.FC = () => {
                 </NavigationMenuLink>
                 <NavigationMenuLink asChild>
                   <NavLink
+                    to="/operation-edi/shipments"
+                    className={({ isActive }) =>
+                      cn("block p-2 rounded hover:bg-gray-100 text-gray-700", isActive ? "text-[#1c74e9]" : "")
+                    }
+                  >
+                    {t("Expéditions") || "Expéditions"}
+                  </NavLink>
+                </NavigationMenuLink>
+                <NavigationMenuLink asChild>
+                  <NavLink
+                    to="/operation-edi/desadv"
+                    className={({ isActive }) =>
+                      cn("block p-2 rounded hover:bg-gray-100 text-gray-700", isActive ? "text-[#1c74e9]" : "")
+                    }
+                  >
+                    {t("DESADV & Étiquetage") || "DESADV"}
+                  </NavLink>
+                </NavigationMenuLink>
+                <NavigationMenuLink asChild>
+                  <NavLink
                     to="/operation-edi/invoice"
                     className={({ isActive }) =>
                       cn("block p-2 rounded hover:bg-gray-100 text-gray-700", isActive ? "text-[#1c74e9]" : "")
                     }
                   >
-                    {t("Invoice") || "Facture"}
+                    {t("Factures") || "Factures"}
                   </NavLink>
                 </NavigationMenuLink>
                 <NavigationMenuLink asChild>

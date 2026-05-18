@@ -3,6 +3,7 @@ const path = require('path');
 const axios = require('axios');
 const { queryDB, runUpdate, isMySQLConnection } = require('../../db_utils');
 const configService = require('../configService');
+const { serviceAuthHeaders } = require('../serviceAuth');
 
 class DiscoveryCache {
   constructor() {
@@ -47,7 +48,34 @@ class DiscoveryCache {
     // In a real P2P scenario, if we are offline from Orchestrator, we can't fetch.
     // So we rely on what we have.
     
-    // Hardcoded fallback for known test nodes (Critical for testing)
+    // 4. Topology-based resolution using GLN prefix to infer country
+    try {
+      const topology = configService.get('NETWORK_TOPOLOGY');
+      if (topology) {
+        const nodes = typeof topology === 'string' ? JSON.parse(topology) : topology;
+        let targetNodeKey = null;
+        
+        // Infer country from GLN prefix
+        if (gln.startsWith('SN')) {
+          targetNodeKey = 'senegal';
+        } else if (gln.startsWith('619')) {
+          targetNodeKey = 'tunisia';
+        } else if (gln.startsWith('FR') || gln.startsWith('325') || gln.startsWith('326')) {
+          targetNodeKey = 'france';
+        }
+        
+        if (targetNodeKey && nodes[targetNodeKey] && nodes[targetNodeKey].apiUrl) {
+          const url = nodes[targetNodeKey].apiUrl;
+          console.log(`[DiscoveryCache] Resolved GLN ${gln} -> ${targetNodeKey} -> ${url} (from topology)`);
+          this.cache.set(gln, url);
+          return url;
+        }
+      }
+    } catch (e) {
+      console.warn('[DiscoveryCache] Topology resolution failed:', e.message);
+    }
+
+    // 5. Hardcoded fallback for known test nodes
     if (gln === 'SN02583102G3') return 'http://91.134.35.126:5001';
     if (gln === 'GLN_TEST_123') return 'http://localhost:5001';
 
@@ -63,7 +91,9 @@ class DiscoveryCache {
           const orchestratorUrl = configService.get('ORCHESTRATOR_URL');
           if (!orchestratorUrl) return;
 
-          const response = await axios.get(`${orchestratorUrl}/api/orchestrator/discovery`);
+          const response = await axios.get(`${orchestratorUrl}/api/orchestrator/discovery`, {
+              headers: serviceAuthHeaders()
+          });
           const directory = response.data.directory;
 
           if (Array.isArray(directory)) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useNotifications } from '../contexts/NotificationContext'; // adjust path if needed
+import { useLocalApiUrl } from '../contexts/SettingsContext';
 
 interface Compte {
   id_compte: number;
@@ -13,6 +14,7 @@ interface Compte {
 }
 
 const EditProfile: React.FC = () => {
+  const API_BASE_URL = useLocalApiUrl();
   const [currentUser, setCurrentUser] = useState<Compte | null>(null);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -33,11 +35,11 @@ const EditProfile: React.FC = () => {
     if (!avatarUrl) return null;
     return avatarUrl.startsWith('http')
       ? avatarUrl
-      : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}${avatarUrl}`;
+      : `${API_BASE_URL}${avatarUrl}`;
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
     if (storedUser) {
       const parsedUser: Compte = JSON.parse(storedUser);
       setCurrentUser(parsedUser);
@@ -138,8 +140,7 @@ const EditProfile: React.FC = () => {
     }
 
     try {
-      const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api`;
-      const response = await fetch(`${API_BASE_URL}/comptes/${currentUser.id_compte}`, {
+      const response = await fetch(`${API_BASE_URL}/api/comptes/${currentUser.id_compte}`, {
         method: 'PUT',
         body: formData,
         credentials: 'include',

@@ -143,6 +143,23 @@ async function notifyInvoiceReceived(db, id_compte, invoiceNumber, supplierName)
 }
 
 /**
+ * Créer une notification pour une facture confirmée (APERAK ACK reçu)
+ * Indique au fournisseur que l'acheteur a bien reçu et validé la facture.
+ */
+async function notifyInvoiceAcknowledged(db, id_compte, invoiceNumber, buyerName) {
+  const contenu = `✅ Facture ${invoiceNumber} confirmée (APERAK ACK) par ${buyerName || 'l\'acheteur'}. Statut mis à jour : Réceptionnée.`;
+  return createNotification(db, id_compte, contenu, 'success', '/operation-edi/invoice');
+}
+
+/**
+ * Créer une notification pour une facture rejetée (APERAK NACK reçu)
+ */
+async function notifyInvoiceRejected(db, id_compte, invoiceNumber, buyerName, errorCode) {
+  const contenu = `❌ Facture ${invoiceNumber} rejetée (APERAK NACK) par ${buyerName || 'l\'acheteur'}${errorCode ? ` — Code erreur: ${errorCode}` : ''}.`;
+  return createNotification(db, id_compte, contenu, 'error', '/operation-edi/invoice');
+}
+
+/**
  * Récupérer les notifications d'un utilisateur (Historique)
  * @param {Object} db - Connexion à la base de données
  * @param {number} id_compte - ID du compte utilisateur
@@ -231,6 +248,8 @@ module.exports = {
   notifyOrderResponseReceived,
   notifyDespatchAdviceReceived,
   notifyInvoiceReceived,
+  notifyInvoiceAcknowledged,
+  notifyInvoiceRejected,
   getNotifications,
   getUnreadCount,
   markAsRead,

@@ -1,0 +1,1 @@
+backend/controllers/PHPMailer-master/examples/images/phpmailer_mini.png

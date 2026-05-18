@@ -71,12 +71,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
     }
   }, [compteId, retryCount]);
   useEffect(() => {
-    if (compteId) fetchNotifications();
-    else {
+    // Don't fetch old notifications on mount - only show new ones created during this session
+    if (!compteId) {
       setNotifications([]);
       setError(null);
     }
-  }, [compteId, fetchNotifications]);
+  }, [compteId]);
   async function addNotification(contenu: string, type: 'success' | 'error') {
     if (!compteId) return;
     try {
@@ -89,7 +89,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
       if (!res.ok) throw new Error(`Erreur ${res.status}: Impossible d'ajouter la notification`);
       const newNotification = await res.json();
       setNotifications((prev) => [newNotification, ...prev]);
-      await fetchNotifications();
       setTimeout(async () => {
         await deleteNotification(newNotification.id_notification);
       }, 5000);
@@ -554,11 +553,11 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
           libelle: p.libelle,
           gtin: p.gtin,
           declinaison_type: p.declinaison_type,
-          parents: p.parents.map((pp) => ({ id: pp.id_parent, quantity: pp.quantity })),
+          parents: (p.parents || []).map((pp) => ({ id: pp.id_parent, quantity: pp.quantity })),
           children: [],
         };
       });
-      let queue: number[] = products.flatMap((p) => p.parents.map((pp) => pp.id_parent));
+      let queue: number[] = products.flatMap((p) => (p.parents || []).map((pp) => pp.id_parent));
       const fetched = new Set(products.map((p) => p.id));
       while (queue.length) {
         const current = queue.shift()!;
@@ -669,7 +668,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
       selectedSegment = seg?.codeSegment || "";
     }
     const selectedParents: Record<number, number> = {};
-    p.parents.forEach(pp => selectedParents[pp.id_parent] = pp.quantity);
+    (p.parents || []).forEach(pp => selectedParents[pp.id_parent] = pp.quantity);
     setEditingProduct({
       ...p,
       newImages: [],

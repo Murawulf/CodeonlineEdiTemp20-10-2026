@@ -13,11 +13,11 @@ function generateInvoicEANCOM(data) {
   const now = new Date();
   
   // Helpers
-  const formatDate = (d) => format(d || now, 'yyMMdd');
+  const formatDate = (d) => format(d || now, 'yyyyMMdd');
   const formatTime = (d) => format(d || now, 'HHmm');
 
   // --- UNB Header ---
-  const refInterchange = `INV${format(now, 'yyMMddHHmm')}`;
+  const refInterchange = `INV${format(now, 'yyyyMMddHHmm')}`;
   segments.push(`UNB+UNOC:3+${senderGLN}:14+${receiverGLN}:14+${formatDate(now)}:${formatTime(now)}+${refInterchange}`);
 
   // --- UNH Message Header ---

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
+import { createApiInstance } from "@/hooks/useApi";
+import { useSettings } from "@/contexts/SettingsContext";
 import { format } from "date-fns";
 import { 
   Box, 
@@ -32,6 +34,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import ShippingLabelModal from "../../components/ShippingLabelModal";
+import LabelingManager from "../../components/LabelingManager";
+import MarkingManager from "../../components/MarkingManager";
 
 // --- Types ---
 
@@ -62,6 +66,8 @@ interface PackedItem {
   libelle: string;
   quantity: number;
   lineNumber: number;
+  batchNumber?: string;
+  expiryDate?: string;
 }
 
 interface ShipmentPackage {
@@ -73,21 +79,12 @@ interface ShipmentPackage {
   items: PackedItem[];
 }
 
-import { useSettings } from "@/contexts/SettingsContext";
-
-// Helper to create API instance (defined outside to keep simple, but now accepts pin)
-const createApiInstance = (baseURL: string, pin: string = "3311") => axios.create({
-  baseURL,
-  headers: { "x-api-pin": pin, "Content-Type": "application/json" },
-  timeout: 30000,
-});
-
 function getCurrentUser(): any {
   try { return JSON.parse(localStorage.getItem("currentUser") || "{}"); } catch { return {}; }
 }
 
 export default function Shipments(): JSX.Element {
-  const { settings, getApiUrl, getServerUrl, getCurrentCountryInfo } = useSettings();
+  const { settings, getLocalApiUrl, getServerUrl, getCurrentCountryInfo } = useSettings();
   const currentCountryInfo = getCurrentCountryInfo();
 
   // Construct SERVERS list dynamically from settings
@@ -105,10 +102,9 @@ export default function Shipments(): JSX.Element {
     },
   ], [getServerUrl, currentCountryInfo]);
 
-  const DEFAULT_BACKEND_URL = getApiUrl();
-  const API_PIN = (localStorage.getItem('pin') || settings.API_PIN || "3311") as string;
-  
-  const createApi = (baseURL: string) => createApiInstance(baseURL, API_PIN);
+  const DEFAULT_BACKEND_URL = getLocalApiUrl();
+
+  const createApi = (baseURL: string) => createApiInstance(baseURL || DEFAULT_BACKEND_URL);
 
   const currentUser = getCurrentUser();
   const currentEntiteId = currentUser.id_entite || null;
@@ -311,7 +307,8 @@ export default function Shipments(): JSX.Element {
              gtin: i.gtin,
              description: i.libelle,
              quantity: i.quantity,
-             // qtyOrdered could be retrieved if we stored it properly
+             batchNumber: i.batchNumber || null,
+             expiryDate: i.expiryDate || null,
           }))
         }))
       };
@@ -498,18 +495,44 @@ export default function Shipments(): JSX.Element {
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50/50 text-xs text-gray-500 uppercase">
                             <tr>
-                              <th className="px-4 py-2 text-left">Article</th>
-                              <th className="px-4 py-2 text-right">Qté</th>
+                              <th className="px-3 py-2 text-left">Article</th>
+                              <th className="px-3 py-2 text-right">Qté</th>
+                              <th className="px-3 py-2 text-left">Lot (Batch)</th>
+                              <th className="px-3 py-2 text-left">DLC (Expiry)</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">
                             {pkg.items.map((pItem, i) => (
                               <tr key={i}>
-                                <td className="px-4 py-2">
+                                <td className="px-3 py-2">
                                   <div>{pItem.libelle}</div>
                                   <div className="text-xs text-gray-400 font-mono">{pItem.gtin}</div>
                                 </td>
-                                <td className="px-4 py-2 text-right font-medium">{pItem.quantity}</td>
+                                <td className="px-3 py-2 text-right font-medium">{pItem.quantity}</td>
+                                <td className="px-3 py-1">
+                                  <Input
+                                    className="h-7 text-xs bg-white"
+                                    placeholder="LOT..."
+                                    value={pItem.batchNumber || ""}
+                                    onChange={(e) => {
+                                      const newPkgs = [...packages];
+                                      newPkgs[pkgIdx].items[i].batchNumber = e.target.value;
+                                      setPackages(newPkgs);
+                                    }}
+                                  />
+                                </td>
+                                <td className="px-3 py-1">
+                                  <Input
+                                    type="date"
+                                    className="h-7 text-xs bg-white"
+                                    value={pItem.expiryDate || ""}
+                                    onChange={(e) => {
+                                      const newPkgs = [...packages];
+                                      newPkgs[pkgIdx].items[i].expiryDate = e.target.value;
+                                      setPackages(newPkgs);
+                                    }}
+                                  />
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -544,8 +567,27 @@ export default function Shipments(): JSX.Element {
                             }}
                           />
                        </div>
-                       <div className="pt-5">
-                          {/* Label Print Button */}
+                       <div className="pt-5 flex gap-2">
+                          {/* GS1 Label Button (Étiquetage) */}
+                          <LabelingManager
+                            sscc={pkg.sscc}
+                            packageData={{ type: pkg.type, weight: pkg.weight || 0 }}
+                            shipmentData={{
+                              sender: { name: "Expéditeur", gln: currentGLN },
+                              receiver: { name: selectedOrder?.buyer_name || "", gln: selectedOrder?.buyer_gln || "" },
+                              carrier: transportDetails.carrierName || undefined,
+                              dateExpedition: transportDetails.dateExpedition
+                            }}
+                            items={pkg.items.map(i => ({
+                              gtin: i.gtin,
+                              quantity: i.quantity,
+                              description: i.libelle,
+                              batchNumber: i.batchNumber,
+                              expiryDate: i.expiryDate,
+                            }))}
+                            apiUrl={DEFAULT_BACKEND_URL}
+                          />
+                          {/* Legacy Label Button */}
                           <Button 
                             size="sm" 
                             variant="outline" 
@@ -555,7 +597,7 @@ export default function Shipments(): JSX.Element {
                               setLabelModalOpen(true);
                             }}
                           >
-                             <Barcode size={14} /> Étiquette
+                             <Printer size={14} /> Étiquette simple
                           </Button>
                        </div>
                     </div>

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-const GPC_API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api`;
+import { useLocalApiUrl } from '../contexts/SettingsContext';
 
 interface GPCItem {
   code: string;
@@ -15,15 +14,25 @@ interface GPCItem {
 
 interface RayonItem {
   code: string;
+  brick_code: string;
   libelle: string;
   libelle_en: string;
   libelle_ar: string;
   status: number;
 }
 
+interface ModelItem {
+  rayon_code: string;
+  model_json: string;
+  libelle: string;
+  created_at: string;
+  updated_at: string;
+  is_complete: number;
+}
+
 interface FieldConfig {
   description: string;
-  type: 'text' | 'numeric' | 'date' | 'boolean' | 'dropdown' | 'multivalue';
+  type: 'text' | 'numeric' | 'date' | 'boolean' | 'dropdown' | 'multivalue' | 'liste' | 'liste_multiple';
   validation: 'OB' | 'OP' | 'OC';
   observation: string;
   values?: string[];
@@ -413,13 +422,102 @@ const defaultModel: Model = {
   unite_logistique_fields: {},
 };
 
-const sectionColors: Record<string, string> = {
-  "Classification": 'bg-green-50 text-green-800 focus:ring-green-500 border-green-300',
-  "Données d'identification": 'bg-blue-50 text-blue-800 focus:ring-blue-500 border-blue-300',
-  "Données spécifiques du produit": 'bg-purple-50 text-purple-800 focus:ring-purple-500 border-purple-300',
-  "Conditionnement & Logistique": 'bg-orange-50 text-orange-800 focus:ring-orange-500 border-orange-300',
-  "Données tarifaires": 'bg-red-50 text-red-800 focus:ring-red-500 border-red-300',
+const sectionTheme: Record<string, {
+  header: string;
+  thead: string;
+  rowHover: string;
+  rowEven: string;
+  codeBadge: string;
+  borderLeft: string;
+  ring: string;
+}> = {
+  "Classification": {
+    header:     'bg-emerald-100 text-emerald-900 border-b border-emerald-200',
+    thead:      'bg-emerald-50 border-emerald-100',
+    rowHover:   'hover:bg-emerald-50/60',
+    rowEven:    'bg-emerald-50/20',
+    codeBadge:  'text-emerald-700 bg-emerald-100',
+    borderLeft: 'border-l-4 border-l-emerald-400',
+    ring:       'focus:ring-emerald-400',
+  },
+  "Données d'identification": {
+    header:     'bg-blue-100 text-blue-900 border-b border-blue-200',
+    thead:      'bg-blue-50 border-blue-100',
+    rowHover:   'hover:bg-blue-50/60',
+    rowEven:    'bg-blue-50/20',
+    codeBadge:  'text-blue-700 bg-blue-100',
+    borderLeft: 'border-l-4 border-l-blue-400',
+    ring:       'focus:ring-blue-400',
+  },
+  "Donnees d'identification": {
+    header:     'bg-blue-100 text-blue-900 border-b border-blue-200',
+    thead:      'bg-blue-50 border-blue-100',
+    rowHover:   'hover:bg-blue-50/60',
+    rowEven:    'bg-blue-50/20',
+    codeBadge:  'text-blue-700 bg-blue-100',
+    borderLeft: 'border-l-4 border-l-blue-400',
+    ring:       'focus:ring-blue-400',
+  },
+  "Données spécifiques du produit": {
+    header:     'bg-violet-100 text-violet-900 border-b border-violet-200',
+    thead:      'bg-violet-50 border-violet-100',
+    rowHover:   'hover:bg-violet-50/60',
+    rowEven:    'bg-violet-50/20',
+    codeBadge:  'text-violet-700 bg-violet-100',
+    borderLeft: 'border-l-4 border-l-violet-400',
+    ring:       'focus:ring-violet-400',
+  },
+  "Donnees specifiques du produit": {
+    header:     'bg-violet-100 text-violet-900 border-b border-violet-200',
+    thead:      'bg-violet-50 border-violet-100',
+    rowHover:   'hover:bg-violet-50/60',
+    rowEven:    'bg-violet-50/20',
+    codeBadge:  'text-violet-700 bg-violet-100',
+    borderLeft: 'border-l-4 border-l-violet-400',
+    ring:       'focus:ring-violet-400',
+  },
+  "Conditionnement & Logistique": {
+    header:     'bg-orange-100 text-orange-900 border-b border-orange-200',
+    thead:      'bg-orange-50 border-orange-100',
+    rowHover:   'hover:bg-orange-50/60',
+    rowEven:    'bg-orange-50/20',
+    codeBadge:  'text-orange-700 bg-orange-100',
+    borderLeft: 'border-l-4 border-l-orange-400',
+    ring:       'focus:ring-orange-400',
+  },
+  "Données tarifaires": {
+    header:     'bg-rose-100 text-rose-900 border-b border-rose-200',
+    thead:      'bg-rose-50 border-rose-100',
+    rowHover:   'hover:bg-rose-50/60',
+    rowEven:    'bg-rose-50/20',
+    codeBadge:  'text-rose-700 bg-rose-100',
+    borderLeft: 'border-l-4 border-l-rose-400',
+    ring:       'focus:ring-rose-400',
+  },
+  "Donnees tarifaires": {
+    header:     'bg-rose-100 text-rose-900 border-b border-rose-200',
+    thead:      'bg-rose-50 border-rose-100',
+    rowHover:   'hover:bg-rose-50/60',
+    rowEven:    'bg-rose-50/20',
+    codeBadge:  'text-rose-700 bg-rose-100',
+    borderLeft: 'border-l-4 border-l-rose-400',
+    ring:       'focus:ring-rose-400',
+  },
 };
+const defaultTheme = {
+  header:     'bg-slate-100 text-slate-700 border-b border-slate-200',
+  thead:      'bg-slate-50 border-slate-100',
+  rowHover:   'hover:bg-slate-50/60',
+  rowEven:    'bg-slate-50/20',
+  codeBadge:  'text-slate-600 bg-slate-100',
+  borderLeft: 'border-l-4 border-l-slate-300',
+  ring:       'focus:ring-slate-400',
+};
+function getSectionTheme(name: string) {
+  return sectionTheme[name] || defaultTheme;
+}
+// kept for any legacy references
+const sectionColors: Record<string, string> = {};
 
 const toastConfig = {
   position: "top-right",
@@ -436,7 +534,171 @@ const fallbackSegments: GPCItem[] = [
   { code: "3", libelle: "Beauté/Soin Personnel/Hygiène", libelle_en: "Beauty/Personal Care/Hygiene", libelle_ar: "العناية الشخصية بالنظافة", status: 0 },
 ];
 
+// ─── FieldRow: defined OUTSIDE Gpc so it never remounts on parent re-render ───
+// This fixes the focus-loss bug where typing one character in observation/description
+// would lose focus because the component was recreated on every state change.
+const FieldRow = React.memo(({
+  field, sectionName, subsectionName,
+  canWrite, theme,
+  description, fieldType, validation, observation, values,
+  onDescription, onType, onValidation, onObservation, onValues, onDelete,
+}: {
+  field: string; sectionName: string; subsectionName?: string;
+  canWrite: boolean;
+  theme: ReturnType<typeof getSectionTheme>;
+  description: string; fieldType: string; validation: string; observation: string;
+  values?: string[];
+  onDescription: (f: string, v: string) => void;
+  onType: (f: string, v: FieldConfig['type']) => void;
+  onValidation: (f: string, v: FieldConfig['validation']) => void;
+  onObservation: (f: string, v: string) => void;
+  onValues: (f: string, v: string[]) => void;
+  onDelete: (section: string, sub: string | undefined, f: string) => void;
+}) => {
+  const isListType = fieldType === 'liste' || fieldType === 'liste_multiple';
+  const listValues = values || [];
+
+  const vBadge = (v: string) => {
+    if (v === 'OB') return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-700 border border-red-200">OB</span>;
+    if (v === 'OC') return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">OC</span>;
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">OP</span>;
+  };
+
+  const typeLabel = (t: string) => {
+    switch(t) {
+      case 'text': return 'Texte';
+      case 'numeric': return 'Numérique';
+      case 'date': return 'Date';
+      case 'boolean': return 'Booléen';
+      case 'dropdown': return 'Dropdown';
+      case 'multivalue': return 'Multi-val';
+      case 'liste': return 'Liste (exclusif)';
+      case 'liste_multiple': return 'Liste (inclusif)';
+      default: return t;
+    }
+  };
+
+  return (
+    <>
+      <tr className={`group transition-colors ${theme.rowHover}`}>
+        <td className="py-2.5 px-4 border-b border-slate-100">
+          <code className={`text-xs font-mono px-1.5 py-0.5 rounded ${theme.codeBadge}`}>{field}</code>
+        </td>
+        <td className="py-2.5 px-4 border-b border-slate-100">
+          {canWrite
+            ? <input type="text" value={description} onChange={e => onDescription(field, e.target.value)}
+                className={`w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} bg-white`} />
+            : <span className="text-sm text-slate-700">{description || '—'}</span>}
+        </td>
+        <td className="py-2.5 px-4 border-b border-slate-100">
+          {canWrite
+            ? <select value={fieldType} onChange={e => onType(field, e.target.value as FieldConfig['type'])}
+                className={`w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} bg-white`}>
+                <option value="text">Texte</option>
+                <option value="numeric">Numérique</option>
+                <option value="date">Date</option>
+                <option value="boolean">Booléen</option>
+                <option value="dropdown">Dropdown</option>
+                <option value="multivalue">Multi-val</option>
+                <option value="liste">Liste (exclusif)</option>
+                <option value="liste_multiple">Liste (inclusif)</option>
+              </select>
+            : <span className="text-xs text-slate-500 capitalize">{typeLabel(fieldType)}</span>}
+        </td>
+        <td className="py-2.5 px-4 border-b border-slate-100">
+          {canWrite
+            ? <select value={validation} onChange={e => onValidation(field, e.target.value as FieldConfig['validation'])}
+                className={`w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} bg-white`}>
+                <option value="OB">Obligatoire</option><option value="OP">Optionnel</option><option value="OC">Conditionnel</option>
+              </select>
+            : vBadge(validation)}
+        </td>
+        <td className="py-2.5 px-4 border-b border-slate-100">
+          {canWrite
+            ? <textarea
+                rows={2}
+                value={observation}
+                onChange={e => onObservation(field, e.target.value)}
+                className={`w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} bg-white resize-y`}
+              />
+            : <span className="text-xs text-slate-500 italic">{observation || '—'}</span>}
+        </td>
+        {canWrite && (
+          <td className="py-2.5 px-4 border-b border-slate-100">
+            <button onClick={() => onDelete(sectionName, subsectionName, field)}
+              className="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all">
+              ✕
+            </button>
+          </td>
+        )}
+      </tr>
+
+      {/* ── Inline list-options editor — shown when type is liste or liste_multiple ── */}
+      {isListType && (
+        <tr>
+          <td className="px-4 pt-1 pb-3 border-b border-slate-100" colSpan={canWrite ? 6 : 5}>
+            <div className="ml-1 pl-3 border-l-2 border-dashed border-slate-300">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${fieldType === 'liste' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-teal-50 text-teal-700 border border-teal-200'}`}>
+                  {fieldType === 'liste' ? '⊙ Sélection exclusive (1 choix)' : '☑ Sélection inclusive (plusieurs choix)'}
+                </span>
+                <span className="text-[10px] text-slate-400">Options de la liste</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {listValues.map((val, idx) => (
+                  <div key={idx} className="flex items-center gap-2 group/item">
+                    <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                      {fieldType === 'liste'
+                        ? <span className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 inline-block"></span>
+                        : <span className="w-3.5 h-3.5 rounded border-2 border-slate-300 inline-block"></span>
+                      }
+                    </span>
+                    {canWrite ? (
+                      <>
+                        <input
+                          type="text"
+                          value={val}
+                          placeholder={`Option ${idx + 1}`}
+                          onChange={e => {
+                            const next = [...listValues];
+                            next[idx] = e.target.value;
+                            onValues(field, next);
+                          }}
+                          className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-slate-700 placeholder-slate-300"
+                        />
+                        <button
+                          onClick={() => onValues(field, listValues.filter((_, i) => i !== idx))}
+                          className="opacity-0 group-hover/item:opacity-100 w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all text-xs"
+                          title="Supprimer"
+                        >✕</button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-600">{val || <span className="italic text-slate-300">vide</span>}</span>
+                    )}
+                  </div>
+                ))}
+                {canWrite && (
+                  <button
+                    onClick={() => onValues(field, [...listValues, ''])}
+                    className="self-start flex items-center gap-1.5 mt-1 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Ajouter une option
+                  </button>
+                )}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+});
+
 const Gpc: React.FC = () => {
+  const API_BASE_URL = useLocalApiUrl();
   const [activeTab, setActiveTab] = useState<string>('secteur');
   const [segments, setSegments] = useState<GPCItem[]>([]);
   const [familles, setFamilles] = useState<GPCItem[]>([]);
@@ -452,6 +714,7 @@ const Gpc: React.FC = () => {
   const [allGpcClasse, setAllGpcClasse] = useState<string>('');
   const [allGpcBrick, setAllGpcBrick] = useState<string>('');
   const [allGpcRayon, setAllGpcRayon] = useState<string>('');
+  const [allGpcRayons, setAllGpcRayons] = useState<RayonItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -466,10 +729,23 @@ const Gpc: React.FC = () => {
   const [modelExists, setModelExists] = useState<Record<string, boolean>>({});
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState<boolean>(false);
+  const [selectedHierarchy, setSelectedHierarchy] = useState<string | null>(null);
+  const [models, setModels] = useState<ModelItem[]>([]);
+  const [selectedBrickForModels, setSelectedBrickForModels] = useState<string>('');
+
+  // Bulk generation state
+  const [bulkGenOpen, setBulkGenOpen] = useState<boolean>(false);
+  const [bulkGenRunning, setBulkGenRunning] = useState<boolean>(false);
+  const [bulkGenProgress, setBulkGenProgress] = useState<{
+    done: number; total: number; succeeded: number; skipped: number; failed: number;
+    log: Array<{ rayonCode: string; brickName: string; status: string; error?: string }>;
+    complete: boolean;
+  }>({ done: 0, total: 0, succeeded: 0, skipped: 0, failed: 0, log: [], complete: false });
+  const [bulkGenOverwrite, setBulkGenOverwrite] = useState<boolean>(false);
 
   // Check write permission for "Produits/Generateur Modele" page (page_id: 5) on mount
   useEffect(() => {
-    const userData = localStorage.getItem('user');
+    const userData = localStorage.getItem('currentUser') || localStorage.getItem('user');
     if (userData) {
       try {
         const user: User = JSON.parse(userData);
@@ -540,7 +816,7 @@ const Gpc: React.FC = () => {
     if (!editItem || !editType) return;
 
     const updatedItem = { ...editItem };
-    const updateUrl = `${GPC_API_BASE}/update-${editType}`;
+    const updateUrl = `${API_BASE_URL}/api/update-${editType}`;
     let payload = {};
     switch (editType) {
       case 'segment':
@@ -613,7 +889,7 @@ const Gpc: React.FC = () => {
     const fetchSegments = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${GPC_API_BASE}/segments`);
+        const response = await axios.get(`/api/segments`);
         setSegments(response.data.length ? response.data : fallbackSegments);
       } catch (err) {
         setError('Échec de la récupération des segments');
@@ -639,7 +915,7 @@ const Gpc: React.FC = () => {
       if (selectedSegment) {
         setLoading(true);
         try {
-          const response = await axios.get(`${GPC_API_BASE}/familles?codeSegment=${selectedSegment}`);
+          const response = await axios.get(`${API_BASE_URL}/api/familles?codeSegment=${selectedSegment}`);
           setFamilles(response.data);
         } catch (err) {
           setError('Échec de la récupération des familles');
@@ -663,7 +939,7 @@ const Gpc: React.FC = () => {
       if (selectedFamille) {
         setLoading(true);
         try {
-          const response = await axios.get(`${GPC_API_BASE}/classes?codeFamille=${selectedFamille}`);
+          const response = await axios.get(`${API_BASE_URL}/api/classes?codeFamille=${selectedFamille}`);
           setClasses(response.data);
         } catch (err) {
           setError('Échec de la récupération des classes');
@@ -685,15 +961,9 @@ const Gpc: React.FC = () => {
       if (selectedClasse) {
         setLoading(true);
         try {
-          const response = await axios.get(`${GPC_API_BASE}/bricks?codeClasse=${selectedClasse}`);
+          const response = await axios.get(`${API_BASE_URL}/api/bricks?codeClasse=${selectedClasse}`);
           setBricks(response.data);
-          setRayons(response.data.map((brick: GPCItem) => ({
-            code: brick.code,
-            libelle: brick.libelle,
-            libelle_en: brick.libelle_en,
-            libelle_ar: brick.libelle_ar,
-            status: brick.status,
-          })));
+          // Rayons are now loaded separately from rayongpc table — don't copy bricks here
         } catch (err) {
           setError('Échec de la récupération des bricks');
           console.error('Brick fetch error:', err);
@@ -705,6 +975,51 @@ const Gpc: React.FC = () => {
     };
     fetchBricks();
   }, [selectedClasse]);
+  // Auto-load models when brick is selected and rayon tab is active
+  useEffect(() => {
+    if (selectedBrick && activeTab === 'rayon') {
+      loadModelsByBrickCode(selectedBrick);
+    }
+  }, [selectedBrick, activeTab]);
+
+  // Fetch rayons from rayongpc table when a brick is selected in rayon tab
+  useEffect(() => {
+    const fetchRayonsForBrick = async () => {
+      if (!selectedBrick) {
+        setRayons([]);
+        return;
+      }
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/api/rayongpc?brick_code=${selectedBrick}`
+        );
+        const rows: Array<{ brick_code: string; rayon_code: string; rayon_libelle: string }> = response.data || [];
+        const loaded: RayonItem[] = rows.map(r => ({
+          code: r.rayon_code,
+          brick_code: r.brick_code,
+          libelle: r.rayon_libelle,
+          libelle_en: '',
+          libelle_ar: '',
+          status: 1,
+        }));
+        setRayons(loaded);
+        // Batch-check model existence for all compound keys
+        if (loaded.length > 0) {
+          const keys = loaded.map(r => `${r.code}__${r.brick_code}`).join(',');
+          try {
+            const existsRes = await axios.get(`${API_BASE_URL}/api/models/exists?codes=${encodeURIComponent(keys)}`);
+            setModelExists(prev => ({ ...prev, ...existsRes.data }));
+          } catch (e) { console.error('model exists check error:', e); }
+        }
+      } catch (err) {
+        console.error('Error fetching rayons from rayongpc:', err);
+        setRayons([]);
+      }
+    };
+    if (activeTab === 'rayon') {
+      fetchRayonsForBrick();
+    }
+  }, [selectedBrick, activeTab]);
 
   useEffect(() => {
     const fetchAllGpcFamilles = async () => {
@@ -712,6 +1027,7 @@ const Gpc: React.FC = () => {
       setAllGpcClasse('');
       setAllGpcBrick('');
       setAllGpcRayon('');
+      setAllGpcRayons([]);
       setFamilles([]);
       setClasses([]);
       setBricks([]);
@@ -719,7 +1035,7 @@ const Gpc: React.FC = () => {
       if (allGpcSegment) {
         setLoading(true);
         try {
-          const response = await axios.get(`${GPC_API_BASE}/familles?codeSegment=${allGpcSegment}`);
+          const response = await axios.get(`${API_BASE_URL}/api/familles?codeSegment=${allGpcSegment}`);
           setFamilles(response.data);
         } catch (err) {
           setError('Échec de la récupération des familles GPC');
@@ -738,13 +1054,14 @@ const Gpc: React.FC = () => {
       setAllGpcClasse('');
       setAllGpcBrick('');
       setAllGpcRayon('');
+      setAllGpcRayons([]);
       setClasses([]);
       setBricks([]);
       setRayons([]);
       if (allGpcFamille) {
         setLoading(true);
         try {
-          const response = await axios.get(`${GPC_API_BASE}/classes?codeFamille=${allGpcFamille}`);
+          const response = await axios.get(`${API_BASE_URL}/api/classes?codeFamille=${allGpcFamille}`);
           setClasses(response.data);
         } catch (err) {
           setError('Échec de la récupération des classes GPC');
@@ -762,20 +1079,15 @@ const Gpc: React.FC = () => {
     const fetchAllGpcBricks = async () => {
       setAllGpcBrick('');
       setAllGpcRayon('');
+      setAllGpcRayons([]);
       setBricks([]);
       setRayons([]);
       if (allGpcClasse) {
         setLoading(true);
         try {
-          const response = await axios.get(`${GPC_API_BASE}/bricks?codeClasse=${allGpcClasse}`);
+          const response = await axios.get(`${API_BASE_URL}/api/bricks?codeClasse=${allGpcClasse}`);
           setBricks(response.data);
-          setRayons(response.data.map((brick: GPCItem) => ({
-            code: brick.code,
-            libelle: brick.libelle,
-            libelle_en: brick.libelle_en,
-            libelle_ar: brick.libelle_ar,
-            status: brick.status,
-          })));
+          // Rayons come from rayongpc — don't copy bricks here
         } catch (err) {
           setError('Échec de la récupération des bricks GPC');
           console.error('All GPC brick fetch error:', err);
@@ -800,7 +1112,7 @@ const Gpc: React.FC = () => {
   const checkModel = async (rayonCode: string) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${GPC_API_BASE}/check-model?rayonCode=${rayonCode}`);
+      const response = await axios.get(`${API_BASE_URL}/api/check-model?rayonCode=${rayonCode}`);
       const { exists } = response.data;
       setModelExists(prev => ({ ...prev, [rayonCode]: exists }));
     } catch (err: any) {
@@ -818,35 +1130,86 @@ const Gpc: React.FC = () => {
   };
 
   useEffect(() => {
-    if (selectedClasse && activeTab === 'rayon' && canWrite) {
-      rayons.forEach(rayon => checkModel(rayon.code));
-    }
+    // Model existence is now batch-checked inside fetchRayonsForBrick and fetchAllGpcRayons
   }, [rayons, activeTab, canWrite]);
 
-  useEffect(() => {
-    if (allGpcRayon && canWrite) {
-      checkModel(allGpcRayon);
+  // ─── LOAD MODELS BY BRICK CODE ───
+  const loadModelsByBrickCode = async (brickCode: string) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/models/by-brick/${brickCode}`);
+      setModels(response.data || []);
+      setSelectedBrickForModels(brickCode);
+      if (response.data.length === 0) {
+        toast.info('Aucun modèle trouvé pour ce brick', toastConfig);
+      } else {
+        toast.success(`${response.data.length} modèle(s) chargé(s)`, toastConfig);
+      }
+    } catch (err: any) {
+      console.error('Error loading models by brick:', err);
+      setModels([]);
+      toast.error(`Erreur lors du chargement des modèles: ${err.response?.data?.error || err.message}`, toastConfig);
+    } finally {
+      setLoading(false);
     }
-  }, [allGpcRayon, canWrite]);
+  };
 
-  const openEditor = async (rayonCode: string, overwrite: boolean = false) => {
-    if (!canWrite) {
+  // allGpcRayon model check now handled by batch in fetchAllGpcRayons
+
+  // Fetch rayons from rayongpc when a brick is selected in all_gpc tab
+  useEffect(() => {
+    const fetchAllGpcRayons = async () => {
+      if (!allGpcRayon) {
+        setAllGpcRayons([]);
+        return;
+      }
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/api/rayongpc?brick_code=${allGpcRayon}`
+        );
+        const rows: Array<{ brick_code: string; rayon_code: string; rayon_libelle: string }> = response.data || [];
+        const loaded: RayonItem[] = rows.map(r => ({
+          code: r.rayon_code,
+          brick_code: r.brick_code,
+          libelle: r.rayon_libelle,
+          libelle_en: '',
+          libelle_ar: '',
+          status: 1,
+        }));
+        setAllGpcRayons(loaded);
+        if (loaded.length > 0) {
+          const keys = loaded.map(r => `${r.code}__${r.brick_code}`).join(',');
+          try {
+            const existsRes = await axios.get(`${API_BASE_URL}/api/models/exists?codes=${encodeURIComponent(keys)}`);
+            setModelExists(prev => ({ ...prev, ...existsRes.data }));
+          } catch (e) { console.error('model exists check error:', e); }
+        }
+      } catch (err) {
+        console.error('Error fetching allGpcRayons from rayongpc:', err);
+        setAllGpcRayons([]);
+      }
+    };
+    if (activeTab === 'all_gpc') {
+      fetchAllGpcRayons();
+    }
+  }, [allGpcRayon, activeTab]);
+
+  const openEditor = async (rayonCode: string, overwrite: boolean = false, modelName?: string) => {
+    // Only block writes on overwrite; viewing is open to all
+    if (overwrite && !canWrite) {
       toast.error('Vous n\'avez pas la permission de modifier', toastConfig);
       return;
     }
-    const selectedRayon = rayons.find(r => r.code === rayonCode);
-    const selectedBrickItem = bricks.find(b => b.code === rayonCode);
-    if (!selectedRayon && !selectedBrickItem) {
-      toast.error('Rayon ou Brick non valide', toastConfig);
-      return;
-    }
     setCurrentRayonCode(rayonCode);
-    const modelName = selectedRayon?.libelle || selectedBrickItem?.libelle || rayonCode;
+    // Derive display name: passed modelName > rayon lookup > brick lookup > code
+    const selectedRayon = rayons.find(r => `${r.code}__${r.brick_code}` === rayonCode) || rayons.find(r => r.code === rayonCode);
+    const selectedBrickItem = bricks.find(b => b.code === rayonCode);
+    const displayName = modelName || selectedRayon?.libelle || selectedBrickItem?.libelle || rayonCode;
     setLoading(true);
     try {
       let updatedModel: Model;
       if (!overwrite) {
-        const response = await axios.get(`${GPC_API_BASE}/get-model-json?rayonCode=${rayonCode}`);
+        const response = await axios.get(`${API_BASE_URL}/api/get-model-json?rayonCode=${rayonCode}`);
         const modelData = response.data;
         if (!modelData || typeof modelData !== 'object') {
           throw new Error('Invalid model data received');
@@ -854,13 +1217,13 @@ const Gpc: React.FC = () => {
         updatedModel = {
           sections: modelData.sections && typeof modelData.sections === 'object' ? modelData.sections : defaultSections,
           fieldRules: modelData.fieldRules && typeof modelData.fieldRules === 'object' ? modelData.fieldRules : defaultFieldRules,
-          libelle: modelName,
+          libelle: displayName,
           unite_logistique_fields: modelData.unite_logistique_fields || {},
         };
       } else {
         updatedModel = {
           ...defaultModel,
-          libelle: modelName,
+          libelle: displayName,
         };
       }
 
@@ -896,7 +1259,7 @@ const Gpc: React.FC = () => {
       );
       let updatedModel = {
         ...defaultModel,
-        libelle: modelName,
+        libelle: displayName,
       };
       const updatedSections = { ...updatedModel.sections };
       const logistiqueSection = updatedSections["Conditionnement & Logistique"];
@@ -915,6 +1278,72 @@ const Gpc: React.FC = () => {
         setTabs([...tabs, 'model']);
       }
       setActiveTab('model');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateSmartModel = async (rayonCode: string) => {
+    if (!canWrite) {
+      toast.error("Vous n'avez pas la permission de modifier", toastConfig);
+      return;
+    }
+    const selectedRayon = rayons.find(r => r.code === rayonCode);
+    const modelName = selectedRayon?.libelle || rayonCode;
+    setLoading(true);
+    const toastId = 'ai-generating';
+    toast.info(`🤖 Génération IA du modèle pour « ${modelName} »...`, {
+      ...toastConfig,
+      autoClose: false,
+      toastId,
+    });
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/api/generate-smart-model?rayonCode=${rayonCode}`
+      );
+      const modelData = response.data;
+
+      if (!modelData || !modelData.sections || !modelData.fieldRules) {
+        throw new Error('Réponse IA invalide');
+      }
+
+      // Merge AI fieldRules with hierarchyFieldConfigs (logistic fields always present)
+      const mergedFieldRules = { ...modelData.fieldRules, ...hierarchyFieldConfigs };
+
+      // Ensure Conditionnement subsections are intact
+      const mergedSections = { ...modelData.sections };
+      const logSection = mergedSections["Conditionnement & Logistique"];
+      if (logSection) {
+        if (!logSection.subsections) {
+          logSection.subsections = {};
+        }
+        selectedUniteConsommateur.forEach(option => {
+          if (!logSection.subsections![option]) {
+            logSection.subsections![option] = hierarchyFields[option] || [];
+          }
+        });
+      }
+
+      const updatedModel: Model = {
+        sections: mergedSections,
+        fieldRules: mergedFieldRules,
+        libelle: modelData.libelle || modelName,
+        unite_logistique_fields: {},
+      };
+
+      setCurrentModel(updatedModel);
+      setCurrentRayonCode(rayonCode);
+      if (!tabs.includes('model')) setTabs([...tabs, 'model']);
+      setActiveTab('model');
+      setDropdownOpen(null);
+
+      toast.dismiss(toastId);
+      toast.success(`✅ Modèle IA généré pour « ${modelName} » — vérifiez et enregistrez.`, toastConfig);
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      const detail = err.response?.data?.error || err.message;
+      toast.error(`❌ Échec génération IA : ${detail}`, toastConfig);
+      console.error('generateSmartModel error:', err);
     } finally {
       setLoading(false);
     }
@@ -943,7 +1372,9 @@ const Gpc: React.FC = () => {
         [field]: {
           ...prev.fieldRules[field],
           type: newType,
-          values: newType === 'dropdown' ? (prev.fieldRules[field].values || ['']) : undefined,
+          values: (newType === 'dropdown' || newType === 'liste' || newType === 'liste_multiple')
+            ? (prev.fieldRules[field]?.values?.length ? prev.fieldRules[field].values : [''])
+            : undefined,
         },
       },
     }));
@@ -972,6 +1403,20 @@ const Gpc: React.FC = () => {
         [field]: {
           ...prev.fieldRules[field],
           observation: newObservation,
+        },
+      },
+    }));
+  };
+
+  const updateValues = (field: string, newValues: string[]) => {
+    if (!canWrite) return;
+    setCurrentModel(prev => ({
+      ...prev,
+      fieldRules: {
+        ...prev.fieldRules,
+        [field]: {
+          ...prev.fieldRules[field],
+          values: newValues,
         },
       },
     }));
@@ -1013,7 +1458,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/save-model-json`, {
+      await axios.post(`/api/save-model-json`, {
         rayonCode: currentRayonCode,
         model: currentModel,
       });
@@ -1101,7 +1546,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/update-segment-status`, {
+      await axios.post(`/api/update-segment-status`, {
         segments: segments.filter(s => s.status === 1).map(s => s.code),
       });
       toast.success('Choix validés', toastConfig);
@@ -1118,7 +1563,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/update-famille-status`, {
+      await axios.post(`/api/update-famille-status`, {
         familles: familles.filter(f => f.status === 1).map(f => f.code),
       });
       toast.success('Choix validés', toastConfig);
@@ -1135,7 +1580,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/update-classe-status`, {
+      await axios.post(`/api/update-classe-status`, {
         classes: classes.filter(c => c.status === 1).map(c => c.code),
       });
       toast.success('Choix validés', toastConfig);
@@ -1152,7 +1597,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/update-brick-status`, {
+      await axios.post(`/api/update-brick-status`, {
         bricks: bricks.filter(b => b.status === 1).map(b => b.code),
       });
       toast.success('Choix validés', toastConfig);
@@ -1169,7 +1614,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/update-brick-status`, {
+      await axios.post(`/api/update-brick-status`, {
         bricks: rayons.filter(r => r.status === 1).map(r => r.code),
       });
       toast.success('Choix validés', toastConfig);
@@ -1186,7 +1631,7 @@ const Gpc: React.FC = () => {
       return;
     }
     try {
-      await axios.post(`${GPC_API_BASE}/update-brick-status`, {
+      await axios.post(`/api/update-brick-status`, {
         bricks: rayons.filter(r => r.status === 1).map(r => r.code),
       });
       toast.success('Choix validés', toastConfig);
@@ -1201,6 +1646,69 @@ const Gpc: React.FC = () => {
     setDropdownOpen(prev => (prev === rayonCode ? null : rayonCode));
   };
 
+  const generateAllModels = () => {
+    if (!canWrite) {
+      toast.error("Vous n'avez pas la permission de modifier", toastConfig);
+      return;
+    }
+    setBulkGenProgress({ done: 0, total: 0, succeeded: 0, skipped: 0, failed: 0, log: [], complete: false });
+    setBulkGenRunning(true);
+    setBulkGenOpen(true);
+
+    const params = new URLSearchParams();
+    if (bulkGenOverwrite) params.set('overwrite', 'true');
+
+    const url = `${API_BASE_URL}/api/generate-all-models?${params.toString()}`;
+    const es = new EventSource(url);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'start') {
+          setBulkGenProgress(prev => ({ ...prev, total: data.total }));
+        } else if (data.type === 'progress') {
+          setBulkGenProgress(prev => ({
+            ...prev,
+            done: data.done,
+            total: data.total,
+            succeeded: data.succeeded,
+            skipped: data.skipped,
+            failed: data.failed,
+            log: [
+              { rayonCode: data.rayonCode, brickName: data.brickName, status: data.status, error: data.error },
+              ...prev.log,
+            ].slice(0, 200),
+          }));
+        } else if (data.type === 'complete') {
+          setBulkGenProgress(prev => ({
+            ...prev,
+            done: data.done,
+            total: data.total,
+            succeeded: data.succeeded,
+            skipped: data.skipped,
+            failed: data.failed,
+            complete: true,
+          }));
+          setBulkGenRunning(false);
+          es.close();
+          toast.success(`✅ Génération terminée: ${data.succeeded} créés, ${data.skipped} ignorés, ${data.failed} erreurs.`, toastConfig);
+        } else if (data.type === 'error') {
+          toast.error(`❌ Erreur: ${data.message}`, toastConfig);
+          setBulkGenRunning(false);
+          es.close();
+        }
+      } catch (e) {
+        console.error('SSE parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      setBulkGenRunning(false);
+      es.close();
+      setBulkGenProgress(prev => ({ ...prev, complete: true }));
+    };
+  };
+
   const tabsList = currentRayonCode ? [...tabs, 'model'] : tabs;
 
   const tabLabels: Record<string, string> = {
@@ -1210,979 +1718,721 @@ const Gpc: React.FC = () => {
     catégorie: 'Catégories',
     rayon: 'Rayons',
     all_gpc: 'Détails GPC',
-    model: `Modèle: ${currentModel.libelle || 'N/A'}`,
+    model: 'Modèle',
+  };
+
+
+  // ─── helpers ───────────────────────────────────────────────────────────────
+  const sel = "w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed";
+
+  const validationBadge = (v: string) => {
+    if (v === 'OB') return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-700 border border-red-200">OB</span>;
+    if (v === 'OC') return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">OC</span>;
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">OP</span>;
+  };
+
+
+
+
+  const GpcTable = ({ items, onEdit, onStatus, onSave, showSave }: {
+    items: { code: string; libelle: string; libelle_en: string; libelle_ar: string; status: number }[];
+    onEdit?: (item: any, type: string) => void;
+    onStatus: (code: string, checked: boolean, libelle: string) => void;
+    onSave: () => void;
+    showSave: boolean;
+    type: string;
+  }) => (
+    <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <table className="min-w-full">
+        <thead>
+          <tr className="bg-slate-50 border-b border-slate-200">
+            <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-10">Actif</th>
+            <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Code</th>
+            <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Libellé FR</th>
+            <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell">Libellé EN</th>
+            <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Libellé AR</th>
+            {canWrite && onEdit && <th className="py-3 px-4 w-20"></th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {items.map((item, i) => (
+            <tr key={item.code} className={`hover:bg-blue-50/50 transition-colors ${i % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'}`}>
+              <td className="py-3 px-4">
+                <input type="checkbox" checked={item.status === 1} disabled={!canWrite}
+                  onChange={e => onStatus(item.code, e.target.checked, item.libelle)}
+                  className="w-4 h-4 accent-blue-700 cursor-pointer disabled:cursor-default" />
+              </td>
+              <td className="py-3 px-4"><code className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{item.code}</code></td>
+              <td className="py-3 px-4 text-sm font-medium text-slate-800">{item.libelle}</td>
+              <td className="py-3 px-4 text-sm text-slate-500 hidden md:table-cell">{item.libelle_en || '—'}</td>
+              <td className="py-3 px-4 text-sm text-slate-500 hidden lg:table-cell">{item.libelle_ar || '—'}</td>
+              {canWrite && onEdit && (
+                <td className="py-3 px-4 text-right">
+                  <button onClick={() => onEdit(item, '')}
+                    className="px-3 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                    Modifier
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {canWrite && showSave && (
+        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+          <button onClick={onSave} className="px-4 py-2 bg-blue-900 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition-colors shadow-sm">
+            Enregistrer les statuts
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const CascadeSelects = ({ fields }: { fields: { label: string; value: string; onChange: (v: string) => void; options: { code: string; libelle: string }[]; show: boolean }[] }) => {
+    const visible = fields.filter(f => f.show);
+    return (
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        {visible.map((f, i) => (
+          <div key={i}>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{f.label}</label>
+            <select value={f.value} onChange={e => f.onChange(e.target.value)} disabled={loading} className={sel}>
+              <option value="">— Sélectionner —</option>
+              {f.options.map(o => <option key={o.code} value={o.code}>{o.libelle}</option>)}
+            </select>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className="container mx-auto p-4 relative min-h-screen">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        closeOnClick
-        pauseOnHover
-        draggable
-        className="z-50"
-      />
-      <div className="flex items-center justify-between mb-6">
-        <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <span className="font-medium text-[#1c74e9]">Produits</span>
-          <span>/</span>
-          <span className="font-medium text-[#1c74e9]">Génerateur Modeles</span>
-        </nav>
+    <div className="min-h-screen bg-white">
+      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} closeOnClick pauseOnHover draggable className="z-50" />
+
+      {/* ── Top bar: breadcrumb ── */}
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Produits</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Génerateur Modeles</span>
+      </nav>
+      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between">
+        {loading && (
+          <span className="flex items-center gap-2 text-xs text-blue-600 font-medium animate-pulse">
+            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            Chargement…
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {tabsList.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === tab
-                ? 'bg-blue-900 text-white hover:bg-blue-800'
-                : 'bg-gray-600 text-white hover:bg-gray-500'
-            }`}
-          >
-            {tabLabels[tab]}
-          </button>
-        ))}
-      </div>
+      <div className="px-6 py-5 max-w-screen-2xl mx-auto">
 
-      <div className="border-2 border-blue-900 rounded-lg p-4">
-        {loading && <p className="text-gray-600">Chargement...</p>}
-        {error && <p className="text-red-600">{error}</p>}
+        {/* ── Tab bar ── */}
+        <div className="flex flex-wrap items-center gap-1 mb-5 p-1 bg-white border border-slate-200 rounded-xl shadow-sm">
+          {tabsList.map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === tab
+                  ? 'bg-blue-900 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}>
+              {tabLabels[tab]}
+            </button>
+          ))}
+        </div>
 
-        {activeTab === 'secteur' && (
-          <div>
-            <table className="min-w-full bg-white border">
-              <thead>
-                <tr>
-                  <th className="py-2 px-4 border-b">Status</th>
-                  <th className="py-2 px-4 border-b">Code</th>
-                  <th className="py-2 px-4 border-b">Libellé</th>
-                  <th className="py-2 px-4 border-b">Libellé EN</th>
-                  <th className="py-2 px-4 border-b">Libellé AR</th>
-                  {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {segments.map(segment => (
-                  <tr key={segment.code}>
-                    <td className="py-2 px-4 border-b text-center">
-                      <input
-                        type="checkbox"
-                        checked={segment.status === 1}
-                        disabled={!canWrite}
-                        onChange={e => handleSegmentStatusChange(segment.code, e.target.checked, segment.libelle)}
-                      />
-                    </td>
-                    <td className="py-2 px-4 border-b">{segment.code}</td>
-                                     <td className="py-2 px-4 border-b">{segment.libelle}</td>
-                    <td className="py-2 px-4 border-b">{segment.libelle_en}</td>
-                    <td className="py-2 px-4 border-b">{segment.libelle_ar}</td>
-                    {canWrite && (
-                      <td className="py-2 px-4 border-b">
-                        <button
-                          onClick={() => openEditModal(segment, 'segment')}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          Modifier
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {canWrite && (
-              <button
-                onClick={saveSegmentStatus}
-                className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-              >
-                Enregistrer les statuts
-              </button>
-            )}
-          </div>
-        )}
+        {/* ── Main card ── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
-        {activeTab === 'famille' && (
-          <div>
-            <select
-              value={selectedSegment}
-              onChange={(e) => setSelectedSegment(e.target.value)}
-              className="mb-4 p-2 border rounded w-full"
-              disabled={loading}
-            >
-              <option value="">Sélectionner un segment</option>
-              {segments
-                .filter((s) => s.status === 1)
-                .map((segment) => (
-                  <option key={segment.code} value={segment.code}>
-                    {segment.libelle}
-                  </option>
-                ))}
-            </select>
-            {selectedSegment && (
-              <table className="min-w-full bg-white border">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border-b">Status</th>
-                    <th className="py-2 px-4 border-b">Code</th>
-                    <th className="py-2 px-4 border-b">Libellé</th>
-                    <th className="py-2 px-4 border-b">Libellé EN</th>
-                    <th className="py-2 px-4 border-b">Libellé AR</th>
-                    {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {familles.map((famille) => (
-                    <tr key={famille.code}>
-                      <td className="py-2 px-4 border-b text-center">
-                        <input
-                          type="checkbox"
-                          checked={famille.status === 1}
-                          disabled={!canWrite}
-                          onChange={(e) =>
-                            handleFamilleStatusChange(
-                              famille.code,
-                              e.target.checked,
-                              famille.libelle
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="py-2 px-4 border-b">{famille.code}</td>
-                      <td className="py-2 px-4 border-b">{famille.libelle}</td>
-                      <td className="py-2 px-4 border-b">{famille.libelle_en}</td>
-                      <td className="py-2 px-4 border-b">{famille.libelle_ar}</td>
-                      {canWrite && (
-                        <td className="py-2 px-4 border-b">
-                          <button
-                            onClick={() => openEditModal(famille, 'famille')}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Modifier
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {canWrite && selectedSegment && (
-              <button
-                onClick={saveFamilleStatus}
-                className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-              >
-                Enregistrer les statuts
-              </button>
-            )}
-          </div>
-        )}
+          {error && (
+            <div className="m-5 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
+              <span>⚠️</span>{error}
+            </div>
+          )}
 
-        {activeTab === 'classe' && (
-          <div>
-            <select
-              value={selectedSegment}
-              onChange={(e) => setSelectedSegment(e.target.value)}
-              className="mb-4 p-2 border rounded w-full"
-              disabled={loading}
-            >
-              <option value="">Sélectionner un segment</option>
-              {segments
-                .filter((s) => s.status === 1)
-                .map((segment) => (
-                  <option key={segment.code} value={segment.code}>
-                    {segment.libelle}
-                  </option>
-                ))}
-            </select>
-            {selectedSegment && (
-              <select
-                value={selectedFamille}
-                onChange={(e) => setSelectedFamille(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une famille</option>
-                {familles
-                  .filter((f) => f.status === 1)
-                  .map((famille) => (
-                    <option key={famille.code} value={famille.code}>
-                      {famille.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {selectedFamille && (
-              <table className="min-w-full bg-white border">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border-b">Status</th>
-                    <th className="py-2 px-4 border-b">Code</th>
-                    <th className="py-2 px-4 border-b">Libellé</th>
-                    <th className="py-2 px-4 border-b">Libellé EN</th>
-                    <th className="py-2 px-4 border-b">Libellé AR</th>
-                    {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {classes.map((classe) => (
-                    <tr key={classe.code}>
-                      <td className="py-2 px-4 border-b text-center">
-                        <input
-                          type="checkbox"
-                          checked={classe.status === 1}
-                          disabled={!canWrite}
-                          onChange={(e) =>
-                            handleClasseStatusChange(
-                              classe.code,
-                              e.target.checked,
-                              classe.libelle
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="py-2 px-4 border-b">{classe.code}</td>
-                      <td className="py-2 px-4 border-b">{classe.libelle}</td>
-                      <td className="py-2 px-4 border-b">{classe.libelle_en}</td>
-                      <td className="py-2 px-4 border-b">{classe.libelle_ar}</td>
-                      {canWrite && (
-                        <td className="py-2 px-4 border-b">
-                          <button
-                            onClick={() => openEditModal(classe, 'classe')}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Modifier
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {canWrite && selectedFamille && (
-              <button
-                onClick={saveClasseStatus}
-                className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-              >
-                Enregistrer les statuts
-              </button>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'catégorie' && (
-          <div>
-            <select
-              value={selectedSegment}
-              onChange={(e) => setSelectedSegment(e.target.value)}
-              className="mb-4 p-2 border rounded w-full"
-              disabled={loading}
-            >
-              <option value="">Sélectionner un segment</option>
-              {segments
-                .filter((s) => s.status === 1)
-                .map((segment) => (
-                  <option key={segment.code} value={segment.code}>
-                    {segment.libelle}
-                  </option>
-                ))}
-            </select>
-            {selectedSegment && (
-              <select
-                value={selectedFamille}
-                onChange={(e) => setSelectedFamille(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une famille</option>
-                {familles
-                  .filter((f) => f.status === 1)
-                  .map((famille) => (
-                    <option key={famille.code} value={famille.code}>
-                      {famille.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {selectedFamille && (
-              <select
-                value={selectedClasse}
-                onChange={(e) => setSelectedClasse(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une classe</option>
-                {classes
-                  .filter((c) => c.status === 1)
-                  .map((classe) => (
-                    <option key={classe.code} value={classe.code}>
-                      {classe.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {selectedClasse && (
-              <table className="min-w-full bg-white border">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border-b">Status</th>
-                    <th className="py-2 px-4 border-b">Code</th>
-                    <th className="py-2 px-4 border-b">Libellé</th>
-                    <th className="py-2 px-4 border-b">Libellé EN</th>
-                    <th className="py-2 px-4 border-b">Libellé AR</th>
-                    {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {bricks.map((brick) => (
-                    <tr key={brick.code}>
-                      <td className="py-2 px-4 border-b text-center">
-                        <input
-                          type="checkbox"
-                          checked={brick.status === 1}
-                          disabled={!canWrite}
-                          onChange={(e) =>
-                            handleBrickStatusChange(
-                              brick.code,
-                              e.target.checked,
-                              brick.libelle
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="py-2 px-4 border-b">{brick.code}</td>
-                      <td className="py-2 px-4 border-b">{brick.libelle}</td>
-                      <td className="py-2 px-4 border-b">{brick.libelle_en}</td>
-                      <td className="py-2 px-4 border-b">{brick.libelle_ar}</td>
-                      {canWrite && (
-                        <td className="py-2 px-4 border-b">
-                          <button
-                            onClick={() => openEditModal(brick, 'brick')}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Modifier
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {canWrite && selectedClasse && (
-              <button
-                onClick={saveBrickStatus}
-                className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-              >
-                Enregistrer les statuts
-              </button>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'rayon' && (
-          <div>
-            <select
-              value={selectedSegment}
-              onChange={(e) => setSelectedSegment(e.target.value)}
-              className="mb-4 p-2 border rounded w-full"
-              disabled={loading}
-            >
-              <option value="">Sélectionner un segment</option>
-              {segments
-                .filter((s) => s.status === 1)
-                .map((segment) => (
-                  <option key={segment.code} value={segment.code}>
-                    {segment.libelle}
-                  </option>
-                ))}
-            </select>
-            {selectedSegment && (
-              <select
-                value={selectedFamille}
-                onChange={(e) => setSelectedFamille(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une famille</option>
-                {familles
-                  .filter((f) => f.status === 1)
-                  .map((famille) => (
-                    <option key={famille.code} value={famille.code}>
-                      {famille.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {selectedFamille && (
-              <select
-                value={selectedClasse}
-                onChange={(e) => setSelectedClasse(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une classe</option>
-                {classes
-                  .filter((c) => c.status === 1)
-                  .map((classe) => (
-                    <option key={classe.code} value={classe.code}>
-                      {classe.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {selectedClasse && (
-              <table className="min-w-full bg-white border">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border-b">Status</th>
-                    <th className="py-2 px-4 border-b">Code</th>
-                    <th className="py-2 px-4 border-b">Libellé</th>
-                    <th className="py-2 px-4 border-b">Libellé EN</th>
-                    <th className="py-2 px-4 border-b">Libellé AR</th>
-                    {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rayons.map((rayon) => (
-                    <tr key={rayon.code}>
-                      <td className="py-2 px-4 border-b text-center">
-                        <input
-                          type="checkbox"
-                          checked={rayon.status === 1}
-                          disabled={!canWrite}
-                          onChange={(e) =>
-                            handleRayonStatusChange(
-                              rayon.code,
-                              e.target.checked,
-                              rayon.libelle
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="py-2 px-4 border-b">{rayon.code}</td>
-                      <td className="py-2 px-4 border-b">{rayon.libelle}</td>
-                      <td className="py-2 px-4 border-b">{rayon.libelle_en}</td>
-                      <td className="py-2 px-4 border-b">{rayon.libelle_ar}</td>
-                      {canWrite && (
-                        <td className="py-2 px-4 border-b relative">
-                          <button
-                            onClick={() => toggleDropdown(rayon.code)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Actions
-                          </button>
-                          {dropdownOpen === rayon.code && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-10">
-                              <button
-                                onClick={() => openEditModal(rayon, 'brick')}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                Modifier
-                              </button>
-                              <button
-                                onClick={() => openEditor(rayon.code)}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                {modelExists[rayon.code]
-                                  ? 'Modifier le modèle'
-                                  : 'Créer un modèle'}
-                              </button>
-                              {modelExists[rayon.code] && (
-                                <button
-                                  onClick={() => openEditor(rayon.code, true)}
-                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  Réinitialiser le modèle
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {canWrite && selectedClasse && (
-              <button
-                onClick={saveRayonStatus}
-                className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-              >
-                Enregistrer les statuts
-              </button>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'all_gpc' && (
-          <div>
-            <select
-              value={allGpcSegment}
-              onChange={(e) => setAllGpcSegment(e.target.value)}
-              className="mb-4 p-2 border rounded w-full"
-              disabled={loading}
-            >
-              <option value="">Sélectionner un segment</option>
-              {segments
-                .filter((s) => s.status === 1)
-                .map((segment) => (
-                  <option key={segment.code} value={segment.code}>
-                    {segment.libelle}
-                  </option>
-                ))}
-            </select>
-            {allGpcSegment && (
-              <select
-                value={allGpcFamille}
-                onChange={(e) => setAllGpcFamille(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une famille</option>
-                {familles
-                  .filter((f) => f.status === 1)
-                  .map((famille) => (
-                    <option key={famille.code} value={famille.code}>
-                      {famille.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {allGpcFamille && (
-              <select
-                value={allGpcClasse}
-                onChange={(e) => setAllGpcClasse(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner une classe</option>
-                {classes
-                  .filter((c) => c.status === 1)
-                  .map((classe) => (
-                    <option key={classe.code} value={classe.code}>
-                      {classe.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {allGpcClasse && (
-              <select
-                value={allGpcRayon}
-                onChange={(e) => setAllGpcRayon(e.target.value)}
-                className="mb-4 p-2 border rounded w-full"
-                disabled={loading}
-              >
-                <option value="">Sélectionner un rayon</option>
-                {rayons
-                  .filter((r) => r.status === 1)
-                  .map((rayon) => (
-                    <option key={rayon.code} value={rayon.code}>
-                      {rayon.libelle}
-                    </option>
-                  ))}
-              </select>
-            )}
-            {allGpcRayon && (
-              <div>
-                <table className="min-w-full bg-white border">
-                  <thead>
-                    <tr>
-                      <th className="py-2 px-4 border-b">Status</th>
-                      <th className="py-2 px-4 border-b">Code</th>
-                      <th className="py-2 px-4 border-b">Libellé</th>
-                      <th className="py-2 px-4 border-b">Libellé EN</th>
-                      <th className="py-2 px-4 border-b">Libellé AR</th>
-                      {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rayons
-                      .filter((r) => r.code === allGpcRayon)
-                      .map((rayon) => (
-                        <tr key={rayon.code}>
-                          <td className="py-2 px-4 border-b text-center">
-                            <input
-                              type="checkbox"
-                              checked={rayon.status === 1}
-                              disabled={!canWrite}
-                              onChange={(e) =>
-                                handleRayonStatusChange(
-                                  rayon.code,
-                                  e.target.checked,
-                                  rayon.libelle
-                                )
-                              }
-                            />
-                          </td>
-                          <td className="py-2 px-4 border-b">{rayon.code}</td>
-                          <td className="py-2 px-4 border-b">{rayon.libelle}</td>
-                          <td className="py-2 px-4 border-b">{rayon.libelle_en}</td>
-                          <td className="py-2 px-4 border-b">{rayon.libelle_ar}</td>
-                          {canWrite && (
-                            <td className="py-2 px-4 border-b relative">
-                              <button
-                                onClick={() => toggleDropdown(rayon.code)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                Actions
-                              </button>
-                              {dropdownOpen === rayon.code && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-10">
-                                  <button
-                                    onClick={() => openEditModal(rayon, 'brick')}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    Modifier
-                                  </button>
-                                  <button
-                                    onClick={() => openEditor(rayon.code)}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    {modelExists[rayon.code]
-                                      ? 'Modifier le modèle'
-                                      : 'Créer un modèle'}
-                                  </button>
-                                  {modelExists[rayon.code] && (
-                                    <button
-                                      onClick={() => openEditor(rayon.code, true)}
-                                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                      Réinitialiser le modèle
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+          {/* ══ SEGMENTS ══ */}
+          {activeTab === 'secteur' && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Segments GPC</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Activez ou désactivez les segments visibles dans la hiérarchie</p>
+                </div>
                 {canWrite && (
-                  <button
-                    onClick={saveAllGpcStatus}
-                    className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-                  >
-                    Enregistrer les statuts
+                  <button onClick={saveSegmentStatus} className="px-4 py-2 bg-blue-900 text-white text-sm font-semibold rounded-xl hover:bg-blue-800 transition-colors shadow-sm">
+                    Enregistrer
                   </button>
                 )}
               </div>
-            )}
-          </div>
-        )}
+              <GpcTable items={segments} onEdit={(item) => openEditModal(item, 'segment')} onStatus={handleSegmentStatusChange} onSave={saveSegmentStatus} showSave={false} type="segment" />
+            </div>
+          )}
 
-        {activeTab === 'model' && currentModel.sections && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">Modèle: {currentModel.libelle}</h2>
-            {Object.entries(currentModel.sections).map(([sectionName, section]) => (
-              <div key={sectionName} className="mb-4">
-                <button
-                  onClick={() => toggleSection(sectionName)}
-                  className={`w-full text-left p-4 rounded-lg font-semibold ${sectionColors[sectionName] || 'bg-gray-50 text-gray-800'}`}
-                >
-                  {sectionName} {sectionOpenStates[sectionName] ? '▲' : '▼'}
-                </button>
-                {sectionOpenStates[sectionName] && (
-                  <div className="ml-4 mt-2">
-                    <table className="min-w-full bg-white border">
-                      <thead>
-                        <tr>
-                          <th className="py-2 px-4 border-b">Champ</th>
-                          <th className="py-2 px-4 border-b">Description</th>
-                          <th className="py-2 px-4 border-b">Type</th>
-                          <th className="py-2 px-4 border-b">Validation</th>
-                          <th className="py-2 px-4 border-b">Observation</th>
-                          {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.fields.map((field) => (
-                          <tr key={field}>
-                            <td className="py-2 px-4 border-b">{field}</td>
-                            <td className="py-2 px-4 border-b">
-                              {canWrite ? (
-                                <input
-                                  type="text"
-                                  value={currentModel.fieldRules[field]?.description || ''}
-                                  onChange={(e) => updateDescription(field, e.target.value)}
-                                  className="w-full p-1 border rounded"
-                                  disabled={!canWrite}
-                                />
-                              ) : (
-                                currentModel.fieldRules[field]?.description || ''
-                              )}
-                            </td>
-                            <td className="py-2 px-4 border-b">
-                              {canWrite ? (
-                                <select
-                                  value={currentModel.fieldRules[field]?.type || 'text'}
-                                  onChange={(e) =>
-                                    updateType(field, e.target.value as FieldConfig['type'])
-                                  }
-                                  className="w-full p-1 border rounded"
-                                  disabled={!canWrite}
-                                >
-                                  <option value="text">Texte</option>
-                                  <option value="numeric">Numérique</option>
-                                  <option value="date">Date</option>
-                                  <option value="boolean">Booléen</option>
-                                  <option value="dropdown">Liste déroulante</option>
-                                  <option value="multivalue">Valeurs multiples</option>
-                                </select>
-                              ) : (
-                                currentModel.fieldRules[field]?.type || 'text'
-                              )}
-                            </td>
-                            <td className="py-2 px-4 border-b">
-                              {canWrite ? (
-                                <select
-                                  value={currentModel.fieldRules[field]?.validation || 'OP'}
-                                  onChange={(e) =>
-                                    updateValidation(
-                                      field,
-                                      e.target.value as FieldConfig['validation']
-                                    )
-                                  }
-                                  className="w-full p-1 border rounded"
-                                  disabled={!canWrite}
-                                >
-                                  <option value="OB">Obligatoire</option>
-                                  <option value="OP">Optionnel</option>
-                                  <option value="OC">Conditionnel</option>
-                                </select>
-                              ) : (
-                                currentModel.fieldRules[field]?.validation || 'OP'
-                              )}
-                            </td>
-                            <td className="py-2 px-4 border-b">
-                              {canWrite ? (
-                                <input
-                                  type="text"
-                                  value={currentModel.fieldRules[field]?.observation || ''}
-                                  onChange={(e) => updateObservation(field, e.target.value)}
-                                  className="w-full p-1 border rounded"
-                                  disabled={!canWrite}
-                                />
-                              ) : (
-                                currentModel.fieldRules[field]?.observation || ''
-                              )}
-                            </td>
-                            {canWrite && (
-                              <td className="py-2 px-4 border-b">
-                                <button
-                                  onClick={() => deleteField(sectionName, field)}
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  Supprimer
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {section.subsections &&
-                      Object.entries(section.subsections).map(([subsectionName, fields]) => (
-                        <div key={subsectionName} className="ml-4 mt-4">
-                          <button
-                            onClick={() => toggleSubsection(sectionName, subsectionName)}
-                            className={`w-full text-left p-3 rounded-lg font-semibold ${sectionColors[sectionName] || 'bg-gray-50 text-gray-800'}`}
-                          >
-                            {subsectionName} {subsectionOpenStates[`${sectionName}-${subsectionName}`] ? '▲' : '▼'}
-                          </button>
-                          {subsectionOpenStates[`${sectionName}-${subsectionName}`] && (
-                            <table className="min-w-full bg-white border mt-2">
-                              <thead>
-                                <tr>
-                                  <th className="py-2 px-4 border-b">Champ</th>
-                                  <th className="py-2 px-4 border-b">Description</th>
-                                  <th className="py-2 px-4 border-b">Type</th>
-                                  <th className="py-2 px-4 border-b">Validation</th>
-                                  <th className="py-2 px-4 border-b">Observation</th>
-                                  {canWrite && <th className="py-2 px-4 border-b">Actions</th>}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {fields.map((field) => (
-                                  <tr key={field}>
-                                    <td className="py-2 px-4 border-b">{field}</td>
-                                    <td className="py-2 px-4 border-b">
-                                      {canWrite ? (
-                                        <input
-                                          type="text"
-                                          value={currentModel.fieldRules[field]?.description || ''}
-                                          onChange={(e) => updateDescription(field, e.target.value)}
-                                          className="w-full p-1 border rounded"
-                                          disabled={!canWrite}
-                                        />
-                                      ) : (
-                                        currentModel.fieldRules[field]?.description || ''
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-4 border-b">
-                                      {canWrite ? (
-                                        <select
-                                          value={currentModel.fieldRules[field]?.type || 'text'}
-                                          onChange={(e) =>
-                                            updateType(field, e.target.value as FieldConfig['type'])
-                                          }
-                                          className="w-full p-1 border rounded"
-                                          disabled={!canWrite}
-                                        >
-                                          <option value="text">Texte</option>
-                                          <option value="numeric">Numérique</option>
-                                          <option value="date">Date</option>
-                                          <option value="boolean">Booléen</option>
-                                          <option value="dropdown">Liste déroulante</option>
-                                          <option value="multivalue">Valeurs multiples</option>
-                                        </select>
-                                      ) : (
-                                        currentModel.fieldRules[field]?.type || 'text'
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-4 border-b">
-                                      {canWrite ? (
-                                        <select
-                                          value={currentModel.fieldRules[field]?.validation || 'OP'}
-                                          onChange={(e) =>
-                                            updateValidation(
-                                              field,
-                                              e.target.value as FieldConfig['validation']
-                                            )
-                                          }
-                                          className="w-full p-1 border rounded"
-                                          disabled={!canWrite}
-                                        >
-                                          <option value="OB">Obligatoire</option>
-                                          <option value="OP">Optionnel</option>
-                                          <option value="OC">Conditionnel</option>
-                                        </select>
-                                      ) : (
-                                        currentModel.fieldRules[field]?.validation || 'OP'
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-4 border-b">
-                                      {canWrite ? (
-                                        <input
-                                          type="text"
-                                          value={currentModel.fieldRules[field]?.observation || ''}
-                                          onChange={(e) => updateObservation(field, e.target.value)}
-                                          className="w-full p-1 border rounded"
-                                          disabled={!canWrite}
-                                        />
-                                      ) : (
-                                        currentModel.fieldRules[field]?.observation || ''
-                                      )}
-                                    </td>
-                                    {canWrite && (
-                                      <td className="py-2 px-4 border-b">
-                                        <button
-                                          onClick={() =>
-                                            deleteSubsectionField(sectionName, subsectionName, field)
-                                          }
-                                          className="text-red-600 hover:text-red-800"
-                                        >
-                                          Supprimer
-                                        </button>
-                                      </td>
-                                    )}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                      ))}
-                  </div>
+          {/* ══ FAMILLES ══ */}
+          {activeTab === 'famille' && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Familles GPC</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Filtrez par segment pour gérer les familles</p>
+                </div>
+                {canWrite && selectedSegment && (
+                  <button onClick={saveFamilleStatus} className="px-4 py-2 bg-blue-900 text-white text-sm font-semibold rounded-xl hover:bg-blue-800 transition-colors shadow-sm">
+                    Enregistrer
+                  </button>
                 )}
               </div>
-            ))}
-            {canWrite && (
-              <button
-                onClick={saveModel}
-                className="mt-4 px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-              >
-                Enregistrer le modèle
-              </button>
-            )}
-          </div>
-        )}
+              <CascadeSelects fields={[
+                { label: 'Segment', value: selectedSegment, onChange: setSelectedSegment, options: segments.filter(s => s.status === 1), show: true },
+              ]} />
+              {selectedSegment && <GpcTable items={familles} onEdit={(item) => openEditModal(item, 'famille')} onStatus={handleFamilleStatusChange} onSave={saveFamilleStatus} showSave={false} type="famille" />}
+            </div>
+          )}
 
-        {isEditing && editItem && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">
-                Modifier {editType}
-              </h2>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Code</label>
-                <input
-                  type="text"
-                  value={editItem.code}
-                  onChange={(e) =>
-                    setEditItem({ ...editItem, code: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                  disabled
-                />
+          {/* ══ CLASSES ══ */}
+          {activeTab === 'classe' && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Classes GPC</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Sélectionnez segment → famille pour afficher les classes</p>
+                </div>
+                {canWrite && selectedFamille && (
+                  <button onClick={saveClasseStatus} className="px-4 py-2 bg-blue-900 text-white text-sm font-semibold rounded-xl hover:bg-blue-800 transition-colors shadow-sm">
+                    Enregistrer
+                  </button>
+                )}
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Libellé</label>
-                <input
-                  type="text"
-                  value={editItem.libelle}
-                  onChange={(e) =>
-                    setEditItem({ ...editItem, libelle: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                />
+              <CascadeSelects fields={[
+                { label: 'Segment', value: selectedSegment, onChange: setSelectedSegment, options: segments.filter(s => s.status === 1), show: true },
+                { label: 'Famille', value: selectedFamille, onChange: setSelectedFamille, options: familles.filter(f => f.status === 1), show: !!selectedSegment },
+              ]} />
+              {selectedFamille && <GpcTable items={classes} onEdit={(item) => openEditModal(item, 'classe')} onStatus={handleClasseStatusChange} onSave={saveClasseStatus} showSave={false} type="classe" />}
+            </div>
+          )}
+
+          {/* ══ CATÉGORIES (BRICKS) ══ */}
+          {activeTab === 'catégorie' && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Catégories (Bricks) GPC</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Sélectionnez jusqu'au niveau classe pour afficher les bricks</p>
+                </div>
+                {canWrite && selectedClasse && (
+                  <button onClick={saveBrickStatus} className="px-4 py-2 bg-blue-900 text-white text-sm font-semibold rounded-xl hover:bg-blue-800 transition-colors shadow-sm">
+                    Enregistrer
+                  </button>
+                )}
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Libellé EN</label>
-                <input
-                  type="text"
-                  value={editItem.libelle_en}
-                  onChange={(e) =>
-                    setEditItem({ ...editItem, libelle_en: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                />
+              <CascadeSelects fields={[
+                { label: 'Segment', value: selectedSegment, onChange: setSelectedSegment, options: segments.filter(s => s.status === 1), show: true },
+                { label: 'Famille', value: selectedFamille, onChange: setSelectedFamille, options: familles.filter(f => f.status === 1), show: !!selectedSegment },
+                { label: 'Classe', value: selectedClasse, onChange: setSelectedClasse, options: classes.filter(c => c.status === 1), show: !!selectedFamille },
+              ]} />
+              {selectedClasse && <GpcTable items={bricks} onEdit={(item) => openEditModal(item, 'brick')} onStatus={handleBrickStatusChange} onSave={saveBrickStatus} showSave={false} type="brick" />}
+            </div>
+          )}
+
+          {/* ══ RAYONS ══ */}
+          {activeTab === 'rayon' && (
+            <div className="p-6">
+              <div className="mb-5">
+                <h2 className="text-base font-bold text-slate-800">Rayons & Modèles</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Sélectionnez un brick pour voir ses rayons et l'état de leurs modèles</p>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Libellé AR</label>
-                <input
-                  type="text"
-                  value={editItem.libelle_ar}
-                  onChange={(e) =>
-                    setEditItem({ ...editItem, libelle_ar: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                />
+
+              <CascadeSelects fields={[
+                { label: 'Segment', value: selectedSegment, onChange: setSelectedSegment, options: segments.filter(s => s.status === 1), show: true },
+                { label: 'Famille', value: selectedFamille, onChange: setSelectedFamille, options: familles.filter(f => f.status === 1), show: !!selectedSegment },
+                { label: 'Classe', value: selectedClasse, onChange: setSelectedClasse, options: classes.filter(c => c.status === 1), show: !!selectedFamille },
+                { label: 'Brick', value: selectedBrick, onChange: setSelectedBrick, options: bricks.filter(b => b.status === 1), show: !!selectedClasse },
+              ]} />
+
+              {selectedBrick && (
+                <>
+                  {rayons.length === 0 ? (
+                    <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+                      <span className="text-lg mt-0.5">⚠️</span>
+                      <div>
+                        <p className="font-semibold text-amber-800">Aucun rayon mappé pour ce brick</p>
+                        <p className="text-amber-700 text-xs mt-0.5">Utilisez l'outil Mapping pour associer des rayons (NMC) à ce brick, puis enregistrez-les en base.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Stats strip */}
+                      {(() => {
+                        const withModel = rayons.filter(r => modelExists[`${r.code}__${r.brick_code}`]).length;
+                        const without = rayons.length - withModel;
+                        return (
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
+                              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block"></span>
+                              {rayons.length} rayon{rayons.length > 1 ? 's' : ''}
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-xl text-xs font-semibold text-emerald-700 border border-emerald-200">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                              {withModel} avec modèle
+                            </div>
+                            {without > 0 && (
+                              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl text-xs font-semibold text-orange-700 border border-orange-200">
+                                <span className="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>
+                                {without} sans modèle
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <table className="min-w-full">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Code Rayon</th>
+                              <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Libellé</th>
+                              <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Modèle</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {rayons.map((rayon, i) => {
+                              const modelKey = `${rayon.code}__${rayon.brick_code}`;
+                              const hasModel = !!modelExists[modelKey];
+                              return (
+                                <tr key={modelKey} className={`hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'}`}>
+                                  <td className="py-3 px-4">
+                                    <code className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{rayon.code}</code>
+                                  </td>
+                                  <td className="py-3 px-4 text-sm font-medium text-slate-800">{rayon.libelle}</td>
+                                  <td className="py-3 px-4">
+                                    {hasModel ? (
+                                      <button onClick={() => openEditor(modelKey, false, rayon.libelle)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        Voir modèle
+                                      </button>
+                                    ) : canWrite ? (
+                                      <button onClick={() => generateSmartModel(rayon.code)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 active:scale-95 transition-all shadow-sm">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        Générer modèle
+                                      </button>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-400 rounded-lg text-xs font-medium border border-slate-200">
+                                        Aucun modèle
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ══ DÉTAILS GPC (all_gpc) ══ */}
+          {activeTab === 'all_gpc' && (
+            <div className="p-6">
+              <div className="mb-5">
+                <h2 className="text-base font-bold text-slate-800">Détails GPC</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Navigation complète et gestion des modèles par brick</p>
               </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={closeEditModal}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={saveEdit}
-                  className="px-4 py-2 bg-blue-900 text-white rounded hover:bg-blue-800"
-                >
-                  Enregistrer
-                </button>
+
+              <CascadeSelects fields={[
+                { label: 'Segment', value: allGpcSegment, onChange: setAllGpcSegment, options: segments.filter(s => s.status === 1), show: true },
+                { label: 'Famille', value: allGpcFamille, onChange: setAllGpcFamille, options: familles.filter(f => f.status === 1), show: !!allGpcSegment },
+                { label: 'Classe', value: allGpcClasse, onChange: setAllGpcClasse, options: classes.filter(c => c.status === 1), show: !!allGpcFamille },
+                { label: 'Brick', value: allGpcRayon, onChange: setAllGpcRayon, options: bricks.filter(b => b.status === 1), show: !!allGpcClasse },
+              ]} />
+
+              {allGpcRayon && (
+                <div>
+                  {allGpcRayons.length === 0 ? (
+                    <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+                      <span className="text-lg mt-0.5">⚠️</span>
+                      <div>
+                        <p className="font-semibold text-amber-800">Aucun rayon mappé pour ce brick</p>
+                        <p className="text-amber-700 text-xs mt-0.5">Utilisez l'outil Mapping pour associer des rayons (NMC) à ce brick.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {(() => {
+                        const withModel = allGpcRayons.filter(r => modelExists[`${r.code}__${r.brick_code}`]).length;
+                        const without = allGpcRayons.length - withModel;
+                        return (
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
+                              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block"></span>
+                              {allGpcRayons.length} rayon{allGpcRayons.length > 1 ? 's' : ''}
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-xl text-xs font-semibold text-emerald-700 border border-emerald-200">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                              {withModel} avec modèle
+                            </div>
+                            {without > 0 && (
+                              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl text-xs font-semibold text-orange-700 border border-orange-200">
+                                <span className="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>
+                                {without} sans modèle
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <table className="min-w-full">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Code Rayon</th>
+                              <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Libellé</th>
+                              <th className="py-3 px-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Modèle</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {allGpcRayons.map((rayon, i) => {
+                              const modelKey = `${rayon.code}__${rayon.brick_code}`;
+                              const hasModel = !!modelExists[modelKey];
+                              return (
+                                <tr key={modelKey} className={`hover:bg-blue-50/40 transition-colors ${i % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'}`}>
+                                  <td className="py-3 px-4">
+                                    <code className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{rayon.code}</code>
+                                  </td>
+                                  <td className="py-3 px-4 text-sm font-medium text-slate-800">{rayon.libelle}</td>
+                                  <td className="py-3 px-4">
+                                    {hasModel ? (
+                                      <button onClick={() => openEditor(modelKey, false, rayon.libelle)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        Voir modèle
+                                      </button>
+                                    ) : canWrite ? (
+                                      <button onClick={() => generateSmartModel(rayon.code)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 active:scale-95 transition-all shadow-sm">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        Générer modèle
+                                      </button>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-400 rounded-lg text-xs font-medium border border-slate-200">
+                                        Aucun modèle
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {canWrite && (
+                        <div className="mt-4 flex justify-end">
+                          <button onClick={saveAllGpcStatus} className="px-4 py-2 bg-blue-900 text-white text-sm font-semibold rounded-xl hover:bg-blue-800 transition-colors shadow-sm">
+                            Enregistrer les statuts
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══ MODÈLE EDITOR ══ */}
+          {activeTab === 'model' && currentModel.sections && (
+            <div className="p-6">
+              {/* Model header */}
+              <div className="flex items-center justify-between mb-6 pb-5 border-b border-slate-100">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">{currentModel.libelle}</h2>
+                  <p className="text-xs text-slate-400 mt-0.5 font-mono">{currentRayonCode}</p>
+                </div>
+                {canWrite && (
+                  <button onClick={saveModel}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-900 text-white text-sm font-bold rounded-xl hover:bg-blue-800 active:scale-95 transition-all shadow-md">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Enregistrer le modèle
+                  </button>
+                )}
+              </div>
+
+              {/* Sections */}
+              <div className="space-y-4">
+                {Object.entries(currentModel.sections).map(([sectionName, section]) => {
+                  const theme = getSectionTheme(sectionName);
+                  return (
+                    <div key={sectionName} className={`rounded-xl border border-slate-200 overflow-hidden shadow-sm ${theme.borderLeft}`}>
+                      {/* Section header — solid color bar */}
+                      <button onClick={() => toggleSection(sectionName)}
+                        className={`w-full flex items-center justify-between px-5 py-3.5 font-semibold text-sm transition-colors ${theme.header}`}>
+                        <span className="flex items-center gap-2.5">
+                          <svg className="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                          </svg>
+                          <span>{sectionName}</span>
+                          <span className="text-xs font-normal opacity-60 bg-black/5 px-2 py-0.5 rounded-full">
+                            {section.fields.length} champ{section.fields.length > 1 ? 's' : ''}
+                          </span>
+                        </span>
+                        <svg className={`w-4 h-4 transition-transform opacity-50 ${sectionOpenStates[sectionName] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                        </svg>
+                      </button>
+
+                      {sectionOpenStates[sectionName] && (
+                        <div>
+                          <table className="min-w-full">
+                            <thead>
+                              <tr className={`border-b ${theme.thead}`}>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-44">Champ</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Description</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-28">Type</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-28">Validation</th>
+                                <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Observation</th>
+                                {canWrite && <th className="py-2.5 px-4 w-12"></th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {section.fields.map((field) => (
+                                <FieldRow
+                                  key={field}
+                                  field={field}
+                                  sectionName={sectionName}
+                                  canWrite={canWrite}
+                                  theme={theme}
+                                  description={currentModel.fieldRules[field]?.description || ''}
+                                  fieldType={currentModel.fieldRules[field]?.type || 'text'}
+                                  validation={currentModel.fieldRules[field]?.validation || 'OP'}
+                                  observation={currentModel.fieldRules[field]?.observation || ''}
+                                  values={currentModel.fieldRules[field]?.values}
+                                  onDescription={updateDescription}
+                                  onType={updateType}
+                                  onValidation={updateValidation}
+                                  onObservation={updateObservation}
+                                  onValues={updateValues}
+                                  onDelete={(sec, sub, f) => sub ? deleteSubsectionField(sec, sub, f) : deleteField(sec, f)}
+                                />
+                              ))}
+
+                              {/* Unité Logistique selector — only in Conditionnement */}
+                              {sectionName === "Conditionnement & Logistique" && (
+                                <tr className="bg-orange-50/40">
+                                  <td className="py-2.5 px-4 border-b border-slate-100">
+                                    <span className="text-xs font-semibold text-orange-700">Unité Logistique</span>
+                                  </td>
+                                  <td colSpan={4} className="py-2.5 px-4 border-b border-slate-100">
+                                    <select value={selectedHierarchy || ''} onChange={e => setSelectedHierarchy(e.target.value || null)}
+                                      className="w-full max-w-xs px-2.5 py-1.5 text-sm border border-orange-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400">
+                                      <option value="">— Sélectionner une unité logistique —</option>
+                                      {hierarchyOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                  </td>
+                                  {canWrite && <td className="py-2.5 px-4 border-b border-slate-100"></td>}
+                                </tr>
+                              )}
+
+                              {/* Hierarchy fields — purple accent */}
+                              {sectionName === "Conditionnement & Logistique" && selectedHierarchy &&
+                                hierarchyFields[selectedHierarchy as keyof typeof hierarchyFields]?.map(field => (
+                                  <FieldRow
+                                    key={`h-${field}`}
+                                    field={field}
+                                    sectionName={sectionName}
+                                    canWrite={canWrite}
+                                    theme={{ ...theme, codeBadge: 'text-purple-700 bg-purple-100', rowHover: 'hover:bg-purple-50', rowEven: 'bg-purple-50/30' }}
+                                    description={currentModel.fieldRules[field]?.description || ''}
+                                    fieldType={currentModel.fieldRules[field]?.type || 'text'}
+                                    validation={currentModel.fieldRules[field]?.validation || 'OP'}
+                                    observation={currentModel.fieldRules[field]?.observation || ''}
+                                    values={currentModel.fieldRules[field]?.values}
+                                    onDescription={updateDescription}
+                                    onType={updateType}
+                                    onValidation={updateValidation}
+                                    onObservation={updateObservation}
+                                    onValues={updateValues}
+                                    onDelete={(sec, _sub, f) => deleteField(sec, f)}
+                                  />
+                                ))
+                              }
+                            </tbody>
+                          </table>
+
+                          {/* Subsections */}
+                          {section.subsections && Object.entries(section.subsections).map(([subName, fields]) => (
+                            <div key={subName} className="border-t border-slate-100">
+                              <button onClick={() => toggleSubsection(sectionName, subName)}
+                                className={`w-full flex items-center justify-between px-5 py-3 text-sm font-semibold transition-colors ${theme.header}`}>
+                                <span className="flex items-center gap-2 pl-4">
+                                  <span className="w-1 h-4 rounded-full bg-current opacity-30 inline-block"></span>
+                                  {subName}
+                                  <span className="text-xs font-normal opacity-60 bg-black/5 px-2 py-0.5 rounded-full">
+                                    {fields.length} champ{fields.length > 1 ? 's' : ''}
+                                  </span>
+                                </span>
+                                <svg className={`w-4 h-4 transition-transform opacity-50 ${subsectionOpenStates[`${sectionName}-${subName}`] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                                </svg>
+                              </button>
+                              {subsectionOpenStates[`${sectionName}-${subName}`] && (
+                                <table className="min-w-full">
+                                  <thead>
+                                    <tr className={`border-b ${theme.thead}`}>
+                                      <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-44">Champ</th>
+                                      <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Description</th>
+                                      <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-28">Type</th>
+                                      <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-28">Validation</th>
+                                      <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Observation</th>
+                                      {canWrite && <th className="py-2.5 px-4 w-12"></th>}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {fields.map(field => (
+                                      <FieldRow
+                                        key={field}
+                                        field={field}
+                                        sectionName={sectionName}
+                                        subsectionName={subName}
+                                        canWrite={canWrite}
+                                        theme={theme}
+                                        description={currentModel.fieldRules[field]?.description || ''}
+                                        fieldType={currentModel.fieldRules[field]?.type || 'text'}
+                                        validation={currentModel.fieldRules[field]?.validation || 'OP'}
+                                        observation={currentModel.fieldRules[field]?.observation || ''}
+                                        values={currentModel.fieldRules[field]?.values}
+                                        onDescription={updateDescription}
+                                        onType={updateType}
+                                        onValidation={updateValidation}
+                                        onObservation={updateObservation}
+                                        onValues={updateValues}
+                                        onDelete={(sec, sub, f) => sub ? deleteSubsectionField(sec, sub, f) : deleteField(sec, f)}
+                                      />
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+        </div>{/* end main card */}
+      </div>{/* end px-6 */}
+
+      {/* ══ EDIT MODAL ══ */}
+      {isEditing && editItem && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800 capitalize">Modifier {editType}</h2>
+              <button onClick={closeEditModal} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors text-lg">✕</button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {[
+                { label: 'Code', key: 'code', disabled: true },
+                { label: 'Libellé FR', key: 'libelle', disabled: false },
+                { label: 'Libellé EN', key: 'libelle_en', disabled: false },
+                { label: 'Libellé AR', key: 'libelle_ar', disabled: false },
+              ].map(({ label, key, disabled }) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">{label}</label>
+                  <input type="text" value={(editItem as any)[key] || ''} disabled={disabled}
+                    onChange={e => setEditItem({ ...editItem, [key]: e.target.value } as any)}
+                    className={`w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'}`} />
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={closeEditModal} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Annuler</button>
+              <button onClick={saveEdit} className="px-5 py-2 text-sm font-bold text-white bg-blue-900 rounded-xl hover:bg-blue-800 transition-colors shadow-sm">Enregistrer</button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ══ BULK GEN MODAL (kept for reference, triggered nowhere now but code preserved) ══ */}
+      {bulkGenOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-purple-700 rounded-t-2xl">
+              <h2 className="text-white text-base font-bold flex items-center gap-2">🤖 Génération Smart Models — Tous les Bricks</h2>
+              {!bulkGenRunning && <button onClick={() => setBulkGenOpen(false)} className="text-white/80 hover:text-white text-xl font-bold">✕</button>}
+            </div>
+            <div className="flex-1 overflow-hidden flex flex-col p-6 gap-4">
+              {!bulkGenRunning && !bulkGenProgress.complete && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-slate-500 text-sm">Génère automatiquement les modèles pour <strong>tous les bricks actifs</strong>. Les modèles existants sont ignorés sauf si &quot;Écraser&quot; est coché.</p>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={bulkGenOverwrite} onChange={e => setBulkGenOverwrite(e.target.checked)} className="rounded accent-purple-700" />
+                    Écraser les modèles existants
+                  </label>
+                  <button onClick={generateAllModels} className="self-start px-6 py-3 bg-purple-700 text-white rounded-xl font-bold hover:bg-purple-800 shadow transition-colors">🚀 Lancer la génération</button>
+                </div>
+              )}
+              {(bulkGenRunning || bulkGenProgress.total > 0) && (
+                <div>
+                  <div className="flex justify-between text-sm font-medium text-slate-600 mb-1.5">
+                    <span>{bulkGenProgress.done} / {bulkGenProgress.total || '?'} bricks</span>
+                    <span className="flex gap-3 text-xs">
+                      <span className="text-emerald-600">✅ {bulkGenProgress.succeeded}</span>
+                      <span className="text-slate-400">⏭ {bulkGenProgress.skipped}</span>
+                      <span className="text-red-500">❌ {bulkGenProgress.failed}</span>
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div className={`h-2 rounded-full transition-all duration-300 ${bulkGenProgress.complete ? 'bg-emerald-500' : 'bg-purple-600'}`}
+                      style={{ width: bulkGenProgress.total > 0 ? `${(bulkGenProgress.done / bulkGenProgress.total) * 100}%` : '0%' }} />
+                  </div>
+                  {bulkGenRunning && <p className="text-xs text-slate-400 mt-1 animate-pulse">⏳ Génération en cours…</p>}
+                  {bulkGenProgress.complete && <p className="text-sm font-semibold text-emerald-600 mt-1">✅ Génération terminée !</p>}
+                </div>
+              )}
+              {bulkGenProgress.log.length > 0 && (
+                <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50 p-3 text-xs font-mono space-y-1 min-h-0 max-h-64">
+                  {bulkGenProgress.log.map((entry, i) => (
+                    <div key={i} className={`flex items-start gap-2 ${entry.status === 'done' ? 'text-emerald-700' : entry.status === 'skipped' ? 'text-slate-400' : entry.status === 'error' ? 'text-red-600' : 'text-purple-600'}`}>
+                      <span className="shrink-0">{entry.status === 'done' ? '✅' : entry.status === 'skipped' ? '⏭' : entry.status === 'error' ? '❌' : '⚙️'}</span>
+                      <span><strong>[{entry.rayonCode}]</strong> {entry.brickName}{entry.status === 'error' && entry.error && <span className="ml-1 text-red-400">— {entry.error}</span>}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-3 border-t border-slate-100 flex justify-between items-center bg-slate-50 rounded-b-2xl">
+              {bulkGenProgress.complete
+                ? <button onClick={() => { setBulkGenOpen(false); setBulkGenProgress({ done: 0, total: 0, succeeded: 0, skipped: 0, failed: 0, log: [], complete: false }); }} className="px-4 py-2 bg-purple-700 text-white rounded-xl hover:bg-purple-800 font-semibold text-sm">Fermer</button>
+                : <button onClick={() => !bulkGenRunning && setBulkGenOpen(false)} disabled={bulkGenRunning} className={`px-4 py-2 rounded-xl font-semibold text-sm ${bulkGenRunning ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>{bulkGenRunning ? 'Génération en cours…' : 'Annuler'}</button>}
+              <span className="text-xs text-slate-400">Seuls les bricks status=1 sont traités</span>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

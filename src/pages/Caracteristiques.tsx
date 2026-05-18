@@ -297,14 +297,15 @@ const Caracteristiques: React.FC<{ id_entite: number }> = ({ id_entite }) => {
 
   // ---------------- Render ----------------
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
-      <nav className="flex items-center space-x-2 text-sm mb-6">
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
         <span className="text-blue-600 font-medium">EDI</span>
-        <span className="text-blue-600">/</span>
+        <span className="text-gray-300">›</span>
         <span className="text-blue-600 font-medium">Caractéristiques</span>
       </nav>
 
+      <div className="min-h-screen p-6">
       <div className="space-y-6">
         <Card className="w-full shadow">
           <CardHeader>
@@ -561,6 +562,7 @@ const Caracteristiques: React.FC<{ id_entite: number }> = ({ id_entite }) => {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 };

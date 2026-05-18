@@ -22,21 +22,34 @@ async function runDbSeeder() {
 
     console.log(`\n📋 Initializing parameters for instance: ${instanceCode}...`);
 
-    // Define Network Topology (Single Source of Truth)
+    // Define Network Topology (Single Source of Truth).
+    // Per-node URLs can be overridden via env vars (TN_API_URL / SN_API_URL / CI_API_URL)
+    // for environments where domains differ from the default ones.
+    const tnApi = process.env.TN_API_URL || 'https://edi-dev.codeonline-info.com';
+    const snApi = process.env.SN_API_URL || 'https://dev.codeonline-edi.net';
+    const ciApi = process.env.CI_API_URL || 'https://dev.codeonline-edi.ci';
+
     const networkTopology = {
       "senegal": {
         "name": "Sénégal",
-        "apiUrl": "https://dev.codeonline-edi.net",
-        "ediUrl": "https://dev.codeonline-edi.net/api/edi/receive",
+        "apiUrl": snApi,
+        "ediUrl": `${snApi}/api/edi/receive`,
         "countryCode": "SEN",
         "country": "Senegal"
       },
       "tunisia": {
         "name": "Tunisie",
-        "apiUrl": "https://edi-dev.codeonline-info.com",
-        "ediUrl": "https://edi-dev.codeonline-info.com/api/edi/receive",
+        "apiUrl": tnApi,
+        "ediUrl": `${tnApi}/api/edi/receive`,
         "countryCode": "TUN",
         "country": "Tunisie"
+      },
+      "cote_ivoire": {
+        "name": "Côte d'Ivoire",
+        "apiUrl": ciApi,
+        "ediUrl": `${ciApi}/api/edi/receive`,
+        "countryCode": "CIV",
+        "country": "Côte d'Ivoire"
       }
     };
 

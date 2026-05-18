@@ -2,22 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { cn } from "@/lib/utils";
-
-interface Permission {
-  page_id: number;
-  read: number;
-  write: number;
-  hide: number;
-  page_name?: string;
-}
-
-interface Compte {
-  id_compte: number;
-  email: string;
-  name: string;
-  profile_id: number;
-  permissions: Permission[];
-}
+import type { Compte, Permission } from "../../types/compte";
 
 interface TopBarMenuProps {
   compte: Compte | null;
@@ -74,12 +59,22 @@ const activeSubmenuLinkStyle =
  const submenuStyle =
   "absolute top-full left-0 bg-white shadow-md min-w-[180px] z-50 border border-gray-200 rounded-md";
 
-  const isProduitsActive = ["/produit", "/gpc", "/catalogue"].includes(
-    location.pathname
-  );
+  const isProduitsActive = [
+    "/produit",
+    "/vue-modeles",
+    "/catalogue",
+    "/catalogueComplet",
+  ].includes(location.pathname);
+
+  const isOperationsActive = [
+    "/operations",
+    "/tarification",
+  ].includes(location.pathname);
+
   const isEdiActive = [
     "/operation-edi/order",
-    "/operation-edi/exp",
+    "/operation-edi/shipments",
+    "/operation-edi/desadv",
     "/operation-edi/invoice",
     "/operation-edi/tracking",
     "/ordre-de-transport",
@@ -160,13 +155,13 @@ const activeSubmenuLinkStyle =
                 {canRead(PAGES.PRODUITS_CATALOGUE) && (
                   <li>
                     <NavLink
-                      to="/catalogue"
+                      to="/catalogueComplet"
                       className={({ isActive }) =>
                         cn(submenuLinkStyle, isActive && activeSubmenuLinkStyle)
                       }
                       onClick={closeMenu}
                     >
-                      {t("CatalogueFP") || "Catalogue"}
+                      {t("CatalogueFP") || "Catalogue FP"}
                     </NavLink>
                   </li>
                 )}
@@ -186,14 +181,44 @@ const activeSubmenuLinkStyle =
           </li>
         )}
 
+        {/* Operations menu with Tarification */}
         {canRead(PAGES.OPERATIONS) && (
-          <li>
-            <NavLink
-              to="/operations"
-              className={({ isActive }) => cn(linkStyle, isActive && activeLinkStyle)}
+          <li
+            className="relative flex items-stretch"
+            onMouseEnter={() => toggleMenu("operations")}
+            onMouseLeave={closeMenu}
+          >
+            <button
+              className={cn(linkStyle, isOperationsActive && activeLinkStyle)}
             >
               {t("Opérations") || "Opérations"}
-            </NavLink>
+            </button>
+            {openMenu === "operations" && (
+              <ul className={submenuStyle}>
+                <li>
+                  <NavLink
+                    to="/operations"
+                    className={({ isActive }) =>
+                      cn(submenuLinkStyle, isActive && activeSubmenuLinkStyle)
+                    }
+                    onClick={closeMenu}
+                  >
+                    {t("Opérations") || "Opérations"}
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/tarification"
+                    className={({ isActive }) =>
+                      cn(submenuLinkStyle, isActive && activeSubmenuLinkStyle)
+                    }
+                    onClick={closeMenu}
+                  >
+                    {t("Tarification") || "Tarification"}
+                  </NavLink>
+                </li>
+              </ul>
+            )}
           </li>
         )}
 
@@ -228,13 +253,26 @@ const activeSubmenuLinkStyle =
                 {canRead(PAGES.EDI_EXPEDITIONS) && (
                   <li>
                     <NavLink
-                      to="/operation-edi/exp"
+                      to="/operation-edi/shipments"
                       className={({ isActive }) =>
                         cn(submenuLinkStyle, isActive && activeSubmenuLinkStyle)
                       }
                       onClick={closeMenu}
                     >
                       {t("Expéditions") || "Expéditions"}
+                    </NavLink>
+                  </li>
+                )}
+                {canRead(PAGES.EDI_EXPEDITIONS) && (
+                  <li>
+                    <NavLink
+                      to="/operation-edi/desadv"
+                      className={({ isActive }) =>
+                        cn(submenuLinkStyle, isActive && activeSubmenuLinkStyle)
+                      }
+                      onClick={closeMenu}
+                    >
+                      {t("DESADV & Étiquetage") || "DESADV & Étiquetage"}
                     </NavLink>
                   </li>
                 )}

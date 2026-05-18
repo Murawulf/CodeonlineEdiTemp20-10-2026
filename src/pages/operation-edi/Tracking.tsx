@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api`;
+import { useLocalApiUrl } from "@/contexts/SettingsContext";
 
 interface Tracking {
   id: number;
@@ -13,6 +12,7 @@ interface Tracking {
 }
 
 const TrackingPage: React.FC = () => {
+  const API_BASE_URL = `${useLocalApiUrl()}/api`;
   const [tracking, setTracking] = useState<Tracking[]>([]);
   const [shipmentId, setShipmentId] = useState("");
   const [form, setForm] = useState<Partial<Tracking>>({});

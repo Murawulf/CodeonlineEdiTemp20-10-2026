@@ -3,12 +3,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { io, Socket } from "socket.io-client";
+import { useNavigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronUp, Plus, Search, X, ChevronLeft, ChevronRight, List, ArrowLeft, Info, Image as ImageIcon } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Search, X, ChevronLeft, ChevronRight, List, ArrowLeft, Info, Image as ImageIcon, FileText, Truck, CheckCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,21 +21,18 @@ import ProductDetailModal from "@/components/ProductDetailModal";
 import OrderProcessingModal from "@/components/OrderProcessingModal";
 import InfoTooltip from "@/components/ui/InfoTooltip";
 import SafeAcceptModificationsAction from "@/components/edi/AcceptModificationsAction";
+import InvoiceCreationModal from "@/components/InvoiceCreationModal";
+import type { InvoiceFormData } from "@/components/InvoiceCreationModal";
 import { useSettings } from "@/contexts/SettingsContext";
+import { createApiInstance } from "@/hooks/useApi";
 
+// TODO request from bdd - table pays
 const CURRENCIES = [
   { value: "TND", label: "TND - Dinar tunisien", symbol: "د.ت" },
   { value: "EUR", label: "EUR - Euro", symbol: "€" },
   { value: "USD", label: "USD - Dollar américain", symbol: "$" },
   { value: "XOF", label: "XOF - Franc CFA", symbol: "Fr" },
 ];
-
-// Helper to create API instance (defined outside to keep simple, but now accepts pin)
-const createApiInstance = (baseURL: string, pin: string = "3311") => axios.create({
-  baseURL,
-  headers: { "x-api-pin": pin, "Content-Type": "application/json" },
-  timeout: 30000,
-});
 
 function getCurrentUser(): any {
   try { return JSON.parse(localStorage.getItem("currentUser") || "{}"); } catch { return {}; }
@@ -53,7 +51,8 @@ const formatDateForEANCOM = (v: string) => {
 };
 
 export default function Orders(): JSX.Element {
-  const { settings, getApiUrl, getServerUrl, getCurrentCountryInfo, isLoading: isSettingsLoading } = useSettings();
+  const navigate = useNavigate();
+  const { settings, getLocalApiUrl, getServerUrl, getCurrentCountryInfo, isLoading: isSettingsLoading } = useSettings();
   
   // Construct SERVERS list dynamically from settings
   const SERVERS = useMemo(() => {
@@ -73,11 +72,10 @@ export default function Orders(): JSX.Element {
     ];
   }, [getServerUrl, getCurrentCountryInfo]);
 
-  const DEFAULT_BACKEND_URL = getApiUrl();
-  const API_PIN = (localStorage.getItem('pin') || settings.API_PIN || "3311") as string;
+  const DEFAULT_BACKEND_URL = getLocalApiUrl();
 
   // Helper to create API instance for a specific server or default
-  const createApi = (baseURL: string) => createApiInstance(baseURL || DEFAULT_BACKEND_URL, API_PIN);
+  const createApi = (baseURL: string) => createApiInstance(baseURL || DEFAULT_BACKEND_URL);
 
   const currentUser = getCurrentUser();
   const currentEntiteId = currentUser.id_entite || null;
@@ -180,6 +178,10 @@ export default function Orders(): JSX.Element {
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [selectedOrderForProcessing, setSelectedOrderForProcessing] = useState<any>(null);
   const [simulateSupplierMode, setSimulateSupplierMode] = useState(false);
+
+  // Invoice Creation Modal State
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
   
   // WebSocket connection
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -1048,6 +1050,73 @@ export default function Orders(): JSX.Element {
     }
   };
 
+  // ── Invoice Creation from Order ──────────────────────────────────
+  const openInvoiceModal = async (order: any) => {
+    // Fetch full order details with lines if not already loaded
+    let orderWithLines = order;
+    if (!order.lines || order.lines.length === 0) {
+      try {
+        const api = createApi(DEFAULT_BACKEND_URL);
+        const res = await api.get(`/api/orders/${order.id_order}`, {
+          headers: { "x-entite-id": currentEntiteId }
+        });
+        orderWithLines = { ...order, ...res.data, lines: res.data.lines || [] };
+      } catch (err) {
+        console.error("[INVOICE] Failed to fetch order details:", err);
+        orderWithLines = order;
+      }
+    }
+    setSelectedOrderForInvoice(orderWithLines);
+    setShowInvoiceModal(true);
+  };
+
+  const handleCreateInvoice = async (data: InvoiceFormData, sendImmediately: boolean) => {
+    try {
+      const api = createApi(DEFAULT_BACKEND_URL);
+      const payload = {
+        ...data,
+        total_ht: data.lines.reduce((s, l) => s + l.line_amount, 0),
+        total_tax: data.lines.reduce((s, l) => s + l.tax_amount, 0),
+        total_ttc: data.lines.reduce((s, l) => s + l.line_amount + l.tax_amount, 0),
+      };
+
+      // 1. Create draft
+      const createRes = await api.post("/api/invoices", payload);
+      
+      if (!createRes.data?.success) {
+        throw new Error(createRes.data?.error || "Échec de la création");
+      }
+
+      const invoiceId = createRes.data.id;
+
+      // 2. If send immediately, trigger EDI send
+      if (sendImmediately && invoiceId) {
+        await api.post(`/api/invoices/${invoiceId}/send`);
+        toast({
+          title: "Facture envoyée",
+          description: `La facture ${data.invoic_number} a été créée et transmise via EDI (INVOIC).`,
+          className: "bg-green-600 text-white"
+        });
+      } else {
+        toast({
+          title: "Brouillon enregistré",
+          description: `La facture ${data.invoic_number} a été sauvegardée en brouillon.`
+        });
+      }
+
+      setShowInvoiceModal(false);
+      setSelectedOrderForInvoice(null);
+    } catch (err: any) {
+      console.error("[INVOICE] Error:", err);
+      toast({
+        title: "Erreur",
+        description: err.response?.data?.error || err.message || "Impossible de créer la facture",
+        variant: "destructive"
+      });
+      throw err; // Re-throw so the modal knows submission failed
+    }
+  };
+
   const filteredCompanies = useMemo(() => {
     if (!selectedSegment) return companies;
     return companies.filter(c => {
@@ -1296,16 +1365,51 @@ export default function Orders(): JSX.Element {
                             <td className="px-6 py-4 text-right">
                               <div className="flex gap-2 justify-end items-center">
                                 {order.type === "Reçue" ? (
-                                  <Button 
-                                    size="sm" 
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openProcessingModal(order);
-                                    }}
-                                  >
-                                    Traiter
-                                  </Button>
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openProcessingModal(order);
+                                      }}
+                                    >
+                                      Traiter
+                                    </Button>
+                                    {['accepted', 'modified', 'shipped'].includes((order.statut || order.status || '').toLowerCase()) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className={order.has_invoice ? "text-gray-400 border-gray-200 cursor-not-allowed gap-1" : "text-orange-600 border-orange-200 hover:bg-orange-50 gap-1"}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!order.has_invoice) {
+                                            openInvoiceModal(order);
+                                          }
+                                        }}
+                                        disabled={order.has_invoice}
+                                        title={order.has_invoice ? "Une facture a déjà été créée pour cette commande" : "Créer une facture pour cette commande"}
+                                      >
+                                        {order.has_invoice ? <CheckCircle size={14} /> : <FileText size={14} />}
+                                        {order.has_invoice ? "Facturée" : "Facturer"}
+                                      </Button>
+                                    )}
+                                    {['accepted', 'modified'].includes((order.statut || order.status || '').toLowerCase()) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-green-600 border-green-200 hover:bg-green-50 gap-1"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate("/operation-edi/shipments", { state: { orderId: order.id_order } });
+                                        }}
+                                        title="Créer un avis d'expédition (DESADV)"
+                                      >
+                                        <Truck size={14} />
+                                        Expédier
+                                      </Button>
+                                    )}
+                                  </>
                                 ) : (
                                   <Button 
                                     size="sm" 
@@ -1831,6 +1935,22 @@ export default function Orders(): JSX.Element {
           })()}
           currentEntiteId={currentEntiteId}
           onSuccess={loadAllOrders}
+          onNavigateToShipment={(order) => {
+            setShowProcessingModal(false);
+            navigate("/shipments", { state: { orderId: order.id_order } });
+          }}
+        />
+
+        {/* Invoice Creation Modal */}
+        <InvoiceCreationModal
+          isOpen={showInvoiceModal}
+          onClose={() => {
+            setShowInvoiceModal(false);
+            setSelectedOrderForInvoice(null);
+          }}
+          onSubmit={handleCreateInvoice}
+          order={selectedOrderForInvoice}
+          currentUser={currentUser}
         />
       </div>
     </>

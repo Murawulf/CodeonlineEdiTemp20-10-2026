@@ -1,10 +1,9 @@
 const auditLogger = require('../services/communication/AuditLogger');
 const configService = require('../services/configService');
 const { queryDB } = require('../db_utils');
+const { serviceAuthHeaders } = require('../services/serviceAuth');
 const axios = require('axios');
 const mysql = require('mysql2/promise');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const { workerData } = require('worker_threads');
 
 // Worker configuration
@@ -43,14 +42,7 @@ async function initDb() {
     }
 
     if (!db) {
-        console.log('[AuditSyncWorker] Using SQLite fallback.');
-        // Use custom path from workerData if available (for E2E tests), otherwise default
-        const DB_PATH = (workerData && workerData.ENTITE_DB_PATH) 
-            ? workerData.ENTITE_DB_PATH 
-            : path.join(__dirname, '../EntiteDb.db');
-            
-        console.log(`[AuditSyncWorker] Opening DB at: ${DB_PATH}`);
-        db = new sqlite3.Database(DB_PATH);
+        throw new Error('[AuditSyncWorker] MySQL connection required (no SQLite fallback). Vérifier workerData.dbConfig.');
     }
 
     auditLogger.setDb(db);
@@ -90,9 +82,9 @@ async function sync() {
 
         const syncUrl = `${orchestratorUrl}/api/orchestrator/audit/sync`;
         
-        const response = await axios.post(syncUrl, { logs }, { 
+        const response = await axios.post(syncUrl, { logs }, {
             timeout: 10000,
-            headers: { 'x-api-pin': configService.get('API_PIN') }
+            headers: serviceAuthHeaders({ 'x-api-pin': configService.get('API_PIN') })
         });
 
         if (response.data.status === 'success') {

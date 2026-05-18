@@ -5,7 +5,7 @@ function unescapeEancom(str) {
 
 // =====================================================
 // EANCOM PARSER - Parse incoming EDI messages
-// Supports: ORDERS, INVOIC, ORDRSP, DESADV
+// Supports: ORDERS, INVOIC, ORDRSP, DESADV, APERAK
 // =====================================================
 
 /**
@@ -30,26 +30,39 @@ function parseEANCOM(eancomContent) {
     messageNumber: null,
     documentNumber: null,
     documentDate: null,
+    // APERAK-specific fields
+    aperakFunctionCode: null,       // '313' = ACK, '314' = NACK
+    referencedDocumentNumber: null, // Original doc ref (from RFF+ACE or DOC segment)
+    referencedDocumentType: null,   // e.g. 'INVOIC'
+    aperakErrorCode: null,          // ERC segment error code
+    aperakErrorText: null,          // FTX after ERC
+    aperakSenderGln: null,          // NAD+MS sender GLN
+    aperakReceiverGln: null,        // NAD+MR receiver GLN
+    // Standard fields
     buyer: { gln: null, vat: null, name: null, contact: null, phone: null, email: null },
     supplier: { gln: null, vat: null, name: null },
     deliveryParty: { gln: null, name: null },
     currency: null,
     exchangeRate: null,
     paymentTerms: null,
-    transport: { mode: null, means: null },
+    transport: { mode: null, means: null, carrier: null, carrierName: null, vehicle: null },
     deliveryTerms: null,
     deliveryPort: null,
     contractReference: null,
     priceListReference: null,
     freeText: null,
     items: [],
+    packages: [],
     totals: { lineAmount: null, taxAmount: null, totalAmount: null },
+    totalWeight: null,
     itemCount: null,
     rawSegments: []
   };
 
   let currentItem = null;
   let currentDeliveryLocation = null;
+  let currentPackage = null;
+  let lastPciCode = null;
 
   for (const line of lines) {
     // Store raw segment
@@ -73,6 +86,10 @@ function parseEANCOM(eancomContent) {
 
         case 'BGM': // Beginning of message
           result.documentNumber = parts[2];
+          if (parts[1]) {
+            // For APERAK: BGM+313 or BGM+314 — no sub-fields in parts[1]
+            result.aperakFunctionCode = parts[1].split(/(?<!\?):/).join('') || parts[1];
+          }
           if (parts[3]) {
             result.responseCode = parts[3]; // For ORDRSP: 29=Accepted, 27=Rejected, 4=Modified
           }
@@ -128,10 +145,27 @@ function parseEANCOM(eancomContent) {
           if (refQualifier === 'CT') result.contractReference = refValue;
           else if (refQualifier === 'PL') result.priceListReference = refValue;
           else if (refQualifier === 'ON') result.orderReference = refValue; // Original Order Number
+          else if (refQualifier === 'ACE') result.referencedDocumentNumber = unescapeEancom(refValue); // APERAK: ref to acknowledged doc
           else if (refQualifier === 'VA') {
             // VAT number - assign to current party context
             if (currentPartyType === 'BY') result.buyer.vat = refValue;
             else if (currentPartyType === 'SU') result.supplier.vat = refValue;
+          }
+          break;
+
+        case 'DOC': // Referenced document type (APERAK: DOC+131+INVOIC)
+          if (parts[1]) {
+            const docSegParts = parts[1].split(/((?<!\?):)/);
+            const docQualifier = docSegParts[0];
+            if (docQualifier === '131' && parts[2]) {
+              result.referencedDocumentType = unescapeEancom(parts[2]);
+            }
+          }
+          break;
+
+        case 'ERC': // Application error information (APERAK NACK)
+          if (parts[1]) {
+            result.aperakErrorCode = unescapeEancom(parts[1]);
           }
           break;
 
@@ -156,6 +190,9 @@ function parseEANCOM(eancomContent) {
           }
           else if (partyQualifier === 'UC') result.ultimateConsignee = partyGLN;
           else if (partyQualifier === 'IV') result.invoicee = partyGLN;
+          // APERAK parties: MS = Message Sender (buyer), MR = Message Receiver (supplier)
+          else if (partyQualifier === 'MS') result.aperakSenderGln = partyGLN;
+          else if (partyQualifier === 'MR') result.aperakReceiverGln = partyGLN;
           break;
 
         case 'CTA': // Contact information
@@ -193,39 +230,91 @@ function parseEANCOM(eancomContent) {
           break;
 
         case 'TDT': // Transport details
+          // TDT+20++30+++carrier:::carrierName+++vehicle
           if (parts[3]) result.transport.mode = parts[3];
           if (parts[4]) result.transport.means = parts[4];
+          if (parts[6]) {
+            const carrierParts = parts[6].split(/(?<!\?):/);
+            result.transport.carrier = carrierParts[0] || null;
+            result.transport.carrierName = carrierParts[3] || null;
+          }
+          if (parts[9]) result.transport.vehicle = parts[9];
           break;
 
         case 'CPS': // Consignment Packing Sequence (DESADV)
           // parts[1] = Hierarchical ID, parts[2] = Parent ID, parts[3] = Packaging Level
-          if (result.messageType === 'DESADV') {
-             // We can track hierarchy if needed, for now just noting it exists
-             // currentPackageHierarchy = { id: parts[1], parent: parts[2], level: parts[3] };
+          {
+            const cpsId = parts[1];
+            const cpsParent = parts[2] || null;
+            const cpsLevel = parts[3] || null;
+            // CPS+1 = consignment level; CPS+n+1 = package under consignment
+            if (cpsId !== '1' || cpsParent) {
+              // Save previous package if exists
+              if (currentPackage) {
+                result.packages.push(currentPackage);
+              }
+              currentPackage = { cpsId, parent: cpsParent, level: cpsLevel, sscc: null, type: null, weight: null, batchNumber: null, items: [] };
+            }
           }
           break;
 
-        case 'PCI': // Package Identification (DESADV)
-           // Often follows PAC. 
-           // If we have a currentItem (line item), it might be item-level packaging.
-           // If not, it might be shipment-level packaging.
-           break;
+        case 'PAC': // Package
+          {
+            const pacCount = parts[1] ? parseInt(parts[1]) : 1;
+            const pacType = parts[3] ? parts[3].split(/(?<!\?):/)[0] : null;
+            if (currentPackage) {
+              currentPackage.type = pacType;
+              currentPackage.count = pacCount;
+            } else if (currentItem) {
+              currentItem.packageCount = pacCount;
+              if (pacType) currentItem.packageType = pacType;
+            }
+          }
+          break;
 
-        case 'GIN': // Goods Identity Number (SSCC)
-           if (parts[1] === 'BJ' && parts[2]) { // BJ = Serial shipping container code
-             const sscc = parts[2].split(/(?<!\?):/)[0];
-             // Attach to the last defined package or item
-             if (currentItem && currentItem.packageCount) {
-                currentItem.sscc = sscc;
-             } else if (result.currentPackage) {
-                result.currentPackage.sscc = sscc;
-             } else {
-                // Top level or loose SSCC
-                if (!result.packages) result.packages = [];
-                result.packages.push({ sscc });
-             }
-           }
-           break;
+        case 'MEA': // Measurement
+          {
+            const meaPurpose = parts[1]; // WT = Weight, VOL = Volume
+            const meaType = parts[2];    // G = Gross, AAE = Net
+            if (parts[3]) {
+              const meaParts = parts[3].split(/(?<!\?):/);
+              const meaUnit = meaParts[0]; // KGM, LBR, etc.
+              const meaValue = parseFloat(meaParts[1]);
+              if (meaPurpose === 'WT' && currentPackage) {
+                currentPackage.weight = meaValue;
+              } else if (meaPurpose === 'WT' && !currentPackage) {
+                result.totalWeight = meaValue;
+              }
+            }
+          }
+          break;
+
+        case 'PCI': // Package Identification
+          // 33E = Marked with SSCC (Etiquetage), 36E = Marked with batch, 17 = Batch/lot at item level
+          lastPciCode = parts[1] || null;
+          break;
+
+        case 'GIN': // Goods Identity Number
+          {
+            const ginQualifier = parts[1];
+            const ginValue = parts[2] ? parts[2].split(/(?<!\?):/)[0] : null;
+            if (ginQualifier === 'BJ' && ginValue) {
+              // BJ = Serial shipping container code (SSCC)
+              if (currentPackage) {
+                currentPackage.sscc = ginValue;
+              } else {
+                result.packages.push({ sscc: ginValue, type: null, weight: null, batchNumber: null, items: [] });
+              }
+            } else if (ginQualifier === 'BX' && ginValue) {
+              // BX = Batch number
+              if (currentItem) {
+                currentItem.batchNumber = ginValue;
+              } else if (currentPackage) {
+                currentPackage.batchNumber = ginValue;
+              }
+            }
+          }
+          break;
 
         case 'ALC': // Allowance or Charge
           // parts[1] = A (Allowance) or C (Charge)
@@ -253,7 +342,14 @@ function parseEANCOM(eancomContent) {
           break;
 
         case 'LIN': // Line item
-          if (currentItem) result.items.push(currentItem);
+          if (currentItem) {
+            // If inside a DESADV package, add to package items
+            if (currentPackage) {
+              currentPackage.items.push(currentItem);
+            } else {
+              result.items.push(currentItem);
+            }
+          }
           
           const lineNumber = parts[1];
           const gtin = parts[3] ? parts[3].split(/(?<!\?):/)[0] : null;
@@ -270,6 +366,8 @@ function parseEANCOM(eancomContent) {
             priceQualifier: null,
             lineAmount: null,
             taxRate: null,
+            batchNumber: null,
+            expiryDate: null,
             packageCount: null,
             packageType: null,
             deliveryLocations: []
@@ -365,13 +463,6 @@ function parseEANCOM(eancomContent) {
           }
           break;
 
-        case 'PAC': // Package
-          if (currentItem && parts[1]) {
-            currentItem.packageCount = parseInt(parts[1]);
-            if (parts[3]) currentItem.packageType = parts[3];
-          }
-          break;
-
         case 'TAX': // Tax
           if (currentItem && parts[1] === '7' && parts[5]) {
             const taxParts = parts[5].split(/(?<!\?):/);
@@ -415,7 +506,19 @@ function parseEANCOM(eancomContent) {
   }
 
   // Push last item if exists
-  if (currentItem) result.items.push(currentItem);
+  if (currentItem) {
+    // If we're inside a package context (DESADV), add item to package
+    if (currentPackage) {
+      currentPackage.items.push(currentItem);
+    } else {
+      result.items.push(currentItem);
+    }
+  }
+
+  // Push last package if exists
+  if (currentPackage) {
+    result.packages.push(currentPackage);
+  }
 
   return result;
 }
@@ -443,7 +546,23 @@ function validateParsedEANCOM(parsedData) {
   };
 }
 
+/**
+ * Parse an APERAK EANCOM message and return a structured ACK/NACK object.
+ * Convenience wrapper around parseEANCOM for use in processInboundAperak.
+ * @param {string} eancomContent
+ * @returns {{ referencedDocumentNumber, aperakFunctionCode, aperakErrorCode, aperakSenderGln, aperakReceiverGln, isAck: boolean }}
+ */
+function parseAperakEANCOM(eancomContent) {
+  const parsed = parseEANCOM(eancomContent);
+  return {
+    ...parsed,
+    isAck: parsed.aperakFunctionCode === '313',
+    isNack: parsed.aperakFunctionCode === '314',
+  };
+}
+
 module.exports = {
   parseEANCOM,
-  validateParsedEANCOM
+  validateParsedEANCOM,
+  parseAperakEANCOM
 };

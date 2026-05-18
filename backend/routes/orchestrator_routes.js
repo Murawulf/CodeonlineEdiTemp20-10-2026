@@ -13,8 +13,10 @@ module.exports = (db) => {
     router.post('/relay', (req, res) => orchestratorController.relayMessage(req, res));
     router.post('/audit/sync', (req, res) => orchestratorController.syncOfflineLogs(req, res));
     
-    // Discovery endpoint
+    // Directory Routes
     router.get('/discovery', (req, res) => orchestratorController.getDirectory(req, res));
+    router.post('/register', (req, res) => orchestratorController.registerNode(req, res));
+    router.get('/keys/:gln', (req, res) => orchestratorController.getPublicKey(req, res));
 
     return router;
 };

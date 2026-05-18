@@ -27,7 +27,7 @@ class CryptoService {
       const authTag = cipher.getAuthTag();
 
       // 3. Chiffrer la clé AES avec la clé publique RSA du destinataire
-      const recipientPublicKey = keyManager.getPublicKeyForGLN(recipientGLN);
+      const recipientPublicKey = await keyManager.getPublicKeyForGLN(recipientGLN);
       const encryptedKey = crypto.publicEncrypt(
         {
           key: recipientPublicKey,
@@ -93,7 +93,7 @@ class CryptoService {
       decrypted = Buffer.concat([decrypted, decipher.final()]);
 
       // 3. Vérifier la signature avec la clé publique de l'expéditeur
-      const senderPublicKey = keyManager.getPublicKeyForGLN(senderGLN);
+      const senderPublicKey = await keyManager.getPublicKeyForGLN(senderGLN);
       const verify = crypto.createVerify('SHA256');
       verify.update(decrypted);
       verify.end();

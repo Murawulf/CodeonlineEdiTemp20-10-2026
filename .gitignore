@@ -22,3 +22,36 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ==============================================================================
+# Secrets & environnements (.env)
+# ==============================================================================
+# Tout fichier .env est exclu par défaut, sauf les templates explicitement
+# ré-inclus avec ! ci-dessous.
+
+# Tout .env à la racine, dans backend/, edi_orchestrator/, etc.
+.env
+.env.*
+**/.env
+**/.env.*
+**/.env.bak_*
+
+# Backups générés par bin/use-env.sh, .tmp_brevo_rollout.sh, etc.
+*.env.bak_*
+
+# ⚠️  Ré-inclure UNIQUEMENT les templates publics (sans secrets) :
+!env/.env.example
+!setup_configs/template.conf
+!deploy_configs/template.conf
+
+# Configs de déploiement (peuvent contenir IP, mots de passe DB root)
+setup_configs/*.conf
+deploy_configs/*.conf
+!setup_configs/template.conf
+!deploy_configs/template.conf
+
+# Scripts temporaires créés par les rollouts
+.tmp_*.sh
+
+# Backups serveur (legacy)
+*_BACKUP_BEFORE_*

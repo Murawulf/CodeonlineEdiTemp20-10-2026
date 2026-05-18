@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, AlertTriangle, Save } from "lucide-react";
+import { Check, X, AlertTriangle, Save, Truck } from "lucide-react";
 import SafeAcceptModificationsAction from "@/components/edi/AcceptModificationsAction";
 
 interface OrderProcessingModalProps {
@@ -16,9 +16,10 @@ interface OrderProcessingModalProps {
   readonly?: boolean;
   currentEntiteId?: string | number;
   onSuccess?: () => void;
+  onNavigateToShipment?: (order: any) => void;
 }
 
-export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order, readonly = false, currentEntiteId, onSuccess }: OrderProcessingModalProps) {
+export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order, readonly = false, currentEntiteId, onSuccess, onNavigateToShipment }: OrderProcessingModalProps) {
   const [action, setAction] = useState<"accepted" | "rejected" | "modified">("accepted");
   const [comment, setComment] = useState("");
   const [articles, setArticles] = useState<any[]>([]);
@@ -444,7 +445,19 @@ export default function OrderProcessingModal({ isOpen, onClose, onSubmit, order,
 
         <DialogFooter className="sm:justify-between gap-4">
           <Button variant="ghost" onClick={onClose}>{readonly ? "Fermer" : "Annuler"}</Button>
-          
+
+          {onNavigateToShipment && ['accepted', 'modified'].includes((order?.statut || order?.status || '').toLowerCase()) && (
+            <Button
+              variant="outline"
+              className="text-green-600 border-green-200 hover:bg-green-50 gap-2"
+              onClick={() => { onClose(); onNavigateToShipment(order); }}
+              title="Créer un avis d'expédition (DESADV)"
+            >
+              <Truck size={16} />
+              Expédier
+            </Button>
+          )}
+
           {/* Action pour Accepter les modifications (Acheteur) */}
           {readonly && currentEntiteId && onSuccess && (
             <SafeAcceptModificationsAction 

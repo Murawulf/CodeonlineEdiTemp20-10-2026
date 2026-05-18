@@ -1,0 +1,16 @@
+documentation md/EANCOM_IMPROVEMENTS_PROPOSAL.md
+documentation md/PART2_TECHNICAL_SPECIFICATION.md
+documentation md/API_ARCHITECTURE_GUIDE.md
+documentation md/DEPLOYMENT_GUIDE.md
+documentation md/QUICK_DEPLOY_GUIDE.md
+documentation md/INSTALLATION_WEBSOCKET.md
+documentation md/README_EDI_WORKER.md
+documentation md/EDI_ORDERS_PATH_REFACTORING.md
+documentation md/PART1_ARCHITECTURE_DETAILED.md
+documentation md/WORKER_LOGGING_GUIDE.md
+documentation md/REFACTORING_SERVER_PROPOSAL.md
+documentation md/HARDCODED_URLS_AUDIT.md
+documentation md/PHASE1_PHASE2_COMPLETED.md
+documentation md/GLOBAL_SETTINGS_README.md
+documentation md/PHASE1_PHASE2_FINAL.md
+documentation md/DOCUMENTATION_COMMANDES.md

@@ -1,8 +1,6 @@
 const discoveryCache = require('../services/communication/DiscoveryCache');
 const { parentPort, workerData } = require('worker_threads');
 const mysql = require('mysql2/promise');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const configService = require('../services/configService');
 
 // Worker configuration
@@ -41,14 +39,7 @@ async function initDb() {
     }
 
     if (!db) {
-        console.log('[DiscoveryWorker] Using SQLite fallback.');
-        // Use custom path from workerData if available (for E2E tests), otherwise default
-        const DB_PATH = (workerData && workerData.ENTITE_DB_PATH) 
-            ? workerData.ENTITE_DB_PATH 
-            : path.join(__dirname, '../EntiteDb.db');
-            
-        console.log(`[DiscoveryWorker] Opening DB at: ${DB_PATH}`);
-        db = new sqlite3.Database(DB_PATH);
+        throw new Error('[DiscoveryWorker] MySQL connection required (no SQLite fallback). Vérifier workerData.dbConfig.');
     }
 
     discoveryCache.setDb(db);

@@ -3,7 +3,6 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const sqlite3 = require('sqlite3').verbose();
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const axios = require('axios');
@@ -12,16 +11,54 @@ const multer = require('multer');
 const chokidar = require('chokidar');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('âŒ FATAL: JWT_SECRET is required (set it in /var/www/Edi-dev/backend/.env on every node â€” same value across the EDI network).');
+  process.exit(1);
+}
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const safeErrDetails = (err) => (IS_PRODUCTION ? undefined : (err && err.message) || String(err));
+
+// Service token helpers (centralisÃ©s dans services/serviceAuth.js)
+const { getServiceToken, serviceAuthHeaders } = require('./services/serviceAuth');
+
+/**
+ * JWT Authentication Middleware
+ * Validates Bearer token on all protected routes.
+ * Routes excluded: POST /api/login
+ */
+const verifyJWT = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: missing token' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Unauthorized: token expired' });
+    }
+    return res.status(401).json({ error: 'Unauthorized: invalid token' });
+  }
+};
 const { generateOrderEANCOM_Enhanced } = require('./generateOrderEANCOM_enhanced');
 const { generateOrderResponseEANCOM } = require('./generateOrderResponseEANCOM');
 const { generateDesadvEANCOM } = require('./generateDesadvEANCOM');
 const { generateInvoicEANCOM } = require('./generateInvoicEANCOM');
 const { createEdiTransmission, updateEdiTransmissionStatus, getEdiTransmissions, incrementRetryCount } = require('./edi_transmission_helper');
-const { notifyOrderSent, notifyOrderReceived, notifyOrderResponseReceived } = require('./notification_helper');
+const { notifyOrderSent, notifyOrderReceived, notifyOrderResponseReceived, notifyInvoiceReceived } = require('./notification_helper');
 const { queryDB, runUpdate, queryOne } = require('./db_utils');
 const EDIWorker = require('./workers/edi_worker');
+const keyManager = require('./services/crypto/KeyManager');
 const { router: ediWorkerRouter, initializeRoutes: initEdiWorkerRoutes } = require('./routes/edi_worker_routes');
 const ediWorkerConfig = require('./config/edi_worker_config');
 const configService = require('./services/configService');
@@ -174,7 +211,7 @@ const uploadProducts = multer({
   }
 });
 /* --------------------------------------------------------------
-   B)  PRODUCT IMAGES – /var/www/codeonline-fp/images/products
+   B)  PRODUCT IMAGES â€“ /var/www/codeonline-fp/images/products
    -------------------------------------------------------------- */
 const PRODUCTS_DIR = process.env.PRODUCTS_DIR || path.join(__dirname, 'uploads', 'products');
 if (!fs.existsSync(PRODUCTS_DIR)) {
@@ -259,7 +296,7 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (err) {
     console.error('Authentication error:', { message: err.message, stack: err.stack, id_compte });
-    res.status(500).json({ error: 'Authentication failed', details: err.message });
+    res.status(500).json({ error: 'Authentication failed', details: safeErrDetails(err) });
   }
 };
 // --- REPLACE authenticate middleware END ---
@@ -280,14 +317,50 @@ function generatePassword() {
 
 // Environment variables
 const MODELES_DIR = process.env.MODELES_DIR || path.join(__dirname, 'Modeles');
-const ALLGPC_DB_PATH = process.env.ALLGPC_DB_PATH || path.join(__dirname, 'allgpc.db');
-const ENTITE_DB_PATH = process.env.ENTITE_DB_PATH || path.join(__dirname, 'entite.db');
+// *_DB_PATH constants supprimÃ©es : exclusivement MySQL via entitePool (config/database.js)
 
 // Centralized Database Config
 const { pool: entitePool, dbConfig } = require('./config/database');
+const ENTITE_MYSQL_CONFIG = dbConfig; // alias used by Dev2 routes
 
-const FIELDRULES_DB_PATH = process.env.FIELDRULES_DB_PATH || path.join(__dirname, 'fieldrules.db');
-const USERS_DB_PATH = process.env.USERS_DB_PATH || path.join(__dirname, 'users.db');
+// Create caracteristiques tables in MySQL if they don't exist
+(async () => {
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    await conn.query(`CREATE TABLE IF NOT EXISTS caracteristiques (
+      id_carac INT AUTO_INCREMENT PRIMARY KEY,
+      id_entite INT NOT NULL,
+      identification VARCHAR(500) NOT NULL,
+      description_fr TEXT,
+      description_en TEXT,
+      description_ar TEXT,
+      nature VARCHAR(100),
+      utilite TEXT,
+      date_lancement DATE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    await conn.query(`CREATE TABLE IF NOT EXISTS caracteristiques_elements (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_carac INT NOT NULL,
+      nom_element VARCHAR(255),
+      type_element VARCHAR(50),
+      options_element TEXT,
+      valeur_default TEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    await conn.query(`CREATE TABLE IF NOT EXISTS caracteristiques_illustrations (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_carac INT NOT NULL,
+      filename VARCHAR(500),
+      type VARCHAR(20),
+      url TEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    await conn.end();
+    console.log('[MySQL] caracteristiques tables verified/created');
+  } catch (e) {
+    console.warn('[MySQL] caracteristiques table init warning:', e.message);
+  }
+})();
 
 const EANCOM_BASE_DIR = process.env.EANCOM_BASE_DIR || path.join(__dirname, 'uploads', 'eancom');
 const EDI_ORDERS_PATH = process.env.EDI_ORDERS_PATH || path.join(__dirname, 'uploads', 'orders');
@@ -350,6 +423,20 @@ const upload = multer({
     const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
     if (allowed.includes(file.mimetype)) cb(null, true);
     else cb(new Error('Only .jpg, .jpeg, .png allowed'));
+  }
+});
+
+// Multer for in-memory file uploads (Excel, CSV files)
+const multerMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/vnd.ms-excel'];
+    if (allowed.includes(file.mimetype) || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.csv') || file.originalname.endsWith('.xls')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel (.xlsx, .xls) and CSV files allowed'));
+    }
   }
 });
 
@@ -426,46 +513,38 @@ app.use(express.static('public'))
 // Serve static files
 app.use('/Modeles', express.static(MODELES_DIR));
 
-// Database connections
-const connectDB = (dbPath, dbName) => {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-      if (err) {
-        console.error(`Error connecting to ${dbName}:`, err.message);
-        console.error(`Path attempted: ${dbPath}`);
-        console.error(`File exists: ${require('fs').existsSync(dbPath)}`);
-        console.error(`Process user: ${process.getuid()}:${process.getgid()}`);
-        reject(err);
-      } else {
-        console.log(`Connected to ${dbName}`);
-        resolve(db);
-      }
-    });
-  });
-};
+// JWT protection: all /api routes except POST /api/login and GET /api/settings
+// Mounted BEFORE any /api/* route handlers so middleware actually runs.
+const JWT_EXCLUDED_PATHS = [
+  { path: '/login', method: 'POST' },
+  { path: '/settings', method: 'GET' },
+];
+app.use('/api', (req, res, next) => {
+  const isExcluded = JWT_EXCLUDED_PATHS.some(
+    e => req.path === e.path && req.method === e.method
+  );
+  if (isExcluded) return next();
+  return verifyJWT(req, res, next);
+});
 
-// Initialize databases
-let fieldrulesDB, allgpcDB, usersDB, entiteDB;
+// connectDB() supprimÃ© : connexion exclusivement MySQL via entitePool (config/database.js).
+
+// Initialize databases (entiteDB est l'unique pool MySQL : ex-usersDB/allgpcDB/fieldrulesDB pointent dessus)
+let entiteDB;
 async function initializeDatabases() {
   try {
-    allgpcDB = await connectDB(ALLGPC_DB_PATH, 'allgpc.db').catch(err => {
-      console.warn('Warning: Failed to connect to allgpc.db:', err.message);
-      return null;
-    });
-    // Create a MySQL pool for Entite (adapter will expose sqlite-like methods used throughout the code)
-    // Using centralized entitePool imported from config/database.js
-    
+    // Connexion unique : pool MySQL (entitePool) + adapter sqlite-like exposÃ© via entiteDB
     try {
       if (entitePool) {
         const connection = await entitePool.getConnection();
         const { dbConfig } = require('./config/database');
-        console.log('✅ MySQL connection test successful - Connected to remote database at', dbConfig.host);
+        console.log('âœ… MySQL connection test successful - Connected to remote database at', dbConfig.host);
         connection.release();
       } else {
         console.warn('Warning: entitePool is not initialized');
       }
     } catch (testErr) {
-      console.error('❌ MySQL connection test failed:', testErr.message);
+      console.error('âŒ MySQL connection test failed:', testErr.message);
     }
 
     if (entitePool) {
@@ -550,29 +629,19 @@ async function initializeDatabases() {
         },
 
         close: async function (cb) {
-          console.log("? MySQL pool close suppressed — keeping DB alive");
+          console.log("? MySQL pool close suppressed â€” keeping DB alive");
           if (cb) return cb(null);
         }
 
       };
 
     } else {
-      // Fallback to sqlite file if MySQL pool not available (prevents ENTITE_DB_PATH undefined crash)
-      entiteDB = await connectDB(ENTITE_DB_PATH || '/var/www/Edi-dev/backend/entite_fallback.db', 'EntiteDb.db').catch(err => {
-        console.warn('Warning: Failed to connect to EntiteDb.db (sqlite fallback):', err.message);
-        return null;
-      });
+      // MySQL pool indisponible : pas de fallback SQLite (BDD distante exclusivement)
+      throw new Error('entitePool not initialized â€” MySQL connection required, no SQLite fallback');
     }
-    usersDB = await connectDB(USERS_DB_PATH, 'users.db');
-    if (allgpcDB) await initializeGpcTables();
-    await initializeUsersDB();
-
-    try {
-      fieldrulesDB = await connectDB(FIELDRULES_DB_PATH, 'fieldrules.db');
-    } catch (err) {
-      console.warn('Warning: Failed to connect to fieldrules.db:', err.message);
-      fieldrulesDB = null;
-    }
+    // Tables (comptes, Entite, GPC, users legacy, etc.) sont gÃ©rÃ©es par les
+    // migrations SQL (sql/migrations/*.sql) et le dump initial. Plus de
+    // CREATE TABLE IF NOT EXISTS au boot.
 
   } catch (err) {
     console.error('Failed to initialize critical databases:', err.message);
@@ -581,461 +650,7 @@ async function initializeDatabases() {
 }
 
 // Initialize GPC tables
-async function initializeGpcTables() {
-  try {
-    if (allgpcDB) {
-
-      allgpcDB.serialize(() => {
-        allgpcDB.run(`
-          CREATE TABLE IF NOT EXISTS segmentgpc (
-            codeSegment TEXT NOT NULL,
-            ordre_segment INTEGER NOT NULL,
-            libelleSegment TEXT DEFAULT NULL,
-            libelleSegment_a TEXT DEFAULT NULL,
-            libelleSegment_e TEXT DEFAULT NULL,
-            url_icon_segment TEXT DEFAULT NULL,
-            status_s INTEGER NOT NULL DEFAULT 1
-          )
-        `);
-        allgpcDB.run(`
-          CREATE TABLE IF NOT EXISTS classegpc (
-            codeClasse INTEGER NOT NULL,
-            ordre_classe INTEGER NOT NULL DEFAULT 0,
-            libelleClasse TEXT DEFAULT NULL,
-            libelleClasse_ar TEXT DEFAULT NULL,
-            libelleClasse_en TEXT DEFAULT NULL,
-            codeFamille TEXT DEFAULT NULL,
-            codeSeg TEXT NOT NULL,
-            status_c INTEGER NOT NULL DEFAULT 1,
-            status_b INTEGER NOT NULL DEFAULT 1
-          )
-        `);
-        allgpcDB.run(`
-          CREATE TABLE IF NOT EXISTS brickgpc (
-            codeBrique TEXT NOT NULL,
-            ordre_brique INTEGER NOT NULL DEFAULT 0,
-            libelleBrique TEXT DEFAULT NULL,
-            libelleBrique_ar TEXT DEFAULT NULL,
-            libelleBrique_en TEXT DEFAULT NULL,
-            codeClasse INTEGER DEFAULT NULL,
-            status_br INTEGER NOT NULL DEFAULT 1
-          )
-        `);
-        console.log('Segment, Classe, and Brick tables ready in allgpc.db');
-      });
-    }
-
-    // Note: entiteDB can be either MySQL pool or SQLite
-    // Skip table creation for MySQL as it should be done via migrations
-    // Only run table creation for SQLite databases
-    if (entiteDB && !entiteDB.__isMysql && entiteDB.serialize) {
-      // Only run if it's SQLite (has serialize method and not MySQL)
-      entiteDB.serialize(() => {
-        entiteDB.run(`CREATE TABLE IF NOT EXISTS notifications (
-      id_notification INT AUTO_INCREMENT PRIMARY KEY,
-      id_compte INT NOT NULL,
-      contenu TEXT NOT NULL,
-      type TEXT NOT NULL,
-      link TEXT DEFAULT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      \`read\` INT DEFAULT 0,
-      FOREIGN KEY (id_compte) REFERENCES comptes(id_compte)
-    )`, (err) => {
-          if (err) {
-            console.error('Failed to create notifications table:', err.message);
-          } else {
-            console.log('Notifications table verified/created');
-            // Migration: Add link column if it doesn't exist
-            entiteDB.all("PRAGMA table_info(notifications)", (err, rows) => {
-              if (!err && rows) {
-                const hasLink = rows.some(r => r.name === 'link');
-                if (!hasLink) {
-                  entiteDB.run("ALTER TABLE notifications ADD COLUMN link TEXT DEFAULT NULL", (err) => {
-                    if (err) console.error("Failed to add link column to notifications:", err.message);
-                    else console.log("Added link column to notifications table");
-                  });
-                }
-              }
-            });
-          }
-        });
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS famillegpc (
-        codeFamille TEXT NOT NULL,
-        ordre_famille INT NOT NULL DEFAULT 0,
-        libelleFamille TEXT DEFAULT NULL,
-        libelleFamille_ar TEXT DEFAULT NULL,
-        libelleFamille_en TEXT DEFAULT NULL,
-        codeSegment TEXT DEFAULT NULL,
-        status_f INT NOT NULL DEFAULT 1
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS fiche_produit (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        brand TEXT,
-        subBrand TEXT,
-        description TEXT,
-        gtin TEXT,
-        libelle TEXT,
-        short_libelle TEXT,
-        countryOfOrigin TEXT,
-        idEntreprise INT,
-        images TEXT,
-        nb_images INT DEFAULT 0,
-        prix_min DOUBLE DEFAULT 0,
-        prix_max DOUBLE DEFAULT 0,
-        code_cader TEXT,
-        codeClasse INT,
-        codebrique TEXT,
-        date_mis_a_jour_fp TEXT,
-        tradeItemSynchronisationDates TEXT,
-        date_create_fp TEXT,
-        activ_prix INT DEFAULT 0,
-        status INT DEFAULT 0,
-        done_new INT DEFAULT 0
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS Entite (
-        id_entite INT AUTO_INCREMENT PRIMARY KEY,
-        raison_socialle TEXT NOT NULL,
-        gln TEXT,
-        certicode TEXT,
-        date_create TEXT,
-        pays TEXT,
-        site TEXT,
-        personne_contact TEXT,
-        service TEXT,
-        email TEXT NOT NULL,
-        tel_mobile TEXT,
-        telephone TEXT,
-        fax TEXT,
-        adresse TEXT,
-        region TEXT,
-        city TEXT,
-        localite TEXT,
-        postalCode TEXT,
-        type_prod INT,
-        statut INT,
-        date_abonnement TEXT,
-        date_echeance TEXT,
-        nb_fp INT,
-        inscription INT,
-        status_ent TEXT,
-        delegation TEXT
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS profiles (
-        id_profile INT AUTO_INCREMENT PRIMARY KEY,
-        id_entite INT,
-        email TEXT,
-        certicode TEXT,
-        role TEXT,
-        is_suspended INT NOT NULL DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        password TEXT,
-        name TEXT,
-        created_by_Entite INT DEFAULT NULL,
-        FOREIGN KEY(id_entite) REFERENCES Entite(id_entite)
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS pages (
-        page_id INT AUTO_INCREMENT PRIMARY KEY,
-        page_name TEXT NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        entiteDB.run(`
-  CREATE TABLE IF NOT EXISTS comptes (
-    id_compte INT AUTO_INCREMENT PRIMARY KEY,
-    email TEXT NOT NULL UNIQUE,
-    name TEXT,
-    certicode TEXT,
-    password TEXT NOT NULL,
-    \`role\` TEXT,
-    profile_id INT,
-    id_entite INT NOT NULL,
-    is_suspended INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    avatar_url VARCHAR(500) DEFAULT NULL,
-    prenom VARCHAR(255) DEFAULT NULL,
-    FOREIGN KEY(profile_id) REFERENCES profiles(id_profile),
-    FOREIGN KEY(id_entite) REFERENCES Entite(id_entite)
-  )
-`);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS account_permissions (
-        id_permission INT AUTO_INCREMENT PRIMARY KEY,
-        id_compte INT NOT NULL,
-        page_id INT NOT NULL,
-        \`read\` INT NOT NULL DEFAULT 0,
-        \`write\` INT NOT NULL DEFAULT 0,
-        hide INT NOT NULL DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(id_compte) REFERENCES comptes(id_compte),
-        FOREIGN KEY(page_id) REFERENCES pages(page_id)
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS autorisation_profile_page (
-        id_autorisation INT AUTO_INCREMENT PRIMARY KEY,
-        id_profile INT NOT NULL,
-        page_id INT NOT NULL,
-        can_read TINYINT(1) DEFAULT 0,
-        can_write TINYINT(1) DEFAULT 0,
-        is_hidden TINYINT(1) DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        apercu TINYINT(1) NOT NULL DEFAULT 0,
-        upload TINYINT(1) NOT NULL DEFAULT 0,
-        delete_file TINYINT(1) NOT NULL DEFAULT 0,
-        create_folder TINYINT(1) NOT NULL DEFAULT 0,
-        view_content TINYINT(1) NOT NULL DEFAULT 0,
-        FOREIGN KEY(id_profile) REFERENCES profiles(id_profile) ON DELETE CASCADE ON UPDATE CASCADE,
-        FOREIGN KEY(page_id) REFERENCES pages(page_id) ON DELETE CASCADE ON UPDATE CASCADE
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS localite (
-        id_localite INT AUTO_INCREMENT PRIMARY KEY,
-        localite TEXT NOT NULL,
-        code_postal TEXT NOT NULL,
-        id_municipalite INT
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS Entite_segment (
-        id_entite INT,
-        id_segment  VARCHAR(255),
-        PRIMARY KEY (id_entite, id_segment ),
-        FOREIGN KEY (id_entite) REFERENCES Entite(id_entite),
-        FOREIGN KEY (id_segment ) REFERENCES segmentgpc(codeSegment)
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS profile_models (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        profile_id INT NOT NULL,
-        model_name VARCHAR(255) DEFAULT NULL
-      )
-    `);
-        entiteDB.run(`
-      CREATE TABLE IF NOT EXISTS profile_model_permissions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        profile_id INT NOT NULL,
-        model_name VARCHAR(255) DEFAULT NULL,
-        permission VARCHAR(255) DEFAULT NULL
-      )
-    `);
-
-        // --- EDI TABLES (DESADV & INVOIC) ---
-        entiteDB.run(`
-          CREATE TABLE IF NOT EXISTS edi_desadv (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            desadv_number VARCHAR(255) NOT NULL,
-            original_order_number VARCHAR(255),
-            id_order INT,
-            buyer_gln VARCHAR(20),
-            seller_gln VARCHAR(20),
-            delivery_gln VARCHAR(20),
-            shipping_date DATETIME,
-            delivery_date DATETIME,
-            total_packages INT,
-            total_weight DECIMAL(10,2),
-            direction VARCHAR(10) DEFAULT 'OUTBOUND',
-            status VARCHAR(20) DEFAULT 'DRAFT',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-
-        entiteDB.run(`
-          CREATE TABLE IF NOT EXISTS edi_desadv_lines (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            id_desadv INT NOT NULL,
-            id_order_line INT,
-            line_number INT,
-            gtin VARCHAR(20),
-            qty_dispatched DECIMAL(10,2),
-            qty_ordered DECIMAL(10,2),
-            libelle VARCHAR(255),
-            batch_number VARCHAR(50),
-            expiry_date DATETIME,
-            FOREIGN KEY (id_desadv) REFERENCES edi_desadv(id) ON DELETE CASCADE
-          )
-        `);
-
-        entiteDB.run(`
-          CREATE TABLE IF NOT EXISTS edi_packages (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            id_desadv INT NOT NULL,
-            sscc VARCHAR(50) NOT NULL,
-            package_type VARCHAR(10) DEFAULT 'CT',
-            weight DECIMAL(10,2),
-            tracking_number VARCHAR(100),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (id_desadv) REFERENCES edi_desadv(id) ON DELETE CASCADE
-          )
-        `);
-
-        entiteDB.run(`
-          CREATE TABLE IF NOT EXISTS edi_invoic (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            invoic_number VARCHAR(255) NOT NULL,
-            type_code VARCHAR(10) DEFAULT '380',
-            date_facture DATETIME,
-            date_echeance DATETIME,
-            buyer_gln VARCHAR(20),
-            seller_gln VARCHAR(20),
-            order_reference VARCHAR(255),
-            desadv_reference VARCHAR(255),
-            id_order INT,
-            currency VARCHAR(3) DEFAULT 'EUR',
-            total_ht DECIMAL(10,2),
-            total_tax DECIMAL(10,2),
-            total_ttc DECIMAL(10,2),
-            direction VARCHAR(10) DEFAULT 'OUTBOUND',
-            status VARCHAR(20) DEFAULT 'DRAFT',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-
-        entiteDB.run(`
-          CREATE TABLE IF NOT EXISTS edi_invoic_lines (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            id_invoic INT NOT NULL,
-            id_order_line INT,
-            line_number INT,
-            gtin VARCHAR(20),
-            description VARCHAR(255),
-            quantity DECIMAL(10,2),
-            unit_price DECIMAL(10,2),
-            tax_rate DECIMAL(5,2),
-            line_amount DECIMAL(10,2),
-            FOREIGN KEY (id_invoic) REFERENCES edi_invoic(id) ON DELETE CASCADE
-          )
-        `);
-
-        console.log('Famille, Entite, Profiles, Pages, Comptes, Account_permissions, Autorisation_profile_page, Localite, Entite_segment, Profile_models, and Profile_model_permissions tables ready in EntiteDb.db');
-      });
-    }
-  } catch (err) {
-    console.error('Error initializing GPC tables:', err.message);
-    console.log('⚠️  Continuing without MySQL connection (using SQLite fallback)');
-    // Don't throw - allow server to continue with SQLite
-  }
-}
-
 // Initialize users database tables
-async function initializeUsersDB() {
-  try {
-    usersDB.serialize(() => {
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS users (
-          id_user INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT NOT NULL UNIQUE,
-          name TEXT NOT NULL,
-          password TEXT NOT NULL,
-          raison_sociale TEXT,
-          nb_produits INTEGER,
-          contact_tel TEXT,
-          adresse TEXT,
-          code_imei TEXT,
-          idRole INTEGER NOT NULL,
-          segment TEXT,
-          id_region INTEGER,
-          id_municipalite INTEGER,
-          id_marche INTEGER,
-          id_mg_ref INTEGER,
-          id_mg_ref_per INTEGER,
-          id_mg_ref_per2 INTEGER,
-          id_mgp_ref INTEGER,
-          id_mgp_ref_per INTEGER,
-          id_mgp_ref_per2 INTEGER,
-          stus INTEGER DEFAULT 1,
-          date_mis_a_jour_u TEXT
-        )
-      `);
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS profiles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          lib TEXT NOT NULL
-        )
-      `);
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS autoris_profil_page (
-          Id_profil INTEGER NOT NULL,
-          Id_page INTEGER NOT NULL,
-          Autorisation TEXT NOT NULL,
-          code_octal INTEGER NOT NULL,
-          PRIMARY KEY (Id_profil, Id_page),
-          FOREIGN KEY (Id_profil) REFERENCES profiles(id)
-        )
-      `);
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS region_ref (
-          id_region INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle_region_fr TEXT NOT NULL,
-          libelle_region_ar TEXT
-        )
-      `);
-
-
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS municipalite (
-          id_municipalite INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle_municipalite_fr TEXT NOT NULL,
-          libelle_municipalite_ar TEXT,
-          id_region INTEGER,
-          FOREIGN KEY (id_region) REFERENCES region_ref(id_region)
-        )
-      `);
-
-      // Add the tpo table creation here
-      usersDB.run(`
-  CREATE TABLE IF NOT EXISTS tpo (
-    id_tpo INT AUTO_INCREMENT PRIMARY KEY,
-    raison_sociale TEXT NOT NULL,
-    contact TEXT,
-    email TEXT NOT NULL,
-    mobile TEXT,
-    statut VARCHAR(10) DEFAULT 'A',
-    localite TEXT,
-    pays TEXT,
-    adresse TEXT,
-    code_postale TEXT,
-    web TEXT
-  )
-`);
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS marche_ref (
-          id_marche INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle_marche_fr TEXT NOT NULL,
-          libelle_marche_ar TEXT,
-          id_region INTEGER,
-          FOREIGN KEY (id_region) REFERENCES region_ref(id_region)
-        )
-      `);
-      usersDB.run(`
-        CREATE TABLE IF NOT EXISTS user_marche (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user INTEGER,
-          marche INTEGER,
-          FOREIGN KEY(user) REFERENCES users(id_user),
-          FOREIGN KEY(marche) REFERENCES marche_ref(id_marche)
-        )
-      `);
-      console.log('Users database tables ready');
-    });
-  } catch (err) {
-    console.error('Error initializing users database:', err);
-    throw err;
-  }
-}
-
 // At server startup
 
 // Database utility functions are now imported from db_utils.js
@@ -1059,28 +674,35 @@ const getFromEmail = () => {
   return configService.get('FROM_EMAIL') || process.env.FROM_EMAIL || 'netconsultingeurope20@gmail.com';
 };
 
-// Initialize Mailer function
+// Initialize Mailer function â€” supports both Brevo SMTP and Brevo REST API
+const { createMailTransporter } = require('./services/mailTransporter');
 const initMailer = async () => {
-  const smtpUser = configService.get('BREVO_SMTP_USER') || process.env.BREVO_SMTP_USER || '948ac0001@smtp-brevo.com';
-  const smtpPass = configService.get('BREVO_API_KEY') || process.env.BREVO_API_KEY || 'FntGXAkHcyIv1ZSp';
-  
-  transporter = nodemailer.createTransport({
+  const smtpUser = configService.get('BREVO_SMTP_USER') || process.env.BREVO_SMTP_USER || '948ac0003@smtp-brevo.com';
+  const mailKey  = configService.get('BREVO_API_KEY')  || process.env.BREVO_API_KEY;
+  const fromEmail = getFromEmail();
+
+  if (!mailKey) {
+    console.warn('âš ï¸  BREVO_API_KEY is not set â€” emails will not be sent.');
+    transporter = null;
+    return;
+  }
+
+  transporter = createMailTransporter({
+    user: smtpUser,
+    pass: mailKey,
     host: 'smtp-relay.brevo.com',
     port: 587,
-    secure: false, // Use TLS
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-    logger: true, // Enable logging for debugging
-    debug: true, // Show SMTP traffic
+    defaultFrom: fromEmail,
   });
+
+  const info = transporter._info || {};
+  console.log(`ðŸ“¨ Mailer backend: ${info.backend} (user=${info.user}, keyLen=${info.keyLen})`);
 
   try {
     await transporter.verify();
-    console.log('✅ Brevo SMTP is ready to send emails');
+    console.log(`âœ… Brevo (${info.backend}) is ready to send emails`);
   } catch (error) {
-    console.error('❌ Critical: Brevo SMTP cannot connect. Check SMTP key, user, or network.', error.message);
+    console.error(`âŒ Critical: Brevo (${info.backend}) cannot authenticate. Check key/user/network.`, error.message);
   }
 };
 
@@ -1105,9 +727,9 @@ app.get('/health', (req, res) => {
     databases: {
       mysql: entiteDB && entiteDB.__isMysql ? 'connected' : 'disconnected',
       sqlite: {
-        users: usersDB ? 'connected' : 'disconnected',
-        allgpc: allgpcDB ? 'connected' : 'disconnected',
-        fieldrules: fieldrulesDB ? 'connected' : 'disconnected'
+        users: entiteDB ? 'connected' : 'disconnected',
+        allgpc: entiteDB ? 'connected' : 'disconnected',
+        fieldrules: entiteDB ? 'connected' : 'disconnected'
       }
     }
   });
@@ -1125,7 +747,7 @@ app.get('/api/regions', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Failed to fetch regions', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch regions', details: safeErrDetails(err) });
   }
 });
 
@@ -1149,7 +771,7 @@ app.get('/api/delegations', async (req, res) => {
       stack: err.stack,
       query: req.query
     });
-    res.status(500).json({ error: 'Failed to fetch delegations', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch delegations', details: safeErrDetails(err) });
   }
 });
 
@@ -1172,7 +794,7 @@ app.post('/api/localites', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Failed to fetch localites', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch localites', details: safeErrDetails(err) });
   }
 });
 // Seed companies, municipalites, and localites
@@ -1180,19 +802,19 @@ app.get('/api/seed-companies', async (req, res) => {
   if (!entiteDB) {
     return res.status(503).json({ error: 'EntiteDb.db is unavailable', details: 'Database connection not established' });
   }
-  if (!usersDB) {
+  if (!entiteDB) {
     return res.status(503).json({ error: 'users.db is unavailable', details: 'Database connection not established' });
   }
   try {
-    await usersDB.serialize(async () => {
+    await entiteDB.serialize(async () => {
       const sampleMunicipalites = [
         { id_municipalite: 1, libelle_municipalite_fr: 'El Hrairia', libelle_municipalite_ar: '????????', id_region: 1 },
         { id_municipalite: 2, libelle_municipalite_fr: 'Ariana Ville', libelle_municipalite_ar: '?????? ???????', id_region: 2 },
       ];
       for (const mun of sampleMunicipalites) {
         await runUpdate(
-          usersDB,
-          `INSERT OR IGNORE INTO municipalite (id_municipalite, libelle_municipalite_fr, libelle_municipalite_ar, id_region)
+          entiteDB,
+          `INSERT IGNORE INTO municipalite (id_municipalite, libelle_municipalite_fr, libelle_municipalite_ar, id_region)
            VALUES (?, ?, ?, ?)`,
           [mun.id_municipalite, mun.libelle_municipalite_fr, mun.libelle_municipalite_ar, mun.id_region]
         );
@@ -1204,7 +826,7 @@ app.get('/api/seed-companies', async (req, res) => {
       for (const localite of sampleLocalites) {
         await runUpdate(
           entiteDB,
-          `INSERT OR IGNORE INTO localite (localite, code_postal, id_municipalite)
+          `INSERT IGNORE INTO localite (localite, code_postal, id_municipalite)
            VALUES (?, ?, ?)`,
           [localite.localite, localite.code_postal, localite.id_municipalite]
         );
@@ -1247,7 +869,7 @@ app.get('/api/seed-companies', async (req, res) => {
       for (const company of sampleCompanies) {
         await runUpdate(
           entiteDB,
-          `INSERT OR IGNORE INTO Entite (
+          `INSERT IGNORE INTO Entite (
             raison_socialle, personne_contact, email, telephone, localite, postalCode, nb_fp, status_ent,
             region, adresse, site, pays, certicode, date_create, pwd, id_ccir, inscription
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1279,7 +901,7 @@ app.get('/api/seed-companies', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Failed to seed data', details: err.message });
+    res.status(500).json({ error: 'Failed to seed data', details: safeErrDetails(err) });
   }
 });
 
@@ -1399,7 +1021,7 @@ app.post('/api/update-famille-status', async (req, res) => {
 // ============================================================
 // CLASSES
 // ============================================================
-// ? GET /api/classes — Return all or filtered by codeFamille
+// ? GET /api/classes â€” Return all or filtered by codeFamille
 // ============================================================
 app.get('/api/classes', async (req, res) => {
   const { codeFamille } = req.query;
@@ -1429,7 +1051,7 @@ app.get('/api/classes', async (req, res) => {
     await conn.end();
   } catch (err) {
     console.error('? Error fetching classes:', err);
-    res.status(500).json({ error: 'Failed to fetch classes', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch classes', details: safeErrDetails(err) });
   }
 });
 
@@ -1498,7 +1120,7 @@ app.get('/api/bricks', async (req, res) => {
     await conn.end();
   } catch (err) {
     console.error('? Error fetching bricks:', err);
-    res.status(500).json({ error: 'Failed to fetch bricks', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch bricks', details: safeErrDetails(err) });
   }
 });
 
@@ -1540,11 +1162,11 @@ app.post('/api/update-brick-status', async (req, res) => {
 
 // User management
 app.get('/api/users', async (req, res) => {
-  if (!usersDB) {
+  if (!entiteDB) {
     return res.status(503).json({ error: 'users.db is unavailable', details: 'Database connection not established' });
   }
   try {
-    const users = await queryDB(usersDB, `
+    const users = await queryDB(entiteDB, `
       SELECT u.*, p.lib AS lib_profil, r.libelle_region_fr, r.libelle_region_ar,
              m.libelle_municipalite_fr, m.libelle_municipalite_ar,
              mr.libelle_marche_fr, mr.libelle_marche_ar
@@ -1557,7 +1179,7 @@ app.get('/api/users', async (req, res) => {
       ORDER BY u.id_user DESC
     `, []);
     const userData = await Promise.all(users.map(async (user) => {
-      const marches = await queryDB(usersDB, `
+      const marches = await queryDB(entiteDB, `
         SELECT m.libelle_marche_fr, m.libelle_marche_ar, m.id_marche
         FROM user_marche um
         JOIN marche_ref m ON um.marche = m.id_marche
@@ -1592,7 +1214,7 @@ app.get('/api/users', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -1603,7 +1225,7 @@ app.get('/api/pages', async (req, res) => {
     res.json(pages);
   } catch (err) {
     console.error('Error fetching pages:', { message: err.message, stack: err.stack });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -1618,7 +1240,7 @@ const rollbackTransaction = async (db) => {
   await runUpdate(db, 'ROLLBACK', []);
 };
 // ==================================================
-// ? PROFILES API — MySQL Compatible (Matches Products Style)
+// ? PROFILES API â€” MySQL Compatible (Matches Products Style)
 // ==================================================
 app.get('/api/profiles/:id', async (req, res) => {
   try {
@@ -1680,7 +1302,7 @@ app.get('/api/profiles/:id', async (req, res) => {
 
   } catch (err) {
     console.error('GET /api/profiles/:id error:', err);
-    res.status(500).json({ error: 'Failed to fetch profile', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch profile', details: safeErrDetails(err) });
   }
 });
 
@@ -1744,12 +1366,12 @@ app.get("/api/profiles", async (req, res) => {
     res.json(Object.values(profiles));
   } catch (err) {
     console.error("? /api/profiles error:", err);
-    res.status(500).json({ error: "Failed to fetch profiles", details: err.message });
+    res.status(500).json({ error: "Failed to fetch profiles", details: safeErrDetails(err) });
   }
 });
 
 
-// ?? POST /api/profiles — Create new profile
+// ?? POST /api/profiles â€” Create new profile
 app.post("/api/profiles", async (req, res) => {
   let conn;
   try {
@@ -1806,12 +1428,12 @@ app.post("/api/profiles", async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error("? POST /api/profiles error:", err);
-    res.status(500).json({ error: "Failed to create profile", details: err.message });
+    res.status(500).json({ error: "Failed to create profile", details: safeErrDetails(err) });
   }
 });
 
 
-// ?? PUT /api/profiles/:id_profile — Update existing profile
+// ?? PUT /api/profiles/:id_profile â€” Update existing profile
 app.put("/api/profiles/:id_profile", async (req, res) => {
   let conn;
   try {
@@ -1864,12 +1486,12 @@ app.put("/api/profiles/:id_profile", async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error("? PUT /api/profiles/:id_profile error:", err);
-    res.status(500).json({ error: "Failed to update profile", details: err.message });
+    res.status(500).json({ error: "Failed to update profile", details: safeErrDetails(err) });
   }
 });
 
 
-// ?? PATCH /api/profiles/:id_profile/suspend — Suspend/Unsuspend profile
+// ?? PATCH /api/profiles/:id_profile/suspend â€” Suspend/Unsuspend profile
 app.patch("/api/profiles/:id_profile/suspend", async (req, res) => {
   try {
     const { id_profile } = req.params;
@@ -1887,12 +1509,12 @@ app.patch("/api/profiles/:id_profile/suspend", async (req, res) => {
     res.json({ message: `Profile ${is_suspended ? "suspended" : "unsuspended"} successfully` });
   } catch (err) {
     console.error("? PATCH /api/profiles/:id_profile/suspend error:", err);
-    res.status(500).json({ error: "Failed to update suspension", details: err.message });
+    res.status(500).json({ error: "Failed to update suspension", details: safeErrDetails(err) });
   }
 });
 
 
-// ?? DELETE /api/profiles/:id_profile — Delete profile and its permissions
+// ?? DELETE /api/profiles/:id_profile â€” Delete profile and its permissions
 app.delete("/api/profiles/:id_profile", async (req, res) => {
   let conn;
   try {
@@ -1917,7 +1539,7 @@ app.delete("/api/profiles/:id_profile", async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error("? DELETE /api/profiles/:id_profile error:", err);
-    res.status(500).json({ error: "Failed to delete profile", details: err.message });
+    res.status(500).json({ error: "Failed to delete profile", details: safeErrDetails(err) });
   }
 });
 // File management
@@ -1940,7 +1562,7 @@ app.get('/api/files', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -1976,7 +1598,7 @@ app.get('/api/file-content/:id', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2013,7 +1635,7 @@ app.post('/api/files', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2055,7 +1677,7 @@ app.post('/api/save-file', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2095,7 +1717,7 @@ app.delete('/api/files/:id', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2145,7 +1767,7 @@ app.post('/save-observation', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2178,8 +1800,8 @@ app.get('/api/stats', async (req, res) => {
   try {
     const anomalies = await queryDB(entiteDB, 'SELECT COUNT(*) as activeAnomalies FROM anomalies_type_produit_cond WHERE activation_cond = 1', []);
     const profiles = await queryDB(entiteDB, 'SELECT COUNT(*) as profileAuthorizations FROM autoris_profil_page WHERE code_octal > 0', []);
-    const activeBricks = await queryDB(allgpcDB, 'SELECT COUNT(*) as activeBricks FROM brickgpc WHERE status_br = 1', []);
-    const totalBricks = await queryDB(allgpcDB, 'SELECT COUNT(*) as totalBricks FROM brickgpc', []);
+    const activeBricks = await queryDB(entiteDB, 'SELECT COUNT(*) as activeBricks FROM brickgpc WHERE status_br = 1', []);
+    const totalBricks = await queryDB(entiteDB, 'SELECT COUNT(*) as totalBricks FROM brickgpc', []);
     res.json({
       activeAnomalies: anomalies[0]?.activeAnomalies || 0,
       profileAuthorizations: profiles[0]?.profileAuthorizations || 0,
@@ -2191,7 +1813,7 @@ app.get('/api/stats', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Internal server error', details: err.message });
+    res.status(500).json({ error: 'Internal server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2199,7 +1821,7 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/enterprises-by-sector', async (req, res) => {
   const colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
   try {
-    const rows = await queryDB(allgpcDB, `
+    const rows = await queryDB(entiteDB, `
       SELECT s.libelleSegment AS name, COUNT(DISTINCT p.id_entite) AS value
       FROM Entite p
       JOIN Entite_segment ps ON p.id_entite = ps.id_entite
@@ -2218,7 +1840,7 @@ app.get('/api/enterprises-by-sector', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Internal server error', details: err.message });
+    res.status(500).json({ error: 'Internal server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2230,7 +1852,7 @@ app.get('/api/product-sheets-by-sector', async (req, res) => {
     const ficheProduitRows = await queryDB(entiteDB, 'SELECT codeClasse, COUNT(id) as count FROM fiche_produit GROUP BY codeClasse', []);
     const results = [];
     for (const row of ficheProduitRows) {
-      const segmentRows = await queryDB(allgpcDB, `
+      const segmentRows = await queryDB(entiteDB, `
         SELECT s.libelleSegment AS name
         FROM classegpc c
         JOIN segmentgpc s ON c.codeSeg = s.codeSegment
@@ -2258,7 +1880,7 @@ app.get('/api/product-sheets-by-sector', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Internal server error', details: err.message });
+    res.status(500).json({ error: 'Internal server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2294,8 +1916,8 @@ app.get('/api/seed-regions', async (req, res) => {
     ];
     for (const region of regions) {
       await runUpdate(
-        usersDB,
-        'INSERT OR IGNORE INTO region_ref (id_region, libelle_region_fr, libelle_region_ar) VALUES (?, ?, ?)',
+        entiteDB,
+        'INSERT IGNORE INTO region_ref (id_region, libelle_region_fr, libelle_region_ar) VALUES (?, ?, ?)',
         [region.id_region, region.libelle_region_fr, region.libelle_region_ar]
       );
     }
@@ -2305,7 +1927,7 @@ app.get('/api/seed-regions', async (req, res) => {
       message: err.message,
       stack: err.stack
     });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 //api companies 
@@ -2324,7 +1946,7 @@ app.get('/api/pays', async (req, res) => {
     res.json(results);
   } catch (err) {
     console.error('GET /api/pays error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2337,7 +1959,7 @@ app.get('/api/segments', async (req, res) => {
     res.json(results);
   } catch (err) {
     console.error('GET /api/segments error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 //-------------------------------------------------------------
@@ -2364,19 +1986,13 @@ app.get('/api/companies/max-id', async (req, res) => {
       message: err.message,
       stack: err.stack,
     });
-    res.status(500).json({ error: 'Failed to fetch max ID', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch max ID', details: safeErrDetails(err) });
   }
 });
 
 
 app.get('/api/companies', async (req, res) => {
   try {
-    // Check PIN
-    const pin = req.headers['x-api-pin'];
-    if (pin !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: 'Forbidden: Invalid PIN' });
-    }
-
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
 
     const { region, segment, delegation, type } = req.query;
@@ -2412,7 +2028,7 @@ app.get('/api/companies', async (req, res) => {
 
   } catch (err) {
     console.error('GET /api/companies error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2464,7 +2080,7 @@ app.get('/api/companies/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('GET /api/companies/:id error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2671,7 +2287,7 @@ app.patch('/api/companies/:id/field', async (req, res) => {
     res.json({ message: 'Field saved' });
   } catch (err) {
     console.error('PATCH /api/companies/:id/field error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2684,11 +2300,17 @@ app.delete('/api/companies/:id', async (req, res) => {
     const conn = await mysql.createConnection(dbConfig);
     await conn.beginTransaction();
 
-    // First delete related segments (to avoid FK issues)
+    // Delete related segments (to avoid FK issues)
     await conn.query('DELETE FROM Entite_segment WHERE id_entite = ?', [id]);
 
     // Delete sites
-    await conn.query('DELETE FROM site WHERE id_entite = ?', [id]);
+    await conn.query('DELETE FROM Site WHERE id_entite = ?', [id]);
+
+    // Delete comptes referencing this entity (FK constraint)
+    await conn.query('DELETE FROM comptes WHERE id_entite = ?', [id]);
+
+    // Delete tarification entries if table exists
+    try { await conn.query('DELETE FROM tarification WHERE id_entite = ?', [id]); } catch (_) {}
 
     // Then delete the company itself
     const [result] = await conn.query('DELETE FROM Entite WHERE id_entite = ?', [id]);
@@ -2700,11 +2322,11 @@ app.delete('/api/companies/:id', async (req, res) => {
       return res.status(404).json({ error: 'Company not found' });
     }
 
-    console.log(`[ENTITE] Company deleted – id_entite=${id}`);
+    console.log(`[ENTITE] Company deleted â€“ id_entite=${id}`);
     res.json({ message: 'Company deleted successfully' });
   } catch (err) {
     console.error('DELETE /api/companies/:id error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2726,7 +2348,7 @@ app.put('/api/companies/:id/segments', async (req, res) => {
   } catch (err) {
     await entiteDB.run('ROLLBACK').catch(() => { });
     console.error('PUT /api/companies/:id/segments error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2831,7 +2453,7 @@ app.post('/api/companies/import', async (req, res) => {
     });
   } catch (err) {
     console.error('POST /api/companies/import error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2842,18 +2464,96 @@ app.get('/api/sites/:id', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'Invalid ID' });
     const conn = await mysql.createConnection(dbConfig);
     const [rows] = await conn.query(
-      'SELECT * FROM site WHERE id_entite = ? ORDER BY principal DESC, id_site ASC',
+      'SELECT * FROM `Site` WHERE id_entite = ? ORDER BY principal DESC, id_site ASC',
       [id]
     );
     await conn.end();
     res.json(rows.map(r => ({
       ...r,
-      principal: Boolean(r.principal),
-      created_at: r.created_at.toISOString()
+      principal: r.principal ? 1 : 0,
+      created_at: r.created_at ? r.created_at.toISOString() : null
     })));
   } catch (err) {
     console.error('GET /api/sites/:id error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/sites â€” Create new site
+app.post('/api/sites', async (req, res) => {
+  try {
+    const { id_entite, nom_site, gln, adresse, region, delegation, localite, code_postal, principal } = req.body;
+    if (!id_entite || !nom_site) return res.status(400).json({ error: 'id_entite and nom_site are required' });
+    const conn = await mysql.createConnection(dbConfig);
+    if (principal) {
+      await conn.query('UPDATE `Site` SET principal = 0 WHERE id_entite = ?', [id_entite]);
+    }
+    const [result] = await conn.query(
+      'INSERT INTO `Site` (id_entite, nom_site, gln, adresse, region, delegation, localite, code_postal, principal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [id_entite, nom_site, gln || null, adresse || null, region || null, delegation || null, localite || null, code_postal || null, principal ? 1 : 0]
+    );
+    const [newRow] = await conn.query('SELECT * FROM `Site` WHERE id_site = ?', [result.insertId]);
+    await conn.end();
+    const r = newRow[0];
+    res.status(201).json({ ...r, principal: r.principal ? 1 : 0, created_at: r.created_at ? r.created_at.toISOString() : null });
+  } catch (err) {
+    console.error('POST /api/sites error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// PUT /api/sites/:id_site â€” Update site
+app.put('/api/sites/:id_site', async (req, res) => {
+  try {
+    const id_site = Number(req.params.id_site);
+    if (!id_site) return res.status(400).json({ error: 'Invalid ID' });
+    const { id_entite, nom_site, gln, adresse, region, delegation, localite, code_postal, principal } = req.body;
+    const conn = await mysql.createConnection(dbConfig);
+    if (principal) {
+      await conn.query('UPDATE `Site` SET principal = 0 WHERE id_entite = ?', [id_entite]);
+    }
+    await conn.query(
+      'UPDATE `Site` SET nom_site=?, gln=?, adresse=?, region=?, delegation=?, localite=?, code_postal=?, principal=? WHERE id_site=?',
+      [nom_site, gln || null, adresse || null, region || null, delegation || null, localite || null, code_postal || null, principal ? 1 : 0, id_site]
+    );
+    await conn.end();
+    res.json({ message: 'Site updated successfully' });
+  } catch (err) {
+    console.error('PUT /api/sites/:id_site error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// PUT /api/sites/:id_entite/set-primary/:id_site â€” Set primary site
+app.put('/api/sites/:id_entite/set-primary/:id_site', async (req, res) => {
+  try {
+    const id_entite = Number(req.params.id_entite);
+    const id_site = Number(req.params.id_site);
+    if (!id_entite || !id_site) return res.status(400).json({ error: 'Invalid IDs' });
+    const conn = await mysql.createConnection(dbConfig);
+    await conn.query('UPDATE `Site` SET principal = 0 WHERE id_entite = ?', [id_entite]);
+    await conn.query('UPDATE `Site` SET principal = 1 WHERE id_site = ?', [id_site]);
+    await conn.end();
+    res.json({ message: 'Primary site updated' });
+  } catch (err) {
+    console.error('PUT /api/sites/set-primary error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// DELETE /api/sites/:id_site â€” Delete site
+app.delete('/api/sites/:id_site', async (req, res) => {
+  try {
+    const id_site = Number(req.params.id_site);
+    if (!id_site) return res.status(400).json({ error: 'Invalid ID' });
+    const conn = await mysql.createConnection(dbConfig);
+    const [result] = await conn.query('DELETE FROM `Site` WHERE id_site = ?', [id_site]);
+    await conn.end();
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Site not found' });
+    res.json({ message: 'Site deleted successfully' });
+  } catch (err) {
+    console.error('DELETE /api/sites/:id_site error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -2879,17 +2579,17 @@ app.put('/api/companies/:id/segments', async (req, res) => {
   } catch (err) {
     await entiteDB.run('ROLLBACK').catch(() => { });
     console.error('PUT /api/companies/:id/segments error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 const typeOptions = [
-  { value: "1", label: "Entreprise privée produits & services" },
-  { value: "2", label: "Entreprise privée ingénierie & services" },
-  { value: "3", label: "Entreprise privée transport logistique & stockage" },
+  { value: "1", label: "Entreprise privÃ©e produits & services" },
+  { value: "2", label: "Entreprise privÃ©e ingÃ©nierie & services" },
+  { value: "3", label: "Entreprise privÃ©e transport logistique & stockage" },
   { value: "4", label: "Entreprise publique transport logistique & stockage" },
   { value: "5", label: "Entreprise publique produits & services" },
-  { value: "6", label: "Entreprise publique ingénierie & services" },
-  { value: "7", label: "Autre institution publique d’appui à l’exportation" },
+  { value: "6", label: "Entreprise publique ingÃ©nierie & services" },
+  { value: "7", label: "Autre institution publique dâ€™appui Ã  lâ€™exportation" },
   { value: "8", label: "Banque" },
   { value: "9", label: "Douane" },
   { value: "10", label: "Assurance" },
@@ -3005,34 +2705,34 @@ app.post('/api/companies/import', async (req, res) => {
     });
   } catch (err) {
     console.error('POST /api/companies/import error:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
-// --- 1. UTILITAIRES DE VALIDATION & PRÉCISION ---
+// --- 1. UTILITAIRES DE VALIDATION & PRÃ‰CISION ---
 
 const Validators = {
-  // Liste simplifiée des devises ISO 4217 courantes
+  // Liste simplifiÃ©e des devises ISO 4217 courantes
   ALLOWED_CURRENCIES: new Set(['EUR', 'USD', 'GBP', 'MAD', 'CAD', 'CHF']),
 
   /**
-   * Vérifie si un code devise est valide
+   * VÃ©rifie si un code devise est valide
    */
   isValidCurrency: (code) => {
     return Validators.ALLOWED_CURRENCIES.has(code);
   },
 
   /**
-   * Vérifie la validité d'un code EAN/GTIN (8, 12, 13, 14 chiffres)
+   * VÃ©rifie la validitÃ© d'un code EAN/GTIN (8, 12, 13, 14 chiffres)
    * Utilise l'algorithme du Modulo 10
    */
   isValidGTIN: (gtin) => {
     if (!gtin || !/^\d+$/.test(gtin)) return false;
 
-    // Padder avec des 0 à gauche pour atteindre 14 chiffres (standard GTIN-14)
+    // Padder avec des 0 Ã  gauche pour atteindre 14 chiffres (standard GTIN-14)
     const paddedParams = gtin.padStart(14, '0');
     const digits = paddedParams.split('').map(Number);
-    const checkDigit = digits.pop(); // Le dernier chiffre est la clé de contrôle
+    const checkDigit = digits.pop(); // Le dernier chiffre est la clÃ© de contrÃ´le
 
     // Calcul : (Impair * 3) + (Pair * 1)
     const sum = digits.reduce((acc, digit, index) => {
@@ -3049,18 +2749,18 @@ const Validators = {
 
 const MoneyHelper = {
   /**
-   * Convertit un montant string/float en entier (cents) pour calcul précis
+   * Convertit un montant string/float en entier (cents) pour calcul prÃ©cis
    * Exemple: 12.50 -> 1250
    */
   toCents: (amount) => Math.round(parseFloat(amount) * 100),
 
   /**
-   * Convertit des cents en float précis
+   * Convertit des cents en float prÃ©cis
    */
   fromCents: (cents) => (cents / 100).toFixed(2),
 
   /**
-   * Vérifie si le total calculé correspond au total déclaré (avec tolérance 0.01)
+   * VÃ©rifie si le total calculÃ© correspond au total dÃ©clarÃ© (avec tolÃ©rance 0.01)
    */
   checkConsistency: (calculated, declared) => {
     const diff = Math.abs(calculated - declared);
@@ -3071,16 +2771,16 @@ const MoneyHelper = {
 // Auto-create orders date columns if they don't exist
 async function ensureOrdersColumns() {
   if (!entiteDB) {
-    console.log('⚠️  EntiteDB not available, skipping orders columns check');
+    console.log('âš ï¸  EntiteDB not available, skipping orders columns check');
     return;
   }
 
   try {
     // Orders table columns
     const ordersColumns = [
-      { name: 'date_livraison_demandee', type: 'DATETIME', comment: 'Date de livraison demandée (DTM+2)' },
-      { name: 'date_livraison_confirmee', type: 'DATETIME', comment: 'Date de livraison confirmée (DTM+69)' },
-      { name: 'date_livraison_plus_tot', type: 'DATETIME', comment: 'Date de livraison au plus tôt (DTM+64)' },
+      { name: 'date_livraison_demandee', type: 'DATETIME', comment: 'Date de livraison demandÃ©e (DTM+2)' },
+      { name: 'date_livraison_confirmee', type: 'DATETIME', comment: 'Date de livraison confirmÃ©e (DTM+69)' },
+      { name: 'date_livraison_plus_tot', type: 'DATETIME', comment: 'Date de livraison au plus tÃ´t (DTM+64)' },
       { name: 'date_livraison_plus_tard', type: 'DATETIME', comment: 'Date de livraison au plus tard (DTM+63)' },
       { name: 'lieu_livraison_gln', type: 'VARCHAR(20)', comment: 'GLN du lieu de livraison (NAD+DP)' }
     ];
@@ -3099,19 +2799,19 @@ async function ensureOrdersColumns() {
           await entiteDB.pool.query(
             `ALTER TABLE orders ADD COLUMN ${col.name} ${col.type} NULL COMMENT '${col.comment}'`
           );
-          console.log(`✅ Column ${col.name} added to orders`);
+          console.log(`âœ… Column ${col.name} added to orders`);
         } else {
-          console.log(`✓ Column ${col.name} already exists in orders`);
+          console.log(`âœ“ Column ${col.name} already exists in orders`);
         }
       } catch (err) {
-        console.error(`❌ Error adding column ${col.name} to orders:`, err.message);
+        console.error(`âŒ Error adding column ${col.name} to orders:`, err.message);
       }
     }
 
     // Order_lines table columns for confirmed data
     const orderLinesColumns = [
-      { name: 'confirmed_qty', type: 'INT', comment: 'Quantité confirmée par le fournisseur' },
-      { name: 'confirmed_price', type: 'DECIMAL(10,2)', comment: 'Prix confirmé par le fournisseur' },
+      { name: 'confirmed_qty', type: 'INT', comment: 'QuantitÃ© confirmÃ©e par le fournisseur' },
+      { name: 'confirmed_price', type: 'DECIMAL(10,2)', comment: 'Prix confirmÃ© par le fournisseur' },
       { name: 'line_comment', type: 'TEXT', comment: 'Commentaire du fournisseur sur la ligne' }
     ];
 
@@ -3127,16 +2827,16 @@ async function ensureOrdersColumns() {
           await entiteDB.pool.query(
             `ALTER TABLE order_lines ADD COLUMN ${col.name} ${col.type} NULL COMMENT '${col.comment}'`
           );
-          console.log(`✅ Column ${col.name} added to order_lines`);
+          console.log(`âœ… Column ${col.name} added to order_lines`);
         } else {
-          console.log(`✓ Column ${col.name} already exists in order_lines`);
+          console.log(`âœ“ Column ${col.name} already exists in order_lines`);
         }
       } catch (err) {
-        console.error(`❌ Error adding column ${col.name} to order_lines:`, err.message);
+        console.error(`âŒ Error adding column ${col.name} to order_lines:`, err.message);
       }
     }
   } catch (err) {
-    console.error('❌ Error ensuring orders columns:', err);
+    console.error('âŒ Error ensuring orders columns:', err);
   }
 }
 
@@ -3150,10 +2850,10 @@ const EDI_CONFIG = {
 // --- 2. FONCTIONS PRINCIPALES ---
 
 /**
- * Fonction de Décodage avec Validations
+ * Fonction de DÃ©codage avec Validations
  */
 function decodeInvoiceEANCOM(ediString) {
-  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrée invalide");
+  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrÃ©e invalide");
 
   const segments = ediString.split(EDI_CONFIG.segmentTerminator).map(s => s.trim()).filter(s => s.length > 0);
 
@@ -3168,7 +2868,7 @@ function decodeInvoiceEANCOM(ediString) {
 
   let currentLine = null;
   let section = 'HEADER';
-  let computedTotalLines = 0; // Pour vérifier la cohérence
+  let computedTotalLines = 0; // Pour vÃ©rifier la cohÃ©rence
 
   segments.forEach((segment, index) => {
     const elements = segment.split(EDI_CONFIG.dataElementSeparator);
@@ -3177,7 +2877,7 @@ function decodeInvoiceEANCOM(ediString) {
 
     try {
       switch (tag) {
-        // ... (Segments UNB, BGM, DTM identiques à la version précédente) ...
+        // ... (Segments UNB, BGM, DTM identiques Ã  la version prÃ©cÃ©dente) ...
         case 'UNB':
           invoice.meta.sender = getVal(2);
           invoice.meta.receiver = getVal(3);
@@ -3192,7 +2892,7 @@ function decodeInvoiceEANCOM(ediString) {
         case 'CUX':
           const currency = getVal(1, 1);
           if (!Validators.isValidCurrency(currency)) {
-            throw new Error(`Devise invalide détectée : ${currency}`);
+            throw new Error(`Devise invalide dÃ©tectÃ©e : ${currency}`);
           }
           invoice.header.currency = currency;
           break;
@@ -3202,7 +2902,7 @@ function decodeInvoiceEANCOM(ediString) {
           const gln = getVal(2);
           // Validation simple du GLN (souvent format EAN13)
           if (gln && gln.length === 13 && !Validators.isValidGTIN(gln)) {
-            invoice.validationErrors.push(`GLN invalide pour le rôle ${role}: ${gln}`);
+            invoice.validationErrors.push(`GLN invalide pour le rÃ´le ${role}: ${gln}`);
           }
           if (role === 'BY') invoice.parties.buyer = gln;
           if (role === 'SU') invoice.parties.supplier = gln;
@@ -3212,7 +2912,7 @@ function decodeInvoiceEANCOM(ediString) {
           section = 'DETAIL';
           if (currentLine) {
             invoice.lines.push(currentLine);
-            // Ajout au total calculé
+            // Ajout au total calculÃ©
             if (currentLine.netAmount) computedTotalLines += currentLine.netAmount;
           }
 
@@ -3273,14 +2973,14 @@ function decodeInvoiceEANCOM(ediString) {
 
   // --- VERIFICATIONS FINALES DE COHERENCE ---
 
-  // 1. Vérifier si la somme des lignes correspond au total déclaré
+  // 1. VÃ©rifier si la somme des lignes correspond au total dÃ©clarÃ©
   if (invoice.totals.linesAmount) {
-    // On utilise une tolérance car l'EDI peut contenir des arrondis
+    // On utilise une tolÃ©rance car l'EDI peut contenir des arrondis
     const isValidTotal = MoneyHelper.checkConsistency(computedTotalLines, invoice.totals.linesAmount);
 
     if (!isValidTotal) {
       invoice.validationErrors.push(
-        `Incohérence Montants : Somme calculée des lignes (${computedTotalLines.toFixed(2)}) ` +
+        `IncohÃ©rence Montants : Somme calculÃ©e des lignes (${computedTotalLines.toFixed(2)}) ` +
         `ne correspond pas au MOA+79 (${invoice.totals.linesAmount})`
       );
     }
@@ -3290,17 +2990,17 @@ function decodeInvoiceEANCOM(ediString) {
 }
 
 /**
- * Fonction de Génération avec Validation préventive
+ * Fonction de GÃ©nÃ©ration avec Validation prÃ©ventive
  */
 function generateInvoiceEANCOM(data) {
-  // 1. Validation préventive des données critiques
+  // 1. Validation prÃ©ventive des donnÃ©es critiques
   if (!Validators.isValidCurrency(data.header.currency)) {
-    throw new Error(`Impossible de générer : Devise ${data.header.currency} non supportée.`);
+    throw new Error(`Impossible de gÃ©nÃ©rer : Devise ${data.header.currency} non supportÃ©e.`);
   }
 
   data.lines.forEach((line, idx) => {
     if (!Validators.isValidGTIN(line.gtin)) {
-      throw new Error(`Impossible de générer : GTIN invalide ligne ${idx + 1} (${line.gtin})`);
+      throw new Error(`Impossible de gÃ©nÃ©rer : GTIN invalide ligne ${idx + 1} (${line.gtin})`);
     }
   });
 
@@ -3308,7 +3008,7 @@ function generateInvoiceEANCOM(data) {
   const segments = [];
   const now = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-  // Construction standard (identique structure précédente, mais sécurisée)
+  // Construction standard (identique structure prÃ©cÃ©dente, mais sÃ©curisÃ©e)
   segments.push(`UNB${d}UNOB${c}1${d}${data.meta.sender}${c}1${d}${data.meta.receiver}${c}1${d}${now.substring(2)}${c}1200${d}1${t}`);
   segments.push(`UNH${d}ME000001${d}INVOIC${c}D${c}01B${c}UN${c}EAN011${t}`);
   segments.push(`BGM${d}380${d}${data.header.number}${t}`);
@@ -3321,7 +3021,7 @@ function generateInvoiceEANCOM(data) {
   // Devise
   segments.push(`CUX${d}2${c}${data.header.currency}${c}4${t}`);
 
-  // Lignes avec formatage des nombres (2 décimales forcées pour les montants)
+  // Lignes avec formatage des nombres (2 dÃ©cimales forcÃ©es pour les montants)
   if (data.lines) {
     data.lines.forEach((line, index) => {
       segments.push(`LIN${d}${index + 1}${d}${d}${line.gtin}${c}SRV${t}`);
@@ -3337,7 +3037,7 @@ function generateInvoiceEANCOM(data) {
 
   segments.push(`UNS${d}S${t}`);
 
-  // Totaux - Calcul automatique si non fournis pour éviter les erreurs manuelles ?
+  // Totaux - Calcul automatique si non fournis pour Ã©viter les erreurs manuelles ?
   // Pour cet exemple, on prend ceux fournis mais on les formatte.
   if (data.totals.totalAmount) segments.push(`MOA${d}86${c}${parseFloat(data.totals.totalAmount).toFixed(2)}${t}`);
   if (data.totals.taxableAmount) segments.push(`MOA${d}125${c}${parseFloat(data.totals.taxableAmount).toFixed(2)}${t}`);
@@ -3352,8 +3052,8 @@ function generateInvoiceEANCOM(data) {
 
 // --- EXEMPLE DE TEST (Pour voir la validation en action) ---
 
-// Cas : GTIN invalide (dernier chiffre devrait être 3 pour ce code, j'ai mis 0)
-// Cas : Incohérence de montant
+// Cas : GTIN invalide (dernier chiffre devrait Ãªtre 3 pour ce code, j'ai mis 0)
+// Cas : IncohÃ©rence de montant
 const badData = `
 UNB+UNOB:1+SENDER1:1+RECEIVER1:1+071101:1701+131++INVOIC++1++1'
 UNH+ME000001+INVOIC:D:01B:UN:EAN011'
@@ -3370,25 +3070,25 @@ UNT+10+ME000001'
 UNZ+1+131'
 `;
 
-// Test désactivé - Utilise des codes fictifs qui ne passent pas la validation GS1
+// Test dÃ©sactivÃ© - Utilise des codes fictifs qui ne passent pas la validation GS1
 /*
-console.log("--- TEST DE DÉCODAGE ---");
+console.log("--- TEST DE DÃ‰CODAGE ---");
 const result = decodeInvoiceEANCOM(badData);
 
 if (result.validationErrors.length > 0) {
-  console.error("⚠️ ERREURS DÉTECTÉES :");
+  console.error("âš ï¸ ERREURS DÃ‰TECTÃ‰ES :");
   result.validationErrors.forEach(e => console.error("- " + e));
 } else {
-  console.log("✅ Facture Valide");
+  console.log("âœ… Facture Valide");
 }
 */
 
 /**
- * Fonction de Décodage d'une Commande (ORDERS)
- * Extrait les données clés : Qui commande ? Quoi ? Pour quand ?
+ * Fonction de DÃ©codage d'une Commande (ORDERS)
+ * Extrait les donnÃ©es clÃ©s : Qui commande ? Quoi ? Pour quand ?
  */
 function decodeOrderEANCOM(ediString) {
-  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrée invalide");
+  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrÃ©e invalide");
 
   const segments = ediString.split(EDI_CONFIG.segmentTerminator)
     .map(s => s.trim())
@@ -3401,13 +3101,13 @@ function decodeOrderEANCOM(ediString) {
       functionCode: null, // 9 = Original, 5 = Remplacement, 1 = Annulation
       orderDate: null,
       requestedDeliveryDate: null,
-      currency: 'EUR' // Défaut
+      currency: 'EUR' // DÃ©faut
     },
     parties: {
       buyer: null,      // BY
       supplier: null,   // SU
       deliveryPlace: null, // DP
-      invoicee: null    // IV (Celui qui reçoit la facture)
+      invoicee: null    // IV (Celui qui reÃ§oit la facture)
     },
     lines: [],
     instructions: [], // FTX (Global)
@@ -3445,11 +3145,11 @@ function decodeOrderEANCOM(ediString) {
 
           if (section === 'HEADER') {
             if (dateType === '137') order.header.orderDate = dateVal; // Date de commande
-            if (dateType === '2') order.header.requestedDeliveryDate = dateVal; // Livraison demandée
-            if (dateType === '64') order.header.earliestDeliveryDate = dateVal; // Au plus tôt
+            if (dateType === '2') order.header.requestedDeliveryDate = dateVal; // Livraison demandÃ©e
+            if (dateType === '64') order.header.earliestDeliveryDate = dateVal; // Au plus tÃ´t
             if (dateType === '63') order.header.latestDeliveryDate = dateVal;   // Au plus tard
           } else if (section === 'DETAIL' && currentLine) {
-            // Date spécifique à la ligne (ex: livraison partielle différée)
+            // Date spÃ©cifique Ã  la ligne (ex: livraison partielle diffÃ©rÃ©e)
             if (dateType === '2') currentLine.requestedDeliveryDate = dateVal;
           }
           break;
@@ -3495,14 +3195,14 @@ function decodeOrderEANCOM(ediString) {
           currentLine = {
             lineIndex: getVal(1),
             gtin: gtin,
-            supplierItemCode: getVal(3, 1), // Parfois le code fournisseur est en 2ème position
+            supplierItemCode: getVal(3, 1), // Parfois le code fournisseur est en 2Ã¨me position
             instructions: []
           };
           break;
 
         case 'QTY':
-          // 21 = Quantité commandée
-          // 59 = Unité consommateur (si différente)
+          // 21 = QuantitÃ© commandÃ©e
+          // 59 = UnitÃ© consommateur (si diffÃ©rente)
           if (section === 'DETAIL' && currentLine) {
             const qtyType = getVal(1);
             if (qtyType === '21') {
@@ -3514,8 +3214,8 @@ function decodeOrderEANCOM(ediString) {
 
         case 'PRI':
           // Note : Le prix n'est pas obligatoire dans une commande (c'est l'acheteur qui commande)
-          // Mais s'il est présent, c'est souvent le prix attendu/négocié.
-          // AAA = Prix net calculé, AAB = Prix brut
+          // Mais s'il est prÃ©sent, c'est souvent le prix attendu/nÃ©gociÃ©.
+          // AAA = Prix net calculÃ©, AAB = Prix brut
           if (section === 'DETAIL' && currentLine) {
             currentLine.expectedPrice = parseFloat(getVal(1, 1));
           }
@@ -3538,12 +3238,12 @@ function decodeOrderEANCOM(ediString) {
     }
   });
 
-  // Sauvegarde dernière ligne
+  // Sauvegarde derniÃ¨re ligne
   if (currentLine) order.lines.push(currentLine);
 
   // Validation Post-Parsing
   if (order.meta.lineCountDeclared && order.lines.length !== order.meta.lineCountDeclared) {
-    order.validationErrors.push(`Ecart nb lignes : Déclaré ${order.meta.lineCountDeclared} vs Trouvé ${order.lines.length}`);
+    order.validationErrors.push(`Ecart nb lignes : DÃ©clarÃ© ${order.meta.lineCountDeclared} vs TrouvÃ© ${order.lines.length}`);
   }
 
   return order;
@@ -3573,17 +3273,17 @@ UNT+15+ME001'
 UNZ+1+1234'
 `;
 
-// Test désactivé - Utilise des codes fictifs qui ne passent pas la validation GS1
-// Pour réactiver le test, décommentez le code ci-dessous
+// Test dÃ©sactivÃ© - Utilise des codes fictifs qui ne passent pas la validation GS1
+// Pour rÃ©activer le test, dÃ©commentez le code ci-dessous
 /*
 try {
   const decodedOrder = decodeOrderEANCOM(sampleOrder);
   console.log(JSON.stringify(decodedOrder, null, 2));
 
   if (decodedOrder.validationErrors.length > 0) {
-    console.error("⚠️ Erreurs de validation:", decodedOrder.validationErrors);
+    console.error("âš ï¸ Erreurs de validation:", decodedOrder.validationErrors);
   } else {
-    console.log("✅ Commande valide et prête pour insertion BDD");
+    console.log("âœ… Commande valide et prÃªte pour insertion BDD");
   }
 
 } catch (e) {
@@ -3592,22 +3292,22 @@ try {
 */
 
 /**
- * Codes d'action standard EANCOM pour la réponse commande (Segment LIN, champ 1229)
+ * Codes d'action standard EANCOM pour la rÃ©ponse commande (Segment LIN, champ 1229)
  */
 const ACTION_CODES = {
-  '1': 'ADDED',           // Ajouté
-  '3': 'CHANGED',         // Modifié (Quantité, prix, date...)
-  '5': 'ACCEPTED',        // Accepté sans modification
-  '7': 'NOT_ACCEPTED'     // Refusé / Non livrable
+  '1': 'ADDED',           // AjoutÃ©
+  '3': 'CHANGED',         // ModifiÃ© (QuantitÃ©, prix, date...)
+  '5': 'ACCEPTED',        // AcceptÃ© sans modification
+  '7': 'NOT_ACCEPTED'     // RefusÃ© / Non livrable
 };
 
 /**
  * Codes de statut global (Segment BGM, champ 1225)
  */
 const RESPONSE_STATUS = {
-  '4': 'CHANGE_PROPOSED', // Accepté avec réserves/changements
-  '29': 'ACCEPTED',       // Accepté totalement
-  '27': 'REJECTED'        // Refusé totalement
+  '4': 'CHANGE_PROPOSED', // AcceptÃ© avec rÃ©serves/changements
+  '29': 'ACCEPTED',       // AcceptÃ© totalement
+  '27': 'REJECTED'        // RefusÃ© totalement
 };
 
 function decodeOrderResponseEANCOM(ediString) {
@@ -3622,11 +3322,11 @@ function decodeOrderResponseEANCOM(ediString) {
       responseNumber: null,
       responseStatus: null, // Global status
       responseDate: null,
-      originalOrderNumber: null, // Référence critique
+      originalOrderNumber: null, // RÃ©fÃ©rence critique
       originalOrderDate: null
     },
     parties: { buyer: null, supplier: null },
-    lines: [], // Détail par article
+    lines: [], // DÃ©tail par article
     validationErrors: []
   };
 
@@ -3658,7 +3358,7 @@ function decodeOrderResponseEANCOM(ediString) {
           break;
 
         case 'RFF':
-          // RFF+ON:652744 (Référence à la commande d'origine)
+          // RFF+ON:652744 (RÃ©fÃ©rence Ã  la commande d'origine)
           const refType = getVal(1);
           if (refType === 'ON') response.header.originalOrderNumber = getVal(1, 1);
           break;
@@ -3684,22 +3384,22 @@ function decodeOrderResponseEANCOM(ediString) {
             gtin: gtin,
             status: ACTION_CODES[actionCode] || 'UNKNOWN',
             originalStatusCode: actionCode,
-            changes: {} // Pour stocker les nouvelles valeurs proposées
+            changes: {} // Pour stocker les nouvelles valeurs proposÃ©es
           };
           break;
 
         case 'QTY':
-          // QTY+21:48 (Quantité confirmée/modifiée)
+          // QTY+21:48 (QuantitÃ© confirmÃ©e/modifiÃ©e)
           if (section === 'DETAIL' && currentLine) {
             const qtyType = getVal(1);
-            if (qtyType === '21') { // 21 = Ordered Quantity (ici interprété comme Confirmed Quantity)
+            if (qtyType === '21') { // 21 = Ordered Quantity (ici interprÃ©tÃ© comme Confirmed Quantity)
               currentLine.confirmedQuantity = parseFloat(getVal(1, 1));
             }
           }
           break;
 
         case 'PRI':
-          // PRI+AAA:550... (Nouveau prix si modifié)
+          // PRI+AAA:550... (Nouveau prix si modifiÃ©)
           if (section === 'DETAIL' && currentLine) {
             currentLine.confirmedPrice = parseFloat(getVal(1, 1));
           }
@@ -3728,20 +3428,20 @@ function decodeOrderResponseEANCOM(ediString) {
 }
 
 // --- TEST AVEC L'EXEMPLE GS1 ---
-// J'ai reconstruit la chaîne brute à partir de votre exemple
+// J'ai reconstruit la chaÃ®ne brute Ã  partir de votre exemple
 const gs1Data = `UNH+ME000001+ORDRSP:D:01B:UN:EAN009'BGM+231+ORSP12856+4'DTM+137:20020330:102'RFF+ON:652744'DTM+171:20020325:102'NAD+BY+5412345000013::9'RFF+VA:452282'NAD+SU+4012345500004::9'RFF+VA:87765432'LIN+1+5+3312345501102:SRV'LIN+2+3+3312345501003:SRV'PIA+1+ABC1234:SA'IMD+C++TU::9'QTY+21:48'DTM+2:20020910:102'MOA+203:26400'PRI+AAA:550:CT:AAA'PAC+4+1+CS'TAX+7+VAT+++:::17.5+S'MOA+124:4620'TDT+20++30++31'LIN+3+7+3312345501096:SRV'UNS+S'CNT+2:3'UNT+25+ME000001'`;
 
-console.log("--- DÉCODAGE ORDRSP (GS1 Example) ---");
+console.log("--- DÃ‰CODAGE ORDRSP (GS1 Example) ---");
 const testResult = decodeOrderResponseEANCOM(gs1Data);
 
-// Affichage simplifié pour vérifier la logique des statuts
+// Affichage simplifiÃ© pour vÃ©rifier la logique des statuts
 console.log(`Status Global: ${testResult.header.responseStatus}`);
-console.log(`Commande Réf: ${testResult.header.originalOrderNumber}`);
+console.log(`Commande RÃ©f: ${testResult.header.originalOrderNumber}`);
 console.log("\n--- LIGNES ---");
 testResult.lines.forEach(l => {
   let detail = `Ligne ${l.lineIndex} [${l.status}] - GTIN: ${l.gtin}`;
-  if (l.confirmedQuantity) detail += ` | Qté Confirmée: ${l.confirmedQuantity}`;
-  if (l.confirmedPrice) detail += ` | Prix Confirmé: ${l.confirmedPrice}`;
+  if (l.confirmedQuantity) detail += ` | QtÃ© ConfirmÃ©e: ${l.confirmedQuantity}`;
+  if (l.confirmedPrice) detail += ` | Prix ConfirmÃ©: ${l.confirmedPrice}`;
   console.log(detail);
 });
 
@@ -3821,8 +3521,6 @@ function generateOrderEANCOM(data) {
 // 1. CREATE EANCOM ORDER (Robust Version)
 app.post("/api/orders/eancom", async function (req, res) {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-
     const data = req.body;
     const sellerId = Number(req.headers["x-entite-id"]);
 
@@ -3856,7 +3554,7 @@ app.post("/api/orders/eancom", async function (req, res) {
     if (buyerCheck.length === 0) {
       // Try to find similar GLNs for debugging
       const similarGLNs = await queryDB(entiteDB, "SELECT id_entite, gln, raison_socialle FROM Entite WHERE gln LIKE ? LIMIT 5", [`%${data.Acheteur.slice(-5)}%`]);
-      console.error("[ORDER VALIDATION] ❌ Buyer GLN not found. Similar GLNs in DB:", similarGLNs);
+      console.error("[ORDER VALIDATION] âŒ Buyer GLN not found. Similar GLNs in DB:", similarGLNs);
       
       return res.status(400).json({ 
         error: "Invalid Buyer", 
@@ -3868,7 +3566,7 @@ app.post("/api/orders/eancom", async function (req, res) {
     // Force Buyer Name from DB to ensure it's the Company Name (not User Name)
     data.buyerName = buyerCheck[0].raison_socialle;
     
-    console.log("[ORDER VALIDATION] ✅ Buyer found:", buyerCheck[0]);
+    console.log("[ORDER VALIDATION] âœ… Buyer found:", buyerCheck[0]);
     console.log("[ORDER VALIDATION] Using Buyer Name:", data.buyerName);
     console.log("=== [ORDER VALIDATION] GLN Checks Complete ===\n");
 
@@ -3942,7 +3640,7 @@ app.post("/api/orders/eancom", async function (req, res) {
         ]
       );
       const orderId = insertRes.lastID;
-      console.log(`[ORDER CREATION] ✅ Order inserted with ID: ${orderId}`);
+      console.log(`[ORDER CREATION] âœ… Order inserted with ID: ${orderId}`);
 
       // Insert Transport Order if transport data exists
       if (data.transporteurGln || data.modeTransport || data.moyenTransport) {
@@ -3957,9 +3655,9 @@ app.post("/api/orders/eancom", async function (req, res) {
               'PENDING'
             ]
           );
-          console.log(`[ORDER CREATION] ✅ Transport order created for Order #${orderId}`);
+          console.log(`[ORDER CREATION] âœ… Transport order created for Order #${orderId}`);
         } catch (transportErr) {
-          console.error(`[ORDER CREATION] ⚠️ Failed to create transport order:`, transportErr.message);
+          console.error(`[ORDER CREATION] âš ï¸ Failed to create transport order:`, transportErr.message);
           // Non-blocking error
         }
       }
@@ -3982,6 +3680,7 @@ app.post("/api/orders/eancom", async function (req, res) {
         direction: 'OUTBOUND',
         partner_id: null, // Remote supplier ID not in local DB, use GLN instead
         partner_gln: data.fournisseur,
+        sender_gln: data.Acheteur,
         filename: 'ordre.txt',
         file_path: filePath,
         file_content: edifact,
@@ -4006,14 +3705,14 @@ app.post("/api/orders/eancom", async function (req, res) {
       if (!ediTarget.countryCode && data.supplierServer) {
         const hintedEdiUrl = configService.get(`EDI_URL_${data.supplierServer.toUpperCase()}`);
         if (hintedEdiUrl) {
-          console.log(`[EDI SEND] 🔀 GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
+          console.log(`[EDI SEND] ðŸ”€ GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
           ediTarget = { url: hintedEdiUrl, countryCode: data.supplierServer.toUpperCase(), countryName: data.supplierServer };
         }
       }
       
       const ediServerUrl = ediTarget.url;
       
-      console.log(`[EDI SEND] 🎯 EDI Routing Details:`);
+      console.log(`[EDI SEND] ðŸŽ¯ EDI Routing Details:`);
       console.log(`  - Supplier GLN: ${data.fournisseur}`);
       console.log(`  - Target Country: ${ediTarget.countryName} (${ediTarget.countryCode || 'local'})`);
       console.log(`  - Target EDI URL: ${ediServerUrl}`);
@@ -4026,14 +3725,11 @@ app.post("/api/orders/eancom", async function (req, res) {
             filename: `ordre_${data.numCommande}.txt`,
             partnerGln: data.fournisseur
           }, {
-            headers: {
-              'x-api-pin': configService.get('API_PIN'),
-              'Content-Type': 'application/json'
-            },
+            headers: serviceAuthHeaders({ 'Content-Type': 'application/json' }),
             timeout: 30000
           });
 
-          console.log(`[EDI SEND] ✅ Successfully sent to EDI server. Response:`, ediResponse.data);
+          console.log(`[EDI SEND] âœ… Successfully sent to EDI server. Response:`, ediResponse.data);
           
           // Update transmission status to SENT
           await updateEdiTransmissionStatus(
@@ -4063,17 +3759,17 @@ app.post("/api/orders/eancom", async function (req, res) {
               sellerId: data.fournisseurIdEntite
             };
             global.io.emit('order:status:updated', eventData);
-            console.log(`[EDI SEND] 📡 WebSocket event emitted globally for order #${orderId} (buyer:${sellerId}, seller:${data.fournisseurIdEntite})`);
+            console.log(`[EDI SEND] ðŸ“¡ WebSocket event emitted globally for order #${orderId} (buyer:${sellerId}, seller:${data.fournisseurIdEntite})`);
           }
 
           // Notification to supplier users is handled by the EDI Worker (processInboundOrder)
           // after the order is actually received and processed on the supplier's server.
           // This avoids duplicate notifications and ensures the notification is sent only
           // after confirmed reception.
-          console.log(`[EDI SEND] 📨 Order ${data.numCommande} sent. Supplier notification will be triggered by EDI Worker on reception.`);
+          console.log(`[EDI SEND] ðŸ“¨ Order ${data.numCommande} sent. Supplier notification will be triggered by EDI Worker on reception.`);
           
         } catch (ediErr) {
-          console.error(`[EDI SEND] ❌ Failed to send to EDI server:`, ediErr.message);
+          console.error(`[EDI SEND] âŒ Failed to send to EDI server:`, ediErr.message);
           
           // Update transmission status to ERROR
           await updateEdiTransmissionStatus(
@@ -4108,7 +3804,7 @@ app.post("/api/orders/eancom", async function (req, res) {
 
   } catch (err) {
     console.error("EANCOM Error:", err);
-    res.status(500).json({ error: "Failed to create order", details: err.message });
+    res.status(500).json({ error: "Failed to create order", details: safeErrDetails(err) });
   }
 });
 
@@ -4116,8 +3812,6 @@ app.post("/api/orders/eancom", async function (req, res) {
 app.get("/api/orders/incoming", async function (req, res) {
   try {
     console.log("\n=== [BACKEND] GET /api/orders/incoming (STAGING) - START ===");
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    
     var rawSellerId = Number(req.headers["x-entite-id"]);
     console.log("[BACKEND INCOMING] rawSellerId (from x-entite-id):", rawSellerId);
     if (!rawSellerId) return res.status(400).json({ error: "Missing x-entite-id" });
@@ -4161,7 +3855,10 @@ app.get("/api/orders/incoming", async function (req, res) {
             o.status as production_status,
             DATE_FORMAT(o.updated_at, '%Y-%m-%dT%H:%i:%s') as production_updated_at,
             DATE_FORMAT(o.date_livraison, '%Y-%m-%dT%H:%i:%s') as production_date_livraison,
-            DATE_FORMAT(o.date_livraison_confirmee, '%Y-%m-%dT%H:%i:%s') as production_date_livraison_confirmee
+            DATE_FORMAT(o.date_livraison_confirmee, '%Y-%m-%dT%H:%i:%s') as production_date_livraison_confirmee,
+            (SELECT COUNT(*) FROM edi_invoic ei 
+             WHERE (ei.order_reference = eo.document_number OR ei.order_reference = o.num_commande OR (ei.id_order IS NOT NULL AND ei.id_order = o.id_order))
+             AND ei.direction = 'OUTBOUND' AND ei.status NOT IN ('REJECTED', 'ERROR')) as invoice_count
         FROM edi_orders eo
         LEFT JOIN orders o ON eo.document_number = o.num_commande AND o.id_entite_seller = ?
         WHERE eo.supplier_gln = ? 
@@ -4261,8 +3958,11 @@ app.get("/api/orders/incoming", async function (req, res) {
             lieu_livraison_gln: raw.deliveryParty?.gln || raw.lieu_livraison_primaire,
             id_entite_seller: sellerId,
             id_entite_buyer: buyerId,
+            buyer_gln: so.buyer_gln || '', // Buyer GLN from edi_orders
+            acheteur_gln: so.buyer_gln || '', // Alias for InvoiceCreationModal
             buyer_name: buyerName, // Add buyer_name
             seller_name: sellerName, // Add seller_name
+            fournisseur_gln: sellerGln, // Seller/Supplier GLN
             total_ht: so.total_ht,
             monnaie: so.monnaie, // Currency from edi_orders
             // Use production status if available and meaningful for supplier
@@ -4275,12 +3975,14 @@ app.get("/api/orders/incoming", async function (req, res) {
             statut: (so.production_status && !['sent', 'new'].includes(so.production_status)) 
               ? so.production_status 
               : (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut),
-            type: "Reçue",
+            type: "ReÃ§ue",
             _server: "local",
             montant_ht: so.total_ht,
             comment: so.production_comment, // Include the global comment from production
             updated_at: so.production_updated_at,
-            lines: lines // Include parsed lines for articles count
+            lines: lines, // Include parsed lines for articles count
+            has_invoice: so.invoice_count > 0,
+            invoice_count: so.invoice_count
         });
         
         console.log(`[BACKEND INCOMING] Staging Order #${so.id} mapped with ${lines.length} lines`);
@@ -4298,9 +4000,9 @@ app.get("/api/orders/incoming", async function (req, res) {
 let generateOrderChangeEANCOM;
 try {
   generateOrderChangeEANCOM = require('./generateOrderChangeEANCOM');
-  console.log("✅ generateOrderChangeEANCOM loaded successfully");
+  console.log("âœ… generateOrderChangeEANCOM loaded successfully");
 } catch (e) {
-  console.error("❌ Failed to load generateOrderChangeEANCOM:", e);
+  console.error("âŒ Failed to load generateOrderChangeEANCOM:", e);
 }
 
 app.get("/api/orders/test-ordchg", (req, res) => {
@@ -4308,10 +4010,8 @@ app.get("/api/orders/test-ordchg", (req, res) => {
 });
 
 app.post("/api/orders/accept-modifications", async function (req, res) {
-  console.log("👉 ENTERING POST /api/orders/accept-modifications");
+  console.log("ðŸ‘‰ ENTERING POST /api/orders/accept-modifications");
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    
     const rawId = Number(req.headers["x-entite-id"]);
     if (!rawId) return res.status(400).json({ error: "Missing x-entite-id" });
 
@@ -4344,7 +4044,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
       return res.status(404).json({ error: "Order not found or access denied" });
     }
 
-    if (order.status !== 'modified' && order.status !== 'modifiée') {
+    if (order.status !== 'modified' && order.status !== 'modifiÃ©e') {
       return res.status(400).json({ error: "Order must be in 'modified' status to accept changes. Current status: " + order.status });
     }
 
@@ -4375,7 +4075,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
       supplierGln: order.fournisseur_gln,
       buyerName: buyerName,
       supplierName: supplierName,
-      comment: "Modifications approuvées par l'acheteur",
+      comment: "Modifications approuvÃ©es par l'acheteur",
       articles: lines.map(line => ({
         gtin: line.gtin,
         qty: line.confirmed_qty !== null ? line.confirmed_qty : line.qty,
@@ -4409,6 +4109,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
       direction: 'OUTBOUND',
       partner_id: order.id_entite_seller, 
       partner_gln: order.fournisseur_gln,
+      sender_gln: order.acheteur_gln,
       filename: `ordchg_${changeNumber}.txt`,
       file_path: filePath,
       file_content: ordchgContent,
@@ -4420,7 +4121,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.fournisseur_gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[ORDCHG SEND] 🎯 EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
+    console.log(`[ORDCHG SEND] ðŸŽ¯ EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -4430,10 +4131,10 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
           partnerGln: order.fournisseur_gln, // Send TO the supplier
           senderGln: order.acheteur_gln
         }, {
-          headers: { 'x-api-pin': configService.get('API_PIN') }
+          headers: serviceAuthHeaders()
         });
 
-        console.log(`[ORDCHG SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[ORDCHG SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -4443,7 +4144,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
           null
         );
       } catch (ediErr) {
-        console.error(`[ORDCHG SEND] ❌ Failed to send:`, ediErr.message);
+        console.error(`[ORDCHG SEND] âŒ Failed to send:`, ediErr.message);
         await updateEdiTransmissionStatus(
           entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
         );
@@ -4459,15 +4160,13 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
 
   } catch (err) {
     console.error("[ORDCHG] Error:", err);
-    res.status(500).json({ error: "Failed to process modification acceptance", details: err.message });
+    res.status(500).json({ error: "Failed to process modification acceptance", details: safeErrDetails(err) });
   }
 });
 
 // 4. RESPOND TO ORDER (ORDRSP) - Accept, Reject, Modify
 app.post("/api/orders/respond", async function (req, res) {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    
     const rawId = Number(req.headers["x-entite-id"]);
     if (!rawId) return res.status(400).json({ error: "Missing x-entite-id" });
 
@@ -4590,7 +4289,7 @@ app.post("/api/orders/respond", async function (req, res) {
 
             const orderResult = await runUpdate(entiteDB, orderInsertSql, orderParams);
             productionOrderId = orderResult.lastID;
-            console.log(`[ORDRSP] ✅ Promoted to Production Order #${productionOrderId}`);
+            console.log(`[ORDRSP] âœ… Promoted to Production Order #${productionOrderId}`);
 
             // 3. Insert Lines
             if (rawData.items && Array.isArray(rawData.items)) {
@@ -4759,6 +4458,7 @@ app.post("/api/orders/respond", async function (req, res) {
       direction: 'OUTBOUND',
       partner_id: order.id_entite_buyer, 
       partner_gln: order.acheteur_gln,
+      sender_gln: order.fournisseur_gln,
       filename: `ordrsp_${responseNumber}.txt`,
       file_path: filePath,
       file_content: ordrspContent,
@@ -4770,7 +4470,7 @@ app.post("/api/orders/respond", async function (req, res) {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.acheteur_gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[ORDRSP SEND] 🎯 EDI Routing: ${order.acheteur_gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[ORDRSP SEND] ðŸŽ¯ EDI Routing: ${order.acheteur_gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -4780,10 +4480,10 @@ app.post("/api/orders/respond", async function (req, res) {
           partnerGln: order.acheteur_gln, // Send TO the buyer
           senderGln: order.fournisseur_gln
         }, {
-          headers: { 'x-api-pin': configService.get('API_PIN') }
+          headers: serviceAuthHeaders()
         });
 
-        console.log(`[ORDRSP SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[ORDRSP SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -4797,7 +4497,7 @@ app.post("/api/orders/respond", async function (req, res) {
         // ... (Optional: logic to find buyer user and notify)
 
       } catch (ediErr) {
-        console.error(`[ORDRSP SEND] ❌ Failed to send:`, ediErr.message);
+        console.error(`[ORDRSP SEND] âŒ Failed to send:`, ediErr.message);
         await updateEdiTransmissionStatus(
           entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
         );
@@ -4813,20 +4513,14 @@ app.post("/api/orders/respond", async function (req, res) {
 
   } catch (err) {
     console.error("[ORDRSP] Error:", err);
-    res.status(500).json({ error: "Failed to process response", details: err.message });
+    res.status(500).json({ error: "Failed to process response", details: safeErrDetails(err) });
   }
 });
 
-// GET /api/orders/sent - Récupérer les commandes envoyées
+// GET /api/orders/sent - RÃ©cupÃ©rer les commandes envoyÃ©es
 app.get("/api/orders/sent", async function (req, res) {
   try {
     console.log("\n=== [BACKEND] GET /api/orders/sent - START ===");
-    
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      console.log("[BACKEND SENT] Invalid PIN");
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-    
     const rawBuyerId = Number(req.headers["x-entite-id"]);
     console.log("[BACKEND SENT] rawBuyerId (from x-entite-id):", rawBuyerId);
     
@@ -4846,7 +4540,7 @@ app.get("/api/orders/sent", async function (req, res) {
       }
     }
 
-    // Récupérer les commandes envoyées (où l'entité est l'acheteur)
+    // RÃ©cupÃ©rer les commandes envoyÃ©es (oÃ¹ l'entitÃ© est l'acheteur)
     // Inclure num_commande et le nom du fournisseur pour un affichage correct
     const query = `
       SELECT 
@@ -4951,7 +4645,6 @@ app.get("/api/orders/sent", async function (req, res) {
 // 4. GET INVALID ORDERS (like commande_invalide_model.php -> getALLCommandeInValide)
 app.get("/api/orders/invalid", async function (req, res) {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     var sellerId = Number(req.headers["x-entite-id"]);
     if (!sellerId) return res.status(400).json({ error: "Missing x-entite-id" });
     var orders = await queryDB(entiteDB,
@@ -4968,7 +4661,6 @@ app.get("/api/orders/invalid", async function (req, res) {
 // 5. GET ARCHIVED ORDERS (simulating archive like commande_archivee)
 app.get("/api/orders/archived", async function (req, res) {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     var sellerId = Number(req.headers["x-entite-id"]);
     if (!sellerId) return res.status(400).json({ error: "Missing x-entite-id" });
     var orders = await queryDB(entiteDB,
@@ -4985,7 +4677,6 @@ app.get("/api/orders/archived", async function (req, res) {
 // 6. ORDER RESPONSE / VALIDATE (updates orders table status)
 app.get("/api/orders/:id", async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     const { id } = req.params;
     
     // Fetch order header
@@ -5018,7 +4709,6 @@ app.get("/api/orders/:id", async (req, res) => {
 
 app.post("/api/orders/:id/response", async function (req, res) {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     var orderId = Number(req.params.id);
     var responderId = Number(req.headers["x-entite-id"]);
     var action = req.body.action;
@@ -5055,7 +4745,6 @@ app.post("/api/orders/:id/response", async function (req, res) {
 // 7. DELETE ORDER (like suppcmd in commande_valide_Historique.php)
 app.delete("/api/orders/:id", async function (req, res) {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     var orderId = Number(req.params.id);
     await queryDB(entiteDB, "DELETE FROM Orders WHERE id_order = ?", [orderId]);
     await queryDB(entiteDB, "DELETE FROM order_lines WHERE id_order = ?", [orderId]);
@@ -5087,7 +4776,32 @@ app.get('/api/proxy/notifications', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('[NOTIFICATIONS PROXY] Error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch notifications', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch notifications', details: safeErrDetails(err) });
+  }
+});
+
+// Proxy endpoint for creating a notification
+app.post('/api/proxy/notifications', async (req, res) => {
+  try {
+    const { contenu, type, id_compte, link } = req.body;
+    if (!contenu || !type || !id_compte || isNaN(id_compte) || !['success', 'error'].includes(type)) {
+      return res.status(400).json({ error: 'contenu, valid type (success/error), and id_compte are required' });
+    }
+    const insertSql = `
+      INSERT INTO notifications (id_compte, contenu, type, created_at, \`read\`)
+      VALUES (?, ?, ?, NOW(), 0);
+    `;
+    const result = await queryDB(entiteDB, insertSql, [parseInt(id_compte), contenu, type]);
+    const selectSql = `
+      SELECT id_notification, contenu, type, created_at, \`read\`
+      FROM notifications
+      WHERE id_notification = ?;
+    `;
+    const newNotif = await queryDB(entiteDB, selectSql, [result.insertId]);
+    res.json(newNotif[0]);
+  } catch (err) {
+    console.error('[NOTIFICATIONS PROXY] Error creating notification:', err.message);
+    res.status(500).json({ error: 'Failed to create notification', details: safeErrDetails(err) });
   }
 });
 
@@ -5107,7 +4821,7 @@ app.put('/api/proxy/notifications/:id/read', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[NOTIFICATIONS PROXY] Error marking as read:', err.message);
-    res.status(500).json({ error: 'Failed to update notification', details: err.message });
+    res.status(500).json({ error: 'Failed to update notification', details: safeErrDetails(err) });
   }
 });
 
@@ -5116,10 +4830,6 @@ app.put('/api/proxy/notifications/:id/read', async (req, res) => {
 // GET /api/edi/transmissions/:orderId - Get all transmissions for an order
 app.get('/api/edi/transmissions/:orderId', async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-
     const orderId = parseInt(req.params.orderId);
     if (isNaN(orderId)) {
       return res.status(400).json({ error: 'Invalid order ID' });
@@ -5134,17 +4844,13 @@ app.get('/api/edi/transmissions/:orderId', async (req, res) => {
     });
   } catch (err) {
     console.error('[EDI] Error fetching transmissions:', err);
-    res.status(500).json({ error: 'Failed to fetch transmissions', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch transmissions', details: safeErrDetails(err) });
   }
 });
 
 // POST /api/edi/transmissions/:id/retry - Retry a failed transmission
 app.post('/api/edi/transmissions/:id/retry', async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-
     const transmissionId = parseInt(req.params.id);
     if (isNaN(transmissionId)) {
       return res.status(400).json({ error: 'Invalid transmission ID' });
@@ -5165,17 +4871,13 @@ app.post('/api/edi/transmissions/:id/retry', async (req, res) => {
     res.json({ success: true, message: 'Transmission queued for retry', transmissionId });
   } catch (err) {
     console.error('[EDI] Error retrying transmission:', err);
-    res.status(500).json({ error: 'Failed to retry transmission', details: err.message });
+    res.status(500).json({ error: 'Failed to retry transmission', details: safeErrDetails(err) });
   }
 });
 
 // POST /api/edi/transmissions/:id/reset - Reset ERROR transmission for immediate retry
 app.post('/api/edi/transmissions/:id/reset', async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-
     const transmissionId = parseInt(req.params.id);
     if (isNaN(transmissionId)) {
       return res.status(400).json({ error: 'Invalid transmission ID' });
@@ -5196,17 +4898,13 @@ app.post('/api/edi/transmissions/:id/reset', async (req, res) => {
     });
   } catch (err) {
     console.error('[EDI] Error resetting transmission:', err);
-    res.status(500).json({ error: 'Failed to reset transmission', details: err.message });
+    res.status(500).json({ error: 'Failed to reset transmission', details: safeErrDetails(err) });
   }
 });
 
 // GET /api/edi/worker-logs - Get worker logs with filters
 app.get('/api/edi/worker-logs', async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-
     const { getWorkerLogs } = require('./edi_worker_logger');
     const { workerType, level, transmissionId, hours = 24, limit = 100 } = req.query;
 
@@ -5225,17 +4923,13 @@ app.get('/api/edi/worker-logs', async (req, res) => {
     });
   } catch (err) {
     console.error('[EDI] Error fetching worker logs:', err);
-    res.status(500).json({ error: 'Failed to fetch worker logs', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch worker logs', details: safeErrDetails(err) });
   }
 });
 
 // GET /api/edi/worker-stats - Get worker statistics
 app.get('/api/edi/worker-stats', async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-
     const { getWorkerStats } = require('./edi_worker_logger');
     const { hours = 24 } = req.query;
 
@@ -5247,17 +4941,27 @@ app.get('/api/edi/worker-stats', async (req, res) => {
     });
   } catch (err) {
     console.error('[EDI] Error fetching worker stats:', err);
-    res.status(500).json({ error: 'Failed to fetch worker stats', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch worker stats', details: safeErrDetails(err) });
   }
 });
+
+// Helper: parse EANCOM date string (YYYYMMDD or YYMMDD) to JS Date
+function parseEancomDateStr(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (s.length === 8) {
+    // YYYYMMDD
+    return new Date(`${s.substring(0,4)}-${s.substring(4,6)}-${s.substring(6,8)}`);
+  } else if (s.length === 6) {
+    // YYMMDD - assume 20xx century
+    return new Date(`20${s.substring(0,2)}-${s.substring(2,4)}-${s.substring(4,6)}`);
+  }
+  return null;
+}
 
 // POST /api/edi/receive - Receive incoming EDI messages from external systems
 app.post('/api/edi/receive', async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
-
     const { eancomContent, filename, partnerGln, senderGln } = req.body;
     
     // Prioritize senderGln (from Hub) over partnerGln, or fall back to unknown
@@ -5355,7 +5059,7 @@ app.post('/api/edi/receive', async (req, res) => {
       logs: `Message received and parsed successfully. Items: ${parsedData.items.length}, Total: ${parsedData.totals.totalAmount || 'N/A'}`
     });
 
-    console.log(`[EDI RECEIVE] ✅ Transmission #${transmissionId} recorded as RECEIVED`);
+    console.log(`[EDI RECEIVE] âœ… Transmission #${transmissionId} recorded as RECEIVED`);
 
     // --- PHASE 2: Staging ---
     // If message is an ORDER, insert into edi_orders immediately after parsing
@@ -5368,7 +5072,7 @@ app.post('/api/edi/receive', async (req, res) => {
         );
         
         if (existingOrder.length > 0) {
-          console.log(`[EDI RECEIVE] ⚠️ Duplicate order detected: ${parsedData.documentNumber} already exists (ID: ${existingOrder[0].id}). Skipping insertion.`);
+          console.log(`[EDI RECEIVE] âš ï¸ Duplicate order detected: ${parsedData.documentNumber} already exists (ID: ${existingOrder[0].id}). Skipping insertion.`);
           // Update transmission status to indicate duplicate
           await updateEdiTransmissionStatus(entiteDB, transmissionId, 'DUPLICATE', `Order ${parsedData.documentNumber} already exists in edi_orders`);
           
@@ -5408,16 +5112,16 @@ app.post('/api/edi/receive', async (req, res) => {
         ]);
 
         const stagingId = stagingResult.lastID;
-        console.log(`[EDI RECEIVE] ✅ Order staged in edi_orders (ID: ${stagingId}) for document ${parsedData.documentNumber}`);
+        console.log(`[EDI RECEIVE] âœ… Order staged in edi_orders (ID: ${stagingId}) for document ${parsedData.documentNumber}`);
         
         // Link the Transmission to the Staging Order
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'RECEIVED', null, null, stagingId);
 
         // Notify Supplier (the receiver of the order) if local
-        console.log(`[EDI RECEIVE] 📋 Notification routing: buyer_gln=${parsedData.buyer.gln}, supplier_gln=${parsedData.supplier.gln}`);
+        console.log(`[EDI RECEIVE] ðŸ“‹ Notification routing: buyer_gln=${parsedData.buyer.gln}, supplier_gln=${parsedData.supplier.gln}`);
         if (parsedData.supplier.gln) {
             const sellerRows = await queryDB(entiteDB, "SELECT id_entite, raison_socialle FROM Entite WHERE gln = ?", [parsedData.supplier.gln]);
-            console.log(`[EDI RECEIVE] 🔍 Supplier lookup for GLN ${parsedData.supplier.gln}:`, sellerRows);
+            console.log(`[EDI RECEIVE] ðŸ” Supplier lookup for GLN ${parsedData.supplier.gln}:`, sellerRows);
             if (sellerRows.length > 0) {
                 const sellerId = sellerRows[0].id_entite;
                 const sellerName = sellerRows[0].raison_socialle;
@@ -5434,9 +5138,9 @@ app.post('/api/edi/receive', async (req, res) => {
                 }
 
                 const accounts = await queryDB(entiteDB, "SELECT id_compte, id_entite FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
-                console.log(`[EDI RECEIVE] 🔔 Sending 'order received' notification to ${accounts.length} account(s) of SUPPLIER entity #${sellerId} (${sellerName}), from buyer: ${buyerName}`);
+                console.log(`[EDI RECEIVE] ðŸ”” Sending 'order received' notification to ${accounts.length} account(s) of SUPPLIER entity #${sellerId} (${sellerName}), from buyer: ${buyerName}`);
                 for (const acc of accounts) {
-                    console.log(`[EDI RECEIVE]   → Notifying account #${acc.id_compte} (entity #${acc.id_entite})`);
+                    console.log(`[EDI RECEIVE]   â†’ Notifying account #${acc.id_compte} (entity #${acc.id_entite})`);
                     await notifyOrderReceived(entiteDB, acc.id_compte, parsedData.documentNumber, buyerName);
                 }
                 // Emit order:new globally so supplier frontend reloads order list immediately
@@ -5447,17 +5151,17 @@ app.post('/api/edi/receive', async (req, res) => {
                         numCommande: parsedData.documentNumber,
                         timestamp: new Date().toISOString()
                     });
-                    console.log(`[EDI RECEIVE] 📡 WebSocket order:new emitted globally for supplier entity #${sellerId}`);
+                    console.log(`[EDI RECEIVE] ðŸ“¡ WebSocket order:new emitted globally for supplier entity #${sellerId}`);
                 }
             } else {
-                console.log(`[EDI RECEIVE] ⚠️ Supplier entity not found for GLN ${parsedData.supplier.gln}, no notification sent`);
+                console.log(`[EDI RECEIVE] âš ï¸ Supplier entity not found for GLN ${parsedData.supplier.gln}, no notification sent`);
             }
         } else {
-            console.log(`[EDI RECEIVE] ⚠️ No supplier GLN in parsed data, no notification sent`);
+            console.log(`[EDI RECEIVE] âš ï¸ No supplier GLN in parsed data, no notification sent`);
         }
 
       } catch (stageErr) {
-        console.error(`[EDI RECEIVE] ⚠️ Failed to stage order: ${stageErr.message}`);
+        console.error(`[EDI RECEIVE] âš ï¸ Failed to stage order: ${stageErr.message}`);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'ERROR', `Staging Error: ${stageErr.message}`);
       }
     }
@@ -5528,9 +5232,9 @@ app.post('/api/edi/receive', async (req, res) => {
                    
                    let dateLivraisonConfirmee = null;
                    if (parsedData.deliveryDateConfirmed) {
-                     dateLivraisonConfirmee = new Date(parsedData.deliveryDateConfirmed.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                     dateLivraisonConfirmee = parseEancomDateStr(parsedData.deliveryDateConfirmed);
                    } else if (parsedData.deliveryDateRequested) {
-                     dateLivraisonConfirmee = new Date(parsedData.deliveryDateRequested.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                     dateLivraisonConfirmee = parseEancomDateStr(parsedData.deliveryDateRequested);
                    }
 
                    // Update the order header
@@ -5539,7 +5243,7 @@ app.post('/api/edi/receive', async (req, res) => {
                    } else {
                      await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, parsedData.comment || null, targetOrder.id_order]);
                    }
-                   console.log(`[EDI RECEIVE] ✅ Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
+                   console.log(`[EDI RECEIVE] âœ… Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
 
                    // Update the order lines with confirmed quantities and prices
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5565,10 +5269,10 @@ app.post('/api/edi/receive', async (req, res) => {
                        fournisseurName: supplierName
                      };
                      global.io.emit('order:status:updated', eventData);
-                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDRSP update (buyer:${buyerId})`);
+                     console.log(`[EDI RECEIVE] ðŸ“¡ WebSocket event emitted for ORDRSP update (buyer:${buyerId})`);
                    }
                 } else {
-                   console.log(`[EDI RECEIVE] ⚠️ Buyer order ${orderRef} not found in database to update.`);
+                   console.log(`[EDI RECEIVE] âš ï¸ Buyer order ${orderRef} not found in database to update.`);
                 }
                 // -------------------------------------------------------------
 
@@ -5576,7 +5280,7 @@ app.post('/api/edi/receive', async (req, res) => {
                 for (const acc of accounts) {
                     await notifyOrderResponseReceived(entiteDB, acc.id_compte, orderRef, supplierName);
                 }
-                console.log(`[EDI RECEIVE] 🔔 Notified buyer ${buyerId} of ORDRSP for order ${orderRef} from ${supplierName}`);
+                console.log(`[EDI RECEIVE] ðŸ”” Notified buyer ${buyerId} of ORDRSP for order ${orderRef} from ${supplierName}`);
             }
         }
 
@@ -5614,10 +5318,10 @@ app.post('/api/edi/receive', async (req, res) => {
                 if (targetOrder) {
                    const sellerId = targetOrder.id_entite_seller;
                    const newStatus = 'accepted'; // Buyer accepted modifications
-                   const commentMsg = parsedData.comment ? `Modifications acceptées : ${parsedData.comment}` : "Modifications acceptées par l'acheteur via ORDCHG";
+                   const commentMsg = parsedData.comment ? `Modifications acceptÃ©es : ${parsedData.comment}` : "Modifications acceptÃ©es par l'acheteur via ORDCHG";
 
                    await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, commentMsg, targetOrder.id_order]);
-                   console.log(`[EDI RECEIVE] ✅ Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
+                   console.log(`[EDI RECEIVE] âœ… Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
 
                    // Update the order lines with confirmed quantities and prices from ORDCHG if provided
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5642,23 +5346,23 @@ app.post('/api/edi/receive', async (req, res) => {
                        numCommande: orderRef
                      };
                      global.io.emit('order:status:updated', eventData);
-                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
+                     console.log(`[EDI RECEIVE] ðŸ“¡ WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
                    }
 
                     // Notify via accounts if needed
                     try {
                         const accounts = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
                         for (const acc of accounts) {
-                            const notifContent = `La modification de la commande ${orderRef} a été acceptée par l'acheteur.`;
+                            const notifContent = `La modification de la commande ${orderRef} a Ã©tÃ© acceptÃ©e par l'acheteur.`;
                             await runUpdate(entiteDB, "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'success', NOW(), 0)", [acc.id_compte, notifContent]);
                         }
-                        console.log(`[EDI RECEIVE] 🔔 Notified ${accounts.length} accounts for order ${orderRef}`);
+                        console.log(`[EDI RECEIVE] ðŸ”” Notified ${accounts.length} accounts for order ${orderRef}`);
                     } catch (notifErr) {
-                        console.error('[EDI RECEIVE] ⚠️ Failed to send notifications:', notifErr.message);
+                        console.error('[EDI RECEIVE] âš ï¸ Failed to send notifications:', notifErr.message);
                     }
 
                 } else {
-                   console.log(`[EDI RECEIVE] ⚠️ Supplier order ${orderRef} not found in database to update.`);
+                   console.log(`[EDI RECEIVE] âš ï¸ Supplier order ${orderRef} not found in database to update.`);
                 }
             }
         }
@@ -5683,36 +5387,58 @@ app.post('/api/edi/receive', async (req, res) => {
         `;
         
         const desadvParams = [
-          parsedData.documentNumber, parsedData.orderReference,
-          parsedData.buyer.gln, parsedData.supplier.gln, parsedData.deliveryParty.gln,
-          parsedData.documentDate ? new Date(parsedData.documentDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : null,
-          parsedData.deliveryDateRequested ? new Date(parsedData.deliveryDateRequested.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : null
+          parsedData.documentNumber || null, parsedData.orderReference || null,
+          parsedData.buyer.gln || null, parsedData.supplier.gln || null, (parsedData.deliveryParty && parsedData.deliveryParty.gln) || null,
+          parseEancomDateStr(parsedData.documentDate),
+          parseEancomDateStr(parsedData.deliveryDateRequested)
         ];
 
         const desadvResult = await runUpdate(entiteDB, desadvInsertSql, desadvParams);
         const desadvId = desadvResult.lastID;
 
-        // Insert Packages
+        // Insert Packages (with weight, batch, SSCC)
         if (parsedData.packages && parsedData.packages.length > 0) {
            for (const pkg of parsedData.packages) {
-               await runUpdate(entiteDB, `INSERT INTO edi_packages (id_desadv, sscc, package_type) VALUES (?, ?, ?)`, 
-               [desadvId, pkg.sscc, pkg.type]);
+               const pkgResult = await runUpdate(entiteDB, 
+                 `INSERT INTO edi_packages (id_desadv, sscc, package_type, weight) VALUES (?, ?, ?, ?)`, 
+                 [desadvId, pkg.sscc || null, pkg.type || null, pkg.weight || null]);
+               const pkgId = pkgResult.lastID;
+
+               // Insert items within this package
+               if (pkg.items && pkg.items.length > 0) {
+                 for (const item of pkg.items) {
+                   await runUpdate(entiteDB, `
+                     INSERT INTO edi_desadv_lines (
+                       id_desadv, id_package, line_number, gtin,
+                       qty_dispatched, qty_ordered,
+                       libelle, batch_number, expiry_date
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                     [
+                       desadvId, pkgId, item.lineNumber || null, item.gtin || null,
+                       item.qtyDispatched || item.qty || null, item.qtyOrdered || null,
+                       item.description || null, item.batchNumber || null,
+                       item.expiryDate ? parseEancomDateStr(item.expiryDate) : null
+                     ]
+                   );
+                 }
+               }
            }
         }
 
-        // Insert Lines
+        // Insert top-level Lines (items not inside packages)
         if (parsedData.items && parsedData.items.length > 0) {
             for (const item of parsedData.items) {
                 await runUpdate(entiteDB, `
                     INSERT INTO edi_desadv_lines (
                         id_desadv, line_number, gtin, 
                         qty_dispatched, qty_ordered, 
-                        libelle
-                    ) VALUES (?, ?, ?, ?, ?, ?)`,
+                        libelle, batch_number, expiry_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
-                        desadvId, item.lineNumber, item.gtin,
-                        item.qtyDispatched || item.qty, item.qtyOrdered,
-                        item.description
+                        desadvId, item.lineNumber || null, item.gtin || null,
+                        item.qtyDispatched || item.qty || null, item.qtyOrdered || null,
+                        item.description || null, item.batchNumber || null,
+                        item.expiryDate ? parseEancomDateStr(item.expiryDate) : null
                     ]
                 );
             }
@@ -5721,8 +5447,8 @@ app.post('/api/edi/receive', async (req, res) => {
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'PROCESSED', null, null, desadvId);
         
         // Notify
-        if (sellerId) {
-             const accounts = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
+        if (partnerId) {
+             const accounts = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0", [partnerId]);
              for (const acc of accounts) {
                 // Reuse order notification or create new one
                 // await notifyDesadvReceived...
@@ -5750,12 +5476,12 @@ app.post('/api/edi/receive', async (req, res) => {
         `;
         
         const invoicParams = [
-            parsedData.documentNumber, '380',
-            parsedData.documentDate ? new Date(parsedData.documentDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : null,
-            parsedData.buyer.gln, parsedData.supplier.gln,
-            parsedData.orderReference, parsedData.desadvReference,
-            parsedData.currency,
-            parsedData.totals.lineAmount, parsedData.totals.taxAmount, parsedData.totals.totalAmount
+            parsedData.documentNumber || null, '380',
+            parseEancomDateStr(parsedData.documentDate),
+            parsedData.buyer.gln || null, parsedData.supplier.gln || null,
+            parsedData.orderReference || null, parsedData.desadvReference || null,
+            parsedData.currency || null,
+            parsedData.totals.lineAmount || null, parsedData.totals.taxAmount || null, parsedData.totals.totalAmount || null
         ];
 
         const invoicResult = await runUpdate(entiteDB, invoicInsertSql, invoicParams);
@@ -5771,15 +5497,42 @@ app.post('/api/edi/receive', async (req, res) => {
                         tax_rate, line_amount
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
-                        invoicId, item.lineNumber, item.gtin,
-                        item.description, item.qtyInvoiced || item.qty, item.price,
-                        item.taxRate, item.lineAmount
+                        invoicId, item.lineNumber || null, item.gtin || null,
+                        item.description || null, item.qtyInvoiced || item.qty || null, item.price || null,
+                        item.taxRate || null, item.lineAmount || null
                     ]
                 );
             }
         }
         console.log(`[EDI RECEIVE] Processed INVOIC #${invoicId}`);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'PROCESSED', null, null, invoicId);
+
+        // Notify buyer accounts about received invoice
+        try {
+          const buyerGln = parsedData.buyer?.gln;
+          const sellerGln = parsedData.supplier?.gln;
+          const invoiceNumber = parsedData.documentNumber || 'N/A';
+          let supplierName = sellerGln || 'Fournisseur';
+          
+          if (sellerGln) {
+            const sellerRows = await queryDB(entiteDB, "SELECT raison_socialle FROM Entite WHERE gln = ?", [sellerGln]);
+            if (sellerRows.length > 0) supplierName = sellerRows[0].raison_socialle;
+          }
+
+          if (buyerGln) {
+            const buyerRows = await queryDB(entiteDB, "SELECT id_entite FROM Entite WHERE gln = ?", [buyerGln]);
+            if (buyerRows.length > 0) {
+              const buyerId = buyerRows[0].id_entite;
+              const accounts = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0", [buyerId]);
+              for (const acc of accounts) {
+                await notifyInvoiceReceived(entiteDB, acc.id_compte, invoiceNumber, supplierName);
+              }
+              console.log(`[EDI RECEIVE] ðŸ”” Notified ${accounts.length} buyer accounts for INVOIC ${invoiceNumber} from ${supplierName}`);
+            }
+          }
+        } catch (notifErr) {
+          console.warn('[EDI RECEIVE] Invoice notification error (non-fatal):', notifErr.message);
+        }
 
       } catch (err) {
         console.error('[EDI RECEIVE] Error processing INVOIC:', err);
@@ -5798,7 +5551,272 @@ app.post('/api/edi/receive', async (req, res) => {
 
   } catch (err) {
     console.error('[EDI RECEIVE] Error processing incoming message:', err);
-    res.status(500).json({ error: 'Failed to process EDI message', details: err.message });
+    res.status(500).json({ error: 'Failed to process EDI message', details: safeErrDetails(err) });
+  }
+});
+
+// ============================================================================
+// GS1 UTILITIES: SSCC Generation, Labeling (Etiquetage), Marking (Marquage)
+// ============================================================================
+
+// Helper: Calculate GS1 check digit (Modulo 10 / Luhn-like for GS1)
+function gs1CheckDigit(digits) {
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    const d = parseInt(digits[i], 10);
+    // Positions are 1-indexed from right; even positions (from right) get x1, odd get x3
+    // For GS1: starting from right, alternate multipliers 3,1,3,1...
+    sum += d * ((digits.length - i) % 2 === 0 ? 1 : 3);
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+// GET /api/utils/sscc - Generate SSCC-18 per GS1 standard
+// SSCC = Extension Digit (1) + GS1 Company Prefix (7-10) + Serial Ref (remaining) + Check Digit (1)
+// Total = 18 digits
+app.get('/api/utils/sscc', async (req, res) => {
+  try {
+    const prefix = req.query.prefix || '00000000'; // GS1 company prefix (7-10 digits)
+    const extensionDigit = req.query.ext || '0';    // Extension digit (0-9)
+
+    // Serial reference: fill remaining digits with timestamp + random
+    const prefixClean = String(prefix).replace(/\D/g, '').substring(0, 10);
+    const serialLength = 16 - prefixClean.length; // 18 - 1(ext) - prefix - 1(check)
+    const timestamp = String(Date.now()).slice(-serialLength);
+    const serial = timestamp.padStart(serialLength, '0');
+
+    const withoutCheck = `${extensionDigit}${prefixClean}${serial}`;
+    const checkDigit = gs1CheckDigit(withoutCheck);
+    const sscc = `${withoutCheck}${checkDigit}`;
+
+    res.json({
+      sscc,
+      formatted: `(00) ${sscc}`,
+      ai: '00',
+      extensionDigit,
+      companyPrefix: prefixClean,
+      serialReference: serial,
+      checkDigit: String(checkDigit)
+    });
+  } catch (err) {
+    console.error('[SSCC] Error generating SSCC:', err);
+    res.status(500).json({ error: 'Failed to generate SSCC', details: safeErrDetails(err) });
+  }
+});
+
+// â”€â”€ GS1 check digit helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Recomputes and replaces the last digit so the string satisfies GS1 Mod-10
+function computeGS1CheckDigit(digits) {
+  const s = String(digits);
+  const payload = s.slice(0, s.length - 1); // all digits except the last
+  let sum = 0;
+  for (let i = 0; i < payload.length; i++) {
+    const d = parseInt(payload[payload.length - 1 - i], 10);
+    sum += (i % 2 === 0) ? d * 3 : d;
+  }
+  const check = (10 - (sum % 10)) % 10;
+  return payload + String(check);
+}
+
+// Pad to target length then fix check digit (for GTIN-14 and SSCC-18)
+function fixGS1(value, targetLen) {
+  const padded = String(value).replace(/\D/g, '').padStart(targetLen, '0');
+  return computeGS1CheckDigit(padded);
+}
+
+// POST /api/edi/label/generate - Generate GS1-128 logistics label data (Etiquetage)
+// Returns structured data for printing a GS1 logistics label per GS1 General Specifications
+app.post('/api/edi/label/generate', async (req, res) => {
+  try {
+    const { sscc, packageData, shipmentData, items } = req.body;
+
+    if (!sscc) {
+      return res.status(400).json({ error: 'SSCC is required' });
+    }
+
+    // GS1 Application Identifiers for the label
+    const barcodes = [];
+
+    // AI (00) - SSCC (18 digits, valid check digit)
+    const ssccFixed = fixGS1(sscc, 18);
+    barcodes.push({ ai: '00', value: ssccFixed, hrp: `(00) ${ssccFixed}` });
+
+    // AI (02) + (37) - GTIN of contained items + count (if homogeneous package)
+    if (items && items.length === 1) {
+      const gtin = fixGS1(items[0].gtin, 14);
+      barcodes.push({ ai: '02', value: gtin, hrp: `(02) ${gtin}` });
+      barcodes.push({ ai: '37', value: String(items[0].quantity), hrp: `(37) ${items[0].quantity}` });
+    }
+
+    // AI (10) - Batch/Lot Number
+    if (items && items.length > 0 && items[0].batchNumber) {
+      barcodes.push({ ai: '10', value: items[0].batchNumber, hrp: `(10) ${items[0].batchNumber}` });
+    }
+
+    // AI (17) - Expiry Date (YYMMDD)
+    if (items && items.length > 0 && items[0].expiryDate) {
+      const exp = new Date(items[0].expiryDate);
+      const yymmdd = `${String(exp.getFullYear()).slice(-2)}${String(exp.getMonth()+1).padStart(2,'0')}${String(exp.getDate()).padStart(2,'0')}`;
+      barcodes.push({ ai: '17', value: yymmdd, hrp: `(17) ${yymmdd}` });
+    }
+
+    // AI (3302) - Net weight in kg (6 digits, 2 decimal places)
+    if (packageData && packageData.weight) {
+      const weightVal = String(Math.round(packageData.weight * 100)).padStart(6, '0');
+      barcodes.push({ ai: '3302', value: weightVal, hrp: `(3302) ${weightVal}` });
+    }
+
+    // Build GS1-128 barcode string (concatenated AIs with FNC1 separator)
+    const gs1128String = barcodes.map(b => `(${b.ai})${b.value}`).join('');
+
+    // Barcode URL for rendering (using bwipjs API)
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=gs1-128&text=${encodeURIComponent(gs1128String)}&scale=3&height=30&includetext&textxalign=center`;
+
+    const label = {
+      sscc,
+      ssccFormatted: `(00) ${sscc}`,
+      sender: shipmentData?.sender || {},
+      receiver: shipmentData?.receiver || {},
+      carrier: shipmentData?.carrier || null,
+      dateExpedition: shipmentData?.dateExpedition || null,
+      packageType: packageData?.type === 'PX' ? 'PALETTE' : 'CARTON',
+      grossWeight: packageData?.weight || 0,
+      items: items || [],
+      barcodes,
+      gs1128String,
+      barcodeUrl,
+      labelFormat: 'GS1_LOGISTICS_LABEL',
+      standard: 'GS1 General Specifications v23'
+    };
+
+    res.json({ success: true, label });
+  } catch (err) {
+    console.error('[LABEL] Error generating label:', err);
+    res.status(500).json({ error: 'Failed to generate label', details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/edi/marking/generate - Generate product marking data (Marquage)
+// Returns GS1 DataMatrix / GS1-128 data for unit-level product marking
+// Per GS1 General Specifications: GTIN + Batch + Expiry + Serial (if serialized)
+app.post('/api/edi/marking/generate', async (req, res) => {
+  try {
+    const { gtin, batchNumber, expiryDate, serialNumber, netWeight, netContent, productionDate } = req.body;
+
+    if (!gtin) {
+      return res.status(400).json({ error: 'GTIN is required' });
+    }
+
+    const gtinPadded = fixGS1(gtin, 14);
+    const elements = [];
+
+    // AI (01) - GTIN
+    elements.push({ ai: '01', value: gtinPadded, hrp: `(01) ${gtinPadded}` });
+
+    // AI (10) - Batch/Lot Number (up to 20 alphanumeric)
+    if (batchNumber) {
+      elements.push({ ai: '10', value: String(batchNumber).substring(0, 20), hrp: `(10) ${batchNumber}` });
+    }
+
+    // AI (17) - Expiry Date (YYMMDD)
+    if (expiryDate) {
+      const exp = new Date(expiryDate);
+      const yymmdd = `${String(exp.getFullYear()).slice(-2)}${String(exp.getMonth()+1).padStart(2,'0')}${String(exp.getDate()).padStart(2,'0')}`;
+      elements.push({ ai: '17', value: yymmdd, hrp: `(17) ${yymmdd}` });
+    }
+
+    // AI (11) - Production Date (YYMMDD)
+    if (productionDate) {
+      const pd = new Date(productionDate);
+      const yymmdd = `${String(pd.getFullYear()).slice(-2)}${String(pd.getMonth()+1).padStart(2,'0')}${String(pd.getDate()).padStart(2,'0')}`;
+      elements.push({ ai: '11', value: yymmdd, hrp: `(11) ${yymmdd}` });
+    }
+
+    // AI (21) - Serial Number (for unit-level traceability)
+    if (serialNumber) {
+      elements.push({ ai: '21', value: String(serialNumber).substring(0, 20), hrp: `(21) ${serialNumber}` });
+    }
+
+    // AI (3103) - Net weight in grams
+    if (netWeight) {
+      const weightGrams = String(Math.round(netWeight * 1000)).padStart(6, '0');
+      elements.push({ ai: '3103', value: weightGrams, hrp: `(3103) ${weightGrams}` });
+    }
+
+    // AI (3302) - Net weight in kg
+    if (netContent && !netWeight) {
+      const weightKg = String(Math.round(netContent * 100)).padStart(6, '0');
+      elements.push({ ai: '3302', value: weightKg, hrp: `(3302) ${weightKg}` });
+    }
+
+    // Build GS1 element string
+    const gs1String = elements.map(e => `(${e.ai})${e.value}`).join('');
+
+    // Barcode URLs
+    const gs1128Url = `https://bwipjs-api.metafloor.com/?bcid=gs1-128&text=${encodeURIComponent(gs1String)}&scale=3&height=25&includetext&textxalign=center`;
+    const dataMatrixUrl = `https://bwipjs-api.metafloor.com/?bcid=gs1datamatrix&text=${encodeURIComponent(gs1String)}&scale=5&includetext`;
+
+    const marking = {
+      gtin: gtinPadded,
+      batchNumber: batchNumber || null,
+      expiryDate: expiryDate || null,
+      serialNumber: serialNumber || null,
+      elements,
+      gs1String,
+      gs1128BarcodeUrl: gs1128Url,
+      dataMatrixUrl,
+      markingFormat: 'GS1_PRODUCT_MARKING',
+      standard: 'GS1 General Specifications v23'
+    };
+
+    res.json({ success: true, marking });
+  } catch (err) {
+    console.error('[MARKING] Error generating marking:', err);
+    res.status(500).json({ error: 'Failed to generate marking', details: safeErrDetails(err) });
+  }
+});
+
+// GET /api/edi/desadv - List DESADV records
+app.get('/api/edi/desadv', async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const direction = req.query.direction || null;
+    let sql = 'SELECT * FROM edi_desadv';
+    const params = [];
+    if (direction) {
+      sql += ' WHERE direction = ?';
+      params.push(direction);
+    }
+    sql += ' ORDER BY created_at DESC LIMIT 100';
+    const rows = await queryDB(entiteDB, sql, params);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('[DESADV LIST] Error:', err);
+    res.status(500).json({ error: 'Failed to list DESADV', details: safeErrDetails(err) });
+  }
+});
+
+// GET /api/edi/desadv/:id/packages - Get packages for a DESADV
+app.get('/api/edi/desadv/:id/packages', async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, 'SELECT * FROM edi_packages WHERE id_desadv = ? ORDER BY id', [req.params.id]);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('[DESADV PACKAGES] Error:', err);
+    res.status(500).json({ error: 'Failed to get packages', details: safeErrDetails(err) });
+  }
+});
+
+// GET /api/edi/desadv/:id/lines - Get lines for a DESADV
+app.get('/api/edi/desadv/:id/lines', async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, 'SELECT * FROM edi_desadv_lines WHERE id_desadv = ? ORDER BY line_number, id', [req.params.id]);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('[DESADV LINES] Error:', err);
+    res.status(500).json({ error: 'Failed to get lines', details: safeErrDetails(err) });
   }
 });
 
@@ -5840,6 +5858,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
       direction: 'OUTBOUND',
       partner_id: partnerId,
       partner_gln: data.buyer.gln,
+      sender_gln: data.seller.gln,
       filename: filename,
       file_path: filePath,
       file_content: eancomContent,
@@ -5863,8 +5882,8 @@ app.post('/api/edi/desadv/send', async (req, res) => {
     const totalWeight = data.packages ? data.packages.reduce((acc, p) => acc + (p.weight || 0), 0) : 0;
 
     const desadvParams = [
-      data.desadvNumber, data.orderNumber, data.orderId || null,
-      data.buyer.gln, data.seller.gln, data.delivery ? data.delivery.gln : null,
+      data.desadvNumber || null, data.orderNumber || null, data.orderId || null,
+      data.buyer.gln || null, data.seller.gln || null, (data.delivery && data.delivery.gln) || null,
       data.dateExpedition ? new Date(data.dateExpedition) : null,
       data.dateDelivery ? new Date(data.dateDelivery) : null,
       totalPackages, totalWeight
@@ -5873,15 +5892,36 @@ app.post('/api/edi/desadv/send', async (req, res) => {
     const desadvResult = await runUpdate(entiteDB, desadvInsertSql, desadvParams);
     const desadvId = desadvResult.lastID;
 
-    // 5b. Insert Packages
+    // 5b. Insert Packages and their items
+    const packageIdMap = {}; // sscc -> db id
     if (data.packages && data.packages.length > 0) {
        for (const pkg of data.packages) {
-           await runUpdate(entiteDB, `INSERT INTO edi_packages (id_desadv, sscc, package_type, weight, tracking_number) VALUES (?, ?, ?, ?, ?)`, 
-           [desadvId, pkg.sscc, pkg.type, pkg.weight, pkg.trackingNumber]);
+           const pkgResult = await runUpdate(entiteDB, `INSERT INTO edi_packages (id_desadv, sscc, package_type, weight, tracking_number) VALUES (?, ?, ?, ?, ?)`, 
+           [desadvId, pkg.sscc || null, pkg.type || null, pkg.weight || null, pkg.trackingNumber || null]);
+           const pkgId = pkgResult.lastID;
+           if (pkg.sscc) packageIdMap[pkg.sscc] = pkgId;
+
+           // Insert items within this package
+           if (pkg.items && pkg.items.length > 0) {
+             for (const item of pkg.items) {
+               await runUpdate(entiteDB, `
+                 INSERT INTO edi_desadv_lines (
+                   id_desadv, id_package, id_order_line, line_number, gtin,
+                   qty_dispatched, qty_ordered,
+                   libelle, batch_number, expiry_date
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 [
+                   desadvId, pkgId, item.orderLineId || null, item.lineNumber || null, item.gtin || null,
+                   item.quantity || null, item.orderedQuantity || null,
+                   item.description || null, item.batchNumber || null, item.expiryDate ? new Date(item.expiryDate) : null
+                 ]
+               );
+             }
+           }
        }
     }
 
-    // 5c. Insert Lines
+    // 5c. Insert top-level lines (items not inside packages)
     if (data.items && data.items.length > 0) {
         for (const item of data.items) {
             await runUpdate(entiteDB, `
@@ -5891,9 +5931,9 @@ app.post('/api/edi/desadv/send', async (req, res) => {
                     libelle, batch_number, expiry_date
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
-                    desadvId, item.orderLineId || null, item.lineNumber, item.gtin,
-                    item.quantity, item.orderedQuantity,
-                    item.description, item.batchNumber, item.expiryDate ? new Date(item.expiryDate) : null
+                    desadvId, item.orderLineId || null, item.lineNumber || null, item.gtin || null,
+                    item.quantity || null, item.orderedQuantity || null,
+                    item.description || null, item.batchNumber || null, item.expiryDate ? new Date(item.expiryDate) : null
                 ]
             );
         }
@@ -5906,7 +5946,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.buyer.gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[DESADV SEND] 🎯 EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[DESADV SEND] ðŸŽ¯ EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -5916,11 +5956,11 @@ app.post('/api/edi/desadv/send', async (req, res) => {
           partnerGln: data.buyer.gln,
           senderGln: data.seller.gln
         }, {
-          headers: { 'x-api-pin': configService.get('API_PIN') },
+          headers: serviceAuthHeaders(),
           timeout: 30000
         });
 
-        console.log(`[DESADV SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[DESADV SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -5930,7 +5970,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
           null
         );
       } catch (ediErr) {
-        console.error(`[DESADV SEND] ❌ Failed to send to EDI server:`, ediErr.message);
+        console.error(`[DESADV SEND] âŒ Failed to send to EDI server:`, ediErr.message);
         
         await updateEdiTransmissionStatus(
           entiteDB,
@@ -5955,7 +5995,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
 
   } catch (err) {
     console.error('[EDI SEND] Error generating DESADV:', err);
-    res.status(500).json({ error: 'Failed to generate DESADV', details: err.message });
+    res.status(500).json({ error: 'Failed to generate DESADV', details: safeErrDetails(err) });
   }
 });
 
@@ -5997,6 +6037,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
       direction: 'OUTBOUND',
       partner_id: partnerId,
       partner_gln: data.buyer.gln,
+      sender_gln: data.seller.gln,
       filename: filename,
       file_path: filePath,
       file_content: eancomContent,
@@ -6016,13 +6057,13 @@ app.post('/api/edi/invoic/send', async (req, res) => {
     `;
     
     const invoicParams = [
-        data.invoiceNumber,
+        data.invoiceNumber || null,
         data.dateInvoice ? new Date(data.dateInvoice) : null,
         data.dateDue ? new Date(data.dateDue) : null,
-        data.buyer.gln, data.seller.gln,
-        data.orderNumber, data.desadvNumber, data.orderId || null,
+        data.buyer.gln || null, data.seller.gln || null,
+        data.orderNumber || null, data.desadvNumber || null, data.orderId || null,
         data.currency || 'EUR',
-        data.totals.totalLines, data.totals.totalTax, data.totals.totalPayable
+        data.totals.totalLines || null, data.totals.totalTax || null, data.totals.totalPayable || null
     ];
 
     const invoicResult = await runUpdate(entiteDB, invoicInsertSql, invoicParams);
@@ -6038,9 +6079,9 @@ app.post('/api/edi/invoic/send', async (req, res) => {
                     tax_rate, line_amount
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
-                    invoicId, item.orderLineId || null, item.lineNumber, item.gtin,
-                    item.description, item.quantity, item.unitPrice,
-                    item.taxRate, item.lineAmount
+                    invoicId, item.orderLineId || null, item.lineNumber || null, item.gtin || null,
+                    item.description || null, item.quantity || null, item.unitPrice || null,
+                    item.taxRate || null, item.lineAmount || null
                 ]
             );
         }
@@ -6053,7 +6094,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.buyer.gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[INVOIC SEND] 🎯 EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[INVOIC SEND] ðŸŽ¯ EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -6063,11 +6104,11 @@ app.post('/api/edi/invoic/send', async (req, res) => {
           partnerGln: data.buyer.gln,
           senderGln: data.seller.gln
         }, {
-          headers: { 'x-api-pin': configService.get('API_PIN') },
+          headers: serviceAuthHeaders(),
           timeout: 30000
         });
 
-        console.log(`[INVOIC SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[INVOIC SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -6077,7 +6118,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
           null
         );
       } catch (ediErr) {
-        console.error(`[INVOIC SEND] ❌ Failed to send to EDI server:`, ediErr.message);
+        console.error(`[INVOIC SEND] âŒ Failed to send to EDI server:`, ediErr.message);
         
         await updateEdiTransmissionStatus(
           entiteDB,
@@ -6102,211 +6143,59 @@ app.post('/api/edi/invoic/send', async (req, res) => {
 
   } catch (err) {
     console.error('[EDI SEND] Error generating INVOIC:', err);
-    res.status(500).json({ error: 'Failed to generate INVOIC', details: err.message });
+    res.status(500).json({ error: 'Failed to generate INVOIC', details: safeErrDetails(err) });
   }
 });
 
-// GET /api/check-supervisor-profile/:id_entite
-app.get('/api/check-supervisor-profile/:id_entite', async (req, res) => {
-  const { id_entite } = req.params;
-
-  if (!id_entite || isNaN(parseInt(id_entite, 10))) {
-    return res.status(400).json({ error: 'Invalid id_entite', details: 'id_entite must be a valid number' });
-  }
-
+// GET /api/edi/invoices/list - List all invoices from edi_invoic (both sent and received)
+app.get("/api/edi/invoices/list", async (req, res) => {
   try {
-    if (!entiteDB) {
-      return res.status(503).json({ error: 'EntiteDb.db is unavailable', details: 'Database connection not established' });
-    }
-
-    // Query comptes table (fixed table name consistency)
-    const profiles = await queryDB(
-      entiteDB,
-      'SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0',
-      [parseInt(id_entite, 10)]
-    );
-
-    res.json({ exists: profiles.length > 0 });
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, 'SELECT * FROM edi_invoic ORDER BY created_at DESC LIMIT 200', []);
+    res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('Error checking supervisor profile:', { id_entite, message: err.message, stack: err.stack });
-    res.status(500).json({ error: 'Server error', details: err.message });
+    console.error('[INVOICES LIST] Error:', err);
+    res.status(500).json({ error: 'Failed to list invoices', details: safeErrDetails(err) });
   }
 });
 
-// POST /api/create-supervisor-profile
-app.post('/api/create-supervisor-profile', async (req, res) => {
-  const { id_entite, raison_socialle } = req.body;
-
-  // Validate input
-  if (!id_entite || isNaN(parseInt(id_entite))) {
-    return res.status(400).json({
-      error: 'Invalid id_entite',
-      details: 'id_entite must be a valid number',
-    });
-  }
-  if (!raison_socialle || typeof raison_socialle !== 'string') {
-    return res.status(400).json({
-      error: 'Invalid raison_socialle',
-      details: 'raison_socialle must be a non-empty string',
-    });
-  }
-
+// GET /api/edi/invoices/:id/lines - Get lines for an invoice
+app.get("/api/edi/invoices/:id/lines", async (req, res) => {
   try {
-    if (!entiteDB) {
-      return res.status(503).json({
-        error: 'EntiteDb.db is unavailable',
-        details: 'Database connection not established',
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, 'SELECT * FROM edi_invoic_lines WHERE id_invoic = ? ORDER BY line_number, id', [req.params.id]);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('[INVOICE LINES] Error:', err);
+    res.status(500).json({ error: 'Failed to get invoice lines', details: safeErrDetails(err) });
+  }
+});
+
+// DELETE /api/edi/invoices/:id - Delete an invoice (only DRAFT allowed)
+app.delete("/api/edi/invoices/:id", async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    // Check current status â€” only DRAFT invoices can be deleted
+    const rows = await queryDB(entiteDB, 'SELECT status, invoic_number FROM edi_invoic WHERE id = ?', [req.params.id]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Invoice not found' });
+    const { status, invoic_number } = rows[0];
+    if ((status || '').toUpperCase() !== 'DRAFT') {
+      return res.status(403).json({
+        error: `Suppression impossible : la facture ${invoic_number} est en statut "${status}". Seules les factures en brouillon peuvent Ãªtre supprimÃ©es.`
       });
     }
-
-    // Check if a supervisor profile already exists (fixed table name to comptes)
-    const existing = await queryDB(
-      entiteDB,
-      'SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0',
-      [parseInt(id_entite)]
-    );
-    if (existing.length > 0) {
-      return res.status(400).json({
-        error: 'Supervisor profile already exists',
-        details: `A supervisor profile already exists for id_entite ${id_entite}`,
-      });
-    }
-
-    // Insert new supervisor profile (fixed table name to comptes; minimal fields, adjust based on comptes table schema)
-    const result = await runUpdate(
-      entiteDB,
-      `INSERT INTO comptes (id_entite, name, email, is_suspended, created_at)
-       VALUES (?, ?, ?, 0, datetime('now'))`,
-      [parseInt(id_entite), raison_socialle, null] // Email set to null; add if required
-    );
-
-    res.status(201).json({
-      id_compte: result.lastID,
-      id_entite,
-      name: raison_socialle,
-    });
+    await runUpdate(entiteDB, 'DELETE FROM edi_invoic_lines WHERE id_invoic = ?', [req.params.id]);
+    await runUpdate(entiteDB, 'DELETE FROM edi_invoic WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
   } catch (err) {
-    console.error('Error creating supervisor profile:', {
-      id_entite,
-      raison_socialle,
-      message: err.message,
-      stack: err.stack,
-    });
-    res.status(500).json({
-      error: 'Server error',
-      details: err.message,
-    });
-  }
-});
-// --------------------------------------------------------
-// INVOICE ENDPOINTS (CRUD)
-// --------------------------------------------------------
-
-// GET /api/invoices
-app.get("/api/invoices", async (req, res) => {
-  try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    const idEntite = req.headers["x-entite-id"];
-    
-    let query = "SELECT * FROM edi_invoic WHERE status != 'ARCHIVED' ORDER BY created_at DESC";
-    let params = [];
-    
-    if (idEntite) {
-      // Assuming we filter by seller (outgoing) or buyer (incoming)
-      // For now, let's show all for debugging or filter by seller if we had that column clearly linked to ID
-      // The table has seller_gln. We might need to join with Entite to filter by id_entite.
-      // But for simplicity, let's just return all non-archived for now or improve if we can resolve GLN to ID.
-    }
-
-    const invoices = await queryDB(entiteDB, query, params);
-    res.json(invoices);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[INVOICE DELETE] Error:', err);
+    res.status(500).json({ error: 'Failed to delete invoice', details: safeErrDetails(err) });
   }
 });
 
-// GET /api/invoices/:id
-app.get("/api/invoices/:id", async (req, res) => {
+// POST /api/edi/invoices/:id/send - Send an existing draft invoice via EDI
+app.post("/api/edi/invoices/:id/send", async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    const { id } = req.params;
-    
-    const invoice = await queryDB(entiteDB, "SELECT * FROM edi_invoic WHERE id = ?", [id]);
-    if (!invoice || invoice.length === 0) return res.status(404).json({ error: "Invoice not found" });
-    
-    const lines = await queryDB(entiteDB, "SELECT * FROM edi_invoic_lines WHERE id_invoic = ?", [id]);
-    
-    res.json({ ...invoice[0], lines });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/invoices (Create Draft)
-app.post("/api/invoices", async (req, res) => {
-  try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    const data = req.body;
-    
-    const insertSql = `
-      INSERT INTO edi_invoic (
-        invoic_number, type_code, date_facture, date_echeance,
-        buyer_gln, seller_gln, 
-        order_reference, desadv_reference, id_order,
-        currency, total_ht, total_tax, total_ttc,
-        direction, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OUTBOUND', 'DRAFT', NOW())
-    `;
-    
-    const params = [
-      data.invoic_number, data.type_code || '380', 
-      data.date_facture ? new Date(data.date_facture) : new Date(),
-      data.date_echeance ? new Date(data.date_echeance) : null,
-      data.buyer_gln, data.seller_gln,
-      data.order_reference, data.desadv_reference, data.id_order,
-      data.currency || 'EUR', data.total_ht || 0, data.total_tax || 0, data.total_ttc || 0
-    ];
-
-    const result = await runUpdate(entiteDB, insertSql, params);
-    const invoiceId = result.lastID;
-
-    if (data.lines && data.lines.length > 0) {
-      for (const line of data.lines) {
-        await runUpdate(entiteDB, `
-          INSERT INTO edi_invoic_lines (
-            id_invoic, line_number, gtin, description, 
-            quantity, unit_price, tax_rate, line_amount
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            invoiceId, line.line_number, line.gtin, line.description,
-            line.quantity, line.unit_price, line.tax_rate, line.line_amount
-          ]
-        );
-      }
-    }
-
-    res.json({ success: true, id: invoiceId, message: "Draft invoice created" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE /api/invoices/:id
-app.delete("/api/invoices/:id", async (req, res) => {
-  try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
-    const { id } = req.params;
-    await runUpdate(entiteDB, "DELETE FROM edi_invoic WHERE id = ?", [id]);
-    res.json({ success: true, message: "Invoice deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/invoices/:id/send - Send an existing draft invoice via EDI
-app.post("/api/invoices/:id/send", async (req, res) => {
-  try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     const { id } = req.params;
 
     // 1. Fetch Invoice Data
@@ -6369,6 +6258,7 @@ app.post("/api/invoices/:id/send", async (req, res) => {
       direction: 'OUTBOUND',
       partner_id: partnerId,
       partner_gln: invoice.buyer_gln,
+      sender_gln: invoice.seller_gln,
       filename: filename,
       file_path: path.join('uploads', 'eancom', 'outbound', filename),
       file_content: eancomContent,
@@ -6418,7 +6308,6 @@ app.get("/api/status", async (req, res) => {
 // DEBUG ENDPOINT: List last orders
 app.get("/api/debug/orders", async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     const orders = await queryDB(entiteDB, "SELECT id_order, num_commande, id_entite_buyer, id_entite_seller, status, created_at FROM orders ORDER BY created_at DESC LIMIT 10");
     res.json(orders);
   } catch (err) {
@@ -6429,7 +6318,6 @@ app.get("/api/debug/orders", async (req, res) => {
 // DEBUG ENDPOINT: List entities
 app.get("/api/debug/entities", async (req, res) => {
   try {
-    if (req.headers["x-api-pin"] !== configService.get('API_PIN')) return res.status(403).json({ error: "Invalid PIN" });
     const entities = await queryDB(entiteDB, "SELECT id_entite, gln, raison_socialle FROM Entite LIMIT 50");
     res.json(entities);
   } catch (err) {
@@ -6438,7 +6326,7 @@ app.get("/api/debug/entities", async (req, res) => {
 });
 
 
-// ?? GET /api/products — Fetch all with filters + pagination
+// ?? GET /api/products â€” Fetch all with filters + pagination
 app.get("/api/products", async (req, res) => {
   try {
     if (!entiteDB)
@@ -6488,13 +6376,15 @@ app.get("/api/products", async (req, res) => {
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     const sql = `
-      SELECT id, brand, subBrand, description, gtin, libelle, short_libelle,
-             countryOfOrigin, idEntreprise, images, nb_images, prix_min, prix_max,
-             code_cader, codeClasse, codebrique, date_mis_a_jour_fp,
-             tradeItemSynchronisationDates, date_create_fp, activ_prix, status, done_new
-      FROM fiche_produit
+      SELECT fp.id, fp.brand, fp.subBrand, fp.description, fp.gtin, fp.libelle, fp.short_libelle,
+             fp.countryOfOrigin, fp.idEntreprise, fp.images, fp.nb_images, fp.prix_min, fp.prix_max,
+             fp.code_cader, fp.codeClasse, fp.codebrique, fp.date_mis_a_jour_fp,
+             fp.tradeItemSynchronisationDates, fp.date_create_fp, fp.activ_prix, fp.status, fp.done_new,
+             COALESCE(dc.cnt, 0) AS declinaison_count
+      FROM fiche_produit fp
+      LEFT JOIN (SELECT id_produit, COUNT(*) AS cnt FROM declinaison GROUP BY id_produit) dc ON dc.id_produit = fp.id
       ${whereClause}
-      ORDER BY \`${sortBy}\` ${sortDir}
+      ORDER BY fp.\`${sortBy}\` ${sortDir}
       LIMIT ${offset}, ${safeLimit};
     `;
 
@@ -6509,7 +6399,7 @@ app.get("/api/products", async (req, res) => {
     });
   } catch (err) {
     console.error("? /api/products error:", err);
-    res.status(500).json({ error: "Failed to fetch products", details: err.message });
+    res.status(500).json({ error: "Failed to fetch products", details: safeErrDetails(err) });
   }
 });
 
@@ -6576,7 +6466,7 @@ app.post("/api/products", uploadProducts.array("images", 10), async (req, res) =
     res.json({ id: result.lastID, ...fields, images, nb_images: params[9], status: 0 });
   } catch (err) {
     console.error("? POST /api/products error:", err);
-    res.status(500).json({ error: "Failed to create product", details: err.message });
+    res.status(500).json({ error: "Failed to create product", details: safeErrDetails(err) });
   }
 });
 
@@ -6695,7 +6585,7 @@ app.get('/api/bricks_by_class', async (req, res) => {
     const [rows] = await conn.query(`
       SELECT 
         codeBrique,
-        COALESCE(CONVERT(libelleBrique USING utf8mb4), '(Sans libellé)') AS libelleBrique,
+        COALESCE(CONVERT(libelleBrique USING utf8mb4), '(Sans libellÃ©)') AS libelleBrique,
         ordre_brique
       FROM brickgpc
       WHERE codeClasse = ?
@@ -6725,7 +6615,7 @@ app.delete("/api/products/:id", async (req, res) => {
 
     res.json({ message: "Product deleted" });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete", details: err.message });
+    res.status(500).json({ error: "Failed to delete", details: safeErrDetails(err) });
   }
 });
 
@@ -6741,7 +6631,7 @@ app.patch("/api/products/:id", async (req, res) => {
     res.json({ id: Number(id), status: Number(status) });
   } catch (err) {
     console.error("PATCH /api/products/:id error:", err);
-    res.status(500).json({ error: "Failed to update status", details: err.message });
+    res.status(500).json({ error: "Failed to update status", details: safeErrDetails(err) });
   }
 });
 
@@ -6774,13 +6664,13 @@ app.get('/api/classes', async (req, res) => {
     await conn.end();
   } catch (err) {
     console.error('? Error fetching classes:', err);
-    res.status(500).json({ error: 'Failed to fetch classes', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch classes', details: safeErrDetails(err) });
   }
 });
 
 
 
-// ?? GET /api/briques-by-class/:codeClasse — Fetch briques for a specific class
+// ?? GET /api/briques-by-class/:codeClasse â€” Fetch briques for a specific class
 app.get("/api/briques-by-class/:codeClasse", async (req, res) => {
   try {
     const { codeClasse } = req.params;
@@ -6800,7 +6690,7 @@ app.get("/api/briques-by-class/:codeClasse", async (req, res) => {
 // 1. TEMPLATE GENERATOR  (/api/products/template)
 // ---------------------------------------------------------------
 // ---------------------------------------------------------------
-// TEMPLATE – /api/products/template
+// TEMPLATE â€“ /api/products/template
 // ---------------------------------------------------------------
 app.get("/api/products/template", async (req, res) => {
   try {
@@ -6811,9 +6701,9 @@ app.get("/api/products/template", async (req, res) => {
 
     // ---- 1. FETCH LIVE DATA ------------------------------------
     const [pRes, cRes, bRes] = await Promise.all([
-      axios.get(`${base}/api/pays`),
-      axios.get(`${base}/api/classes`),
-      axios.get(`${base}/api/bricks`)
+      axios.get(`${base}/api/pays`,    { headers: serviceAuthHeaders() }),
+      axios.get(`${base}/api/classes`, { headers: serviceAuthHeaders() }),
+      axios.get(`${base}/api/bricks`,  { headers: serviceAuthHeaders() })
     ]);
 
     const pays = pRes.data.map(p => `${p.libelle} - ${p.isoNumeric}`);
@@ -6826,7 +6716,7 @@ app.get("/api/products/template", async (req, res) => {
 
     // ---- 2. CREATE WORKBOOK ------------------------------------
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Modèle Import Produits");
+    const ws = wb.addWorksheet("ModÃ¨le Import Produits");
 
     // ----- headers ------------------------------------------------
     const headers = [
@@ -6854,7 +6744,7 @@ app.get("/api/products/template", async (req, res) => {
     const csv = arr => arr.map(s => `"${s.replace(/"/g, '""')}"`).join(",");
 
     // ----- helper: write a long list to a hidden column and return INDIRECT formula
-    // (Excel limit ˜ 255 chars ? we use a hidden column when > 30 items)
+    // (Excel limit Ëœ 255 chars ? we use a hidden column when > 30 items)
     const makeList = (arr, colLetter) => {
       if (arr.length <= 30) {
         return `=${csv(arr)}`;
@@ -6902,7 +6792,7 @@ app.get("/api/products/template", async (req, res) => {
     res.end();
   } catch (err) {
     console.error("GET /api/products/template error:", err);
-    res.status(500).json({ error: "Failed to generate template", details: err.message });
+    res.status(500).json({ error: "Failed to generate template", details: safeErrDetails(err) });
   }
 });
 app.post("/api/products/import", async (req, res) => {
@@ -6962,35 +6852,35 @@ app.post("/api/products/import", async (req, res) => {
     res.json({
       inserted,
       skipped,
-      message: `${inserted} produit(s) importé(s), ${skipped} ignoré(s)`
+      message: `${inserted} produit(s) importÃ©(s), ${skipped} ignorÃ©(s)`
     });
 
   } catch (err) {
     console.error("POST /api/products/import ERROR:", err);
-    res.status(500).json({ error: "Server error", details: err.message });
+    res.status(500).json({ error: "Server error", details: safeErrDetails(err) });
   }
 });
 
 // ================== DECLINAISON CONSTANTS ==================
 
 const PACKAGING_TYPES = [
-  "Carton", "Plastique", "Verre", "Métal", "Bois",
+  "Carton", "Plastique", "Verre", "MÃ©tal", "Bois",
   "Papier", "Sachet", "Film plastique", "Barquette", "Bouteille"
 ];
 
 const PALLET_TYPES = [
   "EUR/EPAL", "CP1", "CP2", "CP3", "CP4",
-  "CP5", "CP6", "CP7", "CP8", "CP9", "Palette personnalisée"
+  "CP5", "CP6", "CP7", "CP8", "CP9", "Palette personnalisÃ©e"
 ];
 
-// Hiérarchies GS1
+// HiÃ©rarchies GS1
 const HIERARCHY_OPTIONS = {
-  PK: "PK (Lot Consommateur Homogène)",
-  AP: "AP (Lot Consommateur Hétérogène)",
-  CA: "CA (Colis Homogène)",
-  DS: "DS (Colis Hétérogène)",
-  PL: "PL (Palette Homogène)",
-  MX: "MX (Palette Hétérogène)"
+  PK: "PK (Lot Consommateur HomogÃ¨ne)",
+  AP: "AP (Lot Consommateur HÃ©tÃ©rogÃ¨ne)",
+  CA: "CA (Colis HomogÃ¨ne)",
+  DS: "DS (Colis HÃ©tÃ©rogÃ¨ne)",
+  PL: "PL (Palette HomogÃ¨ne)",
+  MX: "MX (Palette HÃ©tÃ©rogÃ¨ne)"
 };
 
 const HIERARCHY_FIELDS = {
@@ -7112,7 +7002,7 @@ app.post("/api/declinaisons", async (req, res) => {
     if (!HIERARCHY_FIELDS[hierarchy_code])
       return res.status(400).json({ error: "Invalid hierarchy_code" });
 
-    // 🔒 Nettoyage sécurisé
+    // ðŸ”’ Nettoyage sÃ©curisÃ©
     const allowed = HIERARCHY_FIELDS[hierarchy_code];
     const cleaned = {};
     for (const k of allowed) {
@@ -7154,7 +7044,7 @@ app.get("/api/products/:id/declinaisons", async (req, res) => {
 
     res.json(rows.map(r => ({
       ...r,
-      hierarchy_fields: JSON.parse(r.hierarchy_fields)
+      hierarchy_fields: typeof r.hierarchy_fields === 'string' ? JSON.parse(r.hierarchy_fields) : (r.hierarchy_fields || {})
     })));
   } catch (err) {
     console.error("GET declinaisons", err);
@@ -7237,7 +7127,7 @@ router.get("/orders", async (req, res) => {
     const orders = await queryDB(entiteDB, "SELECT * FROM orders ORDER BY id_order DESC", []);
     res.json(orders);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch orders", details: err.message });
+    res.status(500).json({ error: "Failed to fetch orders", details: safeErrDetails(err) });
   }
 });
 
@@ -7248,7 +7138,7 @@ router.get("/orders/:id", async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: "Order not found" });
     res.json(rows[0]);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch order", details: err.message });
+    res.status(500).json({ error: "Failed to fetch order", details: safeErrDetails(err) });
   }
 });
 
@@ -7264,7 +7154,7 @@ router.post("/orders", async (req, res) => {
     );
     res.json({ id_order: result.lastID });
   } catch (err) {
-    res.status(500).json({ error: "Failed to create order", details: err.message });
+    res.status(500).json({ error: "Failed to create order", details: safeErrDetails(err) });
   }
 });
 
@@ -7279,7 +7169,7 @@ router.put("/orders/:id", async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update order", details: err.message });
+    res.status(500).json({ error: "Failed to update order", details: safeErrDetails(err) });
   }
 });
 
@@ -7289,7 +7179,7 @@ router.delete("/orders/:id", async (req, res) => {
     await runUpdate(entiteDB, "DELETE FROM orders WHERE id_order=?", [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete order", details: err.message });
+    res.status(500).json({ error: "Failed to delete order", details: safeErrDetails(err) });
   }
 });
 
@@ -7300,7 +7190,7 @@ router.get("/order/:id/lines", async (req, res) => {
     const rows = await queryDB(entiteDB, "SELECT * FROM order_lines WHERE id_order=?", [req.params.id]);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch order lines", details: err.message });
+    res.status(500).json({ error: "Failed to fetch order lines", details: safeErrDetails(err) });
   }
 });
 
@@ -7312,7 +7202,7 @@ router.post("/order/:id/lines", async (req, res) => {
       [req.params.id, line_number, gtin, quantity, unit, price, libelle]);
     res.json({ id: result.lastID });
   } catch (err) {
-    res.status(500).json({ error: "Failed to add order line", details: err.message });
+    res.status(500).json({ error: "Failed to add order line", details: safeErrDetails(err) });
   }
 });
 
@@ -7324,7 +7214,7 @@ router.put("/order/line/:id", async (req, res) => {
       [line_number, gtin, quantity, unit, price, libelle, req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update order line", details: err.message });
+    res.status(500).json({ error: "Failed to update order line", details: safeErrDetails(err) });
   }
 });
 
@@ -7334,7 +7224,7 @@ router.delete("/order/line/:id", async (req, res) => {
     await runUpdate(entiteDB, "DELETE FROM order_lines WHERE id=?", [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete order line", details: err.message });
+    res.status(500).json({ error: "Failed to delete order line", details: safeErrDetails(err) });
   }
 });
 
@@ -7345,7 +7235,7 @@ router.get("/shipments", async (req, res) => {
     const rows = await queryDB(entiteDB, "SELECT * FROM edi_shipments ORDER BY id DESC", []);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch shipments", details: err.message });
+    res.status(500).json({ error: "Failed to fetch shipments", details: safeErrDetails(err) });
   }
 });
 
@@ -7357,7 +7247,7 @@ router.post("/shipments", async (req, res) => {
       [num_expedition, id_avis_expedition, id_order, status, carrier, vehicle, date_expedition]);
     res.json({ id: result.lastID });
   } catch (err) {
-    res.status(500).json({ error: "Failed to create shipment", details: err.message });
+    res.status(500).json({ error: "Failed to create shipment", details: safeErrDetails(err) });
   }
 });
 
@@ -7369,7 +7259,7 @@ router.put("/shipments/:id", async (req, res) => {
       [num_expedition, id_avis_expedition, id_order, status, carrier, vehicle, date_expedition, req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update shipment", details: err.message });
+    res.status(500).json({ error: "Failed to update shipment", details: safeErrDetails(err) });
   }
 });
 
@@ -7379,7 +7269,7 @@ router.delete("/shipments/:id", async (req, res) => {
     await runUpdate(entiteDB, "DELETE FROM edi_shipments WHERE id=?", [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete shipment", details: err.message });
+    res.status(500).json({ error: "Failed to delete shipment", details: safeErrDetails(err) });
   }
 });
 
@@ -7390,19 +7280,172 @@ router.get("/invoices", async (req, res) => {
     const rows = await queryDB(entiteDB, "SELECT * FROM edi_invoices ORDER BY id DESC", []);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch invoices", details: err.message });
+    res.status(500).json({ error: "Failed to fetch invoices", details: safeErrDetails(err) });
   }
 });
 
 router.post("/invoices", async (req, res) => {
   if (!entiteDB) return res.status(503).json({ error: "DB unavailable" });
-  const { num_facture, id_facture_legacy, id_order, id_shipment, total_ht } = req.body;
+  const d = req.body;
   try {
-    const result = await runUpdate(entiteDB, "INSERT INTO edi_invoices (num_facture,id_facture_legacy,id_order,id_shipment,total_ht) VALUES (?,?,?,?,?)",
-      [num_facture, id_facture_legacy, id_order, id_shipment, total_ht]);
-    res.json({ id: result.lastID });
+    // Support both legacy simple fields and full InvoiceFormData from InvoiceCreationModal
+    if (d.invoic_number || d.buyer_gln || d.seller_gln) {
+      // Full InvoiceFormData â€” insert into edi_invoic + edi_invoic_lines
+      const result = await runUpdate(entiteDB,
+        `INSERT INTO edi_invoic (invoic_number, type_code, date_facture, date_echeance, buyer_gln, seller_gln, order_reference, desadv_reference, id_order, currency, total_ht, total_tax, total_ttc, direction, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OUTBOUND', 'DRAFT')`,
+        [
+          d.invoic_number || null,
+          d.type_code || '380',
+          d.date_facture || null,
+          d.date_echeance || null,
+          d.buyer_gln || null,
+          d.seller_gln || null,
+          d.order_reference || null,
+          d.desadv_reference || null,
+          d.id_order || null,
+          d.currency || 'EUR',
+          d.total_ht || null,
+          d.total_tax || null,
+          d.total_ttc || null
+        ]);
+      const invoicId = result.lastID;
+
+      // Insert lines
+      if (d.lines && Array.isArray(d.lines)) {
+        for (const line of d.lines) {
+          await runUpdate(entiteDB,
+            `INSERT INTO edi_invoic_lines (id_invoic, line_number, gtin, description, quantity, unit_price, tax_rate, line_amount)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              invoicId,
+              line.line_number || null,
+              line.gtin || null,
+              line.description || null,
+              line.quantity || 0,
+              line.unit_price || 0,
+              line.tax_rate || 0,
+              line.line_amount || 0
+            ]);
+        }
+      }
+
+      console.log(`[INVOICE] Created edi_invoic #${invoicId} with ${(d.lines || []).length} lines`);
+      res.json({ success: true, id: invoicId });
+    } else {
+      // Legacy simple insert into edi_invoices
+      const { num_facture, id_facture_legacy, id_order, id_shipment, total_ht } = d;
+      const result = await runUpdate(entiteDB, "INSERT INTO edi_invoices (num_facture,id_facture_legacy,id_order,id_shipment,total_ht) VALUES (?,?,?,?,?)",
+        [num_facture || null, id_facture_legacy || null, id_order || null, id_shipment || null, total_ht || null]);
+      res.json({ success: true, id: result.lastID });
+    }
   } catch (err) {
-    res.status(500).json({ error: "Failed to create invoice", details: err.message });
+    console.error("[INVOICE] Error creating invoice:", err);
+    res.status(500).json({ error: "Failed to create invoice", details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/invoices/:id/send â€” Proxy to /api/edi/invoices/:id/send
+router.post("/invoices/:id/send", async (req, res) => {
+  if (!entiteDB) return res.status(503).json({ error: "DB unavailable" });
+  try {
+    const { id } = req.params;
+
+    // 1. Fetch Invoice Data from edi_invoic
+    const invoiceRows = await queryDB(entiteDB, "SELECT * FROM edi_invoic WHERE id = ?", [id]);
+    if (!invoiceRows || invoiceRows.length === 0) return res.status(404).json({ error: "Invoice not found in edi_invoic" });
+    const invoice = invoiceRows[0];
+
+    const lineRows = await queryDB(entiteDB, "SELECT * FROM edi_invoic_lines WHERE id_invoic = ?", [id]);
+
+    // 2. Construct Payload for EANCOM Generation
+    const payload = {
+      invoiceNumber: invoice.invoic_number,
+      dateInvoice: invoice.date_facture,
+      dateDue: invoice.date_echeance,
+      buyer: { gln: invoice.buyer_gln },
+      seller: { gln: invoice.seller_gln },
+      orderNumber: invoice.order_reference,
+      desadvNumber: invoice.desadv_reference,
+      currency: invoice.currency,
+      totals: {
+        totalLines: invoice.total_ht,
+        totalTax: invoice.total_tax,
+        totalPayable: invoice.total_ttc
+      },
+      items: lineRows.map(l => ({
+        lineNumber: l.line_number,
+        gtin: l.gtin,
+        description: l.description,
+        quantity: l.quantity,
+        unitPrice: l.unit_price,
+        taxRate: l.tax_rate,
+        lineAmount: l.line_amount
+      }))
+    };
+
+    console.log(`[INVOICE SEND] Sending Draft INVOIC #${id} â€” ${payload.invoiceNumber}`);
+
+    // 3. Generate EANCOM
+    const eancomContent = generateInvoicEANCOM(payload);
+
+    // 4. Save to file
+    const ediOrdersPath = configService.getEdiOrdersPath();
+    const outboundDir = path.join(ediOrdersPath, 'invoices', payload.seller.gln);
+    await fs.promises.mkdir(outboundDir, { recursive: true });
+    const filename = `INVOIC_${payload.invoiceNumber}_${Date.now()}.txt`;
+    const filePath = path.join(outboundDir, filename);
+    await fs.promises.writeFile(filePath, eancomContent, 'utf8');
+
+    // 5. Record Transmission
+    let partnerId = null;
+    if (invoice.buyer_gln) {
+      const partnerRows = await queryDB(entiteDB, "SELECT id_entite FROM Entite WHERE gln = ?", [invoice.buyer_gln]);
+      if (partnerRows.length > 0) partnerId = partnerRows[0].id_entite;
+    }
+
+    const transmissionId = await createEdiTransmission(entiteDB, {
+      related_id: invoice.id,
+      related_type: 'INVOICE',
+      document_type: 'INVOIC',
+      direction: 'OUTBOUND',
+      partner_id: partnerId,
+      partner_gln: invoice.buyer_gln,
+      sender_gln: invoice.seller_gln,
+      filename: filename,
+      file_path: path.join('uploads', 'eancom', 'outbound', filename),
+      file_content: eancomContent,
+      status: 'PENDING',
+      transmission_date: new Date(),
+      logs: `Queued INVOIC ${payload.invoiceNumber} via /api/invoices/:id/send`
+    });
+
+    // 6. Update Invoice Status to PENDING
+    await runUpdate(entiteDB, "UPDATE edi_invoic SET status = 'PENDING', updated_at = NOW() WHERE id = ?", [id]);
+
+    // 7. Queue for delivery
+    try {
+      await axios.post(`http://localhost:${configService.get('PORT') || 5001}/api/edi/queue-send`, {
+        eancomContent: eancomContent,
+        filename: filename,
+        partnerGln: invoice.buyer_gln,
+        senderGln: invoice.seller_gln
+      }, {
+        headers: serviceAuthHeaders()
+      });
+    } catch (queueErr) {
+      console.warn('[INVOICE SEND] Queue send failed (will retry via worker):', queueErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: `INVOIC ${payload.invoiceNumber} sent successfully`,
+      invoiceId: id,
+      transmissionId: transmissionId
+    });
+  } catch (err) {
+    console.error("[INVOICE SEND] Error:", err);
+    res.status(500).json({ error: "Failed to send invoice", details: safeErrDetails(err) });
   }
 });
 
@@ -7414,7 +7457,7 @@ router.put("/invoices/:id", async (req, res) => {
       [num_facture, id_facture_legacy, id_order, id_shipment, total_ht, req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update invoice", details: err.message });
+    res.status(500).json({ error: "Failed to update invoice", details: safeErrDetails(err) });
   }
 });
 
@@ -7424,7 +7467,7 @@ router.delete("/invoices/:id", async (req, res) => {
     await runUpdate(entiteDB, "DELETE FROM edi_invoices WHERE id=?", [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete invoice", details: err.message });
+    res.status(500).json({ error: "Failed to delete invoice", details: safeErrDetails(err) });
   }
 });
 
@@ -7435,7 +7478,7 @@ router.get("/tracking/:shipment", async (req, res) => {
     const rows = await queryDB(entiteDB, "SELECT * FROM edi_tracking WHERE id_shipment=?", [req.params.shipment]);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch tracking", details: err.message });
+    res.status(500).json({ error: "Failed to fetch tracking", details: safeErrDetails(err) });
   }
 });
 
@@ -7447,7 +7490,7 @@ router.post("/tracking/:shipment", async (req, res) => {
       [req.params.shipment, event_code, event_label, event_datetime, location]);
     res.json({ id: result.lastID });
   } catch (err) {
-    res.status(500).json({ error: "Failed to create tracking event", details: err.message });
+    res.status(500).json({ error: "Failed to create tracking event", details: safeErrDetails(err) });
   }
 });
 
@@ -7459,7 +7502,7 @@ router.put("/tracking/:id", async (req, res) => {
       [event_code, event_label, event_datetime, location, req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update tracking", details: err.message });
+    res.status(500).json({ error: "Failed to update tracking", details: safeErrDetails(err) });
   }
 });
 
@@ -7469,12 +7512,12 @@ router.delete("/tracking/:id", async (req, res) => {
     await runUpdate(entiteDB, "DELETE FROM edi_tracking WHERE id=?", [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete tracking", details: err.message });
+    res.status(500).json({ error: "Failed to delete tracking", details: safeErrDetails(err) });
   }
 });
 
 // ======================================
-//  CARACTÉRISTIQUES IMAGE UPLOADER (CJS VERSION)
+//  CARACTÃ‰RISTIQUES IMAGE UPLOADER (CJS VERSION)
 // ======================================
 // Folder for uploads
 const CARAC_DIR = process.env.CARAC_DIR || path.join(__dirname, 'uploads', 'caracteristiques');
@@ -7544,19 +7587,20 @@ app.get("/api/caracteristiques", async (req, res) => {
     }
 
     const whereSQL = where.length ? "WHERE " + where.join(" AND ") : "";
+    const allowedSort = ["id_carac", "identification", "nature", "date_lancement", "created_at"];
+    const safeSortBy = allowedSort.includes(sortBy) ? sortBy : "id_carac";
+    const safeSortDir = sortDir.toUpperCase() === "ASC" ? "ASC" : "DESC";
 
-    const sql = `
-      SELECT * FROM caracteristiques
-      ${whereSQL}
-      ORDER BY ${sortBy} ${sortDir}
-      LIMIT ?, ?
-    `;
+    const sql = `SELECT * FROM caracteristiques ${whereSQL} ORDER BY ${safeSortBy} ${safeSortDir} LIMIT ? OFFSET ?`;
 
-    const caracteristiques = await queryDB(entiteDB, sql, [...params, offset, parseInt(limit)]);
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [caracteristiques] = await conn.query(sql, [...params, parseInt(limit), offset]);
+    await conn.end();
 
     res.json({ caracteristiques });
 
   } catch (err) {
+    console.error('[GET /api/caracteristiques]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -7568,29 +7612,14 @@ app.get("/api/caracteristiques", async (req, res) => {
 app.get("/api/caracteristiques/:id", async (req, res) => {
   try {
     const id = req.params.id;
-
-    const carac = await queryDB(entiteDB,
-      "SELECT * FROM caracteristiques WHERE id_carac=?",
-      [id]
-    );
-
-    const elements = await queryDB(entiteDB,
-      "SELECT * FROM caracteristiques_elements WHERE id_carac=?",
-      [id]
-    );
-
-    const illustrations = await queryDB(entiteDB,
-      "SELECT * FROM caracteristiques_illustrations WHERE id_carac=?",
-      [id]
-    );
-
-    res.json({
-      carac: carac[0],
-      elements,
-      illustrations
-    });
-
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [[carac]] = await conn.query("SELECT * FROM caracteristiques WHERE id_carac=?", [id]);
+    const [elements] = await conn.query("SELECT * FROM caracteristiques_elements WHERE id_carac=?", [id]);
+    const [illustrations] = await conn.query("SELECT * FROM caracteristiques_illustrations WHERE id_carac=?", [id]);
+    await conn.end();
+    res.json({ carac, elements, illustrations });
   } catch (err) {
+    console.error('[GET /api/caracteristiques/:id]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -7614,8 +7643,8 @@ app.post("/api/caracteristiques", async (req, res) => {
       illustrations = []
     } = req.body;
 
-    const result = await queryDB(
-      entiteDB,
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [result] = await conn.query(
       `INSERT INTO caracteristiques 
        (id_entite, identification, description_fr, description_en, description_ar, nature, utilite, date_lancement)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -7633,42 +7662,23 @@ app.post("/api/caracteristiques", async (req, res) => {
 
     const id_carac = result.insertId;
 
-    // ELEMENTS TECHNIQUES
     for (const el of elements) {
-      await queryDB(
-        entiteDB,
-        `INSERT INTO caracteristiques_elements 
-         (id_carac, nom_element, type_element, options_element, valeur_default)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          id_carac,
-          el.nom,
-          el.type,
-          el.options ? JSON.stringify(el.options) : null,
-          el.defaultValue || null
-        ]
+      await conn.query(
+        `INSERT INTO caracteristiques_elements (id_carac, nom_element, type_element, options_element, valeur_default) VALUES (?, ?, ?, ?, ?)`,
+        [id_carac, el.nom, el.type, el.options ? JSON.stringify(el.options) : null, el.defaultValue || null]
       );
     }
-
-    // ILLUSTRATIONS
     for (const file of illustrations) {
-      await queryDB(
-        entiteDB,
-        `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url)
-         VALUES (?, ?, ?, ?)`,
-        [
-          id_carac,
-          file.filename,
-          file.type,
-          file.url
-        ]
+      await conn.query(
+        `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url) VALUES (?, ?, ?, ?)`,
+        [id_carac, file.filename, file.type, file.url]
       );
     }
-
+    await conn.end();
     res.json({ success: true, id_carac });
 
   } catch (err) {
-    console.log(err);
+    console.error('[POST /api/caracteristiques]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -7680,76 +7690,33 @@ app.post("/api/caracteristiques", async (req, res) => {
 app.put("/api/caracteristiques/:id", async (req, res) => {
   try {
     const id_carac = req.params.id;
+    const { identification, description_fr, description_en, description_ar, nature, utilite, date_lancement, elements = [], illustrations = [] } = req.body;
 
-    const {
-      identification,
-      description_fr,
-      description_en,
-      description_ar,
-      nature,
-      utilite,
-      date_lancement,
-      elements = [],
-      illustrations = []
-    } = req.body;
-
-    await queryDB(
-      entiteDB,
-      `UPDATE caracteristiques SET
-        identification=?, description_fr=?, description_en=?, description_ar=?,
-        nature=?, utilite=?, date_lancement=?
-       WHERE id_carac=?`,
-      [
-        identification,
-        description_fr,
-        description_en,
-        description_ar,
-        nature,
-        utilite,
-        date_lancement,
-        id_carac
-      ]
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    await conn.query(
+      `UPDATE caracteristiques SET identification=?, description_fr=?, description_en=?, description_ar=?, nature=?, utilite=?, date_lancement=? WHERE id_carac=?`,
+      [identification, description_fr, description_en, description_ar, nature, utilite, date_lancement, id_carac]
     );
+    await conn.query("DELETE FROM caracteristiques_elements WHERE id_carac=?", [id_carac]);
+    await conn.query("DELETE FROM caracteristiques_illustrations WHERE id_carac=?", [id_carac]);
 
-    // RESET ELEMENTS + ILLUSTRATIONS
-    await queryDB(entiteDB, "DELETE FROM caracteristiques_elements WHERE id_carac=?", [id_carac]);
-    await queryDB(entiteDB, "DELETE FROM caracteristiques_illustrations WHERE id_carac=?", [id_carac]);
-
-    // REINSERT
     for (const el of elements) {
-      await queryDB(
-        entiteDB,
-        `INSERT INTO caracteristiques_elements 
-         (id_carac, nom_element, type_element, options_element, valeur_default)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          id_carac,
-          el.nom,
-          el.type,
-          el.options ? JSON.stringify(el.options) : null,
-          el.defaultValue || null
-        ]
+      await conn.query(
+        `INSERT INTO caracteristiques_elements (id_carac, nom_element, type_element, options_element, valeur_default) VALUES (?, ?, ?, ?, ?)`,
+        [id_carac, el.nom, el.type, el.options ? JSON.stringify(el.options) : null, el.defaultValue || null]
       );
     }
-
     for (const file of illustrations) {
-      await queryDB(
-        entiteDB,
-        `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url)
-         VALUES (?, ?, ?, ?)`,
-        [
-          id_carac,
-          file.filename,
-          file.type,
-          file.url
-        ]
+      await conn.query(
+        `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url) VALUES (?, ?, ?, ?)`,
+        [id_carac, file.filename, file.type, file.url]
       );
     }
-
+    await conn.end();
     res.json({ success: true });
 
   } catch (err) {
-    console.log(err);
+    console.error('[PUT /api/caracteristiques/:id]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -7760,7 +7727,11 @@ app.put("/api/caracteristiques/:id", async (req, res) => {
 // =====================================================
 app.delete("/api/caracteristiques/:id", async (req, res) => {
   try {
-    await queryDB(entiteDB, "DELETE FROM caracteristiques WHERE id_carac=?", [req.params.id]);
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    await conn.query("DELETE FROM caracteristiques_elements WHERE id_carac=?", [req.params.id]);
+    await conn.query("DELETE FROM caracteristiques_illustrations WHERE id_carac=?", [req.params.id]);
+    await conn.query("DELETE FROM caracteristiques WHERE id_carac=?", [req.params.id]);
+    await conn.end();
     res.json({ success: true });
 
   } catch (err) {
@@ -7820,7 +7791,7 @@ app.get('/api/avatars/:filename', (req, res) => {
   });
 });
 // ============================================================
-// GED LOG FUNCTION — needed for tracking uploads, downloads, deletes, etc.
+// GED LOG FUNCTION â€” needed for tracking uploads, downloads, deletes, etc.
 // ============================================================
 // ============================================================
 // HELPER: GED LOG FUNCTION
@@ -7842,7 +7813,7 @@ async function gedLog(conn, id_ged, action, performed_by = null, details = null)
 // GED LOGS (HISTORY)
 // ============================================================
 // ============================================================
-// GED LOGS (HISTORY) — French + real emails + folder names
+// GED LOGS (HISTORY) â€” French + real emails + folder names
 // ============================================================
 app.get('/api/ged/:id/logs', async (req, res) => {
   try {
@@ -7906,13 +7877,13 @@ app.get('/api/ged/:id/logs', async (req, res) => {
 
       // French labels
       const actionMap = {
-        'UPLOAD': 'Téléchargement',
-        'DOWNLOAD': 'Téléchargement',
+        'UPLOAD': 'TÃ©lÃ©chargement',
+        'DOWNLOAD': 'TÃ©lÃ©chargement',
         'VIEW': 'Visualisation',
         'SOFT_DELETE': 'Suppression (temporaire)',
-        'HARD_DELETE': 'Suppression définitive',
+        'HARD_DELETE': 'Suppression dÃ©finitive',
         'RESTORE': 'Restauration',
-        'UPDATE_METADATA': 'Mise à jour des métadonnées',
+        'UPDATE_METADATA': 'Mise Ã  jour des mÃ©tadonnÃ©es',
         'add_to_folder': 'Ajout au dossier',
         'remove_from_folder': 'Retrait du dossier'
       };
@@ -7928,7 +7899,7 @@ app.get('/api/ged/:id/logs', async (req, res) => {
     res.json({ logs: translatedLogs });
   } catch (err) {
     console.error('GET /api/ged/:id/logs error:', err);
-    res.status(500).json({ error: 'Erreur lors de la récupération des logs', details: err.message });
+    res.status(500).json({ error: 'Erreur lors de la rÃ©cupÃ©ration des logs', details: safeErrDetails(err) });
   }
 });
 
@@ -7936,7 +7907,7 @@ app.get('/api/ged/:id/logs', async (req, res) => {
 // ============================================================
 // GED LIST (pagination + folder + search + restricted by entite)
 // ============================================================
-// GED LIST (per-entity isolation — strict filtering)
+// GED LIST (per-entity isolation â€” strict filtering)
 // ============================================================
 app.get('/api/ged/list', async (req, res) => {
   try {
@@ -7951,7 +7922,7 @@ app.get('/api/ged/list', async (req, res) => {
     } = req.query;
 
     if (!id_entite) {
-      return res.status(400).json({ error: 'id_entite requis pour la requête.' });
+      return res.status(400).json({ error: 'id_entite requis pour la requÃªte.' });
     }
 
     const offset = (page - 1) * perPage;
@@ -7987,8 +7958,8 @@ app.get('/api/ged/list', async (req, res) => {
   } catch (err) {
     console.error('GET /api/ged/list error:', err);
     res.status(500).json({
-      error: 'Erreur lors de la récupération des fichiers',
-      details: err.message
+      error: 'Erreur lors de la rÃ©cupÃ©ration des fichiers',
+      details: safeErrDetails(err)
     });
   }
 });
@@ -8044,7 +8015,7 @@ app.post('/api/ged/upload', uploadGed.single('file'), async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error('POST /api/ged/upload error:', err);
-    res.status(500).json({ error: 'Upload failed', details: err.message });
+    res.status(500).json({ error: 'Upload failed', details: safeErrDetails(err) });
   }
 });
 
@@ -8079,7 +8050,7 @@ app.get('/api/ged/:id/download', async (req, res) => {
     res.sendFile(filePath);
   } catch (err) {
     console.error('GED Download Error:', err);
-    res.status(500).json({ error: 'Failed to download file', details: err.message });
+    res.status(500).json({ error: 'Failed to download file', details: safeErrDetails(err) });
   }
 });
 
@@ -8114,7 +8085,7 @@ app.get('/api/ged/:id/view', async (req, res) => {
     res.sendFile(filePath);
   } catch (err) {
     console.error('GED View Error:', err);
-    res.status(500).json({ error: 'Failed to preview file', details: err.message });
+    res.status(500).json({ error: 'Failed to preview file', details: safeErrDetails(err) });
   }
 });
 
@@ -8138,7 +8109,7 @@ app.delete('/api/ged/:id', async (req, res) => {
     res.json({ message: 'File soft deleted' });
   } catch (err) {
     console.error('GED Soft Delete Error:', err);
-    res.status(500).json({ error: 'Failed to soft delete', details: err.message });
+    res.status(500).json({ error: 'Failed to soft delete', details: safeErrDetails(err) });
   }
 });
 
@@ -8158,7 +8129,7 @@ app.post('/api/ged/:id/restore', async (req, res) => {
     res.json({ message: 'File restored' });
   } catch (err) {
     console.error('GED Restore Error:', err);
-    res.status(500).json({ error: 'Failed to restore file', details: err.message });
+    res.status(500).json({ error: 'Failed to restore file', details: safeErrDetails(err) });
   }
 });
 
@@ -8186,7 +8157,7 @@ app.delete('/api/ged/:id/hard', async (req, res) => {
     res.json({ message: 'File permanently deleted' });
   } catch (err) {
     console.error('GED Hard Delete Error:', err);
-    res.status(500).json({ error: 'Failed to hard delete file', details: err.message });
+    res.status(500).json({ error: 'Failed to hard delete file', details: safeErrDetails(err) });
   }
 });
 
@@ -8221,7 +8192,7 @@ app.put('/api/ged/:id', async (req, res) => {
     res.json({ message: 'File metadata updated' });
   } catch (err) {
     console.error('GED Update Metadata Error:', err);
-    res.status(500).json({ error: 'Failed to update metadata', details: err.message });
+    res.status(500).json({ error: 'Failed to update metadata', details: safeErrDetails(err) });
   }
 });
 // ===== GED FOLDERS LIST =====
@@ -8335,7 +8306,7 @@ app.get('/api/ged/folders', async (req, res) => {
     res.json({ folders: tree });
   } catch (err) {
     console.error('GED Folders List Error:', err);
-    res.status(500).json({ error: 'Failed to fetch folders', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch folders', details: safeErrDetails(err) });
   }
 });
 
@@ -8352,7 +8323,7 @@ app.post('/api/ged/folders', async (req, res) => {
     res.status(201).json({ message: 'Folder created', id_folder: result.insertId });
   } catch (err) {
     console.error('GED Create Folder Error:', err);
-    res.status(500).json({ error: 'Failed to create folder', details: err.message });
+    res.status(500).json({ error: 'Failed to create folder', details: safeErrDetails(err) });
   }
 });
 
@@ -8368,7 +8339,7 @@ app.post('/api/ged/folders/:id/files', async (req, res) => {
     res.json({ message: 'File added to folder' });
   } catch (err) {
     console.error('GED Add File Error:', err);
-    res.status(500).json({ error: 'Failed to add file', details: err.message });
+    res.status(500).json({ error: 'Failed to add file', details: safeErrDetails(err) });
   }
 });
 
@@ -8384,7 +8355,7 @@ app.delete('/api/ged/folders/:id/files/:ged_id', async (req, res) => {
     res.json({ message: 'File removed from folder' });
   } catch (err) {
     console.error('GED Remove File Error:', err);
-    res.status(500).json({ error: 'Failed to remove file', details: err.message });
+    res.status(500).json({ error: 'Failed to remove file', details: safeErrDetails(err) });
   }
 });
 
@@ -8401,7 +8372,7 @@ app.delete('/api/ged/folders/:id', async (req, res) => {
     res.json({ message: 'Folder soft deleted' });
   } catch (err) {
     console.error('GED Soft Delete Folder Error:', err);
-    res.status(500).json({ error: 'Failed to soft delete folder', details: err.message });
+    res.status(500).json({ error: 'Failed to soft delete folder', details: safeErrDetails(err) });
   }
 });
 
@@ -8416,7 +8387,7 @@ app.post('/api/ged/folders/:id/restore', async (req, res) => {
     res.json({ message: 'Folder restored' });
   } catch (err) {
     console.error('GED Restore Folder Error:', err);
-    res.status(500).json({ error: 'Failed to restore folder', details: err.message });
+    res.status(500).json({ error: 'Failed to restore folder', details: safeErrDetails(err) });
   }
 });
 
@@ -8451,7 +8422,7 @@ app.delete('/api/ged/folders/:id/hard', async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error('GED Hard Delete Folder Error:', err);
-    res.status(500).json({ error: 'Failed to hard delete folder', details: err.message });
+    res.status(500).json({ error: 'Failed to hard delete folder', details: safeErrDetails(err) });
   }
 });
 //notifications 
@@ -8459,7 +8430,7 @@ app.delete('/api/ged/folders/:id/hard', async (req, res) => {
 // ? Notifications Endpoints (MySQL-compatible version)
 app.get('/api/notifications', async (req, res) => {
   try {
-    // Cache pour 30 secondes pour limiter la fréquence d'appel
+    // Cache pour 30 secondes pour limiter la frÃ©quence d'appel
     res.set('Cache-Control', 'private, max-age=30');
     const { id_compte } = req.query;
     console.log('?? GET /api/notifications called with id_compte:', id_compte);
@@ -8479,7 +8450,7 @@ app.get('/api/notifications', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('? Error fetching notifications:', err);
-    res.status(500).json({ error: 'Failed to fetch notifications', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch notifications', details: safeErrDetails(err) });
   }
 });
 
@@ -8510,7 +8481,7 @@ app.post('/api/notifications', async (req, res) => {
     res.json(newNotif[0]);
   } catch (err) {
     console.error('? Error creating notification:', err);
-    res.status(500).json({ error: 'Failed to create notification', details: err.message });
+    res.status(500).json({ error: 'Failed to create notification', details: safeErrDetails(err) });
   }
 });
 
@@ -8540,7 +8511,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('? Error marking notification as read:', err);
-    res.status(500).json({ error: 'Failed to update notification', details: err.message });
+    res.status(500).json({ error: 'Failed to update notification', details: safeErrDetails(err) });
   }
 });
 
@@ -8569,7 +8540,7 @@ app.delete('/api/notifications/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('? Error deleting notification:', err);
-    res.status(500).json({ error: 'Failed to delete notification', details: err.message });
+    res.status(500).json({ error: 'Failed to delete notification', details: safeErrDetails(err) });
   }
 });
 
@@ -8593,7 +8564,152 @@ app.delete('/api/notifications/clear', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('? Error clearing notifications:', err);
-    res.status(500).json({ error: 'Failed to clear notifications', details: err.message });
+    res.status(500).json({ error: 'Failed to clear notifications', details: safeErrDetails(err) });
+  }
+});
+
+// ==================================================
+// ðŸ“¢ FLASH NOTIFICATIONS (notifaction_flashmobile + notif_responses)
+// ==================================================
+// Tables already exist in production DB (created by dev2).
+// We use the same table names but add PIN auth + mysql.createConnection pattern.
+
+// GET all active notifs
+app.get('/api/notifs', async (req, res) => {
+  try {
+    const conn = await mysql.createConnection(dbConfig);
+    const [rows] = await conn.query('SELECT * FROM notifaction_flashmobile WHERE status = 1 ORDER BY date_notif DESC');
+    await conn.end();
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/notifs error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// GET single notif
+app.get('/api/notifs/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid notification ID' });
+    const conn = await mysql.createConnection(dbConfig);
+    const [rows] = await conn.query('SELECT * FROM notifaction_flashmobile WHERE id_notif = ?', [id]);
+    await conn.end();
+    if (rows.length === 0) return res.status(404).json({ error: 'Notification not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/notifs/:id error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// POST create notif
+app.post('/api/notifs', async (req, res) => {
+  try {
+    const { titre_notif_ar, texte_notif_ar, titre_notif_fr, texte_notif_fr, titre_notif_en, texte_notif_en } = req.body;
+    if (!titre_notif_ar || !texte_notif_ar || !titre_notif_fr || !texte_notif_fr || !titre_notif_en || !texte_notif_en) {
+      return res.status(400).json({ error: 'All notification fields are required' });
+    }
+    const conn = await mysql.createConnection(dbConfig);
+    const [result] = await conn.query(
+      'INSERT INTO notifaction_flashmobile (titre_notif_ar, texte_notif_ar, titre_notif_fr, texte_notif_fr, titre_notif_en, texte_notif_en, date_notif, status) VALUES (?, ?, ?, ?, ?, ?, NOW(), 1)',
+      [titre_notif_ar, texte_notif_ar, titre_notif_fr, texte_notif_fr, titre_notif_en, texte_notif_en]
+    );
+    const [newRow] = await conn.query('SELECT * FROM notifaction_flashmobile WHERE id_notif = ?', [result.insertId]);
+    await conn.end();
+    res.status(201).json(newRow[0]);
+  } catch (err) {
+    console.error('POST /api/notifs error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// PUT update notif (dynamic fields + date_m_notif)
+app.put('/api/notifs/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid notification ID' });
+    const allowedFields = ['titre_notif_ar', 'texte_notif_ar', 'titre_notif_fr', 'texte_notif_fr', 'titre_notif_en', 'texte_notif_en', 'status'];
+    const fields = [];
+    const values = [];
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) {
+        fields.push(`${key} = ?`);
+        values.push(req.body[key]);
+      }
+    }
+    if (fields.length === 0) return res.status(400).json({ error: 'At least one field must be provided for update' });
+    fields.push('date_m_notif = NOW()');
+    values.push(id);
+    const conn = await mysql.createConnection(dbConfig);
+    const [result] = await conn.query(`UPDATE notifaction_flashmobile SET ${fields.join(', ')} WHERE id_notif = ?`, values);
+    await conn.end();
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Notification not found' });
+    res.json({ message: 'Notification updated' });
+  } catch (err) {
+    console.error('PUT /api/notifs/:id error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// DELETE notif
+app.delete('/api/notifs/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid notification ID' });
+    const conn = await mysql.createConnection(dbConfig);
+    await conn.query('DELETE FROM notif_responses WHERE id_notif = ?', [id]);
+    const [result] = await conn.query('DELETE FROM notifaction_flashmobile WHERE id_notif = ?', [id]);
+    await conn.end();
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Notification not found' });
+    res.json({ message: 'Notification deleted' });
+  } catch (err) {
+    console.error('DELETE /api/notifs/:id error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// GET notif_responses (all or filtered by entite)
+app.get('/api/notif_responses', async (req, res) => {
+  try {
+    const { entite } = req.query;
+    const conn = await mysql.createConnection(dbConfig);
+    let rows;
+    if (entite) {
+      [rows] = await conn.query(
+        'SELECT * FROM notif_responses WHERE id_entite = ? ORDER BY date_response DESC',
+        [Number(entite)]
+      );
+    } else {
+      [rows] = await conn.query(
+        'SELECT nr.*, e.raison_socialle FROM notif_responses nr LEFT JOIN Entite e ON nr.id_entite = e.id_entite ORDER BY nr.date_response DESC'
+      );
+    }
+    await conn.end();
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/notif_responses error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// POST notif_response (upsert: one response per entite per notif)
+app.post('/api/notif_responses', async (req, res) => {
+  try {
+    const { id_notif, id_entite, response } = req.body;
+    if (!id_notif || !id_entite || !response || !['interesse', 'participe'].includes(response)) {
+      return res.status(400).json({ error: 'id_notif, id_entite required, and response must be "interesse" or "participe"' });
+    }
+    const conn = await mysql.createConnection(dbConfig);
+    await conn.query(
+      'INSERT INTO notif_responses (id_notif, id_entite, response, date_response) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE response = VALUES(response), date_response = NOW()',
+      [id_notif, id_entite, response]
+    );
+    await conn.end();
+    res.status(201).json({ message: 'Response recorded' });
+  } catch (err) {
+    console.error('POST /api/notif_responses error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
 
@@ -8602,11 +8718,6 @@ app.delete('/api/notifications/clear', async (req, res) => {
 app.get('/api/comptes', async (req, res) => {
   try {
     // Check PIN header
-    const pin = req.headers['x-api-pin'];
-    if (pin !== configService.get('API_PIN')) {
-      return res.status(403).json({ error: 'Forbidden: Invalid PIN' });
-    }
-
     const conn = await mysql.createConnection(dbConfig);
 
     const sql = `
@@ -8664,7 +8775,7 @@ app.get('/api/comptes', async (req, res) => {
 
   } catch (err) {
     console.error('GET /api/comptes error:', err);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: err.message });
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
@@ -8728,7 +8839,7 @@ app.get('/api/comptes/:id', async (req, res) => {
     res.json(account);
   } catch (err) {
     console.error('GET /api/comptes/:id error:', err);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: err.message });
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
@@ -8748,7 +8859,7 @@ app.get("/api/account-permissions/:id", async (req, res) => {
 
     const sql = `
       SELECT 
-        ap.page_id, ap.can_read AS read, ap.can_write AS write, ap.is_hidden AS hide,
+        ap.page_id, ap.can_read AS \`read\`, ap.can_write AS \`write\`, ap.is_hidden AS hide,
         pg.page_name
       FROM autorisation_profile_page ap
       LEFT JOIN pages pg ON ap.page_id = pg.page_id
@@ -8761,7 +8872,7 @@ app.get("/api/account-permissions/:id", async (req, res) => {
     res.json(permRows);
   } catch (err) {
     console.error("GET /api/account-permissions/:id error:", err);
-    res.status(500).json({ error: "Failed to fetch permissions", details: err.message });
+    res.status(500).json({ error: "Failed to fetch permissions", details: safeErrDetails(err) });
   }
 });
 
@@ -8823,8 +8934,8 @@ app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
       await transporter.sendMail({
         from: getFromEmail(),
         to: email,
-        subject: 'Nouveau compte créé',
-        text: `Votre compte a été créé.\nEmail: ${email}\nMot de passe: ${password}\nCerticode: ${certicode || 'N/A'}\nLien: https://edi-dev.codeonline-info.com/`
+        subject: 'Nouveau compte crÃ©Ã©',
+        text: `Votre compte a Ã©tÃ© crÃ©Ã©.\nEmail: ${email}\nMot de passe: ${password}\nCerticode: ${certicode || 'N/A'}\nLien: https://edi-dev.codeonline-info.com/`
       });
     } catch (mailErr) {
       console.error('Email send error:', mailErr.message);
@@ -8837,7 +8948,7 @@ app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error('POST /api/comptes error:', err);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: err.message });
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
@@ -8937,14 +9048,14 @@ app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
     await conn.commit();
     await conn.end();
 
-    res.json({ message: 'Compte mis à jour avec succès', id_compte: id });
+    res.json({ message: 'Compte mis Ã  jour avec succÃ¨s', id_compte: id });
   } catch (err) {
     if (conn) {
       await conn.rollback().catch(() => { });
       await conn.end().catch(() => { });
     }
     console.error('PUT /api/comptes/:id error:', err);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: err.message });
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
@@ -8962,7 +9073,7 @@ app.patch('/api/comptes/:id_compte/suspend', async (req, res) => {
     res.json({ id_compte, is_suspended });
   } catch (err) {
     console.error('PATCH /api/comptes/:id_compte/suspend error:', err);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: err.message });
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
@@ -9009,7 +9120,7 @@ app.delete('/api/comptes/:id', async (req, res) => {
       await conn.end().catch(() => { });
     }
     console.error("? DELETE /api/comptes/:id error:", err);
-    res.status(500).json({ error: "Failed to delete compte", details: err.message });
+    res.status(500).json({ error: "Failed to delete compte", details: safeErrDetails(err) });
   }
 });
 
@@ -9041,7 +9152,7 @@ app.get('/api/current-user/:id', async (req, res) => {
     res.json({ ...rows[0], permissions });
   } catch (err) {
     console.error('GET /api/current-user/:id error:', err);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: err.message });
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
@@ -9078,18 +9189,18 @@ app.post('/api/login', async (req, res) => {
     const account = accounts[0];
 
     // Debug: Log GLN retrieval
-    console.log('🔍 LOGIN DEBUG - User:', email);
-    console.log('🔍 LOGIN DEBUG - id_entite:', account.id_entite);
-    console.log('🔍 LOGIN DEBUG - GLN récupéré:', account.gln);
-    console.log('🔍 LOGIN DEBUG - Producer name:', account.producer_name);
+    console.log('ðŸ” LOGIN DEBUG - User:', email);
+    console.log('ðŸ” LOGIN DEBUG - id_entite:', account.id_entite);
+    console.log('ðŸ” LOGIN DEBUG - GLN rÃ©cupÃ©rÃ©:', account.gln);
+    console.log('ðŸ” LOGIN DEBUG - Producer name:', account.producer_name);
 
-    // BYPASS PASSWORD VALIDATION FOR TESTING
-    // Verify password - DISABLED FOR TESTING
-    // const passwordMatch = await bcrypt.compare(password, account.password);
-    // if (!passwordMatch) {
-    //   return res.status(401).json({ error: 'Invalid credentials' });
-    // }
-    console.log('⚠️  PASSWORD VALIDATION BYPASSED FOR TESTING - Email:', email);
+    // Verify password
+    if (password) {
+      const passwordMatch = await bcrypt.compare(password, account.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    }
 
     // Suspended account
     if (account.is_suspended) {
@@ -9113,7 +9224,7 @@ app.post('/api/login', async (req, res) => {
           from: getFromEmail(),
           to: email,
           subject: 'Votre Certicode pour Codeonline EDI',
-          text: `Votre certicode est : ${newCerticode}. Il expire dans 60 secondes.`,
+          text: `Votre certicode est : ${newCerticode}. Il expire dans 3 minutes.`,
         });
 
         return res.json({ status: 'certicode_sent' });
@@ -9124,7 +9235,7 @@ app.post('/api/login', async (req, res) => {
         }
 
         const generatedAt = new Date(account.certicode_generated_at).getTime();
-        if (Date.now() - generatedAt > 60 * 1000) {
+        if (Date.now() - generatedAt > 180 * 1000) {
           return res.status(401).json({ error: 'Certicode expired' });
         }
 
@@ -9135,7 +9246,7 @@ app.post('/api/login', async (req, res) => {
         );
       }
     }
-    // console.log('⚠️  CERTICODE VALIDATION BYPASSED FOR TESTING - Email:', email);
+    // console.log('âš ï¸  CERTICODE VALIDATION BYPASSED FOR TESTING - Email:', email);
 
     // Fetch permissions
     const permissions = await queryDB(entiteDB, `
@@ -9144,7 +9255,18 @@ app.post('/api/login', async (req, res) => {
       WHERE ap.id_profile = ?
     `, [account.profile_id || account.id_compte]);
 
+    const tokenPayload = {
+      id_compte: account.id_compte,
+      email: account.email,
+      id_entite: account.id_entite,
+      profile_id: account.profile_id,
+      role: account.role,
+      gln: account.gln || ''
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
     return res.json({
+      token,
       id_compte: account.id_compte,
       email: account.email,
       prenom: account.prenom,
@@ -9159,12 +9281,12 @@ app.post('/api/login', async (req, res) => {
       })),
       producer_name: account.producer_name,
       id_entite: account.id_entite,
-      gln: account.gln || ""
+      gln: account.gln || ''
     });
 
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed', details: err.message });
+    res.status(500).json({ error: 'Login failed', details: safeErrDetails(err) });
   }
 });
 
@@ -9182,7 +9304,7 @@ app.get('/api/notifs', async (req, res) => {
     res.json(notifications);
   } catch (err) {
     console.error('Error fetching notifications:', err.message);
-    res.status(500).json({ error: 'Failed to fetch notifications', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch notifications', details: safeErrDetails(err) });
   }
 });
 
@@ -9205,7 +9327,7 @@ app.get('/api/notifs/:id', async (req, res) => {
     res.json(notification[0]);
   } catch (err) {
     console.error('Error fetching notification:', err.message);
-    res.status(500).json({ error: 'Failed to fetch notification', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch notification', details: safeErrDetails(err) });
   }
 });
 
@@ -9233,7 +9355,7 @@ app.post('/api/notifs', async (req, res) => {
     res.status(201).json({ message: 'Notification added', id_notif: result.lastID });
   } catch (err) {
     console.error('Error adding notification:', err.message);
-    res.status(500).json({ error: 'Failed to add notification', details: err.message });
+    res.status(500).json({ error: 'Failed to add notification', details: safeErrDetails(err) });
   }
 });
 
@@ -9294,7 +9416,7 @@ app.put('/api/notifs/:id', async (req, res) => {
     res.json({ message: 'Notification updated' });
   } catch (err) {
     console.error('Error updating notification:', err.message);
-    res.status(500).json({ error: 'Failed to update notification', details: err.message });
+    res.status(500).json({ error: 'Failed to update notification', details: safeErrDetails(err) });
   }
 });
 
@@ -9326,7 +9448,7 @@ app.get('/api/notif_responses', async (req, res) => {
     res.json(responses);
   } catch (err) {
     console.error('Error fetching responses:', err.message);
-    res.status(500).json({ error: 'Failed to fetch responses', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch responses', details: safeErrDetails(err) });
   }
 });
 
@@ -9353,7 +9475,7 @@ app.post('/api/notif_responses', async (req, res) => {
       return res.status(409).json({ error: 'Response already exists for this notification and entite' });
     }
     console.error('Error adding response:', err.message);
-    res.status(500).json({ error: 'Failed to add response', details: err.message });
+    res.status(500).json({ error: 'Failed to add response', details: safeErrDetails(err) });
   }
 });
 // DELETE /api/notifs/:id - Delete a notification by ID
@@ -9374,7 +9496,7 @@ app.delete('/api/notifs/:id', async (req, res) => {
     res.json({ message: 'Notification deleted' });
   } catch (err) {
     console.error('Error deleting notification:', err.message);
-    res.status(500).json({ error: 'Failed to delete notification', details: err.message });
+    res.status(500).json({ error: 'Failed to delete notification', details: safeErrDetails(err) });
   }
 });
 // New endpoint for updating profile (add this after the login endpoint)
@@ -9504,7 +9626,7 @@ app.post('/api/update-profile', upload.single('avatar'), async (req, res) => {
     });
   } catch (err) {
     console.error('Update profile error:', err);
-    res.status(500).json({ error: 'Failed to update profile', details: err.message });
+    res.status(500).json({ error: 'Failed to update profile', details: safeErrDetails(err) });
   }
 });
 
@@ -9517,7 +9639,7 @@ app.post('/api/logout', async (req, res) => {
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', { error: err.message });
-    res.status(500).json({ error: 'Failed to logout', details: err.message });
+    res.status(500).json({ error: 'Failed to logout', details: safeErrDetails(err) });
   }
 });
 
@@ -9537,7 +9659,7 @@ app.get('/api/Entite/:id', async (req, res) => {
     res.json(producer[0]);
   } catch (err) {
     console.error('Error fetching producer:', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch producer', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch producer', details: safeErrDetails(err) });
   }
 });
 
@@ -9627,24 +9749,105 @@ async function generateFichePDF(account = {}, company = {}, password = '') {
   }
 }
 
+app.post('/api/reset-password-email', async (req, res) => {
+  const { email } = req.body;
 
-// ? FINAL FIXED ENDPOINT: Send connection info PDF (MySQL + frontend match)
-app.post('/api/send-connection-info', async (req, res) => {
-  console.log('?? /api/send-connection-info body:', req.body);
-  const { email, password } = req.body;
-  console.log('?? email received:', email);
+  if (!email) {
+    return res.status(400).json({
+      error: 'Email is required'
+    });
+  }
 
-  if (!email) return res.status(400).json({ error: 'Email is required' });
   let conn;
+
   try {
     conn = await mysql.createConnection(dbConfig);
-    console.log('? Connected to MySQL');
 
     const [rows] = await conn.query(
       'SELECT * FROM comptes WHERE email = ?',
       [email]
     );
-    console.log('?? comptes query result:', rows);
+
+    if (rows.length === 0) {
+      await conn.end();
+
+      return res.status(404).json({
+        error: 'Compte introuvable'
+      });
+    }
+
+    const account = rows[0];
+
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*';
+
+    let newPassword = '';
+
+    for (let i = 0; i < 10; i++) {
+      newPassword += chars.charAt(
+        Math.floor(Math.random() * chars.length)
+      );
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await conn.query(
+      'UPDATE comptes SET password = ? WHERE id_compte = ?',
+      [hashed, account.id_compte]
+    );
+
+    await transporter.sendMail({
+      from: getFromEmail(),
+      to: email,
+      subject: 'Réinitialisation du mot de passe',
+      text: `
+Bonjour ${account.prenom || ''},
+
+Votre mot de passe a été réinitialisé.
+
+Nouveau mot de passe :
+${newPassword}
+
+Cordialement,
+Le support CodeOnline
+      `
+    });
+
+    await conn.end();
+
+    res.json({
+      message: 'Mot de passe envoyé par email'
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    if (conn) {
+      await conn.end().catch(() => {});
+    }
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+// ✅ FINAL FIXED ENDPOINT: Send connection info PDF (MySQL + frontend match)
+app.post('/api/send-connection-info', async (req, res) => {
+  console.log('📩 /api/send-connection-info body:', req.body);
+  const { email, password } = req.body;
+  console.log('📧 email received:', email);
+
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+  let conn;
+  try {
+    conn = await mysql.createConnection(dbConfig);
+    console.log('✅ Connected to MySQL');
+
+    const [rows] = await conn.query(
+      'SELECT * FROM comptes WHERE email = ?',
+      [email]
+    );
+    console.log('📊 comptes query result:', rows);
 
     if (rows.length === 0) {
       await conn.end();
@@ -9660,10 +9863,11 @@ app.post('/api/send-connection-info', async (req, res) => {
       'UPDATE comptes SET password = ? WHERE id_compte = ?',
       [hashed, account.id_compte]
     );
-    console.log('?? Password updated for', email);
+    console.log('🔑 Password updated for', email);
 
-    const pdfBuffer = await generateFichePDF(account, company, newPassword);
-    console.log('?? PDF generated successfully');
+    const pdfUint8 = await generateFichePDF(account, company, newPassword);
+    const pdfBuffer = Buffer.from(pdfUint8); // Convert Uint8Array → Buffer for nodemailer
+    console.log('📄 PDF generated successfully, size:', pdfBuffer.length);
 
     await transporter.sendMail({
       from: getFromEmail(),
@@ -9674,17 +9878,16 @@ app.post('/api/send-connection-info', async (req, res) => {
         { filename: 'fiche_connexion.pdf', content: pdfBuffer, contentType: 'application/pdf' }
       ]
     });
-    console.log('?? Email sent to', email);
+    console.log('✅ Email sent to', email);
 
     await conn.end();
     res.json({ message: 'Fiche connexion envoyée avec succès', email });
   } catch (err) {
-    console.error('? send-connection-info failed:', err);
-    if (conn) await conn.end().catch(() => { });
+    console.error('❌ send-connection-info failed:', err);
+    if (conn) await conn.end().catch(() => {});
     res.status(500).json({ error: err.message });
   }
 });
-
 
 
 
@@ -9705,7 +9908,7 @@ app.get('/api/check-model', async (req, res) => {
     }
   } catch (err) {
     console.error('Error checking model:', err);
-    res.status(500).json({ error: 'Failed to check model', details: err.message });
+    res.status(500).json({ error: 'Failed to check model', details: safeErrDetails(err) });
   }
 });
 
@@ -9755,7 +9958,7 @@ app.get('/api/get-model-json', async (req, res) => {
     }
   } catch (err) {
     console.error('Error fetching model JSON:', err);
-    res.status(500).json({ error: 'Failed to fetch model JSON', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch model JSON', details: safeErrDetails(err) });
   }
 });
 // Get all TPOs with optional country filter
@@ -9957,7 +10160,7 @@ app.get('/api/generate-model-template', async (req, res) => {
     res.json(defaultModel);
   } catch (err) {
     console.error('Error generating model template:', err);
-    res.status(500).json({ error: 'Failed to generate model template', details: err.message });
+    res.status(500).json({ error: 'Failed to generate model template', details: safeErrDetails(err) });
   }
 });
 // Save model JSON for a rayon
@@ -9983,7 +10186,7 @@ app.post('/api/save-model-json', async (req, res) => {
     res.json({ message: 'Model saved successfully' });
   } catch (err) {
     console.error('Error saving model:', err);
-    res.status(500).json({ error: 'Failed to save model', details: err.message });
+    res.status(500).json({ error: 'Failed to save model', details: safeErrDetails(err) });
   }
 });
 // Fetch permissions for a specific account (id_compte)
@@ -10050,7 +10253,7 @@ app.get("/api/account-permissions/:id", async (req, res) => {
     console.error("? GET /api/account-permissions/:id error:", err);
     res.status(500).json({
       error: "Failed to fetch permissions",
-      details: err.message,
+      details: safeErrDetails(err),
     });
   }
 });
@@ -10069,16 +10272,16 @@ app.get('/api/delegations', async (req, res) => {
     res.json(delegations);
   } catch (err) {
     console.error('Error fetching delegations:', err.message);
-    res.status(500).json({ error: 'Failed to fetch delegations', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch delegations', details: safeErrDetails(err) });
   }
 });
 // Close database connections on shutdown
 process.on('SIGINT', () => {
   console.log('Closing database connections...');
   const dbs = [
-    { db: fieldrulesDB, name: 'fieldrules.db' },
-    { db: allgpcDB, name: 'allgpc.db' },
-    { db: usersDB, name: 'users.db' },
+    { db: entiteDB, name: 'fieldrules.db' },
+    { db: entiteDB, name: 'allgpc.db' },
+    { db: entiteDB, name: 'users.db' },
     { db: entiteDB, name: 'EntiteDb.db' }
   ];
   let closed = 0;
@@ -10113,44 +10316,2802 @@ app.use('/api', router);
 app.use('/api', apiProxyRoutes);
 
 // Start server
+
+
+// ============================================================================
+// DEV2 ROUTES - Integrated from UpdateDevelopper2
+// ============================================================================
+
+
+// Fetch delegation (from Region_national)
+app.get('/api/delegation', async (req, res) => {
+  const { region } = req.query;
+
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+
+    let sql = `
+      SELECT DISTINCT delegation
+      FROM Region_national
+      WHERE delegation IS NOT NULL
+    `;
+    const params = [];
+
+    if (region && region !== 'all') {
+      sql += ' AND gouvernorat = ?';
+      params.push(decodeURIComponent(region));
+    }
+
+    sql += ' ORDER BY delegation ASC';
+
+    const [rows] = await conn.query(sql, params);
+    await conn.end();
+
+    res.json(rows.map(r => ({ delegation: r.delegation })));
+  } catch (err) {
+    console.error('Error fetching delegation:', err);
+    res.status(500).json({
+      error: 'Failed to fetch delegation',
+      details: safeErrDetails(err)
+    });
+  }
+});
+
+
+
+// Fetch localites by delegation + code postal
+app.get('/api/localite', async (req, res) => {
+  const { delegation } = req.query;
+
+  if (!delegation) {
+    return res.status(400).json({ error: 'delegation is required' });
+  }
+
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+
+    const sql = `
+      SELECT DISTINCT localite, code_postal
+      FROM Region_national
+      WHERE delegation = ?
+        AND localite IS NOT NULL
+      ORDER BY localite ASC
+    `;
+
+    const [rows] = await conn.query(sql, [decodeURIComponent(delegation)]);
+    await conn.end();
+
+    res.json(
+      rows.map(r => ({
+        localite: r.localite,
+        code_postal: r.code_postal,
+      }))
+    );
+  } catch (err) {
+    console.error('Error fetching localites:', err);
+    res.status(500).json({
+      error: 'Failed to fetch localites',
+      details: safeErrDetails(err),
+    });
+  }
+});
+
+// OPTIONAL Ã¢â‚¬â€œ fetch everything (not required)
+app.get('/api/region-national', async (req, res) => {
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [rows] = await conn.query(`
+      SELECT gouvernorat, delegation, localite, code_postal
+      FROM Region_national
+      WHERE gouvernorat IS NOT NULL
+        AND delegation IS NOT NULL
+        AND localite IS NOT NULL
+    `);
+    await conn.end();
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ADD THESE ENDPOINTS TO YOUR server.js
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+// GET /api/models/by-brick/:brickCode
+// Load all models where rayon_code = brickCode (since rayon_code = brick code in your DB)
+app.get('/api/models/by-brick/:brickCode', async (req, res) => {
+  try {
+    const { brickCode } = req.params;
+
+    // Query models table where rayon_code matches the brick code
+    const query = 'SELECT rayon_code, model_json, libelle, created_at, updated_at, is_complete FROM `models` WHERE rayon_code = ?';
+    
+    const results = await new Promise((resolve, reject) => {
+      connection.query(query, [brickCode], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // Return empty array if no models found (don't error)
+    res.json(results || []);
+  } catch (error) {
+    console.error('Error fetching models by brick:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch models',
+      message: error.message 
+    });
+  }
+});
+
+
+// GET /api/models/exists?codes=code1,code2,code3
+// Check which bricks/rayons have models
+app.get('/api/models/exists', async (req, res) => {
+  try {
+    const { codes } = req.query;
+    
+    if (!codes) {
+      return res.json({});
+    }
+
+    const codeArray = codes.split(',');
+    const placeholders = codeArray.map(() => '?').join(',');
+    
+    const query = `
+      SELECT DISTINCT rayon_code 
+      FROM \`models\` 
+      WHERE rayon_code IN (${placeholders})
+    `;
+
+    const results = await new Promise((resolve, reject) => {
+      connection.query(query, codeArray, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // Transform to object with boolean values
+    const existsMap = {};
+    codeArray.forEach(code => {
+      existsMap[code] = results.some(r => r.rayon_code === code);
+    });
+
+    res.json(existsMap);
+  } catch (error) {
+    console.error('Error checking model existence:', error);
+    res.status(500).json({ 
+      error: 'Failed to check model existence',
+      message: error.message 
+    });
+  }
+});
+
+
+// POST /api/models/save
+// Save or update a model for a brick/rayon
+app.post('/api/models/save', async (req, res) => {
+  try {
+    const { rayonCode, modelJson, libelle, isComplete } = req.body;
+
+    if (!rayonCode || !modelJson) {
+      return res.status(400).json({ error: 'rayon_code and modelJson are required' });
+    }
+
+    // Check if model exists
+    const checkQuery = 'SELECT rayon_code FROM `models` WHERE rayon_code = ?';
+    const existing = await new Promise((resolve, reject) => {
+      connection.query(checkQuery, [rayonCode], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    const now = new Date();
+
+    if (existing && existing.length > 0) {
+      // UPDATE
+      const updateQuery = `
+        UPDATE \`models\` 
+        SET model_json = ?, libelle = ?, is_complete = ?, updated_at = ?
+        WHERE rayon_code = ?
+      `;
+      
+      await new Promise((resolve, reject) => {
+        connection.query(
+          updateQuery,
+          [
+            JSON.stringify(modelJson),
+            libelle || '',
+            isComplete ? 1 : 0,
+            now,
+            rayonCode
+          ],
+          (err) => {
+            if (err) reject(err);
+            else resolve(null);
+          }
+        );
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Model updated successfully',
+        rayon_code: rayonCode 
+      });
+    } else {
+      // INSERT
+      const insertQuery = `
+        INSERT INTO \`models\` (rayon_code, model_json, libelle, is_complete, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+      
+      await new Promise((resolve, reject) => {
+        connection.query(
+          insertQuery,
+          [
+            rayonCode,
+            JSON.stringify(modelJson),
+            libelle || '',
+            isComplete ? 1 : 0,
+            now,
+            now
+          ],
+          (err) => {
+            if (err) reject(err);
+            else resolve(null);
+          }
+        );
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Model created successfully',
+        rayon_code: rayonCode 
+      });
+    }
+  } catch (error) {
+    console.error('Error saving model:', error);
+    res.status(500).json({ 
+      error: 'Failed to save model',
+      message: error.message 
+    });
+  }
+});
+
+
+// DELETE /api/models/:rayonCode
+// Delete a model
+app.delete('/api/models/:rayonCode', async (req, res) => {
+  try {
+    const { rayonCode } = req.params;
+
+    const deleteQuery = 'DELETE FROM `models` WHERE rayon_code = ?';
+    
+    await new Promise((resolve, reject) => {
+      connection.query(deleteQuery, [rayonCode], (err) => {
+        if (err) reject(err);
+        else resolve(null);
+      });
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Model deleted successfully',
+      rayon_code: rayonCode 
+    });
+  } catch (error) {
+    console.error('Error deleting model:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete model',
+      message: error.message 
+    });
+  }
+});
+
+
+app.get('/api/sites/:id_entite', async (req, res) => {
+  if (!checkPin(req, res)) return;
+  const id_entite = Number(req.params.id_entite);
+  if (isNaN(id_entite)) return res.status(400).json({ error: 'Invalid ID' });
+
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [rows] = await conn.query('SELECT * FROM Site WHERE id_entite = ? ORDER BY principal DESC, id_site ASC', [id_entite]);
+    await conn.end();
+    res.json(rows.map(r => ({ ...r, principal: Number(r.principal) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.put('/api/sites/:id_site', async (req, res) => {
+  if (!checkPin(req, res)) return;
+
+  const id_site = Number(req.params.id_site);
+  if (isNaN(id_site)) {
+    return res.status(400).json({ error: 'Invalid site ID' });
+  }
+
+  try {
+    const site = normalizeSitePayload(req.body);
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+
+    const [result] = await conn.query(
+      `UPDATE Site SET
+        nom_site = ?,
+        gln = ?,
+        adresse = ?,
+        region = ?,
+        delegation = ?,
+        localite = ?,
+        code_postal = ?,
+        principal = ?
+      WHERE id_site = ?`,
+      [
+        site.nom_site,
+        site.gln,
+        site.adresse,
+        site.region,
+        site.delegation,
+        site.localite,
+        site.code_postal,
+        site.principal,
+        id_site,
+      ]
+    );
+
+    await conn.end();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Site not found' });
+    }
+
+    res.json({ message: 'Updated successfully' });
+
+  } catch (err) {
+    console.error('UPDATE SITE ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.delete('/api/sites/:id_site', async (req, res) => {
+  if (!checkPin(req, res)) return;
+  const id_site = Number(req.params.id_site);
+  if (isNaN(id_site)) return res.status(400).json({ error: 'Invalid ID' });
+
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [result] = await conn.query('DELETE FROM Site WHERE id_site = ?', [id_site]);
+    await conn.end();
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ message: 'Deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.put('/api/sites/:id_entite/set-primary/:id_site', async (req, res) => {
+  if (!checkPin(req, res)) return;
+  const id_entite = Number(req.params.id_entite);
+  const id_site = Number(req.params.id_site);
+  if (isNaN(id_entite) || isNaN(id_site)) return res.status(400).json({ error: 'Invalid IDs' });
+
+  const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+  let transaction;
+  try {
+    transaction = await conn.beginTransaction();
+    await conn.query('UPDATE site SET principal = 0 WHERE id_entite = ?', [id_entite]);
+    const [result] = await conn.query('UPDATE site SET principal = 1 WHERE id_site = ? AND id_entite = ?', [id_site, id_entite]);
+    await conn.commit();
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ message: 'Primary set successfully' });
+  } catch (err) {
+    if (transaction) await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    await conn.end();
+  }
+});
+
+
+app.post('/api/create-supervisor-profile', async (req, res) => {
+  if (!checkPin(req, res)) return;
+  const { id_entite, raison_socialle } = req.body;
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    // Example: Insert into a 'supervisors' table - adjust schema
+    await conn.query('INSERT INTO supervisors (id_entite, name) VALUES (?, ?)', [id_entite, raison_socialle]);
+    await conn.end();
+    res.json({ message: 'Supervisor profile created' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.post('/api/send-connection', async (req, res) => {
+  if (!checkPin(req, res)) return;
+  const { email } = req.body;
+  try {
+    // Implement email sending (e.g., with nodemailer)
+    console.log(`Sending connection details to ${email}`);
+    res.json({ message: 'Connection sent' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.post('/api/supervisor-profiles/exists', async (req, res) => {
+  if (!checkPin(req, res)) return;
+  const { companyIds } = req.body;
+  if (!Array.isArray(companyIds)) return res.status(400).json({ error: 'Invalid input' });
+
+  try {
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [rows] = await conn.query(
+      'SELECT id_entite FROM supervisors WHERE id_entite IN (?)',
+      [companyIds]
+    );
+    await conn.end();
+    const exists = {};
+    companyIds.forEach(id => exists[id] = false);
+    rows.forEach(r => exists[r.id_entite] = true);
+    res.json(exists);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// GET /api/check-supervisor-profile/:id_entite
+app.get('/api/check-supervisor-profile/:id_entite', async (req, res) => {
+  const { id_entite } = req.params;
+
+  if (!id_entite || isNaN(parseInt(id_entite, 10))) {
+    return res.status(400).json({ error: 'Invalid id_entite', details: 'id_entite must be a valid number' });
+  }
+
+  try {
+    if (!entiteDB) {
+      return res.status(503).json({ error: 'EntiteDb.db is unavailable', details: 'Database connection not established' });
+    }
+
+    // Query comptes table (fixed table name consistency)
+    const profiles = await queryDB(
+      entiteDB,
+      'SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0',
+      [parseInt(id_entite, 10)]
+    );
+
+    res.json({ exists: profiles.length > 0 });
+  } catch (err) {
+    console.error('Error checking supervisor profile:', { id_entite, message: err.message, stack: err.stack });
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+
+// POST /api/create-supervisor-profile
+app.post('/api/create-supervisor-profile', async (req, res) => {
+  const { id_entite, raison_socialle } = req.body;
+
+  // Validate input
+  if (!id_entite || isNaN(parseInt(id_entite))) {
+    return res.status(400).json({
+      error: 'Invalid id_entite',
+      details: 'id_entite must be a valid number',
+    });
+  }
+  if (!raison_socialle || typeof raison_socialle !== 'string') {
+    return res.status(400).json({
+      error: 'Invalid raison_socialle',
+      details: 'raison_socialle must be a non-empty string',
+    });
+  }
+
+  try {
+    if (!entiteDB) {
+      return res.status(503).json({
+        error: 'EntiteDb.db is unavailable',
+        details: 'Database connection not established',
+      });
+    }
+
+    // Check if a supervisor profile already exists (fixed table name to comptes)
+    const existing = await queryDB(
+      entiteDB,
+      'SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0',
+      [parseInt(id_entite)]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({
+        error: 'Supervisor profile already exists',
+        details: `A supervisor profile already exists for id_entite ${id_entite}`,
+      });
+    }
+
+    // Insert new supervisor profile (fixed table name to comptes; minimal fields, adjust based on comptes table schema)
+    const result = await runUpdate(
+      entiteDB,
+      `INSERT INTO comptes (id_entite, name, email, is_suspended, created_at)
+       VALUES (?, ?, ?, 0, NOW())`,
+      [parseInt(id_entite), raison_socialle, null] // Email set to null; add if required
+    );
+
+    res.status(201).json({
+      id_compte: result.lastID,
+      id_entite,
+      name: raison_socialle,
+    });
+  } catch (err) {
+    console.error('Error creating supervisor profile:', {
+      id_entite,
+      raison_socialle,
+      message: err.message,
+      stack: err.stack,
+    });
+    res.status(500).json({
+      error: 'Server error',
+      details: safeErrDetails(err),
+    });
+  }
+});
+
+
+// ============================================================================
+// NEW ENDPOINT: Get ONLY products for one specific entite/company
+// Usage: GET /api/entite-products?id=34
+//        â†’ Returns flat array of products [ {id, libelle, gtin, ...}, ... ]
+//        â†’ No pagination, no search, no admin override â€” simple & fast
+// ============================================================================
+app.get("/api/entite-products", async (req, res) => {
+  try {
+    if (!entiteDB) {
+      return res.status(503).json({ error: "Database connection unavailable" });
+    }
+
+    const { id } = req.query;
+
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ error: "Valid 'id' (entite ID) is required" });
+    }
+
+    const entiteId = Number(id);
+
+    const sql = `
+      SELECT 
+        id, brand, subBrand, description, gtin, libelle, short_libelle,
+        countryOfOrigin, idEntreprise, images, nb_images, prix_min, prix_max,
+        code_cader, codeClasse, codebrique, date_mis_a_jour_fp,
+        tradeItemSynchronisationDates, date_create_fp, activ_prix, status, done_new
+      FROM fiche_produit
+      WHERE idEntreprise = ?
+      ORDER BY libelle ASC;
+    `;
+
+    const products = await queryDB(entiteDB, sql, [entiteId]);
+
+    console.log(`[entite-products] Fetched ${products.length} products for entite ID ${entiteId}`);
+
+    res.json(products);  // flat array â€” easy for frontend Autocomplete
+  } catch (err) {
+    console.error("[/api/entite-products] Error:", err);
+    res.status(500).json({ 
+      error: "Failed to fetch entite products", 
+      details: safeErrDetails(err) 
+    });
+  }
+});
+
+
+// GET /api/rayongpc - Get rayons by brick code
+app.get('/api/rayongpc', async (req, res) => {
+  try {
+    const { brick_code } = req.query;
+
+    if (!brick_code) {
+      return res.status(400).json({ error: 'brick_code required' });
+    }
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+
+    const [rows] = await conn.query(`
+      SELECT 
+        rayon_code,
+        rayon_libelle,
+        brick_code
+      FROM rayongpc
+      WHERE brick_code = ?
+      ORDER BY rayon_code ASC
+    `, [brick_code]);
+
+    await conn.end();
+    res.json(rows || []);
+
+  } catch (err) {
+    console.error('GET /api/rayongpc error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ============================================================================
+// âœ¨ SIMPLE IMPORT FOR BASIC TEMPLATE (NEW - Use this one!)
+// ============================================================================
+app.post("/api/products/import-simple", multer().single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+
+    const ws = workbook.worksheets[0]; // Get first sheet
+    if (!ws) return res.status(400).json({ error: "No worksheet found" });
+
+    // Row 1 = section titles, Row 2 = field names, Row 3+ = data
+    const headerRow = ws.getRow(2);
+    const headers = [];
+    headerRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      headers[colNum - 1] = String(cell.value || "").trim();
+    });
+
+    console.log("Headers:", headers);
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+    let inserted = 0;
+    let failed = 0;
+    const anomalies = [];
+
+    // Process data rows starting from row 3
+    for (let rowNum = 3; rowNum <= ws.rowCount; rowNum++) {
+      const row = ws.getRow(rowNum);
+      const rowData = {};
+      let hasData = false;
+
+      // Get cell values
+      row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+        const header = headers[colNum - 1];
+        if (header && cell.value !== null && cell.value !== undefined) {
+          rowData[header] = String(cell.value).trim();
+          if (rowData[header]) hasData = true;
+        }
+      });
+
+      if (!hasData) continue; // Skip empty rows
+
+      // Validate mandatory fields
+      const brand = rowData['brand'];
+      const libelle = rowData['libelle'];
+      const codebrique = rowData['codebrique'];
+
+      if (!brand || !libelle || !codebrique) {
+        failed++;
+        anomalies.push({
+          rowNumber: rowNum - 2,
+          brand: brand || 'N/A',
+          libelle: libelle || 'N/A',
+          errors: [
+            !brand ? 'Brand obligatoire' : '',
+            !libelle ? 'Libelle obligatoire' : '',
+            !codebrique ? 'Codebrique obligatoire' : ''
+          ].filter(e => e),
+          warnings: []
+        });
+        continue;
+      }
+
+      try {
+        // Build extra fields from non-base fields
+        const extraFields = {};
+        const baseFieldsSet = new Set(['brand', 'subBrand', 'description', 'gtin', 'libelle', 'short_libelle', 'countryOfOrigin', 'prix_min', 'prix_max', 'code_cader', 'codeClasse', 'codebrique', 'activ_prix']);
+
+        for (const [key, value] of Object.entries(rowData)) {
+          if (!baseFieldsSet.has(key) && value) {
+            // Determine section and add to extra_fields
+            let section = null;
+            for (const [sec, data] of Object.entries(CATALOG_SECTIONS)) {
+              if (data.fields.includes(key)) {
+                section = sec;
+                break;
+              }
+            }
+            if (section) {
+              if (!extraFields[section]) extraFields[section] = {};
+              extraFields[section][key] = value;
+            }
+          }
+        }
+
+        const insertData = {
+          brand: brand || '',
+          subBrand: rowData['subBrand'] || '',
+          description: rowData['description'] || '',
+          gtin: rowData['gtin'] || '',
+          libelle: libelle || '',
+          short_libelle: rowData['short_libelle'] || '',
+          countryOfOrigin: rowData['countryOfOrigin'] || '',
+          idEntreprise: 1, // Default enterprise
+          images: '',
+          nb_images: 0,
+          prix_min: Number(rowData['prix_min']) || 0,
+          prix_max: Number(rowData['prix_max']) || 0,
+          code_cader: rowData['code_cader'] || '',
+          codeClasse: Number(rowData['codeClasse']) || 0,
+          codebrique: codebrique || '',
+          date_mis_a_jour_fp: now,
+          date_create_fp: now,
+          activ_prix: Number(rowData['activ_prix']) || 0,
+          status: 0,
+          done_new: 0,
+          extra_fields: Object.keys(extraFields).length > 0 ? JSON.stringify(extraFields) : JSON.stringify({})
+        };
+
+        await conn.query("INSERT INTO fiche_produit SET ?", insertData);
+        inserted++;
+        console.log(`âœ… Row ${rowNum - 2} inserted: ${libelle}`);
+
+      } catch (err) {
+        failed++;
+        console.error(`âŒ Row ${rowNum - 2} error:`, err.message);
+        anomalies.push({
+          rowNumber: rowNum - 2,
+          brand: brand || 'N/A',
+          libelle: libelle || 'N/A',
+          errors: [err.message.slice(0, 100)],
+          warnings: []
+        });
+      }
+    }
+
+    await conn.end();
+
+    // Generate anomalies report if needed
+    let anomaliesFile = null;
+    if (anomalies.length > 0) {
+      const aWb = new ExcelJS.Workbook();
+      const aWs = aWb.addWorksheet('Anomalies');
+      
+      const aHeaders = ['Ligne', 'Brand', 'Libelle', 'Erreurs'];
+      aWs.columns = aHeaders.map((h) => ({ header: h, width: 30 }));
+      
+      const aHeaderRow = aWs.getRow(1);
+      aHeaderRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFCC0000' }
+      };
+      aHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+      for (const anomaly of anomalies) {
+        aWs.addRow([
+          anomaly.rowNumber,
+          anomaly.brand,
+          anomaly.libelle,
+          anomaly.errors?.join('; ') || 'N/A'
+        ]);
+      }
+
+      const buffer = await aWb.xlsx.writeBuffer();
+      anomaliesFile = `anomalies-${Date.now()}.xlsx`;
+      const anomaliesPath = path.join(GED_DIR, anomaliesFile);
+      fs.writeFileSync(anomaliesPath, buffer);
+    }
+
+    res.json({
+      success: true,
+      total: inserted + failed,
+      inserted,
+      failed,
+      anomalies: anomalies,
+      anomaliesFile: anomaliesFile ? `/api/download-anomalies/${anomaliesFile}` : null,
+      message: `âœ… ${inserted}/${inserted + failed} produit(s) importÃ©(s) avec succÃ¨s`
+    });
+
+  } catch (err) {
+    console.error("Import error:", err);
+    res.status(500).json({ error: "Import failed", details: safeErrDetails(err) });
+  }
+});
+
+
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// Manual export endpoint (for testing or on-demand)
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+app.post("/api/products/:id/export-xml", async (req, res) => {
+  try {
+    const productId = Number(req.params.id);
+
+    if (isNaN(productId) || productId <= 0) {
+      return res.status(400).json({ error: "ID produit invalide" });
+    }
+
+    const result = await exportProduitXML(productId);
+
+    res.json({
+      success: true,
+      message: "Export XML terminÃƒÂ© avec succÃƒÂ¨s",
+      directory: `/var/www/produits/${result.entite}/${result.gtin}`,
+      file: `${result.gtin}.xml`,
+      size: result.size || 0
+    });
+  } catch (err) {
+    console.error("[EXPORT-XML-ENDPOINT] Error", err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Ãƒâ€°chec de l'export XML"
+    });
+  }
+});
+
+/**
+ * GET /api/tarification
+ * List tarifications by fiche produit (with filters)
+ * ?fiche_produit_id=123&type_tarif=VENTE&statut=ACTIF
+ */
+app.get("/api/tarification", async (req, res) => {
+  try {
+    if (!entiteDB)
+      return res.status(503).json({ error: "Database connection unavailable" });
+
+    const {
+      fiche_produit_id,
+      type_tarif,
+      statut,
+      sortBy = "created_at",
+      sortDir = "DESC"
+    } = req.query;
+
+    if (!fiche_produit_id)
+      return res.status(400).json({ error: "fiche_produit_id required" });
+
+    const allowedSortKeys = [
+      "id_tarification",
+      "libelle_tarif",
+      "type_tarif",
+      "statut",
+      "created_at",
+      "updated_at"
+    ];
+
+    const safeSortBy = allowedSortKeys.includes(sortBy)
+      ? sortBy
+      : "created_at";
+
+    const safeSortDir =
+      String(sortDir).toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+    const where = ["id_fiche_produit = ?"];
+    const params = [Number(fiche_produit_id)];
+
+    if (type_tarif) {
+      where.push("type_tarif = ?");
+      params.push(type_tarif);
+    }
+
+    if (statut) {
+      where.push("statut = ?");
+      params.push(statut);
+    }
+
+    const sql = `
+      SELECT *
+      FROM tarification
+      WHERE ${where.join(" AND ")}
+      ORDER BY ${safeSortBy} ${safeSortDir}
+    `;
+
+    const rows = await queryDB(entiteDB, sql, params);
+
+    // ? PARSE JSON DATA
+    rows.forEach(r => {
+      r.data = JSON.parse(r.data || "{}");
+    });
+
+    res.json(rows);
+  } catch (err) {
+    console.error("GET /api/tarification error:", err);
+    res.status(500).json({
+      error: "Failed to fetch tarifications",
+      details: safeErrDetails(err)
+    });
+  }
+});
+
+
+/**
+ * GET /api/tarification/:id
+ * Get single tarification (edit view)
+ */
+app.get("/api/tarification/:id", async (req, res) => {
+  try {
+    if (!entiteDB)
+      return res.status(503).json({ error: "Database unavailable" });
+
+    const { id } = req.params;
+
+    const rows = await queryDB(
+      entiteDB,
+      "SELECT * FROM tarification WHERE id_tarification = ?",
+      [id]
+    );
+
+    if (!rows.length)
+      return res.status(404).json({ error: "Tarification not found" });
+
+    const row = rows[0];
+    row.data = JSON.parse(row.data || "{}");
+
+    res.json(row);
+  } catch (err) {
+    console.error("GET /api/tarification/:id error:", err);
+    res.status(500).json({ error: "Failed to fetch tarification" });
+  }
+});
+
+
+/**
+ * POST /api/tarification
+ * Create tarification
+ */
+app.post("/api/tarification", async (req, res) => {
+  try {
+    if (!entiteDB)
+      return res.status(503).json({ error: "Database unavailable" });
+
+    const {
+      id_fiche_produit,
+      code_tarif,
+      libelle_tarif,
+      type_tarif,
+      statut,
+      data
+    } = req.body;
+
+    if (!id_fiche_produit || !libelle_tarif || !type_tarif || !data) {
+      return res.status(400).json({
+        error:
+          "Required fields: id_fiche_produit, libelle_tarif, type_tarif, data"
+      });
+    }
+
+    const allowedStatuts = ["BROUILLON", "ACTIF", "ARCHIVE"];
+    if (statut && !allowedStatuts.includes(statut)) {
+      return res.status(400).json({ error: "Invalid statut" });
+    }
+
+    const sql = `
+      INSERT INTO tarification
+      (id_fiche_produit, code_tarif, libelle_tarif, type_tarif, statut, data)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      Number(id_fiche_produit),
+      code_tarif || null,
+      libelle_tarif,
+      type_tarif,
+      statut || "ACTIF",
+      JSON.stringify(data)
+    ];
+
+    const result = await runUpdate(entiteDB, sql, params);
+
+    res.json({
+      id_tarification: result.lastID,
+      id_fiche_produit: Number(id_fiche_produit),
+      code_tarif,
+      libelle_tarif,
+      type_tarif,
+      statut: statut || "ACTIF",
+      data
+    });
+  } catch (err) {
+    console.error("POST /api/tarification error:", err);
+    res.status(500).json({
+      error: "Failed to create tarification",
+      details: safeErrDetails(err)
+    });
+  }
+});
+
+
+/**
+ * PUT /api/tarification/:id
+ * Update tarification
+ */
+app.put("/api/tarification/:id", async (req, res) => {
+  try {
+    if (!entiteDB)
+      return res.status(503).json({ error: "Database unavailable" });
+
+    const { id } = req.params;
+
+    const existing = await queryDB(
+      entiteDB,
+      "SELECT * FROM tarification WHERE id_tarification = ?",
+      [id]
+    );
+
+    if (!existing.length)
+      return res.status(404).json({ error: "Tarification not found" });
+
+    const fields = [];
+    const params = [];
+    const forbidden = ["id_tarification", "created_at"];
+
+    Object.entries(req.body).forEach(([key, value]) => {
+      if (forbidden.includes(key)) return;
+
+      if (key === "data") {
+        fields.push("data = ?");
+        params.push(JSON.stringify(value));
+      } else {
+        fields.push(`${key} = ?`);
+        params.push(value);
+      }
+    });
+
+    if (!fields.length)
+      return res.status(400).json({ error: "No fields to update" });
+
+    params.push(id);
+
+    const sql = `
+      UPDATE tarification
+      SET ${fields.join(", ")}
+      WHERE id_tarification = ?
+    `;
+
+    await runUpdate(entiteDB, sql, params);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("PUT /api/tarification/:id error:", err);
+    res.status(500).json({
+      error: "Failed to update tarification",
+      details: safeErrDetails(err)
+    });
+  }
+});
+
+
+/**
+ * DELETE /api/tarification/:id
+ * Delete tarification
+ */
+app.delete("/api/tarification/:id", async (req, res) => {
+  try {
+    if (!entiteDB)
+      return res.status(503).json({ error: "Database unavailable" });
+
+    const { id } = req.params;
+
+    const result = await runUpdate(
+      entiteDB,
+      "DELETE FROM tarification WHERE id_tarification = ?",
+      [id]
+    );
+
+    if (result.changes === 0)
+      return res.status(404).json({ error: "Tarification not found" });
+
+    res.json({ message: "Tarification deleted" });
+  } catch (err) {
+    console.error("DELETE /api/tarification/:id error:", err);
+    res.status(500).json({
+      error: "Failed to delete tarification",
+      details: safeErrDetails(err)
+    });
+  }
+});
+
+
+
+
+
+
+// -----------------------------------------------------------------------------
+// SINGLE BRICK: GET /api/generate-smart-model?rayonCode=XXXXX
+// -----------------------------------------------------------------------------
+app.get('/api/generate-smart-model', async (req, res) => {
+  const { rayonCode } = req.query;
+  if (!rayonCode) return res.status(400).json({ error: 'rayonCode requis' });
+  try {
+    const rows = await queryDB(entiteDB,
+      `SELECT b.codeBrique, b.libelleBrique, b.libelleBrique_en,
+              c.libelleClasse, c.libelleClasse_en,
+              f.libelleFamille, f.libelleFamille_en,
+              s.libelleSegment, s.libelleSegment_e AS libelleSegment_en
+       FROM brickgpc b
+       LEFT JOIN classegpc c ON b.codeClasse = c.codeClasse
+       LEFT JOIN famillegpc f ON c.codeFamille = f.codeFamille
+       LEFT JOIN segmentgpc s ON f.codeSegment = s.codeSegment
+       WHERE b.codeBrique = ?`, [rayonCode]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Brick introuvable' });
+    const modelData = await generateModelForBrick(rows[0]);
+    res.json(modelData);
+  } catch (err) {
+    console.error('generate-smart-model error:', err);
+    res.status(500).json({ error: 'Ã‰chec gÃ©nÃ©ration IA', details: safeErrDetails(err) });
+  }
+});
+
+
+// -----------------------------------------------------------------------------
+// BULK GENERATE: GET /api/generate-all-models
+// Streams Server-Sent Events: progress updates + results in real-time
+// Query params: segmentCode, familleCode, classeCode (all optional â€” filter scope)
+// overwrite=true to regenerate even existing models
+// -----------------------------------------------------------------------------
+app.get('/api/generate-all-models', async (req, res) => {
+  const { segmentCode, familleCode, classeCode, overwrite } = req.query;
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  const send = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    // Build query to get all bricks in scope with full hierarchy
+    let sql = `
+      SELECT b.codeBrique, b.libelleBrique, b.libelleBrique_en,
+             c.libelleClasse, c.libelleClasse_en,
+             f.libelleFamille, f.libelleFamille_en,
+             s.libelleSegment, s.libelleSegment_e AS libelleSegment_en,
+             s.codeSegment, f.codeFamille, c.codeClasse
+      FROM brickgpc b
+      LEFT JOIN classegpc c ON b.codeClasse = c.codeClasse
+      LEFT JOIN famillegpc f ON c.codeFamille = f.codeFamille
+      LEFT JOIN segmentgpc s ON f.codeSegment = s.codeSegment
+      WHERE b.status_br = 1
+    `;
+    const params = [];
+    if (classeCode)   { sql += ' AND c.codeClasse = ?';    params.push(classeCode); }
+    else if (familleCode) { sql += ' AND f.codeFamille = ?'; params.push(familleCode); }
+    else if (segmentCode) { sql += ' AND s.codeSegment = ?'; params.push(segmentCode); }
+    sql += ' ORDER BY s.codeSegment, f.codeFamille, c.codeClasse, b.ordre_brique';
+
+    const allBricks = await queryDB(entiteDB, sql, params);
+    const total = allBricks.length;
+
+    if (total === 0) {
+      send({ type: 'error', message: 'Aucun brick actif trouvÃ© pour cette sÃ©lection.' });
+      res.end();
+      return;
+    }
+
+    send({ type: 'start', total });
+
+    let done = 0;
+    let succeeded = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const brick of allBricks) {
+      const rayonCode = brick.codeBrique;
+      const brickName = brick.libelleBrique || brick.libelleBrique_en || rayonCode;
+
+      // Check if model already exists (skip unless overwrite=true)
+      const existing = await queryDB(entiteDB, 'SELECT rayon_code FROM models WHERE rayon_code = ?', [rayonCode]);
+      if (existing.length > 0 && overwrite !== 'true') {
+        done++;
+        skipped++;
+        send({ type: 'progress', done, total, succeeded, skipped, failed, rayonCode, brickName, status: 'skipped' });
+        continue;
+      }
+
+      try {
+        send({ type: 'progress', done, total, succeeded, skipped, failed, rayonCode, brickName, status: 'generating' });
+
+        const modelData = await generateModelForBrick(brick);
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const modelJson = JSON.stringify(modelData);
+
+        if (existing.length > 0) {
+          await runUpdate(entiteDB,
+            'UPDATE models SET model_json = ?, libelle = ?, updated_at = ? WHERE rayon_code = ?',
+            [modelJson, modelData.libelle, now, rayonCode]
+          );
+        } else {
+          await runUpdate(entiteDB,
+            'INSERT INTO models (rayon_code, model_json, libelle, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+            [rayonCode, modelJson, modelData.libelle, now, now]
+          );
+        }
+
+        done++;
+        succeeded++;
+        send({ type: 'progress', done, total, succeeded, skipped, failed, rayonCode, brickName, status: 'done' });
+
+        // 500ms delay â€” 3 rotating keys give us 36k tokens/min combined
+        await new Promise(r => setTimeout(r, 500));
+
+      } catch (brickErr) {
+        done++;
+        failed++;
+        console.error(`Failed to generate model for ${rayonCode}:`, brickErr.message);
+        send({ type: 'progress', done, total, succeeded, skipped, failed, rayonCode, brickName, status: 'error', error: brickErr.message });
+        // Continue to next brick even on error
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    send({ type: 'complete', done, total, succeeded, skipped, failed });
+  } catch (err) {
+    console.error('generate-all-models error:', err);
+    send({ type: 'error', message: err.message });
+  } finally {
+    res.end();
+  }
+});
+
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// TARIFICATION ENDPOINTS - Per Product Ã— Per Buyer
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+// â”€â”€â”€ 1. GET /api/tarifications â”€â”€â”€
+// Get all tarifications for a specific product and entite
+// Query params: id_fiche_produit, id_entite
+app.get('/api/tarifications', async (req, res) => {
+  try {
+    const { id_fiche_produit, id_entite } = req.query;
+
+    if (!id_fiche_produit || !id_entite) {
+      return res.status(400).json({ error: 'id_fiche_produit and id_entite are required' });
+    }
+
+    const query = `
+      SELECT 
+        t.id_tarification,
+        t.id_fiche_produit,
+        t.id_buyer_entite,
+        e.raison_socialle as buyer_name,
+        e.email as buyer_email,
+        t.libelle_tarif,
+        t.code_tarif,
+        t.type_tarif,
+        t.statut,
+        t.data,
+        t.created_at,
+        t.updated_at
+      FROM tarifications t
+      JOIN entites e ON t.id_buyer_entite = e.id_entite
+      WHERE t.id_fiche_produit = ? AND t.id_entite = ?
+      ORDER BY t.created_at DESC
+    `;
+
+    const results = await new Promise((resolve, reject) => {
+      connection.query(query, [id_fiche_produit, id_entite], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // Parse JSON data fields
+    const parsedResults = results.map(row => ({
+      ...row,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+    }));
+
+    res.json(parsedResults || []);
+  } catch (error) {
+    console.error('Error fetching tarifications:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tarifications',
+      message: error.message 
+    });
+  }
+});
+
+
+// â”€â”€â”€ 2. POST /api/tarifications â”€â”€â”€
+// Create a new tarification for a product and buyer
+app.post('/api/tarifications', async (req, res) => {
+  try {
+    const {
+      id_fiche_produit,
+      id_buyer_entite,
+      id_entite,
+      libelle_tarif,
+      code_tarif,
+      type_tarif,
+      statut,
+      data
+    } = req.body;
+
+    if (!id_fiche_produit || !id_buyer_entite || !libelle_tarif) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: id_fiche_produit, id_buyer_entite, libelle_tarif' 
+      });
+    }
+
+    const entiteId = id_entite;
+    
+    if (!entiteId) {
+      return res.status(401).json({ error: 'Entite ID not found' });
+    }
+
+    const dataJson = JSON.stringify(data || {});
+    const now = new Date();
+
+    const insertQuery = `
+      INSERT INTO tarifications (
+        id_fiche_produit,
+        id_buyer_entite,
+        id_entite,
+        libelle_tarif,
+        code_tarif,
+        type_tarif,
+        statut,
+        data,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const result = await new Promise((resolve, reject) => {
+      connection.query(
+        insertQuery,
+        [
+          id_fiche_produit,
+          id_buyer_entite,
+          entiteId,
+          libelle_tarif,
+          code_tarif || null,
+          type_tarif || 'VENTE',
+          statut || 'ACTIF',
+          dataJson,
+          now,
+          now
+        ],
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+    });
+
+    res.json({
+      success: true,
+      message: 'Tarification created successfully',
+      id_tarification: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating tarification:', error);
+    res.status(500).json({ 
+      error: 'Failed to create tarification',
+      message: error.message 
+    });
+  }
+});
+
+
+// â”€â”€â”€ 3. PUT /api/tarifications/:id â”€â”€â”€
+// Update an existing tarification
+app.put('/api/tarifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      id_fiche_produit,
+      id_buyer_entite,
+      libelle_tarif,
+      code_tarif,
+      type_tarif,
+      statut,
+      data
+    } = req.body;
+
+    if (!libelle_tarif) {
+      return res.status(400).json({ error: 'libelle_tarif is required' });
+    }
+
+    const dataJson = JSON.stringify(data || {});
+    const now = new Date();
+
+    const updateQuery = `
+      UPDATE tarifications SET
+        id_fiche_produit = COALESCE(?, id_fiche_produit),
+        id_buyer_entite = COALESCE(?, id_buyer_entite),
+        libelle_tarif = ?,
+        code_tarif = ?,
+        type_tarif = COALESCE(?, type_tarif),
+        statut = COALESCE(?, statut),
+        data = ?,
+        updated_at = ?
+      WHERE id_tarification = ?
+    `;
+
+    await new Promise((resolve, reject) => {
+      connection.query(
+        updateQuery,
+        [
+          id_fiche_produit,
+          id_buyer_entite,
+          libelle_tarif,
+          code_tarif || null,
+          type_tarif,
+          statut,
+          dataJson,
+          now,
+          id
+        ],
+        (err) => {
+          if (err) reject(err);
+          else resolve(null);
+        }
+      );
+    });
+
+    res.json({
+      success: true,
+      message: 'Tarification updated successfully',
+      id_tarification: id
+    });
+  } catch (error) {
+    console.error('Error updating tarification:', error);
+    res.status(500).json({ 
+      error: 'Failed to update tarification',
+      message: error.message 
+    });
+  }
+});
+
+
+// â”€â”€â”€ 4. DELETE /api/tarifications/:id â”€â”€â”€
+// Delete a tarification
+app.delete('/api/tarifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deleteQuery = 'DELETE FROM tarifications WHERE id_tarification = ?';
+
+    await new Promise((resolve, reject) => {
+      connection.query(deleteQuery, [id], (err) => {
+        if (err) reject(err);
+        else resolve(null);
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Tarification deleted successfully',
+      id_tarification: id
+    });
+  } catch (error) {
+    console.error('Error deleting tarification:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete tarification',
+      message: error.message 
+    });
+  }
+});
+
+
+// â”€â”€â”€ 5. GET /api/tarifications/:id â”€â”€â”€
+// Get a specific tarification by ID
+app.get('/api/tarifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT 
+        t.id_tarification,
+        t.id_fiche_produit,
+        t.id_buyer_entite,
+        e.raison_socialle as buyer_name,
+        e.email as buyer_email,
+        t.libelle_tarif,
+        t.code_tarif,
+        t.type_tarif,
+        t.statut,
+        t.data,
+        t.created_at,
+        t.updated_at
+      FROM tarifications t
+      JOIN entites e ON t.id_buyer_entite = e.id_entite
+      WHERE t.id_tarification = ?
+    `;
+
+    const result = await new Promise((resolve, reject) => {
+      connection.query(query, [id], (err, results) => {
+        if (err) reject(err);
+        else resolve(results?.[0]);
+      });
+    });
+
+    if (!result) {
+      return res.status(404).json({ error: 'Tarification not found' });
+    }
+
+    result.data = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching tarification:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tarification',
+      message: error.message 
+    });
+  }
+});
+
+
+// â”€â”€â”€ 6. GET /api/tarifications/product/:id_product â”€â”€â”€
+// Get all tarifications for a product (all buyers)
+app.get('/api/tarifications/product/:id_product', async (req, res) => {
+  try {
+    const { id_product } = req.params;
+
+    const query = `
+      SELECT 
+        t.id_tarification,
+        t.id_fiche_produit,
+        t.id_buyer_entite,
+        e.raison_socialle as buyer_name,
+        e.email as buyer_email,
+        t.libelle_tarif,
+        t.code_tarif,
+        t.type_tarif,
+        t.statut,
+        t.data,
+        t.created_at,
+        t.updated_at
+      FROM tarifications t
+      JOIN entites e ON t.id_buyer_entite = e.id_entite
+      WHERE t.id_fiche_produit = ?
+      ORDER BY t.created_at DESC
+    `;
+
+    const results = await new Promise((resolve, reject) => {
+      connection.query(query, [id_product], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    const parsedResults = results.map(row => ({
+      ...row,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+    }));
+
+    res.json(parsedResults || []);
+  } catch (error) {
+    console.error('Error fetching tarifications:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tarifications',
+      message: error.message 
+    });
+  }
+});
+
+
+// â”€â”€â”€ 7. GET /api/tarifications/buyer/:id_buyer â”€â”€â”€
+// Get all tarifications for a buyer (all products)
+app.get('/api/tarifications/buyer/:id_buyer', async (req, res) => {
+  try {
+    const { id_buyer } = req.params;
+
+    const query = `
+      SELECT 
+        t.id_tarification,
+        t.id_fiche_produit,
+        fp.libelle as product_libelle,
+        fp.gtin,
+        t.id_buyer_entite,
+        e.raison_socialle as buyer_name,
+        t.libelle_tarif,
+        t.code_tarif,
+        t.type_tarif,
+        t.statut,
+        t.data,
+        t.created_at,
+        t.updated_at
+      FROM tarifications t
+      JOIN entites e ON t.id_buyer_entite = e.id_entite
+      JOIN fiche_produits fp ON t.id_fiche_produit = fp.id
+      WHERE t.id_buyer_entite = ?
+      ORDER BY t.created_at DESC
+    `;
+
+    const results = await new Promise((resolve, reject) => {
+      connection.query(query, [id_buyer], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    const parsedResults = results.map(row => ({
+      ...row,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+    }));
+
+    res.json(parsedResults || []);
+  } catch (error) {
+    console.error('Error fetching tarifications:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tarifications',
+      message: error.message 
+    });
+  }
+});
+
+
+
+
+// ============================================================================
+// âœ… TEMPLATE DOWNLOAD ENDPOINTS
+// ============================================================================
+
+// GET /api/model_by_brick?codebrique=XXXXX
+app.get("/api/model_by_brick", async (req, res) => {
+  try {
+    const { codebrique } = req.query;
+    if (!codebrique) {
+      return res.status(400).json({ error: "codebrique parameter required" });
+    }
+    
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [results] = await conn.query(
+      `SELECT model_json, libelle FROM models WHERE rayon_code = ? LIMIT 1`,
+      [codebrique]
+    );
+    await conn.end();
+    
+    if (results.length === 0) {
+      return res.json({ fields: [], libelle: null });
+    }
+    
+    const modelRow = results[0];
+    let fields = [];
+    try {
+      if (modelRow.model_json) {
+        const parsed = JSON.parse(modelRow.model_json);
+        fields = Array.isArray(parsed) ? parsed : parsed.fields || [];
+      }
+    } catch (parseErr) {
+      console.warn(`Invalid JSON for brick ${codebrique}:`, parseErr.message);
+    }
+    
+    res.json({ fields, libelle: modelRow.libelle });
+  } catch (err) {
+    console.error("[/api/model_by_brick] Error:", err);
+    res.status(500).json({ error: "Failed to fetch model", details: safeErrDetails(err) });
+  }
+});
+
+
+// POST /api/products/import-advanced
+app.post("/api/products/import-advanced", async (req, res) => {
+  try {
+    const { products } = req.body;
+    if (!Array.isArray(products) || !products.length) {
+      return res.status(400).json({ error: "No products array provided" });
+    }
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    let inserted = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (let idx = 0; idx < products.length; idx++) {
+      try {
+        const p = products[idx];
+        
+        if (!p.brand || !p.gtin || !p.libelle || !p.codebrique) {
+          skipped++;
+          errors.push({ row: idx + 1, reason: "Missing required fields" });
+          continue;
+        }
+
+        let extraFields = null;
+        if (p.extra_fields) {
+          try {
+            extraFields = typeof p.extra_fields === "string" 
+              ? JSON.parse(p.extra_fields) 
+              : p.extra_fields;
+          } catch (e) {
+            console.warn(`Invalid extra_fields at row ${idx + 1}:`, e.message);
+          }
+        }
+
+        const sql = `
+          INSERT INTO fiche_produit (
+            brand, subBrand, description, gtin, libelle, short_libelle,
+            countryOfOrigin, idEntreprise, images, nb_images,
+            prix_min, prix_max, code_cader, codeClasse, codebrique,
+            date_mis_a_jour_fp, tradeItemSynchronisationDates, date_create_fp,
+            activ_prix, status, done_new, extra_fields
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const params = [
+          p.brand || "", p.subBrand || "", p.description || "",
+          p.gtin || "", p.libelle || "", p.short_libelle || "",
+          p.countryOfOrigin || "", Number(p.idEntreprise || 0),
+          "", 0, Number(p.prix_min || 0), Number(p.prix_max || 0),
+          p.code_cader || "", Number(p.codeClasse || 0),
+          p.codebrique || "", now, p.tradeItemSynchronisationDates || "",
+          now, Number(p.activ_prix || 0), 0, 0,
+          extraFields ? JSON.stringify(extraFields) : null
+        ];
+
+        await conn.query(sql, params);
+        inserted++;
+      } catch (err) {
+        console.error(`Row ${idx + 1} error:`, err.message);
+        skipped++;
+        errors.push({ row: idx + 1, reason: err.message });
+      }
+    }
+
+    await conn.end();
+
+    res.json({
+      success: true,
+      inserted,
+      skipped,
+      total: products.length,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `${inserted}/${products.length} produit(s) importÃ©(s)`
+    });
+  } catch (err) {
+    console.error("[POST /api/products/import-advanced] Error:", err);
+    res.status(500).json({ error: "Import failed", details: safeErrDetails(err) });
+  }
+});
+
+
+    
+// ========== FAMILY & CLASS BY SEGMENT/FAMILLE ==========
+app.get("/api/familles_by_segment", async (req, res) => {
+  try {
+    const { codeSegment } = req.query;
+    if (!codeSegment) return res.status(400).json({ error: "codeSegment required" });
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [familles] = await conn.query(
+      `SELECT DISTINCT codeFamille, libelleFamille FROM famillegpc WHERE codeSegment = ? ORDER BY codeFamille`,
+      [codeSegment]
+    );
+    await conn.end();
+    res.json(familles || []);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.get("/api/classes_by_famille", async (req, res) => {
+  try {
+    const { codeFamille } = req.query;
+    if (!codeFamille) return res.status(400).json({ error: "codeFamille required" });
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [classes] = await conn.query(
+      `SELECT codeClasse, libelleClasse FROM classegpc WHERE codeFamille = ? AND status_c = 1 ORDER BY ordre_classe ASC`,
+      [codeFamille]
+    );
+    await conn.end();
+    res.json(classes || []);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ========== MODEL BY BRICK ==========
+app.get("/api/model_by_brick", async (req, res) => {
+  try {
+    const { codebrique } = req.query;
+    if (!codebrique) return res.status(400).json({ error: "codebrique required" });
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [results] = await conn.query(`SELECT model_json FROM models WHERE rayon_code = ? LIMIT 1`, [codebrique]);
+    await conn.end();
+    if (!results?.length) return res.json({ fields: [] });
+    try {
+      const fields = JSON.parse(results[0].model_json);
+      res.json({ fields: Array.isArray(fields) ? fields : fields.fields || [] });
+    } catch (e) {
+      res.json({ fields: [] });
+    }
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ============================================================================
+// TEMPLATE HELPERS â€” libellÃ©s franÃ§ais, helpers Excel
+// ============================================================================
+const FR_FIELD_LABELS = {
+  brand:"Marque", subBrand:"Sous-marque", description:"Description produit",
+  gtin:"GTIN", libelle:"LibellÃ© produit", short_libelle:"LibellÃ© court",
+  countryOfOrigin:"Pays d'origine", prix_min:"Prix minimum (DT)",
+  prix_max:"Prix maximum (DT)", code_cader:"Code CADER",
+  activ_prix:"Prix activÃ© (0/1)", codeClasse:"Code classe",
+  codebrique:"Code brique / rayon",
+  segment:"Segment", family:"Famille", class:"Classe", brick:"Brique", rayon:"Rayon",
+  gln:"GLN", marque:"Marque", sous_marque:"Sous-marque",
+  libelle_court:"LibellÃ© court", pays_d_origine:"Pays d'origine",
+  libelle_internet:"LibellÃ© internet", type_de_marque:"Type de marque",
+  description_produit:"Description produit", mode_emploi:"Mode d'emploi",
+  precautions_emploi:"PrÃ©cautions d'emploi",
+  dimensions_hors_emballage:"Dimensions hors emballage",
+  type_d_emballage:"Type d'emballage",
+  mesures_unite_commerciale:"Mesures unitÃ© commerciale",
+  unite_consommateur:"UnitÃ© consommateur",
+  prix_unitaire:"Prix unitaire", unite_legale:"UnitÃ© lÃ©gale",
+  type_de_taxe:"Type de taxe",
+  code_nomenclature_douaniere:"Code nomenclature douaniÃ¨re",
+  gtin_d:"GTIN enfant", childTradeItem:"Article enfant",
+  quantityofNextLowerLevelTradeItem:"QtÃ© niv. infÃ©rieur",
+  quantityOfCompleteLayersContainedInATradeItem:"Nb couches complÃ¨tes",
+  quantityOfTradeItemsContainedInACompleteLayer:"Articles par couche",
+  isTradeItemADespatchUnit:"UnitÃ© d'expÃ©dition",
+  isTradeItemAnInvoiceUnit:"UnitÃ© de facturation",
+  isTradeItemAnOrderableUnit:"UnitÃ© commandable",
+  isTradeItemAModel:"Article modÃ¨le", isTradeItemADivisibleItem:"Article divisible",
+  hasDisplayReadyPackaging:"Emballage prÃªt expo",
+  isTradeItemPackedIrregularly:"ConditionnÃ© irrÃ©guliÃ¨rement",
+  compositionDepthValue:"Profondeur composition", compositionWidthValue:"Largeur composition",
+  alimentaryProduct:"Produit alimentaire", TradeItemDisplayDimensions:"Dimensions affichage",
+  contactGLN:"GLN contact", orderingUnitOfMeasure:"UM commande",
+  invoicingUnitOfMeasure:"UM facturation", packageMarksDietAllergen:"Marquage allergÃ¨nes",
+  cataloguePriceBasisQuantity:"QtÃ© base prix",
+  cataloguePriceBasisUnitOfMeasure:"UM base prix",
+  tradeItemWeight:"Poids article", tradeItemVolume:"Volume article",
+  packagingMaterial:"MatÃ©riau emballage", stackingFactor:"Facteur empilement",
+  maxStackingWeight:"Poids max empilement", palletLayerQuantity:"QtÃ© couche palette",
+  type_emballage:"Type emballage", palletTypeCode:"Code type palette",
+  packagingTypeCode:"Code type emballage",
+  unite_logistique_ap:"UL AP", unite_facturable_ap:"UnitÃ© fact. AP",
+  unite_commandable_ap:"UnitÃ© cmd. AP", isTradeItemAModel_ap:"Article modÃ¨le AP",
+  isTradeItemADivisibleItem_ap:"Article divisible AP",
+  hasDisplayReadyPackaging_ap:"Emballage expo AP",
+  isTradeItemPackedIrregularly_ap:"Cond. irrÃ©g. AP",
+  compositionDepthValue_ap:"Prof. compo AP", compositionWidthValue_ap:"Larg. compo AP",
+  alimentaryProduct_ap:"Prod. alim. AP", TradeItemDisplayDimensions_ap:"Dim. affich. AP",
+  contactGLN_ap:"GLN contact AP", orderingUnitOfMeasure_ap:"UM commande AP",
+  invoicingUnitOfMeasure_ap:"UM fact. AP", gtin_d_ap:"GTIN enfant AP",
+  childTradeItem_ap:"Article enfant AP",
+  quantityofNextLowerLevelTradeItem_ap:"QtÃ© niv. inf. AP",
+  packageMarksDietAllergen_ap:"AllergÃ¨nes AP",
+  tradeItemWeight_ap:"Poids AP", tradeItemVolume_ap:"Volume AP",
+  packagingMaterial_ap:"MatÃ©riau AP", stackingFactor_ap:"Facteur emp. AP",
+  gtin_d_ca:"GTIN enfant CA", childTradeItem_ca:"Article enfant CA",
+  quantityofNextLowerLevelTradeItem_ca:"QtÃ© niv. inf. CA",
+  quantityOfCompleteLayersContainedInATradeItem_ca:"Nb couches CA",
+  quantityOfTradeItemsContainedInACompleteLayer_ca:"Articles/couche CA",
+  isTradeItemAConsumerUnit:"UnitÃ© conso", unite_facturable_ca:"UnitÃ© fact. CA",
+  unite_commandable_ca:"UnitÃ© cmd. CA", isTradeItemAFullDisplayStand:"PrÃ©sentoir complet",
+  hasDisplayReadyPackaging_ca:"Emballage expo CA",
+  isTradeItemPackedIrregularly_ca:"Cond. irrÃ©g. CA",
+  compositionDepthValue_ca:"Prof. compo CA", compositionWidthValue_ca:"Larg. compo CA",
+  alimentaryProduct_ca:"Prod. alim. CA", contactGLN_ca:"GLN contact CA",
+  orderingUnitOfMeasure_ca:"UM commande CA", invoicingUnitOfMeasure_ca:"UM fact. CA",
+  tradeItemWeight_ca:"Poids CA", tradeItemVolume_ca:"Volume CA",
+  packagingMaterial_ca:"MatÃ©riau CA", maxStackingWeight_ca:"Poids max CA",
+  palletLayerQuantity_ca:"QtÃ© couche CA",
+  quantityofNextLowerLevelTradeItem_ds:"QtÃ© niv. inf. DS",
+  quantityOfCompleteLayersContainedInATradeItem_ds:"Nb couches DS",
+  quantityOfTradeItemsContainedInACompleteLayer_ds:"Articles/couche DS",
+  unite_facturable_ds:"UnitÃ© fact. DS", isTradeItemAFullDisplayStand_ds:"PrÃ©sentoir DS",
+  hasDisplayReadyPackaging_ds:"Emballage expo DS",
+  isTradeItemPackedIrregularly_ds:"Cond. irrÃ©g. DS",
+  compositionDepthValue_ds:"Prof. compo DS", compositionWidthValue_ds:"Larg. compo DS",
+  contactGLN_ds:"GLN contact DS", orderingUnitOfMeasure_ds:"UM commande DS",
+  invoicingUnitOfMeasure_ds:"UM fact. DS",
+  tradeItemWeight_ds:"Poids DS", tradeItemVolume_ds:"Volume DS",
+  packagingMaterial_ds:"MatÃ©riau DS", maxStackingWeight_ds:"Poids max DS",
+  palletLayerQuantity_ds:"QtÃ© couche DS",
+  gtin_d_pl:"GTIN enfant PL", childTradeItem_pl:"Article enfant PL",
+  quantityofNextLowerLevelTradeItem_pl:"QtÃ© niv. inf. PL",
+  quantityOfCompleteLayersContainedInATradeItem_pl:"Nb couches PL",
+  quantityOfTradeItemsContainedInACompleteLayer_pl:"Articles/couche PL",
+  isTradeItemAnInvoiceUnit_pl:"UnitÃ© fact. PL",
+  isTradeItemAnOrderableUnit_pl:"UnitÃ© cmd. PL",
+  isTradeItemAFullDisplayStand_pl:"PrÃ©sentoir PL",
+  hasDisplayReadyPackaging_pl:"Emballage expo PL",
+  isTradeItemPackedIrregularly_pl:"Cond. irrÃ©g. PL",
+  compositionDepthValue_pl:"Prof. compo PL", compositionWidthValue_pl:"Larg. compo PL",
+  contactGLN_pl:"GLN contact PL", orderingUnitOfMeasure_pl:"UM commande PL",
+  invoicingUnitOfMeasure_pl:"UM fact. PL", palletLayerQuantity_pl:"QtÃ© couche PL",
+  tradeItemWeight_pl:"Poids PL", tradeItemVolume_pl:"Volume PL",
+  packagingMaterial_pl:"MatÃ©riau PL", maxStackingWeight_pl:"Poids max PL",
+  stackingFactor_pl:"Facteur emp. PL", palletDimensions_pl:"Dim. palette PL",
+  gtin_d_mx:"GTIN enfant MX", childTradeItem1:"Article enfant 1 MX",
+  quantityofNextLowerLevelTradeItem1:"QtÃ© enfant 1 MX",
+  childTradeItem2:"Article enfant 2 MX",
+  quantityofNextLowerLevelTradeItem2:"QtÃ© enfant 2 MX",
+  childTradeItem3:"Article enfant 3 MX",
+  quantityofNextLowerLevelTradeItem3:"QtÃ© enfant 3 MX",
+  childTradeItem4:"Article enfant 4 MX",
+  quantityofNextLowerLevelTradeItem4:"QtÃ© enfant 4 MX",
+  quantityOfCompleteLayersContainedInATradeItem_mx:"Nb couches MX",
+  quantityOfTradeItemsContainedInACompleteLayer_mx:"Articles/couche MX",
+  isTradeItemAnInvoiceUnit_mx:"UnitÃ© fact. MX",
+  isTradeItemAFullDisplayStand_mx:"PrÃ©sentoir MX",
+  hasDisplayReadyPackaging_mx:"Emballage expo MX",
+  isTradeItemPackedIrregularly_mx:"Cond. irrÃ©g. MX",
+  compositionDepthValue_mx:"Prof. compo MX", compositionWidthValue_mx:"Larg. compo MX",
+  contactGLN_mx:"GLN contact MX", orderingUnitOfMeasure_mx:"UM commande MX",
+  invoicingUnitOfMeasure_mx:"UM fact. MX", palletLayerQuantity_mx:"QtÃ© couche MX",
+  tradeItemWeight_mx:"Poids MX", tradeItemVolume_mx:"Volume MX",
+  packagingMaterial_mx:"MatÃ©riau MX", maxStackingWeight_mx:"Poids max MX",
+  stackingFactor_mx:"Facteur emp. MX", palletDimensions_mx:"Dim. palette MX",
+};
+
+function frLabel(key) {
+  return FR_FIELD_LABELS[key] || key.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function excelCol(n) {
+  let s = '';
+  while (n > 0) { const r = (n-1)%26; s = String.fromCharCode(65+r)+s; n = Math.floor((n-1)/26); }
+  return s;
+}
+
+const COUNTRIES_LIST = [
+  "Afghanistan","Afrique du Sud","Albanie","Algerie","Allemagne","Andorre","Angola",
+  "Arabie Saoudite","Argentine","Armenie","Australie","Autriche","Azerbaidjan",
+  "Bahamas","Bahrein","Bangladesh","Barbade","Belgique","Belize","Benin","Bolivie",
+  "Bosnie-Herzegovine","Bresil","Brunei","Bulgarie","Burkina Faso","Burundi",
+  "Cambodge","Cameroun","Canada","Chili","Chine","Chypre","Colombie","Comores",
+  "Coree du Nord","Coree du Sud","Costa Rica","Cote d Ivoire","Croatie","Cuba",
+  "Danemark","Djibouti","Dominique","Egypte","Emirats arabes unis","Equateur",
+  "Erythree","Espagne","Estonie","Eswatini","Etats-Unis","Ethiopie","Fidji",
+  "Finlande","France","Gabon","Gambie","Georgie","Ghana","Grece","Grenade",
+  "Guatemala","Guinee","Guinee-Bissau","Guinee equatoriale","Guyana","Haiti",
+  "Honduras","Hongrie","Inde","Indonesie","Irak","Iran","Irlande","Islande",
+  "Israel","Italie","Jamaique","Japon","Jordanie","Kazakhstan","Kenya","Kiribati",
+  "Koweit","Laos","Lesotho","Lettonie","Liban","Liberia","Libye","Liechtenstein",
+  "Lituanie","Luxembourg","Macedoine du Nord","Madagascar","Malaisie","Malawi",
+  "Maldives","Mali","Malte","Maroc","Marshall","Maurice","Mauritanie","Mexique",
+  "Micronesie","Moldavie","Monaco","Mongolie","Montenegro","Mozambique","Myanmar",
+  "Namibie","Nauru","Nepal","Nicaragua","Niger","Nigeria","Norvege",
+  "Nouvelle-Zelande","Oman","Ouganda","Ouzbekistan","Pakistan","Palaos","Panama",
+  "Papouasie-Nouvelle-Guinee","Paraguay","Pays-Bas","Perou","Philippines","Pologne",
+  "Portugal","Qatar","Republique centrafricaine","Rep dem du Congo",
+  "Republique dominicaine","Republique tcheque","Roumanie","Royaume-Uni","Russie",
+  "Rwanda","Saint-Kitts-et-Nevis","Saint-Marin","Saint-Vincent","Sainte-Lucie",
+  "Salvador","Samoa","Sao Tome-et-Principe","Senegal","Serbie","Seychelles",
+  "Sierra Leone","Singapour","Slovaquie","Slovenie","Somalie","Soudan",
+  "Soudan du Sud","Sri Lanka","Suede","Suisse","Suriname","Syrie","Tadjikistan",
+  "Tanzanie","Tchad","Thailande","Timor oriental","Togo","Tonga",
+  "Trinite-et-Tobago","Tunisie","Turkmenistan","Turquie","Tuvalu","Ukraine",
+  "Uruguay","Vanuatu","Vatican","Venezuela","Viet Nam","Yemen","Zambie","Zimbabwe"
+];
+
+
+// ============================================================================
+// GET /api/model_by_rayon â€” Alias for model_by_brick (frontend uses rayon_code param)
+// ============================================================================
+app.get("/api/model_by_rayon", async (req, res) => {
+  try {
+    const { rayon_code } = req.query;
+    if (!rayon_code) return res.status(400).json({ error: "rayon_code required" });
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [results] = await conn.query(`SELECT model_json FROM models WHERE rayon_code = ? LIMIT 1`, [rayon_code]);
+    await conn.end();
+    if (!results?.length) return res.json({ fields: [] });
+    try {
+      const fields = JSON.parse(results[0].model_json);
+      res.json({ fields: Array.isArray(fields) ? fields : fields.fields || [] });
+    } catch (e) {
+      res.json({ fields: [] });
+    }
+  } catch (err) {
+    console.error("[/api/model_by_rayon] Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ============================================================================
+// GET /api/products/parents_select â€” List products for parent selection (dÃ©clinaisons)
+// ============================================================================
+app.get("/api/products/parents_select", async (req, res) => {
+  try {
+    const { id_entite, exclude_id, current_type } = req.query;
+    if (!id_entite) return res.status(400).json({ error: "id_entite required" });
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    let sql = `SELECT id, gtin, libelle, brand, codebrique FROM fiche_produit WHERE idEntreprise = ?`;
+    const params = [id_entite];
+
+    if (exclude_id) {
+      sql += ` AND id != ?`;
+      params.push(exclude_id);
+    }
+
+    sql += ` ORDER BY libelle ASC LIMIT 500`;
+
+    const [rows] = await conn.query(sql, params);
+    await conn.end();
+    res.json(rows || []);
+  } catch (err) {
+    console.error("[/api/products/parents_select] Error:", err);
+    res.status(500).json({ error: "Failed to fetch parent products", details: safeErrDetails(err) });
+  }
+});
+
+
+// ============================================================================
+// TÃ‰LÃ‰CHARGEMENT DU MODÃˆLE EXCEL â€” template-advanced
+// Ordre : [DonnÃ©es de base] â†’ [Classification prÃ©-remplie]
+//       â†’ [Sections modÃ¨le JSON] â†’ [HiÃ©rarchie logistique]
+// Palette sombre/plate Â· ligne 1 = titres section Â· libellÃ©s ASCII (sans accents)
+// pour Ã©viter tout problÃ¨me d'encodage Ã  la rÃ©importation
+// ============================================================================
+app.get("/api/products/template-advanced", async (req, res) => {
+  try {
+    const { rayon_code, model_key, codeSegment, codeClasse, codeFamille } = req.query;
+    if (!model_key) return res.status(400).json({ error: "model_key requis" });
+
+    let conn;
+    try { conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG); }
+    catch (e) { return res.status(500).json({ error: "Connexion BDD echouee" }); }
+
+    // â”€â”€ 1. ModÃ¨le JSON â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const [modelResults] = await conn.query(
+      `SELECT model_json FROM models WHERE rayon_code = ? LIMIT 1`, [model_key]
+    );
+    let modelData = {};
+    if (modelResults?.length && modelResults[0].model_json) {
+      try { modelData = JSON.parse(modelResults[0].model_json); } catch(e) {}
+    }
+
+    // â”€â”€ 2. LibellÃ©s pour prÃ©-remplissage + nom fichier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let libelleSegment = "", libelleClasse = "", libelleRayon = "";
+    try {
+      if (rayon_code) {
+        const [rR] = await conn.query(`SELECT rayon_libelle FROM rayongpc WHERE rayon_code = ? LIMIT 1`, [rayon_code]);
+        if (rR.length) libelleRayon = rR[0].rayon_libelle || "";
+      }
+      if (codeSegment) {
+        const [rS] = await conn.query(`SELECT libelleSegment FROM segmentgpc WHERE codeSegment = ? LIMIT 1`, [codeSegment]);
+        if (rS.length) libelleSegment = rS[0].libelleSegment || "";
+      }
+      if (codeClasse) {
+        const [rC] = await conn.query(`SELECT libelleClasse FROM classegpc WHERE codeClasse = ? LIMIT 1`, [codeClasse]);
+        if (rC.length) libelleClasse = rC[0].libelleClasse || "";
+      }
+    } catch(e) { /* non bloquant */ }
+    await conn.end();
+
+    // â”€â”€ 3. Valeurs prÃ©-remplies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const PREFILL = {};
+    if (codeSegment) PREFILL["segment"]    = libelleSegment ? `${codeSegment} - ${libelleSegment}` : codeSegment;
+    if (codeClasse)  PREFILL["codeClasse"] = libelleClasse  ? `${codeClasse} - ${libelleClasse}`   : String(codeClasse);
+    if (codeClasse)  PREFILL["classe"]     = PREFILL["codeClasse"];
+    if (rayon_code)  PREFILL["codebrique"] = libelleRayon   ? `${rayon_code} - ${libelleRayon}`   : rayon_code;
+    if (rayon_code)  PREFILL["brick"]      = PREFILL["codebrique"];
+    if (rayon_code)  PREFILL["rayon"]      = PREFILL["codebrique"];
+
+    // â”€â”€ 4. Palette sombre/plate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const PAL = {
+      BASE:            { hc:"1E3A5F", fc:"FFFFFF", dc:"EBF0F7" },
+      Classification:  { hc:"2D4739", fc:"FFFFFF", dc:"E8F0EB" },
+      IDENTIFICATION:  { hc:"4A2060", fc:"FFFFFF", dc:"F0EBF6" },
+      SPECIFIQUE:      { hc:"7A3B00", fc:"FFFFFF", dc:"FDF0E0" },
+      CONDITIONNEMENT: { hc:"1A4D5C", fc:"FFFFFF", dc:"E5F2F6" },
+      TARIFAIRE:       { hc:"5C1A1A", fc:"FFFFFF", dc:"F6E5E5" },
+      PK: { hc:"4B3000", fc:"FFFFFF", dc:"FDF5E0" },
+      AP: { hc:"3D0000", fc:"FFFFFF", dc:"FDF0F0" },
+      CA: { hc:"003D1A", fc:"FFFFFF", dc:"E6F7EC" },
+      DS: { hc:"003D3D", fc:"FFFFFF", dc:"E0F5F5" },
+      PL: { hc:"1A003D", fc:"FFFFFF", dc:"EEE8F7" },
+      MX: { hc:"2D2D00", fc:"FFFFFF", dc:"F7F5E0" },
+    };
+
+    // ClÃ©s dÃ©jÃ  dans donnÃ©es de base â†’ ne pas dupliquer
+    const BASE_KEYS_SET = new Set([
+      "segment","codeSegment","code_segment","family","famille","codeFamille",
+      "classe","codeClasse","class","code_classe","codebrique","brick","brique",
+      "rayon","code_brique","gtin","gln","marque","brand","sous_marque","subBrand",
+      "libelle","libelle_court","short_libelle","libelle_internet",
+      "pays_d_origine","countryOfOrigin",
+    ]);
+    const normKey = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
+    const BASE_KEYS_NORM = new Set([...BASE_KEYS_SET].map(normKey));
+
+    // â”€â”€ 5. Construction des colonnes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const columns = [];
+
+    // 5a. DONNÃ‰ES DE BASE (libellÃ©s ASCII pur â€” CRITIQUE pour encodage)
+    const BASE_DEF = [
+      { key:"brand",           label:"Marque *"           },
+      { key:"subBrand",        label:"Sous-marque"        },
+      { key:"gtin",            label:"GTIN *"             },
+      { key:"libelle",         label:"Libelle produit *"  },
+      { key:"short_libelle",   label:"Libelle court"      },
+      { key:"description",     label:"Description produit"},
+      { key:"countryOfOrigin", label:"Pays d'origine",    dvPays:true },
+      { key:"prix_min",        label:"Prix minimum (DT)"  },
+      { key:"prix_max",        label:"Prix maximum (DT)"  },
+      { key:"code_cader",      label:"Code CADER"         },
+      { key:"activ_prix",      label:"Prix active (0/1)"  },
+    ];
+    for (const f of BASE_DEF) {
+      columns.push({ key:f.key, label:f.label, section:"BASE",
+        sectionLabel:"DONNEES DE BASE", pal:PAL.BASE,
+        prefill:PREFILL[f.key]||null, dvPays:f.dvPays||false });
+    }
+
+    // 5b. CLASSIFICATION prÃ©-remplie
+    const CLASS_DEF = [
+      { key:"segment",    label:"Segment"          },
+      { key:"codeClasse", label:"Code classe"      },
+      { key:"codebrique", label:"Code brique/rayon"},
+    ];
+    for (const f of CLASS_DEF) {
+      columns.push({ key:f.key, label:f.label, section:"Classification",
+        sectionLabel:"CLASSIFICATION", pal:PAL.Classification,
+        prefill:PREFILL[f.key]||null, dvPays:false });
+    }
+
+    // 5c. SECTIONS DU MODÃˆLE JSON
+    const MODEL_SECTION_ORDER = [
+      "Donnees d'identification",
+      "Donnees specifiques du produit",
+      "Conditionnement & Logistique",
+      "Donnees tarifaires",
+    ];
+    const MODEL_SECTION_PAL = {
+      "Donnees d'identification":       PAL.IDENTIFICATION,
+      "Donnees specifiques du produit": PAL.SPECIFIQUE,
+      "Conditionnement & Logistique":   PAL.CONDITIONNEMENT,
+      "Donnees tarifaires":             PAL.TARIFAIRE,
+    };
+    const MODEL_SECTION_LABEL = {
+      "Donnees d'identification":       "DONNEES D'IDENTIFICATION",
+      "Donnees specifiques du produit": "DONNEES SPECIFIQUES DU PRODUIT",
+      "Conditionnement & Logistique":   "CONDITIONNEMENT & LOGISTIQUE",
+      "Donnees tarifaires":             "DONNEES TARIFAIRES",
+    };
+
+    if (modelData.sections) {
+      for (const secName of MODEL_SECTION_ORDER) {
+        const secData = modelData.sections[secName];
+        if (!secData?.fields?.length) continue;
+        const pal      = MODEL_SECTION_PAL[secName]   || PAL.SPECIFIQUE;
+        const secLabel = MODEL_SECTION_LABEL[secName] || secName.toUpperCase();
+        for (const fieldName of secData.fields) {
+          if (BASE_KEYS_SET.has(fieldName) || BASE_KEYS_NORM.has(normKey(fieldName))) continue;
+          const rule = modelData.fieldRules?.[fieldName] || {};
+          const isMand = rule.validation === "OB";
+          // Use description from fieldRules if available, else frLabel â€” both ASCII-safe
+          const displayLabel = (rule.description || frLabel(fieldName)) + (isMand ? " *" : "");
+          columns.push({ key:fieldName, label:displayLabel, section:secName,
+            sectionLabel:secLabel, pal, prefill:PREFILL[fieldName]||null, dvPays:false });
+        }
+      }
+    }
+
+    // 5d. HIÃ‰RARCHIE LOGISTIQUE
+    const HIER_DEFS = [
+      { code:"PK", label:"PK - LOT CONSOMMATEUR HOMOGENE", pal:PAL.PK,
+        fields:["gtin_d","childTradeItem","quantityofNextLowerLevelTradeItem","quantityOfCompleteLayersContainedInATradeItem","quantityOfTradeItemsContainedInACompleteLayer","isTradeItemADespatchUnit","isTradeItemAnInvoiceUnit","isTradeItemAnOrderableUnit","isTradeItemAModel","isTradeItemADivisibleItem","hasDisplayReadyPackaging","isTradeItemPackedIrregularly","compositionDepthValue","compositionWidthValue","alimentaryProduct","TradeItemDisplayDimensions","contactGLN","orderingUnitOfMeasure","invoicingUnitOfMeasure","packageMarksDietAllergen","cataloguePriceBasisQuantity","cataloguePriceBasisUnitOfMeasure","tradeItemWeight","tradeItemVolume","packagingMaterial","stackingFactor","maxStackingWeight","palletLayerQuantity","type_emballage","palletTypeCode"] },
+      { code:"AP", label:"AP - LOT CONSOMMATEUR HETEROGENE", pal:PAL.AP,
+        fields:["unite_logistique_ap","unite_facturable_ap","unite_commandable_ap","isTradeItemAModel_ap","isTradeItemADivisibleItem_ap","hasDisplayReadyPackaging_ap","isTradeItemPackedIrregularly_ap","compositionDepthValue_ap","compositionWidthValue_ap","alimentaryProduct_ap","TradeItemDisplayDimensions_ap","contactGLN_ap","orderingUnitOfMeasure_ap","invoicingUnitOfMeasure_ap","gtin_d_ap","childTradeItem_ap","quantityofNextLowerLevelTradeItem_ap","packageMarksDietAllergen_ap","tradeItemWeight_ap","tradeItemVolume_ap","packagingMaterial_ap","stackingFactor_ap","type_emballage","palletTypeCode"] },
+      { code:"CA", label:"CA - COLIS HOMOGENE", pal:PAL.CA,
+        fields:["gtin_d_ca","childTradeItem_ca","quantityofNextLowerLevelTradeItem_ca","packagingTypeCode","palletTypeCode","quantityOfCompleteLayersContainedInATradeItem_ca","quantityOfTradeItemsContainedInACompleteLayer_ca","isTradeItemAConsumerUnit","unite_facturable_ca","unite_commandable_ca","isTradeItemAFullDisplayStand","hasDisplayReadyPackaging_ca","isTradeItemPackedIrregularly_ca","compositionDepthValue_ca","compositionWidthValue_ca","alimentaryProduct_ca","contactGLN_ca","orderingUnitOfMeasure_ca","invoicingUnitOfMeasure_ca","tradeItemWeight_ca","tradeItemVolume_ca","packagingMaterial_ca","maxStackingWeight_ca","palletLayerQuantity_ca","type_emballage"] },
+      { code:"DS", label:"DS - COLIS HETEROGENE", pal:PAL.DS,
+        fields:["quantityofNextLowerLevelTradeItem_ds","packagingTypeCode","palletTypeCode","quantityOfCompleteLayersContainedInATradeItem_ds","quantityOfTradeItemsContainedInACompleteLayer_ds","unite_facturable_ds","isTradeItemAFullDisplayStand_ds","hasDisplayReadyPackaging_ds","isTradeItemPackedIrregularly_ds","compositionDepthValue_ds","compositionWidthValue_ds","contactGLN_ds","orderingUnitOfMeasure_ds","invoicingUnitOfMeasure_ds","tradeItemWeight_ds","tradeItemVolume_ds","packagingMaterial_ds","maxStackingWeight_ds","palletLayerQuantity_ds","type_emballage"] },
+      { code:"PL", label:"PL - PALETTE HOMOGENE", pal:PAL.PL,
+        fields:["gtin_d_pl","childTradeItem_pl","quantityofNextLowerLevelTradeItem_pl","quantityOfCompleteLayersContainedInATradeItem_pl","quantityOfTradeItemsContainedInACompleteLayer_pl","isTradeItemAnInvoiceUnit_pl","isTradeItemAnOrderableUnit_pl","isTradeItemAFullDisplayStand_pl","hasDisplayReadyPackaging_pl","isTradeItemPackedIrregularly_pl","compositionDepthValue_pl","compositionWidthValue_pl","contactGLN_pl","orderingUnitOfMeasure_pl","invoicingUnitOfMeasure_pl","palletTypeCode","palletLayerQuantity_pl","tradeItemWeight_pl","tradeItemVolume_pl","packagingMaterial_pl","maxStackingWeight_pl","stackingFactor_pl","palletDimensions_pl","type_emballage"] },
+      { code:"MX", label:"MX - PALETTE HETEROGENE", pal:PAL.MX,
+        fields:["gtin_d_mx","childTradeItem1","quantityofNextLowerLevelTradeItem1","childTradeItem2","quantityofNextLowerLevelTradeItem2","childTradeItem3","quantityofNextLowerLevelTradeItem3","childTradeItem4","quantityofNextLowerLevelTradeItem4","quantityOfCompleteLayersContainedInATradeItem_mx","quantityOfTradeItemsContainedInACompleteLayer_mx","isTradeItemAnInvoiceUnit_mx","isTradeItemAFullDisplayStand_mx","hasDisplayReadyPackaging_mx","isTradeItemPackedIrregularly_mx","compositionDepthValue_mx","compositionWidthValue_mx","contactGLN_mx","orderingUnitOfMeasure_mx","invoicingUnitOfMeasure_mx","palletTypeCode","palletLayerQuantity_mx","tradeItemWeight_mx","tradeItemVolume_mx","packagingMaterial_mx","maxStackingWeight_mx","stackingFactor_mx","palletDimensions_mx","type_emballage"] },
+    ];
+    const seenHK = new Set();
+    for (const hd of HIER_DEFS) {
+      for (const fk of hd.fields) {
+        const uk = `${hd.code}_${fk}`;
+        if (seenHK.has(uk)) continue;
+        seenHK.add(uk);
+        columns.push({ key:`${fk}__${hd.code}`, label:frLabel(fk),
+          section:`HIER_${hd.code}`, sectionLabel:hd.label,
+          pal:hd.pal, prefill:null, dvPays:false });
+      }
+    }
+
+    const N = columns.length;
+    const REF_PAYS = `Pays!$A$2:$A$${COUNTRIES_LIST.length + 1}`;
+
+    // â”€â”€ 6. Classeur ExcelJS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const wb = new ExcelJS.Workbook();
+
+    // Feuille Pays (masquÃ©e)
+    const wsPays = wb.addWorksheet("Pays", { tabColor:{ argb:"FF999999" }, state:"hidden" });
+    wsPays.getCell(1,1).value = "[Liste Pays - Ne pas modifier]";
+    wsPays.getCell(1,1).font = { bold:true, color:{ argb:"FF999999" }, size:8 };
+    COUNTRIES_LIST.forEach((c,i) => { wsPays.getCell(i+2,1).value = c; });
+    wsPays.getColumn(1).width = 40;
+
+    // Feuille principale
+    const ws = wb.addWorksheet("Modele Produits", { tabColor:{ argb:"FF1E3A5F" } });
+    wb.views = [{ activeTab:1 }];
+
+    // â”€â”€ 6a. Ligne 1 â€” Titres de section (fusionnÃ©es) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const sectionRanges = [];
+    let prevSec = null, startC = 1;
+    for (let j = 0; j < N; j++) {
+      const sec = columns[j].section;
+      if (!prevSec) { prevSec = sec; startC = j+1; }
+      else if (sec !== prevSec) {
+        sectionRanges.push({ label:columns[j-1].sectionLabel, startCol:startC, endCol:j, pal:columns[j-1].pal });
+        prevSec = sec; startC = j+1;
+      }
+    }
+    sectionRanges.push({ label:columns[N-1].sectionLabel, startCol:startC, endCol:N, pal:columns[N-1].pal });
+
+    const secTitleRow = ws.addRow(new Array(N).fill(null));
+    secTitleRow.height = 20;
+    for (const sr of sectionRanges) {
+      if (sr.startCol < sr.endCol) ws.mergeCells(1, sr.startCol, 1, sr.endCol);
+      const cell = secTitleRow.getCell(sr.startCol);
+      cell.value = sr.label;
+      cell.font  = { bold:true, size:9, color:{ argb:"FF"+sr.pal.fc } };
+      cell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"CC"+sr.pal.hc } };
+      cell.alignment = { horizontal:"center", vertical:"middle" };
+      cell.border = {
+        left:  { style:"medium", color:{ argb:"FF333333" } },
+        right: { style:"medium", color:{ argb:"FF333333" } },
+        bottom:{ style:"thin",   color:{ argb:"FF555555" } },
+      };
+    }
+
+    // â”€â”€ 6b. Ligne 2 â€” En-tÃªtes colonnes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const headerRow = ws.addRow(columns.map(c => c.label));
+    headerRow.height = 42;
+    for (let j = 0; j < N; j++) {
+      const cell = headerRow.getCell(j+1);
+      const pal  = columns[j].pal;
+      cell.font  = { bold:true, size:9, color:{ argb:"FF"+pal.fc } };
+      cell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FF"+pal.hc } };
+      cell.alignment = { horizontal:"center", vertical:"middle", wrapText:true };
+      cell.border = {
+        left:  { style:"thin",   color:{ argb:"FF444444" } },
+        right: { style:"thin",   color:{ argb:"FF444444" } },
+        top:   { style:"medium", color:{ argb:"FF222222" } },
+        bottom:{ style:"medium", color:{ argb:"FF222222" } },
+      };
+    }
+
+    // â”€â”€ 6c. Ligne 3 â€” Instruction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const instrRow = ws.addRow(new Array(N).fill(null));
+    instrRow.height = 16;
+    if (N > 1) ws.mergeCells(3,1,3,N);
+    const instrCell = instrRow.getCell(1);
+    instrCell.value = "(*) = Obligatoire  |  Champs verts pre-remplis = ne pas modifier  |  Pays = liste deroulante  |  Saisie a partir de la ligne 4";
+    instrCell.font  = { italic:true, size:8, color:{ argb:"FF888888" } };
+    instrCell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFF0F0F0" } };
+    instrCell.alignment = { horizontal:"left", vertical:"middle" };
+
+    // â”€â”€ 6d. Lignes 4-103 â€” DonnÃ©es â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    for (let ri = 0; ri < 100; ri++) {
+      const dataRow = ws.addRow(new Array(N).fill(null));
+      dataRow.height = 18;
+      const isEven = ri % 2 === 0;
+      for (let j = 0; j < N; j++) {
+        const cell = dataRow.getCell(j+1);
+        const col  = columns[j];
+        if (col.prefill) {
+          cell.value = col.prefill;
+          cell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFD5E8D4" } };
+          cell.font  = { color:{ argb:"FF2D6A2D" }, italic:true, size:9 };
+          cell.protection = { locked:true };
+        } else {
+          const bg = isEven ? ("FF"+col.pal.dc) : "FFFFFFFF";
+          cell.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:bg } };
+          cell.font = { size:9, color:{ argb:"FF1A1A2E" } };
+        }
+        cell.border = {
+          left:  { style:"thin", color:{ argb:"FFDDDDDD" } },
+          right: { style:"thin", color:{ argb:"FFDDDDDD" } },
+          top:   { style:"thin", color:{ argb:"FFEEEEEE" } },
+          bottom:{ style:"thin", color:{ argb:"FFEEEEEE" } },
+        };
+        cell.alignment = { vertical:"middle" };
+      }
+    }
+
+    // â”€â”€ 6e. Validation listes Pays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    for (let j = 0; j < N; j++) {
+      if (!columns[j].dvPays) continue;
+      const sqref = `${excelCol(j+1)}4:${excelCol(j+1)}103`;
+      try {
+        ws.dataValidations.add(sqref, {
+          type:"list", allowBlank:true, showDropDown:false, formulae:[REF_PAYS],
+        });
+      } catch(e) {}
+    }
+
+    // â”€â”€ 6f. Largeurs + gel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    ws.columns = columns.map(c => ({
+      key: c.key,
+      width: Math.max(16, Math.min(38, c.label.replace(" *","").length + 4)),
+    }));
+    ws.views = [{ state:"frozen", xSplit:0, ySplit:3, activeCell:"A4" }];
+    ws.pageSetup = { paperSize:9, orientation:"landscape", fitToPage:true, fitToWidth:1 };
+
+    // â”€â”€ 7. Nom de fichier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const safePart = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-zA-Z0-9\-_]/g,"_").replace(/_+/g,"_").slice(0,35);
+    const libBrique = safePart(libelleRayon || rayon_code || model_key);
+    const libClass  = safePart(libelleClasse || codeClasse || "");
+    const datePart  = new Date().toISOString().split("T")[0];
+    const fileName  = libClass
+      ? `Modele_${libClass}_${libBrique}_${datePart}.xlsx`
+      : `Modele_${libBrique}_${datePart}.xlsx`;
+
+    res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition",`attachment; filename="${encodeURIComponent(fileName)}"`);
+    await wb.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error("[template-advanced]", err);
+    res.status(500).json({ error:"Erreur serveur", details: safeErrDetails(err) });
+  }
+});
+
+// depuis des fichiers gÃ©nÃ©rÃ©s sur certains OS. La normalisation ci-dessous
+// supprime TOUS les caractÃ¨res non-ASCII et non-alphanumÃ©riques avant
+// comparaison, rendant le matching 100% robuste.
+//
+// Structure fichier attendue:
+//   Ligne 1 = titres section (fusionnÃ©es) â†’ ignorÃ©e
+//   Ligne 2 = en-tÃªtes colonnes           â†’ utilisÃ©e pour le mapping
+//   Ligne 3 = instruction                 â†’ ignorÃ©e
+//   Ligne 4+ = donnÃ©es produits
+// ============================================================================
+app.post("/api/products/import-template", multerMemory.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error:"Aucun fichier envoye" });
+
+    const { id_entite } = req.body;
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+
+    // Trouver la feuille principale
+    let ws = workbook.getWorksheet("Modele Produits");
+    if (!ws) ws = workbook.worksheets.find(s => !["Pays"].includes(s.name));
+    if (!ws) return res.status(400).json({ error:"Feuille 'Modele Produits' introuvable dans le fichier" });
+
+    // â”€â”€ Lire les en-tÃªtes depuis la ligne 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // (ligne 1 = titres section, ligne 2 = col headers, ligne 3 = instruction)
+    const headerRow = ws.getRow(2);
+    const headers   = [];
+    headerRow.eachCell({ includeEmpty:true }, (cell, colNum) => {
+      let v = cell.value;
+      if (v === null || v === undefined) { headers[colNum-1] = ""; return; }
+      if (typeof v === "object") v = v.text || v.result || String(v);
+      headers[colNum-1] = String(v).trim();
+    });
+
+    // Normalisation ROBUSTE: supprime accents, U+FFFD, astÃ©risques, espaces, ponctuation
+    // RÃ©sultat: "LibellÃ© produit *" â†’ "libelleproduit"
+    //           "Libell\uFFFD produit *" â†’ "libelleproduit"  (mÃªme rÃ©sultat!)
+    const normH = s => s
+      .normalize("NFD")                        // dÃ©composer accents
+      .replace(/[\u0300-\u036f]/g, "")         // supprimer marques diacritiques
+      .replace(/\ufffd/g, "")                  // supprimer U+FFFD (replacement char)
+      .replace(/\*/g, "")                      // supprimer astÃ©risques
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");             // garder seulement alphanum
+
+    // Mapping normalisÃ© â†’ champ BDD
+    // Les clÃ©s sont dÃ©jÃ  normalisÃ©es (sans accents, sans espaces, lowercase)
+    const FR_TO_DB = {
+      "marque":               "brand",
+      "gtin":                 "gtin",
+      "libelleproduit":       "libelle",
+      "libelle":              "libelle",
+      "sousmarque":           "subBrand",
+      "descriptionproduit":   "description",
+      "description":          "description",
+      "libellecourt":         "short_libelle",
+      "paysdorigine":         "countryOfOrigin",
+      "prixminimumdt":        "prix_min",
+      "prixminimum":          "prix_min",
+      "prixmaximumdt":        "prix_max",
+      "prixmaximum":          "prix_max",
+      "codecader":            "code_cader",
+      "prixactive01":         "activ_prix",
+      "prixactive":           "activ_prix",
+      "prixactive01":         "activ_prix",
+      "codebriquerayon":      "codebrique",
+      "codebrique":           "codebrique",
+      "rayon":                "codebrique",
+      "brique":               "codebrique",
+      "codeclasse":           "codeClasse",
+      "classe":               "codeClasse",
+      "segment":              "segment_code",
+    };
+
+    const BASE_DB_FIELDS = new Set([
+      "brand","gtin","libelle","subBrand","description","short_libelle",
+      "countryOfOrigin","prix_min","prix_max","code_cader","activ_prix",
+      "codebrique","codeClasse","segment_code"
+    ]);
+
+    const baseColMap = {};  // dbField â†’ colIndex (0-based)
+    const extraCols  = [];  // { label, colIndex } pour extra_fields
+
+    headers.forEach((h, i) => {
+      const nk  = normH(h);
+      const dbF = FR_TO_DB[nk];
+      if (dbF && BASE_DB_FIELDS.has(dbF)) {
+        if (baseColMap[dbF] === undefined) baseColMap[dbF] = i;
+      } else if (nk && nk !== "") {
+        extraCols.push({ label:h, colIndex:i });
+      }
+    });
+
+    // Debug log pour vÃ©rification
+    console.log("[import-template] baseColMap:", JSON.stringify(baseColMap));
+    console.log("[import-template] headers[0..14]:", headers.slice(0,14).map((h,i)=>`[${i}]${normH(h)}`));
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const now  = new Date().toISOString().slice(0,19).replace("T"," ");
+    const results    = [];
+    const failedRows = [];
+
+    // Helper: lire valeur d'une cellule par index de colonne (0-based)
+    const getCellVal = (row, colIdx) => {
+      if (colIdx === undefined || colIdx === null) return null;
+      const cell = row.getCell(colIdx + 1);
+      if (cell.value === null || cell.value === undefined) return null;
+      let v = cell.value;
+      if (typeof v === "object" && v !== null) {
+        if (v.text !== undefined)   v = v.text;
+        else if (v.result !== undefined) v = v.result;
+        else v = String(v);
+      }
+      return String(v).trim() || null;
+    };
+
+    // Extraire code seul depuis "CODE - Libelle" ou "CODE â€” Libelle" (prÃ©-remplis)
+    const extractCode = v => {
+      if (!v) return v;
+      const m = v.match(/^(\S+)\s*[-â€”â€“]\s*.+$/);
+      return m ? m[1] : v;
+    };
+
+    // DonnÃ©es Ã  partir de la ligne 4
+    const totalRows = ws.rowCount;
+    for (let ri = 4; ri <= totalRows; ri++) {
+      const row = ws.getRow(ri);
+
+      const brand   = getCellVal(row, baseColMap["brand"]);
+      const gtin    = getCellVal(row, baseColMap["gtin"]);
+      const libelle = getCellVal(row, baseColMap["libelle"]);
+
+      // Ligne vraiment vide â†’ ignorer silencieusement
+      if (!brand && !gtin && !libelle) continue;
+
+      // Codes prÃ©-remplis: extraire juste le code
+      let codebrique = extractCode(getCellVal(row, baseColMap["codebrique"]));
+      let codeClasse  = extractCode(getCellVal(row, baseColMap["codeClasse"]));
+
+      // Validation champs obligatoires
+      const missing = [];
+      if (!brand)      missing.push("Marque");
+      if (!gtin)       missing.push("GTIN");
+      if (!libelle)    missing.push("Libelle produit");
+      if (!codebrique) missing.push("Code brique/rayon");
+
+      if (missing.length) {
+        results.push({ row:ri-3, status:"error", gtin:gtin||"â€”",
+          error:`Champs obligatoires manquants : ${missing.join(", ")}` });
+        failedRows.push(ri);
+        continue;
+      }
+
+      // Champs optionnels
+      const subBrand        = getCellVal(row, baseColMap["subBrand"])        || null;
+      const description     = getCellVal(row, baseColMap["description"])     || null;
+      const short_libelle   = getCellVal(row, baseColMap["short_libelle"])   || null;
+      const countryOfOrigin = getCellVal(row, baseColMap["countryOfOrigin"]) || null;
+      const prix_min        = Number(getCellVal(row, baseColMap["prix_min"])) || 0;
+      const prix_max        = Number(getCellVal(row, baseColMap["prix_max"])) || 0;
+      const code_cader      = getCellVal(row, baseColMap["code_cader"])      || "";
+      const activ_prix      = Number(getCellVal(row, baseColMap["activ_prix"])) || 0;
+      const codeClasseNum   = codeClasse ? (parseInt(codeClasse) || null) : null;
+      const idEntreprise    = id_entite  ? parseInt(id_entite) : null;
+
+      // Champs extra â†’ extra_fields JSON
+      const extraFields = {};
+      for (const ec of extraCols) {
+        const val = getCellVal(row, ec.colIndex);
+        if (val !== null && val !== "") extraFields[ec.label] = val;
+      }
+
+      try {
+        // VÃ©rifier doublon GTIN
+        const [existing] = await conn.query(
+          `SELECT id FROM fiche_produit WHERE gtin = ? LIMIT 1`, [gtin]
+        );
+        if (existing.length) {
+          results.push({ row:ri-3, status:"error", gtin,
+            error:`GTIN '${gtin}' existe deja en base` });
+          failedRows.push(ri);
+          continue;
+        }
+
+        await conn.query(
+          `INSERT INTO fiche_produit
+            (brand, subBrand, description, gtin, libelle, short_libelle, countryOfOrigin,
+             idEntreprise, prix_min, prix_max, code_cader, codeClasse, codebrique,
+             date_mis_a_jour_fp, tradeItemSynchronisationDates, date_create_fp,
+             activ_prix, status, done_new, extra_fields)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,?)`,
+          [brand, subBrand, description, gtin, libelle, short_libelle, countryOfOrigin,
+           idEntreprise, prix_min, prix_max, code_cader, codeClasseNum, codebrique,
+           now, now, now, activ_prix, JSON.stringify(extraFields)]
+        );
+        results.push({ row:ri-3, status:"success", gtin, libelle });
+
+      } catch (err) {
+        const errMsg = err.message.includes("Duplicate")
+          ? `GTIN '${gtin}' en doublon (contrainte BDD)`
+          : err.message.slice(0,140);
+        results.push({ row:ri-3, status:"error", gtin:gtin||"â€”", error:errMsg });
+        failedRows.push(ri);
+      }
+    }
+
+    await conn.end();
+
+    const successCount = results.filter(r => r.status === "success").length;
+    const errorCount   = results.filter(r => r.status === "error").length;
+
+    // â”€â”€ GÃ©nÃ©ration fichier anomalies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let failedFileBase64 = null;
+    let failedFileName   = null;
+
+    if (failedRows.length > 0) {
+      const fwb = new ExcelJS.Workbook();
+
+      // Copier feuille Pays
+      const wsPaysOrig = workbook.getWorksheet("Pays");
+      if (wsPaysOrig) {
+        const wsPaysNew = fwb.addWorksheet("Pays", { tabColor:{ argb:"FF999999" }, state:"hidden" });
+        wsPaysOrig.eachRow((row, rn) => {
+          const newRow = wsPaysNew.getRow(rn);
+          row.eachCell({ includeEmpty:true }, (cell, cn) => {
+            newRow.getCell(cn).value = cell.value;
+          });
+          newRow.commit();
+        });
+      }
+
+      const fws = fwb.addWorksheet("Anomalies Import", { tabColor:{ argb:"FFCC0000" } });
+
+      // Copier lignes 1, 2, 3 (structure entÃªte)
+      for (let ri = 1; ri <= 3; ri++) {
+        const origRow = ws.getRow(ri);
+        const newRow  = fws.getRow(ri);
+        origRow.eachCell({ includeEmpty:true }, (cell, cn) => {
+          const nc = newRow.getCell(cn);
+          nc.value = cell.value;
+          try { if (cell.style) nc.style = JSON.parse(JSON.stringify(cell.style)); } catch(e) {}
+        });
+        newRow.height = origRow.height;
+        newRow.commit();
+      }
+
+      // Ajouter colonne ERREUR dans la ligne 2
+      const errColIdx  = headers.length + 1;
+      const errHdrCell = fws.getRow(2).getCell(errColIdx);
+      errHdrCell.value = "ERREUR D'IMPORT";
+      errHdrCell.font  = { bold:true, size:9, color:{ argb:"FFFFFFFF" } };
+      errHdrCell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFCC0000" } };
+      errHdrCell.alignment = { horizontal:"center", vertical:"middle", wrapText:true };
+      fws.getRow(2).commit();
+
+      // Copier lignes en erreur + colonne erreur
+      let newDataRow = 4;
+      for (const ri of failedRows) {
+        const origRow = ws.getRow(ri);
+        const newRow  = fws.getRow(newDataRow);
+        origRow.eachCell({ includeEmpty:true }, (cell, cn) => {
+          const nc = newRow.getCell(cn);
+          nc.value = cell.value;
+          try { if (cell.style) nc.style = JSON.parse(JSON.stringify(cell.style)); } catch(e) {}
+        });
+        const entry = results.find(r => r.row === ri-3);
+        const errCell = newRow.getCell(errColIdx);
+        errCell.value = entry?.error || "Erreur inconnue";
+        errCell.font  = { color:{ argb:"FFAA0000" }, size:8 };
+        errCell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFFFF0F0" } };
+        newRow.commit();
+        newDataRow++;
+      }
+
+      fws.columns = [
+        ...headers.map(h => ({ width: Math.max(16, Math.min(36, h.length+4)) })),
+        { width:55 },
+      ];
+      fws.views = [{ state:"frozen", xSplit:0, ySplit:3, activeCell:"A4" }];
+
+      const buf = await fwb.xlsx.writeBuffer();
+      failedFileBase64 = Buffer.from(buf).toString("base64");
+      failedFileName   = `Anomalies_Import_${new Date().toISOString().split("T")[0]}.xlsx`;
+    }
+
+    res.json({
+      success:         true,
+      total:           results.length,
+      inserted:        successCount,
+      errors:          errorCount,
+      results,
+      failedFileBase64,
+      failedFileName,
+    });
+
+  } catch (err) {
+    console.error("[import-template]", err);
+    res.status(500).json({ error:"Erreur import", details: safeErrDetails(err) });
+  }
+});
+
+
+// ========== IMPORT ADVANCED ==========
+app.post("/api/products/import-advanced", async (req, res) => {
+  try {
+    const { products } = req.body;
+    if (!Array.isArray(products) || !products.length) return res.status(400).json({ error: "No products" });
+
+    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    let inserted = 0, anomalies = [];
+
+    for (let idx = 0; idx < products.length; idx++) {
+      try {
+        const p = products[idx];
+        if (!p.brand || !p.gtin || !p.libelle || !p.brique) {
+          anomalies.push({ row: idx + 1, error: "Champs obligatoires manquants" });
+          continue;
+        }
+
+        let extraFields = {};
+        const baseList = ["brand", "gtin", "libelle", "brique", "segment", "famille", "classe"];
+        for (const col of Object.keys(p)) {
+          if (!baseList.includes(col) && p[col]) extraFields[col] = p[col];
+        }
+
+        const sql = `INSERT INTO fiche_produit (brand, gtin, libelle, codebrique, date_create_fp, extra_fields) VALUES (?, ?, ?, ?, ?, ?)`;
+        await conn.query(sql, [p.brand, p.gtin, p.libelle, p.brique, now, Object.keys(extraFields).length > 0 ? JSON.stringify(extraFields) : null]);
+        inserted++;
+      } catch (err) {
+        anomalies.push({ row: idx + 1, error: err.message.slice(0, 100) });
+      }
+    }
+
+    await conn.end();
+
+    if (anomalies.length > 0) {
+      const ExcelJS = require('exceljs');
+      const awb = new ExcelJS.Workbook();
+      const aws = awb.addWorksheet("Anomalies");
+      const arow = aws.addRow(["Ligne", "Erreur"]);
+      arow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      arow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFF0000" } };
+      anomalies.forEach(a => {
+        const r = aws.addRow([a.row, a.error]);
+        r.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE6E6" } };
+      });
+      aws.columns = [{ width: 10 }, { width: 50 }];
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename=Rapport_${new Date().toISOString().split('T')[0]}.xlsx`);
+      await awb.xlsx.write(res);
+      res.end();
+    } else {
+      res.json({ success: true, inserted, message: `${inserted} produit(s) importÃ©(s)` });
+    }
+  } catch (err) {
+    console.error("Import error:", err);
+    res.status(500).json({ error: "Import failed" });
+  }
+});
+
+
+// ============================================================================
+// âœ¨ DOWNLOAD ANOMALIES REPORT
+// ============================================================================
+app.get("/api/download-anomalies/:filename", (req, res) => {
+  try {
+    const filePath = path.join(GED_DIR, req.params.filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="anomalies.xlsx"`);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).json({ error: "Download error" });
+  }
+});
+
+
 const PORT = process.env.PORT || 5000;
 async function startServer() {
-  console.log(`[SERVER] 🚀 Attempting to start server on port ${PORT}...`);
+  console.log(`[SERVER] ðŸš€ Attempting to start server on port ${PORT}...`);
   try {
     await initializeDatabases();
     app.set('entiteDB', entiteDB); // Expose DB to routes
     
-    // Initialize Singleton Services with DB
+    // Pass db to DiscoveryCache and KeyManager for local fallback
     discoveryCache.setDb(entiteDB);
+    keyManager.setDb(entiteDB);
     auditLogger.setDb(entiteDB);
-    console.log('[Services] ✅ DiscoveryCache & AuditLogger initialized with DB');
+    console.log('[Services] âœ… DiscoveryCache & AuditLogger initialized with DB');
 
     await ensureOrdersColumns(); // Auto-create Orders date columns
     
-const { Worker } = require('worker_threads');
+    const { Worker } = require('worker_threads');
+
+    // Initialize Singleton Services with DB
+    discoveryCache.setDb(entiteDB);
+    auditLogger.setDb(entiteDB);
+    console.log('[Services] âœ… DiscoveryCache & AuditLogger initialized with DB');
+
+    await ensureOrdersColumns(); // Auto-create Orders date columns
+    
 
     // Initialize Orchestrator Routes (E2EE & Audit)
     try {
       const initOrchestratorRoutes = require('./routes/orchestrator_routes');
       app.use('/api/orchestrator', initOrchestratorRoutes(entiteDB));
-      console.log('[Orchestrator] ✅ Routes initialized at /api/orchestrator');
+      console.log('[Orchestrator] âœ… Routes initialized at /api/orchestrator');
     } catch (orchErr) {
-      console.error('[Orchestrator] ⚠️ Failed to initialize routes:', orchErr.message);
+      console.error('[Orchestrator] âš ï¸ Failed to initialize routes:', orchErr.message);
     }
 
     // Initialize P2P Routes (Receiver)
     try {
       const p2pRoutes = require('./routes/p2p');
       app.use('/api/p2p', p2pRoutes);
-      console.log('[P2P] ✅ Routes initialized at /api/p2p');
+      console.log('[P2P] âœ… Routes initialized at /api/p2p');
     } catch (p2pErr) {
-      console.error('[P2P] ⚠️ Failed to initialize routes:', p2pErr.message);
+      console.error('[P2P] âš ï¸ Failed to initialize routes:', p2pErr.message);
     }
     
     // Initialize ConfigService with database connection
     try {
       await configService.initialize(entiteDB);
-      console.log('[ConfigService] ✅ Global parameters loaded from database');
+      console.log('[ConfigService] âœ… Global parameters loaded from database');
       
       // Start Background Workers (Discovery & Audit Sync)
       // Only start if not in dev/test mode that inhibits workers, or check a config flag
@@ -10181,12 +13142,12 @@ const { Worker } = require('worker_threads');
       // Initialize Mailer after config is ready
       await initMailer();
     } catch (err) {
-      console.warn('[ConfigService] ⚠️ Failed to initialize, using defaults:', err.message);
+      console.warn('[ConfigService] âš ï¸ Failed to initialize, using defaults:', err.message);
     }
     
     // Initialize and start EDI Worker
     if (ediWorkerConfig.startup.autoStart) {
-      console.log('\n📦 Initializing EDI Worker...');
+      console.log('\nðŸ“¦ Initializing EDI Worker...');
       ediWorker = new EDIWorker(entiteDB);
       initEdiWorkerRoutes(ediWorker);
       ediWorker.start();
@@ -10195,7 +13156,7 @@ const { Worker } = require('worker_threads');
     // --- DATA CORRECTION ROUTINE ---
     // Fix orders stuck in 'new' status despite being successfully sent via EDI
     try {
-      console.log("[STARTUP] 🔧 Running data correction for stuck orders...");
+      console.log("[STARTUP] ðŸ”§ Running data correction for stuck orders...");
       const fixQuery = `
         UPDATE orders o
         JOIN edi_transmissions t ON t.related_id = o.id_order
@@ -10208,7 +13169,7 @@ const { Worker } = require('worker_threads');
       
       if (entiteDB.pool) {
         const [result] = await entiteDB.pool.query(fixQuery);
-        console.log(`[STARTUP] ✅ Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
+        console.log(`[STARTUP] âœ… Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
       } else {
         // SQLite fallback (SQLite does not support JOIN in UPDATE, use subquery)
         const sqliteFixQuery = `
@@ -10224,27 +13185,27 @@ const { Worker } = require('worker_threads');
           )
         `;
         await runUpdate(entiteDB, sqliteFixQuery);
-        console.log(`[STARTUP] ✅ Data correction query executed`);
+        console.log(`[STARTUP] âœ… Data correction query executed`);
       }
     } catch (err) {
-      console.error("[STARTUP] ⚠️ Data correction failed:", err.message);
+      console.error("[STARTUP] âš ï¸ Data correction failed:", err.message);
     }
 
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n✅ Server running successfully!`);
-      console.log(`   → Local:   http://localhost:${PORT}/`);
-      console.log(`   → Network: http://0.0.0.0:${PORT}/`);
-      console.log(`   → Health:  http://localhost:${PORT}/health`);
-      console.log(`   → WebSocket: ✅ Enabled`);
-      console.log(`   → EDI Worker: ${ediWorker ? '✅ Running' : '⏸️  Disabled'}\n`);
+      console.log(`\nâœ… Server running successfully!`);
+      console.log(`   â†’ Local:   http://localhost:${PORT}/`);
+      console.log(`   â†’ Network: http://0.0.0.0:${PORT}/`);
+      console.log(`   â†’ Health:  http://localhost:${PORT}/health`);
+      console.log(`   â†’ WebSocket: âœ… Enabled`);
+      console.log(`   â†’ EDI Worker: ${ediWorker ? 'âœ… Running' : 'â¸ï¸  Disabled'}\n`);
       console.log(`Server running on port ${PORT}`);
       console.log(`MODELES_DIR: ${MODELES_DIR}`);
       console.log(`FILES_JSON_PATH: ${FILES_JSON_PATH}`);
-      console.log(`ALLGPC_DB_PATH: ${ALLGPC_DB_PATH}`);
       const { dbConfig } = require('./config/database');
       console.log(`ENTITE: using MySQL host ${dbConfig.host}`);
-      console.log(`FIELDRULES_DB_PATH: ${FIELDRULES_DB_PATH}`);
-      console.log(`USERS_DB_PATH: ${USERS_DB_PATH}`);
+      
+      // Auto-publish this node's public key to the Orchestrator
+      keyManager.publishKeyToOrchestrator().catch(e => console.error('[Startup] Failed to publish key:', e.message));
     });
     
     // Socket.IO connection handler with room-based targeting
@@ -10274,7 +13235,7 @@ const { Worker } = require('worker_threads');
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('\n🛑 SIGTERM received, shutting down gracefully...');
+  console.log('\nðŸ›‘ SIGTERM received, shutting down gracefully...');
   if (ediWorker) {
     ediWorker.stop();
   }
@@ -10282,7 +13243,7 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('\n🛑 SIGINT received, shutting down gracefully...');
+  console.log('\nðŸ›‘ SIGINT received, shutting down gracefully...');
   if (ediWorker) {
     ediWorker.stop();
   }

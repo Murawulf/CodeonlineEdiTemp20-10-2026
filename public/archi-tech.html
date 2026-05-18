@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation | Codeonline-InfoTn</title>
+    
+    <!-- Tailwind CSS & Typography Plugin -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4f46e5',
+                        brand: '#0f172a'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Highlight.js for Code Snippets -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark-reasonable.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .toc-link.active {
+            color: #4f46e5;
+            font-weight: 600;
+            border-left-color: #4f46e5;
+            background-color: #f8fafc;
+        }
+
+        /* Fix Markdown Tables & Media */
+        .prose table { width: 100%; font-size: 0.875rem; }
+        .prose thead { background-color: #f8fafc; }
+        .prose th, .prose td { padding: 0.75rem 1rem; border: 1px solid #e2e8f0; }
+        .prose th { font-weight: 600; color: #334155; }
+        
+        /* Loading fade */
+        #content-area { transition: opacity 0.3s ease; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased h-screen flex overflow-hidden">
+
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden transition-opacity" onclick="toggleMobileMenu()"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white border-r border-slate-200 z-30 transform -translate-x-full lg:translate-x-0 lg:static lg:flex lg:flex-col transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none">
+        
+        <!-- Logo & Title -->
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-brand tracking-tight flex items-center gap-2">
+                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Codeonline EDI
+                </h1>
+                <p class="text-xs font-medium text-slate-500 mt-1 uppercase tracking-wider">Documentation V2.0</p>
+            </div>
+            <button class="lg:hidden text-slate-500 hover:text-slate-800" onclick="toggleMobileMenu()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <!-- Main Tabs -->
+        <div class="p-4 space-y-2 border-b border-slate-100 bg-slate-50/50">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Documents</p>
+            
+            <button id="tab-btn-1" onclick="switchTab(1)" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-indigo-50 text-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <div class="text-left leading-tight">
+                    <span class="block">Partie 1</span>
+                    <span class="text-xs font-normal opacity-80">Architecture Détaillée</span>
+                </div>
+            </button>
+            
+            <button id="tab-btn-2" onclick="switchTab(2)" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <div class="text-left leading-tight">
+                    <span class="block">Partie 2</span>
+                    <span class="text-xs font-normal opacity-80">Spécification Technique</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- Dynamic TOC -->
+        <div class="flex-1 overflow-y-auto p-4">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Table des Matières</p>
+            <nav id="toc-list" class="space-y-1">
+                <!-- TOC items generated by JS -->
+            </nav>
+        </div>
+        
+    </aside>
+
+    <!-- Main Content wrapper -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white">
+        
+        <!-- Mobile Header -->
+        <header class="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+            <div class="flex items-center gap-2">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <span class="font-bold text-slate-800">EDI Docs</span>
+            </div>
+            <button onclick="toggleMobileMenu()" class="p-2 -mr-2 text-slate-600 rounded-md hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </header>
+
+        <!-- Main Scrollable Area -->
+        <main id="scroll-area" class="flex-1 overflow-y-auto relative scroll-smooth">
+            <div class="max-w-4xl mx-auto px-6 py-12 lg:px-12">
+                <div id="content-area" class="prose prose-slate prose-indigo max-w-none prose-headings:scroll-mt-24 prose-pre:bg-[#282c34] prose-pre:p-4 prose-pre:rounded-xl">
+                    <!-- Markdown Rendered Here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Data Sources (Hidden) -->
+    <textarea id="md-part1" class="hidden">
+# Document d'Architecture Technique Détaillé — Codeonline-InfoTn (EDI Platform)
+
+**Version** : 2.0  
+**Date** : 19 Mars 2026  
+**Auteur** : Architecture Technique  
+**Statut** : Production  
+
+---
+
+## 1. Vue d'ensemble du système
+
+### 1.1 Objectif
+
+Codeonline-InfoTn est une **plateforme d'Échange de Données Informatisées (EDI)** conforme aux standards **GS1/EANCOM** pour la gestion des flux commerciaux B2B entre partenaires internationaux. Le système permet l'échange sécurisé de documents commerciaux (commandes, factures, avis d'expédition, réponses de commande) entre des nœuds géographiquement distribués (Tunisie, Sénégal, France, etc.).
+
+### 1.2 Caractéristiques Principales
+
+- **Multi-nœuds distribués** : Chaque pays/entité opère un nœud autonome avec sa propre base de données.
+- **Chiffrement de bout en bout (E2EE)** : Hybride AES-256-GCM + RSA-2048-OAEP avec signature numérique.
+- **Communication résiliente** : Stratégie Orchestrateur-first avec fallback P2P automatique.
+- **Multi-entités** : Un même serveur peut gérer plusieurs entités avec des GLN distincts.
+- **Standards GS1** : Conformité EANCOM pour ORDERS, ORDRSP, DESADV, INVOIC.
+- **Audit et traçabilité** : Journalisation complète de chaque transmission avec synchronisation différée.
+
+### 1.3 Nœuds Déployés
+
+| Nœud | Serveur | GLN | Port |
+|------|---------|-----|------|
+| Tunisie | 217.182.94.86 | 6191907700002 | 5001 |
+| Sénégal | 91.134.35.126 | SN02583102G4 | 5001 |
+| Orchestrateur (Hub) | edi-dev.codeonline-info.com | — | 443 (HTTPS) |
+
+---
+
+## 2. Architecture globale
+
+### 2.1 Architecture en couches
+
+<div class="not-prose my-8">
+<div class="bg-slate-900 p-6 sm:p-8 rounded-2xl shadow-2xl font-sans text-slate-100 space-y-5 border border-slate-800">
+<!-- Frontend -->
+<div class="border border-indigo-500/40 bg-indigo-950/40 rounded-xl p-5 relative overflow-hidden backdrop-blur-sm shadow-inner">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-400 to-indigo-600"></div>
+<h3 class="text-indigo-300 text-xs font-bold uppercase tracking-[0.2em] mb-4 mt-0 flex items-center gap-2">
+<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+Couche Client (Frontend)
+</h3>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+<div class="bg-indigo-900/50 border border-indigo-700/50 rounded-lg p-3 text-center text-sm shadow-sm transition hover:bg-indigo-800/50">Orders Page</div>
+<div class="bg-indigo-900/50 border border-indigo-700/50 rounded-lg p-3 text-center text-sm shadow-sm transition hover:bg-indigo-800/50">Invoice Page</div>
+<div class="bg-indigo-900/50 border border-indigo-700/50 rounded-lg p-3 text-center text-sm shadow-sm transition hover:bg-indigo-800/50">Shipment Page</div>
+<div class="bg-indigo-900/50 border border-indigo-700/50 rounded-lg p-3 text-center text-sm shadow-sm transition hover:bg-indigo-800/50">Tracking Page</div>
+</div>
+<div class="flex flex-wrap justify-center gap-3">
+<span class="px-4 py-1.5 bg-indigo-500/20 text-indigo-200 text-xs font-medium rounded-full border border-indigo-500/30">React 18 + Vite</span>
+<span class="px-4 py-1.5 bg-indigo-500/20 text-indigo-200 text-xs font-medium rounded-full border border-indigo-500/30">API Service (Axios)</span>
+<span class="px-4 py-1.5 bg-indigo-500/20 text-indigo-200 text-xs font-medium rounded-full border border-indigo-500/30">WebSocket Client</span>
+</div>
+</div>
+<!-- Connection -->
+<div class="flex justify-center items-center py-1 relative">
+<div class="absolute w-px h-full bg-slate-700"></div>
+<div class="flex gap-2 items-center bg-slate-900 px-4 py-1 border border-slate-700 rounded-full text-slate-400 z-10">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+<span class="text-[10px] font-mono font-bold tracking-wider">HTTP / WebSocket</span>
+</div>
+</div>
+<!-- Backend - Monolith -->
+<div class="border border-emerald-500/40 bg-emerald-950/40 rounded-xl p-5 relative overflow-hidden backdrop-blur-sm shadow-inner">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-600"></div>
+<h3 class="text-emerald-300 text-xs font-bold uppercase tracking-[0.2em] mb-4 mt-0 flex items-center gap-2">
+<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+Couche Serveur (Backend) — server.js
+</h3>
+<div class="flex flex-col md:flex-row gap-4">
+<div class="bg-emerald-900/50 border border-emerald-700/50 rounded-lg p-4 text-center text-sm font-medium flex-1 shadow-sm">REST API Routes</div>
+<div class="bg-emerald-900/50 border border-emerald-700/50 rounded-lg p-4 text-center text-sm font-medium flex-1 shadow-sm">WebSocket Server</div>
+<div class="bg-emerald-900/50 border border-emerald-700/50 rounded-lg p-4 text-center text-sm font-medium flex-1 shadow-sm">Static Files</div>
+</div>
+</div>
+<!-- Services & Worker Layer container -->
+<div class="grid grid-cols-1 md:grid-cols-5 gap-5">
+<!-- Services -->
+<div class="col-span-3 border border-fuchsia-500/40 bg-fuchsia-950/40 rounded-xl p-5 relative overflow-hidden backdrop-blur-sm shadow-inner">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-fuchsia-400 to-purple-600"></div>
+<h3 class="text-fuchsia-300 text-xs font-bold uppercase tracking-[0.2em] mb-4 mt-0">Services (Business Logic)</h3>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 h-[calc(100%-2.5rem)]">
+<div class="bg-fuchsia-900/50 border border-fuchsia-700/50 rounded-lg p-3 flex flex-col justify-center items-center text-center shadow-sm">
+<div class="text-sm font-bold text-fuchsia-100">CryptoService</div>
+<div class="text-xs text-fuchsia-300/80 mt-1 font-mono bg-fuchsia-950/50 px-2 py-0.5 rounded">+ KeyManager</div>
+</div>
+<div class="bg-fuchsia-900/50 border border-fuchsia-700/50 rounded-lg p-3 flex flex-col justify-center items-center text-center shadow-sm">
+<div class="text-sm font-bold text-fuchsia-100">CommProvider</div>
+<div class="text-xs text-fuchsia-300/80 mt-1 font-mono bg-fuchsia-950/50 px-2 py-0.5 rounded">+ Discovery / AuditLog</div>
+</div>
+</div>
+</div>
+<!-- Worker Layer -->
+<div class="col-span-2 border border-amber-500/40 bg-amber-950/40 rounded-xl p-5 relative overflow-hidden backdrop-blur-sm shadow-inner">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-amber-400 to-orange-600"></div>
+<h3 class="text-amber-300 text-xs font-bold uppercase tracking-[0.2em] mb-4 mt-0">EDI Worker (Async)</h3>
+<div class="flex flex-col gap-2">
+<div class="bg-amber-900/50 border border-amber-700/50 rounded-lg py-2.5 px-4 text-sm font-medium flex justify-between items-center shadow-sm">
+<span>Outbound</span> <span class="text-xs bg-amber-950 text-amber-300 px-2 py-0.5 rounded">30s</span>
+</div>
+<div class="bg-amber-900/50 border border-amber-700/50 rounded-lg py-2.5 px-4 text-sm font-medium flex justify-between items-center shadow-sm">
+<span>Inbound</span> <span class="text-xs bg-amber-950 text-amber-300 px-2 py-0.5 rounded">45s</span>
+</div>
+<div class="bg-amber-900/50 border border-amber-700/50 rounded-lg py-2.5 px-4 text-sm font-medium flex justify-between items-center shadow-sm">
+<span>Cleanup</span> <span class="text-xs bg-amber-950 text-amber-300 px-2 py-0.5 rounded">1h</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Database -->
+<div class="border border-cyan-500/40 bg-cyan-950/40 rounded-xl p-5 relative overflow-hidden backdrop-blur-sm shadow-inner">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-cyan-400 to-blue-500"></div>
+<h3 class="text-cyan-300 text-xs font-bold uppercase tracking-[0.2em] mb-4 mt-0 flex items-center gap-2">
+<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+Base de Données (MySQL / SQLite)
+</h3>
+<div class="bg-cyan-900/50 border border-cyan-700/50 rounded-lg p-4 text-center font-mono text-cyan-100 shadow-sm flex items-center justify-center gap-3">
+<span class="text-cyan-400 font-bold">db_utils.js</span> 
+<span class="text-sm opacity-80">— Abstraction logicielle unifiée</span>
+</div>
+</div>
+</div>
+</div>
+
+### 2.2 Pattern Architectural
+
+Le système suit un **Monolith Modulaire** avec :
+- **server.js** comme point d'entrée unique (~10 000 lignes) contenant les routes API et la logique métier.
+- **Services découplés** pour la cryptographie, la communication et la configuration.
+- **Worker asynchrone** pour le traitement des transmissions EDI.
+- **Couche d'abstraction DB** pour supporter MySQL (production) et SQLite (développement/test).
+
+---
+
+## 3. Stack technologique
+
+### 3.1 Backend
+
+| Composant | Technologie | Version | Rôle |
+|-----------|-------------|---------|------|
+| Runtime | Node.js | 18+ | Environnement d'exécution |
+| Framework | Express.js | 4.x | Serveur HTTP + routage REST |
+| WebSocket | socket.io | 4.x | Communication temps réel |
+| Database (prod) | MySQL | 8.x | Stockage persistant |
+| Database (dev) | SQLite3 | 5.x | Développement local |
+| HTTP Client | axios | 1.x | Appels inter-nœuds |
+| Crypto | Node.js crypto | Native | RSA, AES-256-GCM, signatures |
+| Process Manager | PM2 | 5.x | Gestion production |
+
+### 3.2 Frontend
+
+| Composant | Technologie | Rôle |
+|-----------|-------------|------|
+| Framework | React 18 | UI Components |
+| Build Tool | Vite | Dev server + bundling |
+| Language | TypeScript | Typage statique |
+| Styling | TailwindCSS | Styling utilitaire |
+| UI Components | shadcn/ui | Composants réutilisables |
+| Icons | Lucide | Iconographie |
+| HTTP Client | axios | Appels API |
+| WebSocket | socket.io-client | Temps réel |
+
+---
+
+## 4. Modules Backend — Vue détaillée
+
+### 4.1 Arborescence des fichiers
+
+<div class="not-prose my-8 bg-[#1e1e1e] rounded-xl shadow-2xl overflow-hidden font-mono text-[13px] text-slate-300 border border-slate-700 leading-relaxed">
+<div class="flex items-center px-4 py-3 bg-[#252526] border-b border-[#333]">
+<div class="flex gap-1.5"><div class="w-3 h-3 rounded-full bg-red-500"></div><div class="w-3 h-3 rounded-full bg-yellow-500"></div><div class="w-3 h-3 rounded-full bg-green-500"></div></div>
+<div class="ml-4 text-slate-400 text-xs font-sans tracking-widest flex items-center gap-2"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg> WORKSPACE / BACKEND</div>
+</div>
+<div class="p-4 overflow-x-auto whitespace-nowrap">
+<div class="flex items-center gap-2 text-blue-400"><svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg> backend/</div>
+<div class="border-l border-slate-700 ml-[7px] pl-4 mt-1 space-y-1">
+<div class="flex items-center justify-between group hover:bg-white/5 px-2 py-0.5 rounded"><div class="flex items-center gap-2 text-yellow-300"><svg class="w-4 h-4 shrink-0 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path></svg> server.js</div><span class="text-slate-500 text-xs opacity-0 group-hover:opacity-100 transition"># Point d'entrée monolithique</span></div>
+<div class="flex items-center justify-between group hover:bg-white/5 px-2 py-0.5 rounded"><div class="flex items-center gap-2 text-yellow-300"><svg class="w-4 h-4 shrink-0 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path></svg> db_utils.js</div><span class="text-slate-500 text-xs opacity-0 group-hover:opacity-100 transition"># Abstraction DB (MySQL/SQLite)</span></div>
+<div class="flex items-center justify-between group hover:bg-white/5 px-2 py-0.5 rounded"><div class="flex items-center gap-2 text-yellow-300"><svg class="w-4 h-4 shrink-0 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path></svg> eancom_parser.js</div><span class="text-slate-500 text-xs opacity-0 group-hover:opacity-100 transition"># Parser EANCOM/EDIFACT</span></div>
+<div class="h-2"></div>
+<div class="flex items-center gap-2 text-blue-400 px-2"><svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg> config/</div>
+<div class="border-l border-slate-700 ml-[7px] pl-4 mt-1 space-y-1">
+<div class="flex items-center justify-between group hover:bg-white/5 px-2 py-0.5 rounded"><div class="flex items-center gap-2 text-blue-400"><svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg> keys/</div><span class="text-slate-500 text-xs opacity-0 group-hover:opacity-100 transition"># Clés RSA (local + partenaires)</span></div>
+</div>
+<div class="h-2"></div>
+<div class="flex items-center gap-2 text-blue-400 px-2"><svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg> services/</div>
+<div class="border-l border-slate-700 ml-[7px] pl-4 mt-1 space-y-1">
+<div class="flex items-center gap-2 text-blue-400 px-2"><svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg> crypto/</div>
+<div class="border-l border-slate-700 ml-[7px] pl-4 mt-1 space-y-1">
+<div class="flex items-center justify-between group hover:bg-white/5 px-2 py-0.5 rounded"><div class="flex items-center gap-2 text-yellow-300"><svg class="w-4 h-4 shrink-0 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path></svg> CryptoService.js</div><span class="text-slate-500 text-xs opacity-0 group-hover:opacity-100 transition"># Chiffrement E2EE</span></div>
+<div class="flex items-center justify-between group hover:bg-white/5 px-2 py-0.5 rounded"><div class="flex items-center gap-2 text-yellow-300"><svg class="w-4 h-4 shrink-0 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path></svg> KeyManager.js</div><span class="text-slate-500 text-xs opacity-0 group-hover:opacity-100 transition"># Gestion des clés RSA</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+---
+
+## 5. Couche de communication E2EE
+
+### 5.1 `CommunicationProvider.js` — Dispatch des messages
+
+Point d'entrée unique pour envoyer un message EDI. Implémente la stratégie **Waterfall** :
+
+<div class="not-prose my-8 overflow-x-auto pb-4">
+<div class="flex items-center min-w-[650px] bg-slate-50 p-6 rounded-2xl border border-slate-200">
+<!-- Encrypt -->
+<div class="shrink-0 w-32 bg-white border border-slate-300 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition">
+<div class="font-bold text-slate-800 flex items-center justify-center gap-1">
+<svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+1. Encrypt
+</div>
+<div class="text-xs text-slate-500 mt-1 font-mono bg-slate-100 py-0.5 rounded">(E2EE)</div>
+</div>
+<div class="h-1 w-12 bg-slate-300 relative rounded-full mx-2"><div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 border-l-[6px] border-l-slate-400 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent"></div></div>
+<!-- Try Hub -->
+<div class="shrink-0 w-44 bg-blue-50 border-2 border-blue-400 rounded-xl p-4 text-center shadow-sm relative">
+<div class="font-bold text-blue-700">2. Try Hub</div>
+<div class="text-xs text-blue-500 mt-1 font-mono">Orchestrator</div>
+<!-- Path OK -->
+<div class="absolute top-full left-1/2 -translate-x-1/2 h-10 w-1 bg-green-400 rounded-b-full"></div>
+<div class="absolute top-[calc(100%+2.5rem)] left-1/2 -translate-x-1/2 w-0 h-0 border-t-[8px] border-t-green-400 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent"></div>
+</div>
+<div class="h-1 w-16 bg-red-400 relative flex items-center justify-center rounded-full mx-2">
+<span class="absolute -top-6 text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded border border-red-200">FAIL (X)</span>
+<div class="absolute right-0 border-l-[6px] border-l-red-500 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent translate-x-1"></div>
+</div>
+<!-- Try P2P -->
+<div class="shrink-0 w-44 bg-orange-50 border-2 border-orange-400 rounded-xl p-4 text-center shadow-sm relative">
+<div class="font-bold text-orange-700">3. Try P2P</div>
+<div class="text-xs text-orange-500 mt-1 font-mono">Direct Connection</div>
+<!-- Path OK/FAIL -->
+<div class="absolute top-full left-1/2 -translate-x-1/2 h-10 w-1 bg-slate-400 rounded-b-full"></div>
+<div class="absolute top-[calc(100%+2.5rem)] left-1/2 -translate-x-1/2 w-0 h-0 border-t-[8px] border-t-slate-400 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent"></div>
+</div>
+</div>
+<!-- Results row -->
+<div class="flex items-center min-w-[650px] px-6 pb-6 bg-slate-50/50 rounded-b-2xl border-x border-b border-slate-200 -mt-2 pt-14">
+<div class="w-32 mr-12"></div>
+<div class="w-44 bg-green-100 border-2 border-green-500 text-green-800 rounded-lg py-2.5 px-2 text-center text-sm font-bold shadow-sm">
+SENT_TO_HUB
+</div>
+<div class="w-16 mx-1"></div>
+<div class="w-44 bg-slate-200 border-2 border-slate-400 text-slate-700 rounded-lg py-2.5 px-2 text-center text-sm font-bold shadow-sm">
+SENT_P2P / FAILED
+</div>
+</div>
+</div>
+
+---
+
+## 6. Couche cryptographique
+
+### 6.1 Architecture de chiffrement
+
+Le système utilise un **chiffrement hybride** combinant asymétrique et symétrique pour optimiser les performances :
+
+<div class="not-prose my-10 space-y-4">
+<!-- Sender Box -->
+<div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700 relative">
+<h3 class="text-white font-bold mb-6 flex items-center gap-2 text-lg">
+<svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+ÉMETTEUR (Node A)
+</h3>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Data Flow -->
+<div class="lg:col-span-2 space-y-5">
+<!-- Row 1 -->
+<div class="flex flex-col sm:flex-row items-center gap-3">
+<div class="bg-slate-700 border border-slate-600 text-slate-200 px-4 py-2.5 rounded-lg shadow text-sm font-mono text-center w-full sm:w-auto">Payload JSON</div>
+<svg class="w-5 h-5 text-slate-500 rotate-90 sm:rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+<div class="bg-blue-900/60 border border-blue-500/50 text-blue-200 px-4 py-2.5 rounded-lg shadow text-sm flex-1 text-center font-bold">AES-256-GCM</div>
+<svg class="w-5 h-5 text-slate-500 rotate-90 sm:rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+<div class="bg-slate-700 border border-slate-600 text-slate-200 px-4 py-2.5 rounded-lg shadow text-sm font-mono text-center w-full sm:w-auto">Données chiffrées</div>
+</div>
+<!-- Row 2 -->
+<div class="flex flex-col sm:flex-row items-center gap-3">
+<div class="sm:w-[134px] text-center sm:text-right text-xs text-slate-400">Clé AES éphémère<br>(32 bytes)</div>
+<svg class="w-5 h-5 text-slate-500 rotate-90 sm:rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+<div class="bg-purple-900/60 border border-purple-500/50 text-purple-200 px-4 py-2 rounded-lg shadow text-sm flex-1 text-center">
+<span class="font-bold">RSA-OAEP-SHA256</span><br>
+<span class="text-[10px] text-purple-300/70 uppercase tracking-wider">clé publique destinataire</span>
+</div>
+<svg class="w-5 h-5 text-slate-500 rotate-90 sm:rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+<div class="bg-slate-700 border border-slate-600 text-slate-200 px-4 py-2.5 rounded-lg shadow text-sm font-mono text-center w-full sm:w-auto">Clé AES chiffrée</div>
+</div>
+</div>
+<!-- Signature -->
+<div class="border-t lg:border-t-0 lg:border-l border-slate-700 pt-5 lg:pt-0 lg:pl-6 flex flex-col justify-center">
+<div class="text-xs text-slate-400 mb-2 uppercase tracking-wider font-bold">Authentification</div>
+<div class="bg-emerald-900/60 border border-emerald-500/50 text-emerald-200 px-4 py-4 rounded-lg shadow text-sm text-center">
+<span class="font-bold">SHA256 + RSA Sign</span><br>
+<span class="text-[10px] text-emerald-300/70 uppercase tracking-wider">clé privée locale</span>
+</div>
+</div>
+</div>
+<div class="mt-6 bg-black/50 p-3.5 rounded-xl border border-slate-700 text-center font-mono text-sm text-amber-300/90 shadow-inner">
+Envelope = { encryptedData, iv, tag, encryptedKey, signature }
+</div>
+</div>
+<!-- Arrow Bridge -->
+<div class="flex justify-center text-slate-400 relative z-10 -my-3">
+<svg class="w-10 h-10 bg-white rounded-full border-2 border-slate-200 text-indigo-500 p-1.5 shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+</div>
+<!-- Receiver Box -->
+<div class="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
+<h3 class="text-slate-800 font-bold mb-5 flex items-center gap-2 text-lg">
+<svg class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+DESTINATAIRE (Node B)
+</h3>
+<div class="space-y-3 font-mono text-sm">
+<div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+<span class="bg-slate-800 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">1</span>
+<div><span class="font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">RSA Decrypt</span> <span class="text-slate-500">(clé privée locale)</span> ➔ Clé AES</div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+<span class="bg-slate-800 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">2</span>
+<div><span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">AES-256-GCM Decrypt</span> <span class="text-slate-500">(clé AES + iv + tag)</span> ➔ Payload JSON</div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-emerald-50/50 rounded-lg border border-emerald-200 hover:bg-emerald-50 transition">
+<span class="bg-emerald-600 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">3</span>
+<div><span class="font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">RSA Verify</span> <span class="text-slate-500">(clé publique émetteur)</span> ➔ <span class="text-emerald-700 font-bold ml-2">Intégrité OK ✅</span></div>
+</div>
+</div>
+</div>
+</div>
+
+---
+
+## 7. Worker EDI asynchrone
+
+Le worker tourne en arrière-plan et traite les transmissions EDI de manière asynchrone via des intervalles configurables.
+
+**3 cycles de traitement** :
+
+| Cycle | Intervalle | Batch | Description |
+|-------|-----------|-------|-------------|
+| **Outbound** | 30s | 10 msg | Envoie les messages PENDING/ERROR |
+| **Inbound** | 45s | 10 msg | Parse et traite les messages RECEIVED |
+| **Cleanup** | 1h | — | Supprime les transmissions anciennes |
+
+---
+
+## 8. Diagrammes d'architecture
+
+### 8.1 Vue réseau globale
+
+<div class="not-prose my-10 p-8 bg-slate-100 rounded-3xl border border-slate-200 flex flex-col items-center shadow-inner overflow-hidden">
+<!-- Hub -->
+<div class="bg-indigo-600 text-white rounded-2xl shadow-xl p-6 text-center w-80 relative z-10 border-[6px] border-white ring-1 ring-slate-200">
+<div class="font-black text-xl mb-1 tracking-tight">ORCHESTRATEUR (Hub)</div>
+<div class="text-[11px] text-indigo-200 font-mono mb-4 bg-indigo-900/40 py-1 rounded-full">edi-dev.codeonline-info.com</div>
+<div class="bg-indigo-800/60 rounded-xl p-3 text-xs text-left space-y-2 border border-indigo-500/30">
+<div class="flex items-center gap-2 font-medium"><svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> network_directory</div>
+<div class="flex items-center gap-2 font-medium"><svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> audit_ledger</div>
+<div class="flex items-center gap-2 font-medium"><svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> /api/orchestrator/*</div>
+</div>
+</div>
+<!-- Connecting Lines Graphic -->
+<div class="flex w-full justify-center -mt-8 -mb-8 relative z-0">
+<div class="w-1/2 h-24 border-l-4 border-t-4 border-slate-300 rounded-tl-[40px] translate-x-[2px] border-dashed"></div>
+<div class="w-1/2 h-24 border-r-4 border-t-4 border-slate-300 rounded-tr-[40px] -translate-x-[2px] border-dashed"></div>
+<div class="absolute top-10 left-[22%] bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 tracking-widest rounded-full border border-slate-200">HTTPS</div>
+<div class="absolute top-10 right-[22%] bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 tracking-widest rounded-full border border-slate-200">HTTPS</div>
+</div>
+<!-- Nodes Container -->
+<div class="flex flex-col md:flex-row w-full justify-between items-center md:items-stretch max-w-3xl px-4 relative z-10 gap-6 md:gap-0">
+<!-- Node A -->
+<div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-5 w-72 text-sm">
+<div class="flex items-center gap-3 border-b border-slate-100 pb-3 mb-3">
+<span class="w-4 h-4 rounded-full bg-emerald-500 shadow-sm border border-emerald-600"></span>
+<span class="font-black text-slate-800 text-base">NŒUD TUNISIE</span>
+</div>
+<div class="space-y-2 text-xs font-mono text-slate-600 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100">
+<div class="flex justify-between"><span>IP:</span> <span class="text-slate-800 font-bold">217.182.94.86:5001</span></div>
+<div class="flex justify-between"><span>GLN:</span> <span class="text-slate-800 font-bold">6191907700002</span></div>
+</div>
+<div class="grid grid-cols-2 gap-2 text-[10px] uppercase font-bold text-slate-500 text-center">
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">MySQL DB</div>
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">React UI</div>
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">EDI Worker</div>
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">Crypto Layer</div>
+</div>
+</div>
+<!-- P2P Line connecting nodes -->
+<div class="hidden md:flex flex-1 flex-col items-center justify-center relative top-10 mx-4">
+<div class="w-full border-t-4 border-orange-400 border-dashed"></div>
+<div class="absolute bg-orange-100 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md">
+<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+Fallback P2P
+</div>
+</div>
+<!-- Node B -->
+<div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-5 w-72 text-sm">
+<div class="flex items-center gap-3 border-b border-slate-100 pb-3 mb-3">
+<span class="w-4 h-4 rounded-full bg-blue-500 shadow-sm border border-blue-600"></span>
+<span class="font-black text-slate-800 text-base">NŒUD SÉNÉGAL</span>
+</div>
+<div class="space-y-2 text-xs font-mono text-slate-600 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100">
+<div class="flex justify-between"><span>IP:</span> <span class="text-slate-800 font-bold">91.134.35.126:5001</span></div>
+<div class="flex justify-between"><span>GLN:</span> <span class="text-slate-800 font-bold">SN02583102G4</span></div>
+</div>
+<div class="grid grid-cols-2 gap-2 text-[10px] uppercase font-bold text-slate-500 text-center">
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">MySQL DB</div>
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">React UI</div>
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">EDI Worker</div>
+<div class="bg-slate-100/80 rounded-md py-1.5 border border-slate-200">Crypto Layer</div>
+</div>
+</div>
+</div>
+</div>
+    </textarea>
+
+    <textarea id="md-part2" class="hidden">
+# Spécification Technique Détaillée — Codeonline-InfoTn (EDI Platform)
+
+**Version** : 2.0  
+**Date** : 19 Mars 2026  
+**Auteur** : Architecture Technique  
+**Statut** : Production  
+**Prérequis** : Lire Part 1 — Architecture Détaillée  
+
+---
+
+## 1. server.js — Architecture et Refactoring
+
+### 1.1 Vue d'ensemble
+
+`server.js` est le **point d'entrée monolithique** (~10 100 lignes) du backend. Il contient :
+- Imports et configuration (~100 lignes)
+- Middleware Express (logging, CORS, static files) (~330 lignes)
+- Connexions DB (MySQL + SQLite) (~600 lignes)
+- **168 endpoints REST** organisés par domaine métier
+- WebSocket server (socket.io)
+- Séquence de démarrage avec initialisation des services
+
+### 1.2 Refactoring effectué
+
+**Avant** : Les transmissions EDI utilisaient un `MY_GLN` hardcodé et les clés cryptographiques étaient gérées manuellement via des fichiers.
+
+**Après** :
+1. **Dynamic sender_gln** : Chaque transmission stocke le GLN de l'émetteur, permettant le multi-entités.
+2. **Orchestrator-based key management** : Les clés publiques sont publiées/récupérées automatiquement via l'Orchestrateur.
+3. **DB-backed key cache** : Table `network_directory` pour cache local des clés partenaires.
+
+---
+
+## 2. Séquence de démarrage du serveur
+
+<div class="not-prose my-6 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden font-sans">
+<div class="p-4 border-b border-slate-100 bg-slate-50 font-bold text-slate-800 flex items-center gap-2">
+<svg class="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+Processus d'initialisation : startServer()
+</div>
+<div class="p-0 divide-y divide-slate-100">
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">1</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">initializeDatabases()</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">2</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">app.set('entiteDB', entiteDB)</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">3</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">Service Injection <span class="text-slate-400 font-sans font-normal ml-2">(discoveryCache, keyManager, auditLogger)</span></span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">4</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">ensureOrdersColumns()</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">5</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">Route Mounting <span class="text-slate-400 font-sans font-normal ml-2">(dynamique)</span></span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">6</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">configService.initialize(entiteDB)</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">7</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">initMailer()</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">8</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">EDI Worker Start</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">9</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">Data Correction Routine</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">10</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">server.listen(PORT, '0.0.0.0')</span>
+</div>
+<div class="flex items-center hover:bg-slate-50 transition px-4 py-3 group">
+<span class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs mr-4 shrink-0 shadow-sm border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white transition-colors">11</span>
+<span class="font-mono text-[13px] text-slate-700 font-semibold">Socket.IO Handler</span>
+</div>
+</div>
+</div>
+
+---
+
+## 3. Catalogue complet des API endpoints
+
+### 3.1 EDI Operations (CORE)
+
+| Méthode | Route | Description | Détail |
+|---------|-------|-------------|--------|
+| POST | `/api/orders/eancom` | Génération & envoi ORDERS | Génère EANCOM + crée transmission |
+| POST | `/api/orders/respond` | Génération ORDRSP | Réponse commande (accept/reject/modify) |
+| POST | `/api/orders/accept-modifications` | ORDCHG | Accepter modifications |
+| POST | `/api/edi/desadv/send` | Envoi DESADV | Avis d'expédition |
+| POST | `/api/edi/invoic/send` | Envoi INVOIC | Facture |
+| POST | `/api/edi/receive` | Réception EDI | Staging + parsing |
+
+### 3.2 Orchestrateur (fichier séparé)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| POST | `/api/orchestrator/relay` | Relais message chiffré |
+| POST | `/api/orchestrator/register` | Enregistrement nœud |
+| GET | `/api/orchestrator/discovery` | Annuaire réseau |
+| GET | `/api/orchestrator/keys/:gln` | Clé publique nœud |
+| POST | `/api/audit/sync` | Synchronisation logs P2P |
+
+---
+
+## 4. Module Crypto — Spécification
+
+### 4.1 CryptoService.encryptAndSign(payload, recipientGLN)
+
+**Algorithmes** :
+- Chiffrement symétrique : **AES-256-GCM** (clé éphémère 32 bytes, IV 16 bytes)
+- Chiffrement asymétrique : **RSA-2048-OAEP-SHA256** (clé publique destinataire)
+- Signature : **RSA-SHA256** (clé privée locale)
+
+**Étapes** :
+
+<div class="not-prose my-6 bg-[#1e1e1e] rounded-xl overflow-hidden shadow-2xl font-mono text-[13px] border border-slate-700">
+<div class="flex items-center px-4 py-2 bg-[#252526] border-b border-[#333]">
+<div class="flex gap-1.5"><div class="w-3 h-3 rounded-full bg-slate-600"></div><div class="w-3 h-3 rounded-full bg-slate-600"></div><div class="w-3 h-3 rounded-full bg-slate-600"></div></div>
+<div class="ml-4 text-slate-400 text-xs font-sans tracking-wide">CryptoService.js</div>
+</div>
+<div class="p-5 overflow-x-auto text-slate-300 leading-[1.8]">
+<div class="text-slate-500 mb-4 italic">// Input: payload (Object), recipientGLN (string)</div>
+
+<div><span class="text-blue-400">1.</span> <span class="text-blue-200">dataBuffer</span> = <span class="text-yellow-200">Buffer</span>(<span class="text-teal-300">JSON</span>.<span class="text-yellow-200">stringify</span>(payload))</div>
+<div><span class="text-blue-400">2.</span> <span class="text-blue-200">aesKey</span> = <span class="text-blue-200">crypto</span>.<span class="text-yellow-200">randomBytes</span>(<span class="text-orange-300">32</span>)           <span class="text-green-600 italic ml-4">// Clé éphémère</span></div>
+<div><span class="text-blue-400">3.</span> <span class="text-blue-200">iv</span> = <span class="text-blue-200">crypto</span>.<span class="text-yellow-200">randomBytes</span>(<span class="text-orange-300">16</span>)               <span class="text-green-600 italic ml-4">// Vecteur initialisation</span></div>
+<div><span class="text-blue-400">4.</span> <span class="text-blue-200">cipher</span> = <span class="text-yellow-200">createCipheriv</span>(<span class="text-orange-200">'aes-256-gcm'</span>, aesKey, iv)</div>
+<div><span class="text-blue-400">5.</span> <span class="text-blue-200">encryptedData</span> = cipher.<span class="text-yellow-200">update</span>(dataBuffer) + cipher.<span class="text-yellow-200">final</span>()</div>
+<div><span class="text-blue-400">6.</span> <span class="text-blue-200">authTag</span> = cipher.<span class="text-yellow-200">getAuthTag</span>()             <span class="text-green-600 italic ml-4">// Tag authentification GCM</span></div>
+<div><span class="text-blue-400">7.</span> <span class="text-blue-200">recipientPubKey</span> = <span class="text-purple-400">await</span> keyManager.<span class="text-yellow-200">getPublicKeyForGLN</span>(recipientGLN)</div>
+<div><span class="text-blue-400">8.</span> <span class="text-blue-200">encryptedKey</span> = <span class="text-yellow-200">publicEncrypt</span>(RSA_OAEP_SHA256, recipientPubKey, aesKey)</div>
+<div><span class="text-blue-400">9.</span> <span class="text-blue-200">myPrivateKey</span> = keyManager.<span class="text-yellow-200">getLocalPrivateKey</span>()</div>
+<div><span class="text-blue-400">10.</span> <span class="text-blue-200">signature</span> = <span class="text-yellow-200">createSign</span>(<span class="text-orange-200">'SHA256'</span>).<span class="text-yellow-200">update</span>(dataBuffer).<span class="text-yellow-200">sign</span>(myPrivateKey)</div>
+
+<div class="text-slate-500 mt-4 italic">// Output: { encryptedData, iv, tag, encryptedKey, signature }</div>
+</div>
+</div>
+
+### 4.2 KeyManager — Résolution de clés
+
+**`getPublicKeyForGLN(gln)`** — Async, 3 niveaux de résolution :
+
+| Niveau | Source | Latence | Cache |
+|--------|--------|---------|-------|
+| 1 | `network_directory` (DB locale) | <1ms | Oui (persistant) |
+| 2 | Orchestrateur `GET /keys/:gln` | ~100ms | Sauvegardé en DB |
+| 3 | Fichier local `partners/<gln>.pem` | <1ms | Non (legacy) |
+
+---
+
+## 5. Gestion automatisée des clés
+
+### 5.1 Avant (manuel)
+
+<div class="not-prose my-6 bg-red-50/80 border border-red-200 rounded-2xl p-6 relative overflow-hidden shadow-sm">
+<div class="absolute -top-4 -right-4 p-4 opacity-10 pointer-events-none">
+<svg class="w-32 h-32 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+</div>
+<h4 class="text-red-800 font-bold mb-4 flex items-center gap-2 text-lg">
+<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> 
+Processus Manuel (Obsolète)
+</h4>
+<ol class="space-y-3 relative z-10 text-red-900/80 text-[13px] font-mono">
+<li class="flex items-center gap-3 bg-white/60 p-2 rounded-lg border border-red-100"><span class="bg-red-200 text-red-700 font-bold rounded-md w-6 h-6 flex items-center justify-center shrink-0">1</span><span>Générer keypair sur chaque serveur</span></li>
+<li class="flex items-center gap-3 bg-white/60 p-2 rounded-lg border border-red-100"><span class="bg-red-200 text-red-700 font-bold rounded-md w-6 h-6 flex items-center justify-center shrink-0">2</span><span>Copier manuellement la clé publique vers chaque partenaire</span></li>
+<li class="flex items-center gap-3 bg-white/60 p-2 rounded-lg border border-red-100"><span class="bg-red-200 text-red-700 font-bold rounded-md w-6 h-6 flex items-center justify-center shrink-0">3</span><span>Placer dans config/keys/partners/&lt;GLN&gt;.pem</span></li>
+<li class="flex items-center gap-3 bg-white/60 p-2 rounded-lg border border-red-100"><span class="bg-red-200 text-red-700 font-bold rounded-md w-6 h-6 flex items-center justify-center shrink-0">4</span><span>Redémarrer le serveur</span></li>
+</ol>
+</div>
+
+### 5.2 Après (automatisé)
+
+<div class="not-prose my-10 flex flex-col gap-6 font-sans">
+<!-- Row 1: Startup/Register -->
+<div class="flex flex-col md:flex-row items-center gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+<div class="bg-white border border-slate-300 p-4 rounded-xl shadow-sm w-40 text-center font-bold text-slate-800">
+Node A<br><span class="text-xs font-normal text-slate-500">(Tunisie)</span>
+</div>
+<div class="hidden md:flex flex-1 items-center relative py-4">
+<div class="h-1 w-full bg-indigo-200 rounded-full"></div>
+<div class="absolute left-1/2 -top-1 -translate-x-1/2 text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-slate-50 px-2">startup</div>
+<div class="absolute right-0 border-l-[8px] border-l-indigo-300 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent translate-x-1"></div>
+</div>
+<div class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl shadow-sm w-44 text-center">
+<div class="text-sm font-black text-indigo-800">KeyManager</div>
+<div class="text-[11px] font-mono text-indigo-600 mt-1 bg-indigo-100/50 rounded py-0.5">auto-gen keys</div>
+</div>
+<div class="hidden md:flex flex-1 items-center relative py-4">
+<div class="h-1 w-full bg-emerald-200 rounded-full"></div>
+<div class="absolute left-1/2 -top-1 -translate-x-1/2 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-slate-50 px-2">register</div>
+<div class="absolute right-0 border-l-[8px] border-l-emerald-300 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent translate-x-1"></div>
+</div>
+<div class="bg-slate-800 border border-slate-900 p-4 rounded-xl shadow-md w-44 text-center text-white">
+<div class="text-sm font-black text-indigo-100">Orchestrator</div>
+<div class="text-[10px] text-slate-400 font-mono mt-1 bg-slate-900 rounded py-0.5">network_directory</div>
+</div>
+</div>
+<!-- Arrow down from Orchestrator -->
+<div class="hidden md:flex justify-end pr-[4.5rem] -my-5 relative z-0">
+<div class="h-12 border-l-[3px] border-dashed border-slate-300"></div>
+<div class="absolute top-3 right-24 text-[11px] font-bold font-mono text-slate-500 bg-white px-2 rounded-full border border-slate-200 shadow-sm">GET /keys/:gln</div>
+</div>
+<!-- Row 2: Encrypt/Fetch -->
+<div class="flex flex-col md:flex-row items-center gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm relative z-10">
+<div class="bg-white border border-slate-300 p-4 rounded-xl shadow-sm w-40 text-center font-bold text-slate-800">
+Node A<br><span class="text-xs font-normal text-slate-500">sends msg</span>
+</div>
+<div class="hidden md:flex flex-1 items-center relative py-4">
+<div class="h-1 w-full bg-indigo-200 rounded-full"></div>
+<div class="absolute left-1/2 -top-1 -translate-x-1/2 text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-slate-50 px-2">encrypt</div>
+<div class="absolute right-0 border-l-[8px] border-l-indigo-300 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent translate-x-1"></div>
+</div>
+<div class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl shadow-sm w-44 text-center">
+<div class="text-sm font-black text-indigo-800">KeyManager</div>
+<div class="text-[11px] font-mono text-indigo-600 mt-1 bg-indigo-100/50 rounded py-0.5">DB cache</div>
+</div>
+<div class="hidden md:flex flex-1 items-center relative py-4">
+<div class="h-1 w-full bg-emerald-200 rounded-full"></div>
+<div class="absolute left-1/2 -top-1 -translate-x-1/2 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-slate-50 px-2">fetch key</div>
+<div class="absolute left-0 border-r-[8px] border-r-emerald-300 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent -translate-x-1"></div>
+</div>
+<div class="bg-slate-800 border border-slate-900 p-4 rounded-xl shadow-md w-44 text-center text-white">
+<div class="text-sm font-black text-indigo-100">Orchestrator</div>
+<div class="text-[11px] text-slate-400 font-mono mt-1 bg-slate-900 rounded py-0.5">(or DB)</div>
+</div>
+</div>
+</div>
+
+---
+
+## 6. Guide de développement de nouveaux modules
+
+### 6.1 Ajouter un nouveau type de message EDI (Exemple: RECADV)
+
+<div class="not-prose my-8 space-y-5">
+<!-- Étape 1 -->
+<div class="flex flex-col sm:flex-row gap-4 group">
+<div class="sm:w-32 shrink-0 pt-1"><span class="bg-indigo-100 text-indigo-700 font-black tracking-widest px-3 py-1.5 rounded-lg text-[10px] shadow-sm border border-indigo-200">ÉTAPE 1</span></div>
+<div class="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition group-hover:shadow-md">
+<div class="bg-slate-50 px-4 py-3 text-sm font-semibold border-b border-slate-200 text-slate-800 flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg> Créer le générateur EANCOM</div>
+<div class="bg-[#1e1e1e] p-4 font-mono text-[13px] text-green-400/90 leading-relaxed border-t border-slate-800">
+// backend/generateRecadvEANCOM.js<br>
+// → Exporter generateRecadvEANCOM(data)
+</div>
+</div>
+</div>
+<!-- Étape 2 -->
+<div class="flex flex-col sm:flex-row gap-4 group">
+<div class="sm:w-32 shrink-0 pt-1"><span class="bg-indigo-100 text-indigo-700 font-black tracking-widest px-3 py-1.5 rounded-lg text-[10px] shadow-sm border border-indigo-200">ÉTAPE 2</span></div>
+<div class="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition group-hover:shadow-md">
+<div class="bg-slate-50 px-4 py-3 text-sm font-semibold border-b border-slate-200 text-slate-800 flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> Ajouter le parser dans `eancom_parser.js`</div>
+<div class="bg-[#1e1e1e] p-4 font-mono text-[13px] text-green-400/90 leading-relaxed border-t border-slate-800">
+// → Ajouter le cas 'RECADV' dans la logique de parsing
+</div>
+</div>
+</div>
+<!-- Étape 3 -->
+<div class="flex flex-col sm:flex-row gap-4 group">
+<div class="sm:w-32 shrink-0 pt-1"><span class="bg-indigo-100 text-indigo-700 font-black tracking-widest px-3 py-1.5 rounded-lg text-[10px] shadow-sm border border-indigo-200">ÉTAPE 3</span></div>
+<div class="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition group-hover:shadow-md">
+<div class="bg-slate-50 px-4 py-3 text-sm font-semibold border-b border-slate-200 text-slate-800 flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Ajouter l'endpoint API dans `server.js`</div>
+<div class="bg-[#1e1e1e] p-4 font-mono text-[13px] text-slate-300 leading-relaxed border-t border-slate-800 overflow-x-auto">
+<span class="text-blue-300">app</span>.<span class="text-yellow-200">post</span>(<span class="text-orange-300">'/api/edi/recadv/send'</span>, <span class="text-purple-400">async</span> (req, res) => {<br>
+&nbsp;&nbsp;<span class="text-green-500 italic">// 1. Valider les données</span><br>
+&nbsp;&nbsp;<span class="text-green-500 italic">// 2. Générer EANCOM via generateRecadvEANCOM()</span><br>
+&nbsp;&nbsp;<span class="text-green-500 italic">// 3. Créer transmission EDI (avec sender_gln dynamique)</span><br>
+});
+</div>
+</div>
+</div>
+<!-- Étape 4 -->
+<div class="flex flex-col sm:flex-row gap-4 group">
+<div class="sm:w-32 shrink-0 pt-1"><span class="bg-indigo-100 text-indigo-700 font-black tracking-widest px-3 py-1.5 rounded-lg text-[10px] shadow-sm border border-indigo-200">ÉTAPE 4</span></div>
+<div class="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition group-hover:shadow-md">
+<div class="bg-slate-50 px-4 py-3 text-sm font-semibold border-b border-slate-200 text-slate-800 flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg> Ajouter le traitement inbound dans `edi_worker.js`</div>
+<div class="bg-[#1e1e1e] p-4 font-mono text-[13px] text-slate-300 leading-relaxed border-t border-slate-800 overflow-x-auto">
+<span class="text-purple-400">case</span> <span class="text-orange-300">'RECADV'</span>:<br>
+&nbsp;&nbsp;processResult = <span class="text-purple-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-200">processInboundRecadv</span>(parsedData, transmission);<br>
+&nbsp;&nbsp;<span class="text-purple-400">break</span>;
+</div>
+</div>
+</div>
+</div>
+
+---
+
+## 7. Annexe D — Améliorations futures recommandées
+
+<div class="not-prose my-8 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+<table class="w-full text-left border-collapse bg-white m-0">
+<thead>
+<tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+<th class="px-6 py-4 font-bold w-32">Priorité</th>
+<th class="px-6 py-4 font-bold">Amélioration</th>
+<th class="px-6 py-4 font-bold w-48">Impact</th>
+</tr>
+</thead>
+<tbody class="text-sm divide-y divide-slate-100">
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-red-100 text-red-700 border border-red-200 shadow-sm">HAUTE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Extraire server.js en micro-modules</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Maintenabilité</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-red-100 text-red-700 border border-red-200 shadow-sm">HAUTE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Ajouter middleware d'authentification JWT</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Sécurité</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-amber-100 text-amber-700 border border-amber-200 shadow-sm">MOYENNE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Migrer vers TypeScript côté backend</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Qualité code</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-amber-100 text-amber-700 border border-amber-200 shadow-sm">MOYENNE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Ajouter des tests unitaires et d'intégration</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Fiabilité</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-amber-100 text-amber-700 border border-amber-200 shadow-sm">MOYENNE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Implémenter RECADV (accusé de réception)</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Complétude EDI</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">BASSE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Containeriser avec Docker</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Déploiement</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="px-6 py-3"><span class="px-3 py-1 rounded-full text-[11px] font-black tracking-widest bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">BASSE</span></td>
+<td class="px-6 py-3 font-medium text-slate-800">Ajouter monitoring (Prometheus/Grafana)</td>
+<td class="px-6 py-3 text-slate-500 font-medium">Observabilité</td>
+</tr>
+</tbody>
+</table>
+</div>
+</textarea>
+
+    <!-- Logic JS -->
+    <script>
+        // Setup Marked.js with Highlight.js
+        marked.setOptions({
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            },
+            langPrefix: 'hljs language-',
+            breaks: true,
+            gfm: true
+        });
+
+        let activeObserver = null;
+        let isProgrammaticScroll = false;
+
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function switchTab(partId) {
+            // Update Buttons Styling
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-50', 'text-primary');
+                btn.classList.add('text-slate-600', 'hover:bg-slate-100');
+            });
+            const activeBtn = document.getElementById(`tab-btn-${partId}`);
+            activeBtn.classList.add('bg-indigo-50', 'text-primary');
+            activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+
+            // Render Markdown
+            const mdContent = document.getElementById(`md-part${partId}`).value;
+            const contentArea = document.getElementById('content-area');
+            
+            contentArea.style.opacity = 0;
+            
+            setTimeout(() => {
+                contentArea.innerHTML = marked.parse(mdContent);
+                contentArea.style.opacity = 1;
+                
+                // Process TOC & Observers
+                buildTableOfContents(contentArea);
+                document.getElementById('scroll-area').scrollTop = 0;
+                
+                // Close mobile menu
+                if(window.innerWidth < 1024) toggleMobileMenu();
+            }, 150);
+        }
+
+        function buildTableOfContents(container) {
+            const tocList = document.getElementById('toc-list');
+            tocList.innerHTML = '';
+            
+            if (activeObserver) activeObserver.disconnect();
+            
+            const headers = container.querySelectorAll('h2, h3');
+            
+            // Intersection Observer to highlight active section on scroll
+            const observerOptions = {
+                root: document.getElementById('scroll-area'),
+                rootMargin: '-80px 0px -70% 0px',
+                threshold: 0
+            };
+
+            activeObserver = new IntersectionObserver((entries) => {
+                if (isProgrammaticScroll) return;
+                
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+                        const activeLink = document.querySelector(`.toc-link[href="#${entry.target.id}"]`);
+                        if (activeLink) activeLink.classList.add('active');
+                    }
+                });
+            }, observerOptions);
+
+            headers.forEach(header => {
+                // Ensure ID exists
+                if (!header.id) {
+                    header.id = header.innerText.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                }
+
+                // Create TOC Link
+                const link = document.createElement('a');
+                link.href = `#${header.id}`;
+                link.textContent = header.innerText.replace(/^[\d\.]+\s*/, ''); // Clean numbers if preferred, leaving original text
+                link.className = `toc-link block py-2 pl-4 border-l-[3px] border-transparent text-sm text-slate-500 hover:text-slate-800 transition-colors duration-200`;
+                
+                if (header.tagName.toLowerCase() === 'h3') {
+                    link.classList.add('ml-3', 'text-[0.825rem]');
+                }
+
+                // Handle Clicks
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    isProgrammaticScroll = true;
+                    
+                    document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+
+                    // Scroll element
+                    const scrollArea = document.getElementById('scroll-area');
+                    const targetPosition = header.offsetTop - 40; // Small offset for breathing room
+                    
+                    scrollArea.scrollTo({ top: targetPosition, behavior: 'smooth' });
+                    
+                    if(window.innerWidth < 1024) toggleMobileMenu();
+
+                    // Re-enable observer after scroll animation
+                    setTimeout(() => { isProgrammaticScroll = false; }, 800);
+                });
+
+                tocList.appendChild(link);
+                activeObserver.observe(header);
+            });
+            
+            // Highlight first element initially
+            if(tocList.firstChild) tocList.firstChild.classList.add('active');
+        }
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            switchTab(1);
+        });
+    </script>
+</body>
+</html>

@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-
-// Define base URL for API requests
-const BASE_URL = '/api'; // Relative path for Apache proxy
+import { useLocalApiUrl } from '../contexts/SettingsContext';
 
 // Define types
 interface FileData {
@@ -47,6 +45,7 @@ const CardContent: React.FC<{ className?: string; children: React.ReactNode }> =
 );
 
 const VueModeles: React.FC = () => {
+  const BASE_URL = `${useLocalApiUrl()}/api`;
   const [files, setFiles] = useState<FileData[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -419,32 +418,17 @@ const VueModeles: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-gray-200 min-h-screen pt-2 px-6 font-sans flex flex-col gap-6">
+    <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 80,
-          left: 90,
-          backgroundColor: 'white',
-          padding: '10px 20px',
-          borderRadius: '8px',
-          zIndex: 10,
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          color: '#3b82f6',
-        }}
-      >
-        <span style={{ color: '#2563eb' }}>Produits</span>
-        /
-        <span style={{ color: '#3b82f6' }}>Générateur Modèles</span>
-        /
-        <span style={{ color: '#1d4ed8' }}>Vue Modèle</span>
-      </div>
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Produits</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Générateur Modèles</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Vue Modèle</span>
+      </nav>
 
+      <div className="bg-gradient-to-b from-gray-50 to-gray-200 min-h-screen pt-2 px-6 font-sans flex flex-col gap-6">
       {/* File List Section */}
       <div className="w-full max-w-8xl mx-auto py-2">
         <Card>
@@ -652,6 +636,7 @@ const VueModeles: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

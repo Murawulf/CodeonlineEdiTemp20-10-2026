@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { queryDB, runUpdate } = require('../db_utils');
 const configService = require('../services/configService');
+const { serviceAuthHeaders } = require('../services/serviceAuth');
 const axios = require('axios');
 
 class OrchestratorController {
@@ -79,7 +80,8 @@ class OrchestratorController {
             header,
             envelope
         }, {
-            timeout: 10000 // 10s timeout
+            timeout: 10000, // 10s timeout
+            headers: serviceAuthHeaders()
         });
 
         // 5. Audit: DELIVERED
@@ -225,12 +227,57 @@ class OrchestratorController {
   async getDirectory(req, res) {
       try {
           // Query the network_directory table
-          // We assume the table exists as per setup_e2e_dbs.js
-          const rows = await queryDB(this.db, "SELECT gln, api_url as url FROM network_directory");
+          const rows = await queryDB(this.db, "SELECT gln, api_url as url, public_key FROM network_directory");
           res.json({ directory: rows });
       } catch (err) {
           console.error('[Orchestrator] Discovery failed:', err.message);
           res.status(500).json({ error: 'Discovery failed', details: err.message });
+      }
+  }
+
+  /**
+   * Endpoint: POST /api/orchestrator/register
+   * Register a node and its public key in the directory
+   */
+  async registerNode(req, res) {
+      const { gln, url, public_key } = req.body;
+      if (!gln || !url || !public_key) {
+          return res.status(400).json({ error: 'gln, url, and public_key are required' });
+      }
+
+      try {
+          // INSERT OR UPDATE node
+          await runUpdate(this.db, `
+            INSERT INTO network_directory (gln, api_url, public_key, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE 
+                api_url = VALUES(api_url), 
+                public_key = VALUES(public_key), 
+                updated_at = CURRENT_TIMESTAMP
+          `, [gln, url, public_key]);
+
+          console.log(`[Orchestrator] Registered node ${gln} with URL ${url}`);
+          res.json({ status: 'success', message: 'Node registered successfully' });
+      } catch (err) {
+          console.error('[Orchestrator] Node registration failed:', err.message);
+          res.status(500).json({ error: 'Registration failed', details: err.message });
+      }
+  }
+
+  /**
+   * Endpoint: GET /api/orchestrator/keys/:gln
+   * Get a specific node's public key
+   */
+  async getPublicKey(req, res) {
+      const { gln } = req.params;
+      try {
+          const rows = await queryDB(this.db, "SELECT public_key FROM network_directory WHERE gln = ?", [gln]);
+          if (!rows || rows.length === 0 || !rows[0].public_key) {
+              return res.status(404).json({ error: 'Public key not found for GLN' });
+          }
+          res.json({ gln, public_key: rows[0].public_key });
+      } catch (err) {
+          res.status(500).json({ error: 'Failed to retrieve public key' });
       }
   }
 }

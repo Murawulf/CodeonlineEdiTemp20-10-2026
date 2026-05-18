@@ -82,7 +82,8 @@ export const Sidebar = ({ isSidebarOpen }: SidebarProps) => {
       submenu: true,
       subItems: [
         { title: "Order", path: "/operation-edi/order", tooltip: "Voir les commandes" },
-        { title: "Expédition", path: "/operation-edi/exp", tooltip: "Voir les expéditions" },
+        { title: "Expédition", path: "/operation-edi/shipments", tooltip: "Préparer et envoyer une expédition" },
+        { title: "DESADV & Étiquetage", path: "/operation-edi/desadv", tooltip: "Suivi DESADV, étiquetage GS1 et marquage" },
         { title: "Invoice", path: "/operation-edi/invoice", tooltip: "Voir les factures" },
         { title: "Tracking", path: "/operation-edi/tracking", tooltip: "Suivi des envois" },
       ],

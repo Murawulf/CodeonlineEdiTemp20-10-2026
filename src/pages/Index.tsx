@@ -1,4 +1,4 @@
-/** INDEX.TSX — FINAL 100% WORKING VERSION (No lodash needed) */
+/** INDEX.TSX — PREMIUM REDESIGN */
 import React, {
   useCallback,
   useEffect,
@@ -18,11 +18,11 @@ import {
   Sector
 } from "recharts";
 
-import axios from "axios";
-import { motion } from "framer-motion";
-import { useSettings, useLocalApiUrl } from "../contexts/SettingsContext";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSettings } from "../contexts/SettingsContext";
+import { useApi } from "../hooks/useApi";
 
-// Tiny built-in debounce (no external package)
+/* ─── tiny debounce ─────────────────────────────────────────── */
 const useDebounce = (callback: () => void, delay: number) => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   return useCallback(() => {
@@ -31,17 +31,20 @@ const useDebounce = (callback: () => void, delay: number) => {
   }, [callback, delay]);
 };
 
-const P1_PALETTE = [
-  "#172554", "#1e40af", "#3b82f6", "#8b5cf6",
-  "#ec4899", "#f472b6", "#fbbf24", "#06b6d4"
+/* ─── palette ────────────────────────────────────────────────── */
+const PALETTE = [
+  "#0ea5e9", "#6366f1", "#f43f5e", "#10b981",
+  "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899"
 ];
 
+/* ─── constants ──────────────────────────────────────────────── */
 const PAGE_IDS = { ENTITE: 2, PRODUITS: 3, CATALOGUE_FP: 7, COMPTES: 17 };
+const HIDDEN_ENTITY_IDS = new Set([111, 999]);
 
 const toArray = (v: any) => Array.isArray(v) ? v : (v ? [v] : []);
 
 const topNAndRest = (items: { name: string; value: number }[], n = 8) => {
-  const sorted = items.slice().sort((a, b) => b.value - a.value);
+  const sorted = [...items].sort((a, b) => b.value - a.value);
   if (sorted.length <= n) return sorted;
   const top = sorted.slice(0, n);
   const restVal = sorted.slice(n).reduce((s, it) => s + it.value, 0);
@@ -53,10 +56,11 @@ const normalizeRegion = (raw?: string) => {
   if (!raw) return "Inconnu";
   const r = String(raw).trim().toLowerCase();
   const map: Record<string, string> = {
-    dakar: "Dakar", thies: "Thiès", thiès: "Thiès", saint: "Saint-Louis",
-    kaolack: "Kaolack", ziguinchor: "Ziguinchor", kolda: "Kolda", louga: "Louga",
-    fatick: "Fatick", matam: "Matam", diourbel: "Diourbel", kedougou: "Kédougou",
-    kaffrine: "Kaffrine", potou: "Potou"
+    dakar: "Dakar", thies: "Thiès", thiès: "Thiès",
+    saint: "Saint-Louis", kaolack: "Kaolack",
+    ziguinchor: "Ziguinchor", kolda: "Kolda", louga: "Louga",
+    fatick: "Fatick", matam: "Matam", diourbel: "Diourbel",
+    kedougou: "Kédougou", kaffrine: "Kaffrine", potou: "Potou"
   };
   for (const [key, value] of Object.entries(map)) {
     if (r.includes(key)) return value;
@@ -75,47 +79,124 @@ const getLocalUserIdFromStorage = (): number | null => {
   }
 };
 
-const LoadingBlock: React.FC<{ text?: string }> = ({ text = "Chargement..." }) => (
-  <div className="py-12 text-center text-sm text-gray-400">{text}</div>
-);
-
-// Active shape for pie chart
+/* ─── active pie shape ───────────────────────────────────────── */
 const renderActiveShape = (props: any) => {
-  const RADIAN = Math.PI / 180;
-  const {
-    cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
-    fill, payload, percent, value
-  } = props;
-  const sin = Math.sin(-RADIAN * midAngle);
-  const cos = Math.cos(-RADIAN * midAngle);
-  const mx = cx + (outerRadius + 35) * cos;
-  const my = cy + (outerRadius + 35) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 25;
+  const R = Math.PI / 180;
+  const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
+  const sin = Math.sin(-R * midAngle);
+  const cos = Math.cos(-R * midAngle);
+  const mx = cx + (outerRadius + 28) * cos;
+  const my = cy + (outerRadius + 28) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 18;
   const ey = my;
-  const textAnchor = cos >= 0 ? "start" : "end";
-
+  const ta = cos >= 0 ? "start" : "end";
   return (
     <g>
-      <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius + 12}
-        startAngle={startAngle} endAngle={endAngle} fill={fill} />
-      <Sector cx={cx} cy={cy} startAngle={startAngle} endAngle={endAngle}
-        innerRadius={outerRadius + 18} outerRadius={outerRadius + 26} fill={fill} opacity={0.9} />
-      <path d={`M${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={4} />
-      <text x={ex + (cos >= 0 ? 1 : -1) * 14} y={ey} textAnchor={textAnchor}
-        fill="#1f2937" className="text-base font-bold">{payload.name}</text>
-      <text x={ex + (cos >= 0 ? 1 : -1) * 14} y={ey} dy={22} textAnchor={textAnchor}
-        fill="#6b7280" className="text-sm">{`${value} • ${(percent * 100).toFixed(1)}%`}</text>
+      <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius + 10} startAngle={startAngle} endAngle={endAngle} fill={fill} />
+      <Sector cx={cx} cy={cy} startAngle={startAngle} endAngle={endAngle} innerRadius={outerRadius + 16} outerRadius={outerRadius + 22} fill={fill} opacity={0.7} />
+      <path d={`M${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2.5} />
+      <text x={ex + (cos >= 0 ? 1 : -1) * 10} y={ey - 5} textAnchor={ta} fill="#0f172a" fontSize={13} fontWeight={700}>{payload.name}</text>
+      <text x={ex + (cos >= 0 ? 1 : -1) * 10} y={ey + 14} textAnchor={ta} fill="#64748b" fontSize={11}>{`${value} — ${(percent * 100).toFixed(1)}%`}</text>
     </g>
   );
 };
 
+/* ─── PRODUCT CARD ───────────────────────────────────────────── */
+const ProductCard: React.FC<{ p: any; isNew: boolean; index: number }> = ({ p, isNew, index }) => {
+  const img = p.images?.split(";")[0] || p.image || p.image_url || "";
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.02, 0.4) }}
+      className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-slate-100 hover:border-sky-200 hover:-translate-y-0.5"
+    >
+      {/* Image */}
+      <div className="relative aspect-square bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
+        {img && !imgError ? (
+          <img
+            src={img}
+            alt={p.libelle}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+
+        {/* New badge */}
+        {isNew && (
+          <div className="absolute top-2 left-2 px-2 py-0.5 text-[9px] font-black bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full uppercase tracking-widest shadow-lg">
+            NEW
+          </div>
+        )}
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </div>
+
+      {/* Info */}
+      <div className="p-2.5">
+        <p className="text-[10px] font-bold text-sky-600 truncate uppercase tracking-wide leading-none mb-0.5">
+          {p.brand || "—"}
+        </p>
+        <p className="text-[11px] text-slate-700 truncate leading-tight font-medium">
+          {p.libelle || "Produit"}
+        </p>
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─── KPI CARD ───────────────────────────────────────────────── */
+const KpiCard: React.FC<{ label: string; value: number; color: string; icon: React.ReactNode }> = ({ label, value, color, icon }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${color}`}
+  >
+    <div className="absolute -right-4 -top-4 opacity-10 text-[80px]">{icon}</div>
+    <div className="relative z-10">
+      <p className="text-sm font-medium text-white/80 mb-1">{label}</p>
+      <p className="text-4xl font-black tracking-tight">{value.toLocaleString()}</p>
+    </div>
+  </motion.div>
+);
+
+/* ─── SEARCH BAR ─────────────────────────────────────────────── */
+const SearchBar: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => (
+  <div className="relative">
+    <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+    <input
+      type="text"
+      placeholder="Rechercher un produit..."
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition shadow-sm"
+    />
+    {value && (
+      <button onClick={() => onChange("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    )}
+  </div>
+);
+
+/* ════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════════ */
 const Index: React.FC = () => {
-  console.log('[Index] 🏠 Dashboard page mounted');
   const { settings } = useSettings();
-  const API_BASE_URL = useLocalApiUrl();
-  console.log('[Index] 🌐 API_BASE_URL:', API_BASE_URL);
-  const API_PIN_HEADER = settings.API_PIN || "3311";
-  console.log('[Index] 🔐 API_PIN:', API_PIN_HEADER);
+  const api = useApi();
 
   const [accountRecord, setAccountRecord] = useState<any>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
@@ -125,7 +206,7 @@ const Index: React.FC = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
 
-  const [selectedRegionOrCategory, setSelectedRegionOrCategory] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [showOnlyPublished, setShowOnlyPublished] = useState(true);
   const [activePieIndex, setActivePieIndex] = useState<number>(-1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -133,9 +214,10 @@ const Index: React.FC = () => {
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [displayedCount, setDisplayedCount] = useState(40);
 
+  /* ── is ASEPEX ────────────────────────────────────────── */
   const isAsepex = useMemo(() => {
     const id = Number(accountRecord?.id_entite ?? 0);
-    return id === 999 || id === 111;
+    return HIDDEN_ENTITY_IDS.has(id);
   }, [accountRecord]);
 
   const hasRead = useCallback((pageId: number) => {
@@ -143,23 +225,17 @@ const Index: React.FC = () => {
     return perms.some((p: any) => Number(p.page_id) === pageId && p.read && !p.hide);
   }, [accountRecord]);
 
-  /* --------------------- LOAD DATA --------------------- */
+  /* ── LOAD: user account ───────────────────────────────── */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setIsLoadingUser(true);
         const localId = getLocalUserIdFromStorage();
-        const resp = await axios.get(`${API_BASE_URL}/api/comptes`, {
-          withCredentials: true,
-          headers: { "x-api-pin": API_PIN_HEADER }
-        });
+        const resp = await api.get(`/api/comptes`, { withCredentials: true });
         const list = toArray(resp.data);
         const found = localId ? list.find((a: any) => Number(a.id_compte) === localId) : null;
-        if (!cancelled) {
-          setAccountRecord(found || list[0] || null);
-          setAccounts(list);
-        }
+        if (!cancelled) { setAccountRecord(found || list[0] || null); setAccounts(list); }
       } catch { } finally {
         if (!cancelled) setIsLoadingUser(false);
       }
@@ -167,44 +243,45 @@ const Index: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
+  /* ── LOAD: companies ─────────────────────────────────── */
   useEffect(() => {
     if (!accountRecord || !hasRead(PAGE_IDS.ENTITE)) return;
     (async () => {
-      const url = isAsepex
-        ? `${API_BASE_URL}/api/companies`
-        : `${API_BASE_URL}/api/companies?id_entite=${accountRecord.id_entite}`;
-      const resp = await axios.get(url, { withCredentials: true, headers: { "x-api-pin": API_PIN_HEADER } });
-      setCompanies(toArray(resp.data));
+      const url = isAsepex ? `/api/companies` : `/api/companies?id_entite=${accountRecord.id_entite}`;
+      const resp = await api.get(url, { withCredentials: true });
+      // Filter out hidden entity IDs
+      const all = toArray(resp.data).filter((c: any) => !HIDDEN_ENTITY_IDS.has(Number(c.id_entite)));
+      setCompanies(all);
     })();
   }, [accountRecord, hasRead, isAsepex]);
 
+  /* ── LOAD: company logo ──────────────────────────────── */
   useEffect(() => {
     if (!accountRecord) return;
     (async () => {
-      const resp = await axios.get(`${API_BASE_URL}/api/companies`, { withCredentials: true, headers: { "x-api-pin": API_PIN_HEADER } });
+      const resp = await api.get(`/api/companies`, { withCredentials: true });
       const match = toArray(resp.data).find((c: any) => Number(c.id_entite) === Number(accountRecord.id_entite));
       if (match?.logo) setCompanyLogo(match.logo);
     })();
   }, [accountRecord]);
 
+  /* ── LOAD: products ──────────────────────────────────── */
   useEffect(() => {
     if (!accountRecord || (!hasRead(PAGE_IDS.PRODUITS) && !hasRead(PAGE_IDS.CATALOGUE_FP))) return;
     (async () => {
       const idParam = isAsepex ? "" : `&id_entite=${accountRecord.id_entite}`;
-      const resp = await axios.get(`${API_BASE_URL}/api/products?page=1&limit=10000${idParam}`, { withCredentials: true });
+      const resp = await api.get(`/api/products?page=1&limit=10000${idParam}`, { withCredentials: true });
       const list = toArray(resp.data?.products ?? resp.data ?? []);
       setProducts(list);
     })();
   }, [accountRecord, hasRead, isAsepex]);
 
-  /* --------------------- DATA PROCESSING --------------------- */
+  /* ── DERIVED DATA ────────────────────────────────────── */
   const companiesArr = toArray(companies);
   const productsArr = toArray(products);
   const accountsArr = toArray(accounts);
 
-  const totalEntities = Math.max(0, companiesArr.length - 2);
-  const totalCatalogue = productsArr.length;
-  const totalAccounts = accountsArr.length;
+  const totalEntities = companiesArr.length;
   const publishedProductsList = productsArr.filter(p => Number(p.status) === 2);
   const unpublishedCount = productsArr.length - publishedProductsList.length;
 
@@ -229,20 +306,22 @@ const Index: React.FC = () => {
   const pieData = useMemo(() =>
     topNAndRest(isAsepex ? regionData : categoryData, 8).map((d, i) => ({
       ...d,
-      color: P1_PALETTE[i % P1_PALETTE.length]
-    })), [isAsepex, regionData, categoryData]);
+      color: PALETTE[i % PALETTE.length]
+    })),
+    [isAsepex, regionData, categoryData]
+  );
 
-  const filteredAndSearched = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     let base = showOnlyPublished ? publishedProductsList : productsArr;
 
-    if (selectedRegionOrCategory) {
+    if (selectedFilter) {
       if (isAsepex) {
         const ids = companiesArr
-          .filter(c => normalizeRegion(c.region) === selectedRegionOrCategory)
+          .filter(c => normalizeRegion(c.region) === selectedFilter)
           .map(c => Number(c.id_entite));
         base = base.filter(p => ids.includes(Number(p.idEntreprise)));
       } else {
-        base = base.filter(p => (p.codeClasse || p.brand || p.libelle || "") === selectedRegionOrCategory);
+        base = base.filter(p => (p.codeClasse || p.brand || p.libelle || "") === selectedFilter);
       }
     }
 
@@ -259,221 +338,303 @@ const Index: React.FC = () => {
       new Date(b.updatedAt || b.createdAt).getTime() -
       new Date(a.updatedAt || a.createdAt).getTime()
     );
-  }, [productsArr, publishedProductsList, showOnlyPublished, selectedRegionOrCategory, searchQuery, isAsepex, companiesArr]);
+  }, [productsArr, publishedProductsList, showOnlyPublished, selectedFilter, searchQuery, isAsepex, companiesArr]);
 
-  const displayedProducts = filteredAndSearched.slice(0, displayedCount);
-  const hasMore = displayedCount < filteredAndSearched.length;
+  const displayedProducts = filteredProducts.slice(0, displayedCount);
+  const hasMore = displayedCount < filteredProducts.length;
+  const last8Ids = new Set(publishedProductsList.slice(0, 8).map(p => p.id));
 
-  // Infinite scroll with tiny debounce
+  /* ── infinite scroll ─────────────────────────────────── */
   const loadMore = useCallback(() => {
-    if (hasMore) {
-      setDisplayedCount(prev => Math.min(prev + 40, filteredAndSearched.length));
-    }
-  }, [hasMore, filteredAndSearched.length]);
+    if (hasMore) setDisplayedCount(prev => Math.min(prev + 40, filteredProducts.length));
+  }, [hasMore, filteredProducts.length]);
 
   const debouncedLoadMore = useDebounce(loadMore, 100);
 
   useEffect(() => {
-    const container = gridContainerRef.current;
-    if (!container) return;
-
     const handleScroll = () => {
-      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 400) {
-        debouncedLoadMore();
-      }
+      const el = gridContainerRef.current;
+      if (!el) return;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 400) debouncedLoadMore();
     };
-
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
+    const el = gridContainerRef.current;
+    el?.addEventListener("scroll", handleScroll);
+    return () => el?.removeEventListener("scroll", handleScroll);
   }, [debouncedLoadMore]);
 
-  const last8Ids = new Set(publishedProductsList.slice(0, 8).map(p => p.id));
-
-  const GridItem: React.FC<{ p: any }> = ({ p }) => {
-    const img = p.images?.split(";")[0] || p.image || p.image_url ||
-      "https://via.placeholder.com/180x180/f3f4f6/9ca3af?text=No+Image";
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35 }}
-        className="relative mb-2.5 break-inside-avoid rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all group"
-      >
-        <div className="relative aspect-square bg-gray-50">
-          <img
-            src={img}
-            alt={p.libelle}
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-            onError={e => (e.target as HTMLImageElement).src = "https://via.placeholder.com/180x180/f3f4f6/9ca3af?text=No+Image"}
-          />
-          {last8Ids.has(p.id) && (
-            <div className="absolute top-1 left-1 px-2 py-0.5 text-[9px] font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full shadow-lg uppercase tracking-wider">
-              New
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
-            <div className="p-2 text-white">
-              <div className="font-bold text-xs leading-tight line-clamp-1">{p.brand || "Sans marque"}</div>
-              <div className="text-[10px] opacity-90 line-clamp-2">{p.libelle || "Produit"}</div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    );
-  };
-
+  /* ── LOADING STATE ───────────────────────────────────── */
   if (isLoadingUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-2xl text-gray-600 animate-pulse">Chargement du tableau de bord...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-sky-200 border-t-sky-500 animate-spin" />
+          <p className="text-slate-500 text-sm font-medium animate-pulse">Chargement du tableau de bord…</p>
+        </div>
       </div>
     );
   }
 
+  /* ══════════════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900">
+    <div className="min-h-screen bg-slate-50 font-sans">
 
-      {/* HERO */}
-      <section className="bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white py-20 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
-          <div className="text-center md:text-left">
-            <div className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-10 mb-8">
-              <img src="https://edi-dev.codeonline-info.com/lovable-uploads/a13c1ffe-9c2c-4e6a-a048-063ce7274535.png" alt="Codeonline" className="h-28 drop-shadow-2xl" />
-              {companyLogo ? (
-              <img src="https://fp.edi-dev.codeonline-info.com/images/logoag.png" alt="Codeonlineag" className="h-28 drop-shadow-2xl" />
-                ) : (
-                <div className="h-28 w-64 bg-white/10 rounded-2xl flex items-center justify-center text-lg font-medium backdrop-blur-sm">Votre Logo</div>
-              )}
-            </div>
-            <h1 className="text-5xl md:text-6xl font-extrabold mt-4 leading-tight">Codeonline EDI</h1>
-            <p className="mt-4 text-xl text-white/90 max-w-2xl"> Entités •  Catalogues Produits • Services EDI  </p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20">
-            <div className="grid grid-cols-3 gap-8 text-center">
-              <div><div className="text-white/80 text-sm">Entités</div><div className="text-4xl font-bold">{totalEntities}</div></div>
-              <div><div className="text-white/80 text-sm">Fiches Produits</div><div className="text-4xl font-bold">{totalCatalogue}</div></div>
-              <div><div className="text-white/80 text-sm">Comptes</div><div className="text-4xl font-bold">{totalAccounts}</div></div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <header className="relative overflow-hidden bg-gradient-to-br from-[#1e3ea1] via-[#162a6f] to-[#0b1633]">
+        {/* Decorative blobs */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-sky-300/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-indigo-300/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'1\' fill=\'%23ffffff\' fill-opacity=\'0.04\'/%3E%3C/svg%3E')] opacity-60" />
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="relative max-w-7xl mx-auto px-6 py-14 md:py-20">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-10">
 
-        {/* KPI + Search */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <Card className="text-center py-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-            <CardHeader className="pb-2"><h3 className="text-sm text-gray-600">Entités</h3></CardHeader>
-            <CardContent><div className="text-5xl font-bold text-blue-800">{totalEntities}</div></CardContent>
-          </Card>
-          <Card className="text-center py-6 bg-gradient-to-br from-green-50 to-emerald-50">
-            <CardHeader className="pb-2"><h3 className="text-sm text-gray-600">Produits publiés</h3></CardHeader>
-            <CardContent>
-              <div className="text-5xl font-bold text-green-600">{publishedProductsList.length}</div>
-              <div className="text-sm text-gray-500 mt-1">{unpublishedCount} non publiées</div>
-            </CardContent>
-          </Card>
-            <Card className="text-center py-6 bg-gradient-to-br from-red-50 to-emerald-50">
-            <CardHeader className="pb-2"><h3 className="text-sm text-gray-600">Produits non publiées</h3></CardHeader>
-            <CardContent>
-              <div className="text-5xl font-bold text-red-600">{unpublishedCount}</div>
-              
-            </CardContent>
-          </Card>
-         
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-
-            {/* Pie Chart */}
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="bg-white border-none shadow-2xl rounded-3xl overflow-hidden">
-                <CardHeader className="pb-4 bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 text-white shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-2xl font-bold">{isAsepex ? "Entités par Région" : "Produits par Catégorie"}</h3>
-                    <button onClick={() => setSelectedRegionOrCategory(null)} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-medium transition">
-                      Réinitialiser
-                    </button>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-10">
-                  <div className="h-96">
-                    <ResponsiveContainer>
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%" cy="50%"
-                          outerRadius={140}
-                          activeIndex={activePieIndex}
-                          activeShape={renderActiveShape}
-                          onMouseEnter={(_, i) => setActivePieIndex(i)}
-                          onMouseLeave={() => setActivePieIndex(-1)}
-                          onClick={(d: any) => {
-                            if (d?.name) setSelectedRegionOrCategory(prev => prev === d.name ? null : d.name);
-                          }}
-                        >
-                          {pieData.map((e, i) => <Cell key={`cell-${i}`} fill={e.color} cursor="pointer" />)}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Infinite Scroll Grid */}
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold">
-                  {selectedRegionOrCategory && `• ${selectedRegionOrCategory} • `}
-                  {filteredAndSearched.length} produit{filteredAndSearched.length > 1 ? "s" : ""}
-                </h3>
-                <label className="flex items-center gap-3 text-sm font-medium">
-                  <input type="checkbox" checked={showOnlyPublished} onChange={e => setShowOnlyPublished(e.target.checked)} className="w-5 h-5 rounded text-blue-600" />
-                  Publiés seulement
-                </label>
-              </div>
-
-              <div
-                ref={gridContainerRef}
-                className="columns-3 sm:columns-4 md:columns-5 lg:columns-6 xl:columns-8 2xl:columns-10 gap-3 space-y-3 max-h-screen overflow-y-auto pb-20 scrollbar-thin scrollbar-thumb-gray-300"
-              >
-                {displayedProducts.map(p => (
-                  <GridItem key={p.id || p.gtin} p={p} />
-                ))}
-                {hasMore && (
-                  <div className="col-span-full text-center py-8">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
+            {/* Left: logos + title */}
+            <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
+              <div className="flex items-center gap-5 mb-6">
+                <img src="/images/logo-codeonline.png" alt="Codeonline" className="h-14 drop-shadow-2xl" />
+                {companyLogo && (
+                  <>
+                    <div className="w-px h-10 bg-white/20" />
+                    <img src={companyLogo} alt="Company" className="h-14 drop-shadow-2xl object-contain" />
+                  </>
                 )}
               </div>
+              <h1 className="text-4xl md:text-5xl font-black text-white leading-none tracking-tight">
+                Codeonline <span className="text-sky-400">EDI</span>
+              </h1>
+              <p className="mt-3 text-slate-400 text-base max-w-md">
+                Gérez vos entités, catalogues produits, services EDI et médias en un seul endroit.
+              </p>
+            </motion.div>
+
+            {/* Right: KPI chips */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="grid grid-cols-3 gap-4 w-full md:w-auto"
+            >
+              {[
+                { label: "Entités", value: totalEntities, icon: "🏢" },
+                { label: "Produits", value: productsArr.length, icon: "📦" },
+                { label: "Comptes", value: accountsArr.length, icon: "👤" },
+              ].map(({ label, value, icon }) => (
+                <div key={label} className="bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-5 text-center min-w-[90px]">
+                  <div className="text-2xl mb-1">{icon}</div>
+                  <div className="text-3xl font-black text-white">{value.toLocaleString()}</div>
+                  <div className="text-xs text-slate-400 mt-1 font-medium">{label}</div>
+                </div>
+              ))}
+            </motion.div>
+
+          </div>
+        </div>
+      </header>
+
+      {/* ── MAIN CONTENT ─────────────────────────────────── */}
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-10 space-y-10">
+
+        {/* ── KPI ROW ──────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Entités enregistrées" value={totalEntities} color="bg-gradient-to-br from-sky-500 to-blue-600" icon="🏢" />
+          <KpiCard label="Produits publiés" value={publishedProductsList.length} color="bg-gradient-to-br from-emerald-500 to-teal-600" icon="✅" />
+          <KpiCard label="Produits enregistrés" value={unpublishedCount} color="bg-gradient-to-br from-amber-500 to-orange-500" icon="📝" />
+          <KpiCard label="Comptes actifs" value={accountsArr.length} color="bg-gradient-to-br from-violet-500 to-purple-600" icon="👤" />
+        </div>
+
+        {/* ── GRID: chart + sidebar ─────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Pie Chart */}
+          <motion.div className="lg:col-span-2" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden h-full">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="font-bold text-slate-800 text-lg">
+                    {isAsepex ? "Entités par Région" : "Produits par Catégorie"}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Cliquez sur un segment pour filtrer</p>
+                </div>
+                {selectedFilter && (
+                  <button
+                    onClick={() => setSelectedFilter(null)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 text-xs font-semibold rounded-full hover:bg-rose-100 transition"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                    {selectedFilter}
+                  </button>
+                )}
+              </div>
+              <div className="h-80 px-4 pb-4 pt-6">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%" cy="50%"
+                      outerRadius={120}
+                      innerRadius={50}
+                      activeIndex={activePieIndex}
+                      activeShape={renderActiveShape}
+                      onMouseEnter={(_, i) => setActivePieIndex(i)}
+                      onMouseLeave={() => setActivePieIndex(-1)}
+                      onClick={(d: any) => d?.name && setSelectedFilter(prev => prev === d.name ? null : d.name)}
+                    >
+                      {pieData.map((e, i) => (
+                        <Cell key={`cell-${i}`} fill={e.color} cursor="pointer" stroke="white" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "#fff", border: "none", borderRadius: 12, boxShadow: "0 4px 24px rgba(0,0,0,0.1)", fontSize: 13 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Legend chips */}
+              <div className="px-6 pb-6 flex flex-wrap gap-2">
+                {pieData.map((d, i) => (
+                  <button
+                    key={d.name}
+                    onClick={() => setSelectedFilter(prev => prev === d.name ? null : d.name)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition border ${selectedFilter === d.name ? "border-transparent text-white shadow" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                    style={selectedFilter === d.name ? { background: d.color, borderColor: d.color } : {}}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                    {d.name}
+                    <span className="opacity-60">{d.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Sidebar: latest entities */}
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 h-full overflow-hidden">
+              <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+                <h2 className="font-bold text-slate-800 text-lg">Dernières entités</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{companiesArr.length} enregistrées</p>
+              </div>
+              <div className="p-4 space-y-1 overflow-y-auto max-h-80">
+                {companiesArr.slice(0, 12).map((c, i) => (
+                  <div key={c.id_entite} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-slate-50 transition cursor-default">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-100 to-indigo-100 flex items-center justify-center text-xs font-black text-sky-600 flex-shrink-0">
+                      {(c.raison_socialle || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-700 truncate leading-tight">{c.raison_socialle}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{normalizeRegion(c.region)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* ── PRODUCT CATALOGUE SECTION ─────────────────── */}
+        <section>
+          {/* Section header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-800">Catalogue Produits</h2>
+              <p className="text-sm text-slate-400 mt-0.5">
+                {filteredProducts.length.toLocaleString()} produits
+                {selectedFilter && <span className="text-sky-500 font-medium"> • {selectedFilter}</span>}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              {/* Search */}
+              <div className="sm:w-64">
+                <SearchBar value={searchQuery} onChange={setSearchQuery} />
+              </div>
+
+              {/* Toggle */}
+              <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm gap-1 self-start sm:self-auto">
+                <button
+                  onClick={() => setShowOnlyPublished(true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${showOnlyPublished ? "bg-sky-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Publiés
+                </button>
+                <button
+                  onClick={() => setShowOnlyPublished(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${!showOnlyPublished ? "bg-sky-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Tous
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <Card className="bg-white shadow-xl">
-              <CardHeader><h3 className="text-lg font-bold">Dernières entités</h3></CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {companiesArr.slice(0, 8).map(c => (
-                    <div key={c.id_entite} className="flex justify-between text-sm">
-                      <span className="font-medium truncate pr-2">{c.raison_socialle}</span>
-                      <span className="text-gray-500 text-xs">{normalizeRegion(c.region)}</span>
-                    </div>
-                  ))}
+          {/* The beautiful grid */}
+          {filteredProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="text-6xl mb-4">📦</div>
+              <p className="text-slate-500 font-medium">Aucun produit trouvé</p>
+              <p className="text-slate-400 text-sm mt-1">Essayez de modifier votre recherche</p>
+              {(searchQuery || selectedFilter) && (
+                <button
+                  onClick={() => { setSearchQuery(""); setSelectedFilter(null); }}
+                  className="mt-4 px-4 py-2 bg-sky-50 text-sky-600 text-sm font-semibold rounded-xl hover:bg-sky-100 transition"
+                >
+                  Réinitialiser les filtres
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              ref={gridContainerRef}
+              className="max-h-[80vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+            >
+              <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
+                {displayedProducts.map((p, i) => (
+                  <ProductCard
+                    key={p.id || p.gtin || i}
+                    p={p}
+                    isNew={last8Ids.has(p.id)}
+                    index={i}
+                  />
+                ))}
+              </div>
+
+              {/* Loading more spinner */}
+              {hasMore && (
+                <div className="flex justify-center py-10">
+                  <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-sky-500 animate-spin" />
                 </div>
-              </CardContent>
-            </Card>
+              )}
+
+              {/* End of list */}
+              {!hasMore && filteredProducts.length > 0 && (
+                <div className="flex items-center gap-4 py-10">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <p className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                    {filteredProducts.length.toLocaleString()} produits affichés
+                  </p>
+                  <div className="flex-1 h-px bg-slate-200" />
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+      </main>
+
+      {/* ── FOOTER ────────────────────────────────────────── */}
+      <footer className="border-t border-slate-200 bg-white mt-16">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-xs text-slate-400">© {new Date().getFullYear()} Codeonline EDI. Tous droits réservés.</p>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-slate-400">Système opérationnel</span>
           </div>
         </div>
-      </main>
+      </footer>
     </div>
   );
 };

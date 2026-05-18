@@ -25,6 +25,7 @@ export interface AppSettings {
   LOCAL_API_URL: string;
   
   // Per-Country Configuration (Data API + EDI Endpoint)
+  // Hydrated by the backend from NETWORK_TOPOLOGY (app_parameters table)
   API_URL_SENEGAL: string;
   EDI_URL_SENEGAL: string;
   
@@ -32,6 +33,9 @@ export interface AppSettings {
   EDI_URL_TUNISIA: string;
   
   WEBSOCKET_URL: string;
+  
+  // Instance identity (provided by backend /api/settings, sourced from .env CURRENT_INSTANCE_CODE)
+  CURRENT_INSTANCE_CODE?: string;
   
   // Legacy / Deprecated (Mapped dynamically for backward compatibility)
   API_URL_BUYER?: string;
@@ -58,13 +62,31 @@ export interface AppSettings {
   MAX_FILE_SIZE_MB: number;
   MAX_LOGO_SIZE_MB: number;
   
-  // Current environment info
-  CURRENT_COUNTRY: 'senegal' | 'tunisia';
-  COUNTRY_FLAG_URL: string;
-  
   // Allow additional dynamic parameters
-  [key: string]: string | number | boolean;
+  [key: string]: string | number | boolean | undefined;
 }
+
+// Static country metadata (UI resources only — no server URLs)
+// These are static assets associated with each instance code.
+export type CountryId = 'senegal' | 'tunisia' | 'cote_ivoire';
+
+const COUNTRY_METADATA: Record<CountryId, { name: string; flagUrl: string; institutionLogoUrl: string }> = {
+  senegal: {
+    name: 'Sénégal',
+    flagUrl: 'https://upload.wikimedia.org/wikipedia/commons/f/fd/Flag_of_Senegal.svg',
+    institutionLogoUrl: '/images/logo-codeonline.png'
+  },
+  tunisia: {
+    name: 'Tunisie',
+    flagUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Tunisia.svg',
+    institutionLogoUrl: '/images/logo-codeonline.png'
+  },
+  cote_ivoire: {
+    name: "Côte d'Ivoire",
+    flagUrl: '/images/civ_flag.png',
+    institutionLogoUrl: '/images/LOGO-CI-EXPORT.png'
+  }
+};
 
 interface SettingsContextType {
   settings: AppSettings;
@@ -74,26 +96,30 @@ interface SettingsContextType {
   
   // Helper methods
   get: <T = string | number | boolean>(key: string, defaultValue?: T) => T;
-  getServerUrl: (serverId: 'senegal' | 'tunisia' | 'websocket') => string;
+  getServerUrl: (serverId: CountryId | 'websocket') => string;
   getApiUrl: () => string; // Legacy - utiliser getLocalApiUrl
   getLocalApiUrl: () => string; // Pour appels à notre backend
-  getCountryApiUrl: (country: 'senegal' | 'tunisia') => string; // API Directe (Data)
-  getCountryEdiUrl: (country: 'senegal' | 'tunisia') => string; // EDI Endpoint
-  getCurrentCountryInfo: () => { id: 'senegal' | 'tunisia', flagUrl: string, name: string };
+  getCountryApiUrl: (country: CountryId) => string; // API Directe (Data)
+  getCountryEdiUrl: (country: CountryId) => string; // EDI Endpoint
+  getCurrentCountryInfo: () => { id: CountryId; flagUrl: string; name: string; institutionLogoUrl: string };
   reload: () => Promise<void>;
 }
 
-// Default settings (fallback values)
+// Default settings (UI fallbacks only — ALL server URLs are populated at runtime
+// from the backend `/api/settings` endpoint, which sources them from:
+//   1. Environment variables (backend/.env: CURRENT_INSTANCE_CODE, LOCAL_API_URL)
+//   2. The `app_parameters` DB table (NETWORK_TOPOLOGY)
+// No country-specific URLs should ever live in this file.
 const DEFAULT_SETTINGS: AppSettings = {
-  LOCAL_API_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
-  
-  API_URL_SENEGAL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
-  EDI_URL_SENEGAL: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/edi/receive`,
-  
-  API_URL_TUNISIA: 'https://edi-dev.codeonline-info.com',
-  EDI_URL_TUNISIA: 'https://edi-dev.codeonline-info.com/api/edi/receive',
-  
-  WEBSOCKET_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
+  // Server URLs — intentionally empty; backend fills these in
+  LOCAL_API_URL: '',
+  API_URL_SENEGAL: '',
+  EDI_URL_SENEGAL: '',
+  API_URL_TUNISIA: '',
+  EDI_URL_TUNISIA: '',
+  WEBSOCKET_URL: '',
+
+  // Non-URL UI defaults (safe to hardcode)
   API_TIMEOUT: 30000,
   APP_NAME: 'CodeOnline EDI',
   APP_VERSION: '1.0.0',
@@ -105,8 +131,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   MAX_PAGE_SIZE: 100,
   MAX_FILE_SIZE_MB: 10,
   MAX_LOGO_SIZE_MB: 5,
-  CURRENT_COUNTRY: 'tunisia',
-  COUNTRY_FLAG_URL: 'https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Tunisia.svg'
 };
 
 // Detect environment based on window location
@@ -198,25 +222,25 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return defaultValue as T;
   }, [settings]);
 
-  // Determine current country based on the hostname (pure function, no deps on other callbacks)
+  // Determine current country. Priority:
+  //   1. Backend-provided CURRENT_INSTANCE_CODE (sourced from .env on each server)
+  //   2. Generic hostname heuristic (any hostname containing "senegal" or ".sn")
+  //   3. Default to 'tunisia' as the historical primary instance
   const getCurrentCountryInfo = useCallback(() => {
-    const hostname = window.location.hostname;
-    const isSenegal = hostname.includes('dev.codeonline-edi.net') || settings.LOCAL_API_URL?.includes('dev.codeonline-edi.net');
-    
-    if (isSenegal) {
-      return {
-        id: 'senegal' as const,
-        name: 'Sénégal',
-        flagUrl: 'https://upload.wikimedia.org/wikipedia/commons/f/fd/Flag_of_Senegal.svg'
-      };
+    const instanceCode = String(settings.CURRENT_INSTANCE_CODE || '').trim().toLowerCase();
+    let id: CountryId;
+
+    if (instanceCode === 'senegal' || instanceCode === 'tunisia' || instanceCode === 'cote_ivoire') {
+      id = instanceCode;
+    } else {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+      if (/senegal|\.sn(\b|$)/i.test(hostname)) id = 'senegal';
+      else if (/civ|cote.ivoire|codeonline-edi\.net.*civ/i.test(hostname)) id = 'cote_ivoire';
+      else id = 'tunisia';
     }
-    
-    return {
-      id: 'tunisia' as const,
-      name: 'Tunisie',
-      flagUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/ce/Flag_of_Tunisia.svg'
-    };
-  }, [settings.LOCAL_API_URL]);
+
+    return { id, ...COUNTRY_METADATA[id] };
+  }, [settings.CURRENT_INSTANCE_CODE]);
 
   // Get server URL by ID
   // Règle : si le serveur demandé = instance courante → URL publique (origin)

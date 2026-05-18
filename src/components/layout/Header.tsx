@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { createPortal } from "react-dom";
+import type { Compte } from "../../types/compte";
 
 import { Bell, ChevronDown, Menu, Search, Trash2, CheckCircle, AlertCircle, Info, X } from "lucide-react";
 import {
@@ -34,11 +35,6 @@ interface Profile {
   role: string | null;
 }
 
-interface Compte {
-  id_compte: number;
-  id_entite: number;
-}
-
 interface Producteur {
   id_entite: number;
   logo: string;
@@ -53,7 +49,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
   console.log('[Header] 🏛️ Component mounted');
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { getCurrentCountryInfo } = useSettings();
+  const { getCurrentCountryInfo, getLocalApiUrl } = useSettings();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +59,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [logoLoadError, setLogoLoadError] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   const [userPermissions, setUserPermissions] = useState<any[]>([]);
 
@@ -94,8 +91,10 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
     const fetchProfile = async () => {
       if (isAuthenticated && user?.profile_id) {
         try {
-          const response = await fetch(`/api/profiles/${user.profile_id}`, {
-            headers: { Accept: "application/json" },
+          const apiBase = getLocalApiUrl();
+          const token = localStorage.getItem('authToken');
+          const response = await fetch(`${apiBase}/api/profiles/${user.profile_id}`, {
+            headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
             credentials: "include",
           });
           if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
@@ -117,9 +116,10 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
       if (isAuthenticated && user?.id_compte) {
         console.log('Fetching all comptes for id_compte:', user.id_compte);
         try {
-          const pin = localStorage.getItem('pin') || '3311';
+          const token = localStorage.getItem('authToken');
+          const authHeaders = { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
           const comptesResponse = await fetch(`/api/comptes`, {
-            headers: { Accept: "application/json", 'x-api-pin': pin },
+            headers: authHeaders,
             credentials: "include",
           });
           console.log('Comptes response status:', comptesResponse.status);
@@ -144,7 +144,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
 
           console.log('Fetching all producteurs');
           const producteursResponse = await fetch(`/api/companies`, {
-            headers: { Accept: "application/json", 'x-api-pin': pin },
+            headers: authHeaders,
             credentials: "include",
           });
           console.log('Producteurs response status:', producteursResponse.status);
@@ -229,7 +229,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
           </Button>
           <div className="flex items-center gap-2">
             <img
-              src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/lovable-uploads/a13c1ffe-9c2c-4e6a-a048-063ce7274535.png`}
+              src={getCurrentCountryInfo().institutionLogoUrl}
               alt="CodeOnline EDI"
               className="h-10 object-contain"
             />
@@ -245,17 +245,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
 
         {/* Right Side */}
         <div className="ml-auto md:ml-4 flex items-center gap-4">
-          {isAuthenticated && (
-            <img
-              src={effectiveLogoSrc}
-              alt="Company Logo"
-              className="h-7 w-7 object-cover rounded-full border"
-              onError={() => {
-                console.log('Company logo failed to load, using placeholder');
-                setLogoLoadError(true);
-              }}
-            />
-          )}
+      
           <img
             src={getCurrentCountryInfo().flagUrl}
             alt={`${getCurrentCountryInfo().name} Flag`}
@@ -265,7 +255,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
           <LanguageSelector />
 
           {/* Notification Dropdown */}
-          <DropdownMenu>
+          <DropdownMenu open={notifDropdownOpen} onOpenChange={setNotifDropdownOpen} modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative hover:bg-gray-100">
                 <Bell className="h-5 w-5" />
@@ -279,6 +269,7 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
             <DropdownMenuContent
               align="end"
               className="w-[420px] max-h-[85vh] overflow-hidden p-0 bg-white rounded-xl shadow-xl border border-gray-200"
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               {/* Header */}
               <div className="sticky top-0 bg-white z-10 border-b border-gray-100">
@@ -298,7 +289,12 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={handleClearAllNotifications}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setNotifDropdownOpen(false);
+                        setTimeout(() => handleClearAllNotifications(), 100);
+                      }}
                       className="text-red-600 hover:text-red-700 flex items-center gap-1 text-xs font-medium"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -370,12 +366,13 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
                           exit={{ opacity: 0, x: -100 }}
                           transition={{ duration: 0.2 }}
                           onClick={() => {
-                            if (notif.link) {
-                              navigate(notif.link);
-                              setIsSidebarOpen(false); // Close sidebar on mobile if open
-                            }
                             if (!notif.read) {
                               markAsRead(notif.id_notification);
+                            }
+                            if (notif.link) {
+                              setNotifDropdownOpen(false);
+                              navigate(notif.link);
+                              setIsSidebarOpen(false); // Close sidebar on mobile if open
                             }
                           }}
                           className={cn(
@@ -419,6 +416,11 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
                                   <span className="w-2 h-2 rounded-full bg-blue-500" />
                                 )}
                               </div>
+                              {notif.link && (
+                                <span className="text-xs text-[#1e3a8a] font-medium mt-1 hover:underline">
+                                  Voir les détails &rarr;
+                                </span>
+                              )}
                             </div>
                             {!notif.read && (
                               <motion.button

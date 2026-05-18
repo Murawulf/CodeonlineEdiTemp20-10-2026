@@ -8,6 +8,7 @@ const https = require('https');
 const config = require('../config/edi_worker_config');
 const configService = require('../services/configService');
 const communicationProvider = require('../services/communication/CommunicationProvider');
+const { serviceAuthHeaders } = require('../services/serviceAuth');
 const { queryDB, runUpdate, isMySQLConnection } = require('../db_utils');
 const { updateEdiTransmissionStatus, incrementRetryCount } = require('../edi_transmission_helper');
 const { 
@@ -16,7 +17,9 @@ const {
   notifyOrderReceived,
   notifyOrderResponseReceived,
   notifyDespatchAdviceReceived,
-  notifyInvoiceReceived
+  notifyInvoiceReceived,
+  notifyInvoiceAcknowledged,
+  notifyInvoiceRejected,
 } = require('../notification_helper');
 const {
   WORKER_TYPES,
@@ -225,7 +228,7 @@ class EDIWorker {
    * Traiter une transmission OUTBOUND individuelle
    */
   async processOutboundTransmission(transmission) {
-    const { id, document_type, partner_gln, file_content, retry_count } = transmission;
+    const { id, document_type, partner_gln, sender_gln, file_content, retry_count } = transmission;
 
     try {
       this.logVerbose(`[OUTBOUND] Processing transmission #${id} (${document_type})`);
@@ -241,8 +244,9 @@ class EDIWorker {
         }
       }
 
-      // 1. Identifier le partenaire destinataire
+      // 1. Déterminer la destination (URL + Payload)
       let targetGln = partner_gln;
+      let sourceGln = sender_gln || null;
       
       // Si pas de GLN partenaire explicite, essayer de le déduire (ex: pour ORDERS, c'est le fournisseur)
       // Note: partner_gln est déjà passé en paramètre, on l'utilise en priorité.
@@ -265,7 +269,8 @@ class EDIWorker {
       const dispatchResult = await communicationProvider.dispatch(
           messagePayload, 
           targetGln, 
-          document_type
+          document_type,
+          sourceGln
       );
 
       this.logVerbose(`[OUTBOUND] Dispatch result: ${dispatchResult.status} (${dispatchResult.mode})`);
@@ -354,6 +359,18 @@ class EDIWorker {
           } catch (notifErr) {
             console.error(`[OUTBOUND] Failed to send notification:`, notifErr.message);
           }
+        }
+      } else if (transmission.related_type === 'INVOICE' && transmission.related_id) {
+        // Mettre à jour le statut de la facture de 'PENDING' à 'SENT'
+        await runUpdate(
+          this.db,
+          "UPDATE edi_invoic SET status = 'SENT', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'PENDING'",
+          [transmission.related_id]
+        );
+        this.logVerbose(`[OUTBOUND] Invoice #${transmission.related_id} status updated to 'SENT'`);
+        
+        if (global.io) {
+          global.io.emit('invoice:status:updated', { id: transmission.related_id, status: 'SENT' });
         }
       }
 
@@ -550,6 +567,9 @@ class EDIWorker {
         case 'INVOIC':
           processResult = await this.processInboundInvoice(parsedData, transmission);
           break;
+        case 'APERAK':
+          processResult = await this.processInboundAperak(parsedData, transmission);
+          break;
         default:
           throw new Error(`Unsupported message type: ${document_type}`);
       }
@@ -611,6 +631,18 @@ class EDIWorker {
     // IMPORTANT: Notifications are already sent by /api/edi/receive when the order is staged.
     // Do NOT send notifications here to avoid duplicate notifications to the supplier.
     this.logVerbose(`[INBOUND] Skipping notification (already handled by /api/edi/receive during staging)`);
+
+    // Notify the orchestrator (fire-and-forget) so it generates and routes the APERAK to the supplier.
+    this._notifyOrchestratorAck({
+      transmission_id: transmission.id,
+      original_ref:    parsedData.documentNumber,
+      original_type:   'ORDERS',
+      sender_gln:      parsedData.buyer?.gln,    // Buyer is the ACK sender
+      receiver_gln:    parsedData.supplier?.gln, // Supplier receives the APERAK
+      status:          'ACK',
+    }).catch(err => {
+      this.log(`[INBOUND] ⚠️ Could not notify orchestrator for APERAK: ${err.message}`);
+    });
 
     return {
       success: true,
@@ -677,6 +709,18 @@ class EDIWorker {
       console.error('[INBOUND] Error sending notification:', err);
     }
 
+    // Notify the orchestrator (fire-and-forget) so it generates and routes the APERAK to the supplier.
+    this._notifyOrchestratorAck({
+      transmission_id: transmission.id,
+      original_ref:    parsedData.documentNumber,
+      original_type:   'ORDRSP',
+      sender_gln:      parsedData.buyer?.gln,    // Buyer is the ACK sender
+      receiver_gln:    parsedData.supplier?.gln, // Supplier receives the APERAK
+      status:          'ACK',
+    }).catch(err => {
+      this.log(`[INBOUND] ⚠️ Could not notify orchestrator for APERAK: ${err.message}`);
+    });
+
     return {
       success: true,
       message: `Order response ${parsedData.documentNumber} processed`,
@@ -742,6 +786,18 @@ class EDIWorker {
       console.error('[INBOUND] Error sending notification:', err);
     }
 
+    // Notify the orchestrator (fire-and-forget) so it generates and routes the APERAK to the supplier.
+    this._notifyOrchestratorAck({
+      transmission_id: transmission.id,
+      original_ref:    parsedData.documentNumber,
+      original_type:   'DESADV',
+      sender_gln:      parsedData.buyer?.gln,    // Buyer is the ACK sender
+      receiver_gln:    parsedData.supplier?.gln, // Supplier receives the APERAK
+      status:          'ACK',
+    }).catch(err => {
+      this.log(`[INBOUND] ⚠️ Could not notify orchestrator for APERAK: ${err.message}`);
+    });
+
     return {
       success: true,
       message: `Despatch advice ${parsedData.documentNumber} processed`,
@@ -753,9 +809,65 @@ class EDIWorker {
    * Traiter une facture INBOUND (INVOIC)
    */
   async processInboundInvoice(parsedData, transmission) {
-    // TODO: Implémenter la logique de traitement des factures
     this.logVerbose(`[INBOUND] Processing INVOIC: ${parsedData.documentNumber}`);
     
+    let invoicId = null;
+
+    try {
+        const invoicInsertSql = `
+          INSERT INTO edi_invoic (
+            invoic_number, type_code, date_facture, 
+            buyer_gln, seller_gln, 
+            order_reference, desadv_reference, 
+            currency, total_ht, total_tax, total_ttc,
+            direction, status, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INBOUND', 'RECEIVED', NOW())
+        `;
+        
+        const invoicParams = [
+            parsedData.documentNumber || null, '380',
+            parsedData.documentDate ? (() => {
+                const d = String(parsedData.documentDate);
+                if (d.length === 8) return new Date(d.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                if (d.length === 6) { const yy = d.substring(0,2); const mm = d.substring(2,4); const dd = d.substring(4,6); return new Date(`20${yy}-${mm}-${dd}`); }
+                return null;
+            })() : null,
+            parsedData.buyer?.gln || null, parsedData.supplier?.gln || null,
+            parsedData.orderReference || null, parsedData.desadvReference || null,
+            parsedData.currency || null,
+            parsedData.totals?.lineAmount || 0, 
+            parsedData.totals?.taxAmount || 0, 
+            parsedData.totals?.totalAmount || 0
+        ].map(p => p === undefined ? null : p);
+
+        const invoicResult = await runUpdate(this.db, invoicInsertSql, invoicParams);
+        invoicId = invoicResult.lastID;
+
+        // Insert Lines
+        if (parsedData.items && parsedData.items.length > 0) {
+            for (const item of parsedData.items) {
+                const itemParams = [
+                    invoicId, item.lineNumber || null, item.gtin || null,
+                    item.description || null, item.qtyInvoiced || item.qty || 0, item.price || 0,
+                    item.taxRate || 0, item.lineAmount || 0
+                ].map(p => p === undefined ? null : p);
+                
+                await runUpdate(this.db, `
+                    INSERT INTO edi_invoic_lines (
+                        id_invoic, line_number, gtin, 
+                        description, quantity, unit_price, 
+                        tax_rate, line_amount
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    itemParams
+                );
+            }
+        }
+        this.log(`[INBOUND] ✅ Successfully inserted INVOIC into database (ID: ${invoicId})`);
+    } catch (dbErr) {
+        this.log(`[INBOUND] ❌ Failed to insert INVOIC into database: ${dbErr.message}`);
+        throw dbErr; // Rethrow to mark transmission as ERROR
+    }
+
     // Notification logic
     try {
       const buyerGln = parsedData.buyer?.gln;
@@ -800,6 +912,14 @@ class EDIWorker {
               );
             }
             this.log(`[INBOUND] 🔔 Notification sent to ${users.length} user(s) of buyer entity #${id_entite_buyer}`);
+            
+            // Emit websocket event to refresh the UI in real-time
+            if (global.io) {
+               global.io.emit('invoice:new', { 
+                  notification: `Nouvelle facture reçue de ${supplierName || 'Fournisseur'}`,
+                  documentNumber: parsedData.documentNumber
+               });
+            }
           }
         }
       }
@@ -807,11 +927,199 @@ class EDIWorker {
       console.error('[INBOUND] Error sending notification:', err);
     }
 
+    // Notify the orchestrator (fire-and-forget) so it generates and routes the APERAK to the supplier.
+    // Failure here must NOT block the invoice processing result — hence .catch().
+    this._notifyOrchestratorAck({
+      transmission_id: transmission.id,
+      original_ref:    parsedData.documentNumber,
+      original_type:   'INVOIC',
+      sender_gln:      parsedData.buyer?.gln,    // Buyer is the ACK sender
+      receiver_gln:    parsedData.supplier?.gln, // Supplier receives the APERAK
+      status:          'ACK',
+    }).catch(err => {
+      this.log(`[INBOUND] ⚠️ Could not notify orchestrator for APERAK: ${err.message}`);
+    });
+
     return {
       success: true,
       message: `Invoice ${parsedData.documentNumber} processed`,
-      relatedId: null,
+      relatedId: invoicId,
     };
+  }
+
+  /**
+   * Traiter un APERAK entrant (accusé de réception d'un document envoyé)
+   * L'orchestrateur nous envoie un APERAK que le fournisseur a reçu en réponse
+   * à une facture qu'il avait émise. On met à jour le statut de la facture.
+   */
+  async processInboundAperak(parsedData, transmission) {
+    this.logVerbose(`[INBOUND APERAK] Processing APERAK ref: ${parsedData.referencedDocumentNumber} Type: ${parsedData.referencedDocumentType || 'Unknown'}`);
+
+    const referencedRef = parsedData.referencedDocumentNumber || parsedData.documentNumber;
+    const referencedType = (parsedData.referencedDocumentType || 'INVOIC').toUpperCase();
+    const isAck = parsedData.aperakFunctionCode === '313';
+    const newStatus = isAck ? 'ACKNOWLEDGED' : 'REJECTED';
+
+    if (!referencedRef) {
+      this.log('[INBOUND APERAK] ⚠️ No referenced document number found in APERAK — cannot update status.');
+      return { success: true, message: 'APERAK received but no reference to update', relatedId: null };
+    }
+
+    try {
+      let tableName = 'edi_invoic';
+      let refColumn = 'invoic_number';
+      let eventName = 'invoice:status:updated';
+
+      // Route based on document type
+      if (referencedType === 'ORDERS') {
+        tableName = 'edi_orders';
+        refColumn = 'order_number';
+        eventName = 'order:status:updated';
+      } else if (referencedType === 'ORDRSP') {
+        tableName = 'edi_order_responses';
+        refColumn = 'order_response_number';
+        eventName = 'order_response:status:updated';
+      } else if (referencedType === 'DESADV') {
+        tableName = 'edi_despatch_advices';
+        refColumn = 'desadv_number';
+        eventName = 'desadv:status:updated';
+      }
+
+      const updateResult = await runUpdate(
+        this.db,
+        `UPDATE ${tableName} SET status = ?, updated_at = CURRENT_TIMESTAMP 
+         WHERE ${refColumn} = ? AND direction = 'OUTBOUND'`,
+        [newStatus, referencedRef]
+      );
+
+      const affected = updateResult.changes || updateResult.affectedRows || 0;
+      this.log(`[INBOUND APERAK] ${isAck ? '✅' : '❌'} ${referencedType} "${referencedRef}" → ${newStatus} (${affected} row(s) updated)`);
+
+      // Notify the UI in real-time
+      if (global.io) {
+        global.io.emit(eventName, {
+          [refColumn]: referencedRef,
+          status: newStatus,
+          aperakType: isAck ? 'ACK' : 'NACK',
+          errorCode: parsedData.aperakErrorCode || null,
+        });
+      }
+
+      // For INVOIC: notify the supplier (the OUTBOUND sender) that their invoice was ACK/NACK'd
+      if (referencedType === 'INVOIC' && affected > 0) {
+        try {
+          // Find the seller_gln of the matched invoice to locate the right users
+          const invoicRows = await queryDB(
+            this.db,
+            `SELECT id, seller_gln, buyer_gln FROM edi_invoic WHERE invoic_number = ? AND direction = 'OUTBOUND' LIMIT 1`,
+            [referencedRef]
+          );
+          if (invoicRows && invoicRows.length > 0) {
+            const { seller_gln, buyer_gln } = invoicRows[0];
+
+            // Determine who to notify: the seller (who sent the invoice)
+            const sellerEntite = seller_gln ? await queryDB(
+              this.db,
+              'SELECT id_entite FROM Entite WHERE gln = ? LIMIT 1',
+              [seller_gln]
+            ) : [];
+
+            if (sellerEntite && sellerEntite.length > 0) {
+              const users = await queryDB(
+                this.db,
+                'SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0',
+                [sellerEntite[0].id_entite]
+              );
+              for (const user of (users || [])) {
+                if (isAck) {
+                  await notifyInvoiceAcknowledged(this.db, user.id_compte, referencedRef, buyer_gln);
+                } else {
+                  await notifyInvoiceRejected(this.db, user.id_compte, referencedRef, buyer_gln, parsedData.aperakErrorCode);
+                }
+              }
+              this.log(`[INBOUND APERAK] 🔔 Notified ${(users || []).length} user(s) of seller entity for invoice ${referencedRef}`);
+            }
+          }
+        } catch (notifErr) {
+          this.log(`[INBOUND APERAK] ⚠️ Notification error: ${notifErr.message}`);
+        }
+      }
+
+      return {
+        success: true,
+        message: `APERAK processed — ${referencedType} "${referencedRef}" is now ${newStatus}`,
+        relatedId: null,
+      };
+    } catch (err) {
+      this.log(`[INBOUND APERAK] ❌ Failed to update ${referencedType} status: ${err.message}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Notifie l'orchestrateur qu'on a traité un document en entrée (ACK ou NACK).
+   * L'orchestrateur générera alors le message APERAK GS1 et le routera vers l'expéditeur original.
+   * 
+   * Fire-and-forget: les erreurs sont loguées mais ne font pas échouer le traitement principal.
+   */
+  async _notifyOrchestratorAck({
+    transmission_id,
+    original_ref,
+    original_type = 'INVOIC',
+    sender_gln,
+    receiver_gln,
+    status = 'ACK',
+    error_code = null,
+    error_text = null,
+  }) {
+    if (!sender_gln || !receiver_gln) {
+      this.log('[INBOUND] ⚠️ Cannot notify orchestrator for APERAK: missing GLNs');
+      return;
+    }
+
+    // Use configService (same source as CommunicationProvider) so the DB-stored value is used.
+    let orchestratorUrl;
+    try {
+      orchestratorUrl = configService.get('ORCHESTRATOR_URL')
+        || process.env.ORCHESTRATOR_URL
+        || process.env.HUB_URL;
+    } catch (_) {
+      orchestratorUrl = process.env.ORCHESTRATOR_URL || process.env.HUB_URL;
+    }
+
+    if (!orchestratorUrl) {
+      this.log('[INBOUND] ⚠️ ORCHESTRATOR_URL not configured — cannot send ACK to hub');
+      return;
+    }
+
+
+    const ackEndpoint = `${orchestratorUrl.replace(/\/$/, '')}/api/orchestrator/ack`;
+
+    try {
+      const httpsAgent = new (require('https').Agent)({ rejectUnauthorized: process.env.NODE_ENV === 'production' });
+      await axios.post(ackEndpoint, {
+        transmission_id,
+        original_ref,
+        original_type,
+        sender_gln,
+        receiver_gln,
+        status,
+        error_code,
+        error_text,
+      }, {
+        httpsAgent,
+        timeout: 10000,
+        headers: serviceAuthHeaders({
+          'Content-Type': 'application/json',
+          'User-Agent': 'Codeonline-EDI-Node/1.0',
+          ...(process.env.API_PIN ? { 'x-api-pin': process.env.API_PIN } : {}),
+        }),
+      });
+      this.log(`[INBOUND] 📨 ACK sent to orchestrator for doc "${original_ref}" (${status})`);
+    } catch (err) {
+      this.log(`[INBOUND] ⚠️ Failed to send ACK to orchestrator: ${err.message}`);
+      // Non-throwing — orchestrator notification failure must not block invoice processing
+    }
   }
 
   /**

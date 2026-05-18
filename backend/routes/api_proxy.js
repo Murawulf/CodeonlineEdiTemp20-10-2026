@@ -11,9 +11,16 @@
 const express = require('express');
 const axios = require('axios');
 const https = require('https');
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const router = express.Router();
 const configService = require('../services/configService');
+const { getServiceToken } = require('../services/serviceAuth');
+
+// TLS strict en prod, lax en dev (certs auto-signés / domaines internes).
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const httpsAgent = new https.Agent({ rejectUnauthorized: IS_PRODUCTION });
+if (!IS_PRODUCTION) {
+  console.warn('[API Proxy] ⚠️  TLS verification DISABLED (NODE_ENV != production)');
+}
 
 const DEFAULT_PORT = process.env.PORT || 5001;
 const DEFAULT_LOCAL_URL = `http://localhost:${DEFAULT_PORT}`;
@@ -79,7 +86,19 @@ router.all(/^\/proxy\/([^\/]+)\/(.*)/, async (req, res) => {
       'Content-Type': req.headers['content-type'] || 'application/json',
       'Accept': req.headers['accept'] || 'application/json',
     };
-    
+
+    // Auth :
+    // - Cible "local" (notre propre backend) : on relaie le JWT utilisateur tel quel
+    //   (le verifyJWT a déjà validé sur l'entrée, mais l'app aval re-vérifie)
+    // - Cible distante (senegal, tunisia, etc.) : on signe avec un service token
+    //   pour que le pair accepte la requête via son verifyJWT standard
+    const isLocalTarget = ['local', 'settings', 'login', 'notifications'].includes(target.toLowerCase());
+    if (isLocalTarget && req.headers['authorization']) {
+      headers['Authorization'] = req.headers['authorization'];
+    } else if (!isLocalTarget) {
+      headers['Authorization'] = `Bearer ${getServiceToken()}`;
+    }
+
     // Ajouter le PIN si présent
     if (req.headers['x-api-pin']) {
       headers['x-api-pin'] = req.headers['x-api-pin'];
@@ -155,56 +174,8 @@ router.all(/^\/proxy\/([^\/]+)\/(.*)/, async (req, res) => {
   }
 });
 
-// NOTE: /api/settings route is handled by settingsRoutes, not by proxy
-// Removed to prevent infinite loop (proxy calling itself)
-
-/**
- * Route spécifique pour /api/login (raccourci)
- * POST /api/login → POST {LOCAL_API_URL}/api/login
- */
-router.post('/login', async (req, res) => {
-  try {
-    console.log('[API Proxy] 📡 POST /api/login (direct route)');
-    
-    const localApiUrl = configService.get('LOCAL_API_URL', DEFAULT_LOCAL_URL);
-    const loginUrl = `${localApiUrl}/api/login`;
-    
-    console.log(`[API Proxy] 🌐 Forwarding login to: ${loginUrl}`);
-    
-    const response = await axios.post(loginUrl, req.body, {
-      httpsAgent,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000,
-      validateStatus: () => true,
-    });
-    
-    console.log(`[API Proxy] ${response.status >= 400 ? '❌' : '✅'} Login response: ${response.status}`);
-    
-    // Transférer les cookies si présents
-    if (response.headers['set-cookie']) {
-      res.set('Set-Cookie', response.headers['set-cookie']);
-    }
-    
-    res.status(response.status).json(response.data);
-    
-  } catch (err) {
-    console.error('[API Proxy] ❌ Login error:', err.message);
-    
-    if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
-      return res.status(503).json({
-        error: 'Login service unavailable',
-        details: 'Could not connect to the authentication server'
-      });
-    }
-    
-    res.status(500).json({
-      error: 'Login failed',
-      details: err.message
-    });
-  }
-});
+// NOTE: /api/settings and /api/login routes are handled directly in server.js
+// Removed to prevent infinite loop (proxy calling itself via LOCAL_API_URL)
 
 /**
  * Route pour les notifications (existant)

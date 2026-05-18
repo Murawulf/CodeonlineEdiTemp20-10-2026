@@ -186,20 +186,23 @@ const parseValue = (value, type) => {
  * Initialize with default values (fallback)
  */
 const initializeDefaults = () => {
+  // Parse topology from env (NETWORK_TOPOLOGY_JSON). If missing, topology is empty;
+  // country URLs must then be provided explicitly via app_parameters DB or env.
+  let topologyFromEnv = {};
+  if (process.env.NETWORK_TOPOLOGY_JSON) {
+    try {
+      topologyFromEnv = JSON.parse(process.env.NETWORK_TOPOLOGY_JSON);
+    } catch (e) {
+      console.warn('[ConfigService] ⚠️ Invalid NETWORK_TOPOLOGY_JSON env var:', e.message);
+    }
+  }
+
   configCache = {
-    LOCAL_API_URL: { value: 'http://localhost:5000', type: 'string', isPublic: true },
-    // Fallback topology defaults
-    CURRENT_INSTANCE_CODE: { value: 'local_dev', type: 'string', isPublic: true },
-    NETWORK_TOPOLOGY: { 
-      value: {
-        tunisia: { name: "Tunisie", apiUrl: "https://edi-dev.codeonline-info.com", ediUrl: "https://edi-dev.codeonline-info.com/api/edi/receive" },
-        senegal: { name: "Sénégal", apiUrl: "https://dev.codeonline-edi.net", ediUrl: "https://dev.codeonline-edi.net/api/edi/receive" }
-      }, 
-      type: 'json', 
-      isPublic: true 
-    },
-    WEBSOCKET_URL: { value: 'http://localhost:5000', type: 'string', isPublic: true },
-    API_PIN: { value: '3311', type: 'string', isPublic: false },
+    LOCAL_API_URL: { value: process.env.LOCAL_API_URL || 'http://localhost:5000', type: 'string', isPublic: true },
+    CURRENT_INSTANCE_CODE: { value: process.env.CURRENT_INSTANCE_CODE || 'local_dev', type: 'string', isPublic: true },
+    NETWORK_TOPOLOGY: { value: topologyFromEnv, type: 'json', isPublic: true },
+    WEBSOCKET_URL: { value: process.env.LOCAL_API_URL || 'http://localhost:5000', type: 'string', isPublic: true },
+    API_PIN: { value: process.env.API_PIN || '3311', type: 'string', isPublic: false },
     API_TIMEOUT: { value: 30000, type: 'number', isPublic: true },
     APP_NAME: { value: 'CodeOnline EDI', type: 'string', isPublic: true },
     DEFAULT_CURRENCY: { value: 'TND', type: 'string', isPublic: true },
@@ -287,13 +290,14 @@ const getPublicConfig = () => {
  */
 const getServerUrls = () => {
   const localUrl = get('LOCAL_API_URL', 'http://localhost:5000');
-  
-  // We can now rely on get() since hydration populates API_URL_TUNISIA etc.
+
+  // All country URLs come from the hydrated NETWORK_TOPOLOGY (app_parameters DB).
+  // Fallback is the local URL — never a hardcoded remote domain.
   return {
     buyer: get('API_URL_BUYER', localUrl),       // Legacy support
     supplier: get('API_URL_SUPPLIER', localUrl), // Legacy support
-    senegal: get('API_URL_SENEGAL', 'https://dev.codeonline-edi.net'),
-    tunisia: get('API_URL_TUNISIA', 'https://edi-dev.codeonline-info.com'),
+    senegal: get('API_URL_SENEGAL', localUrl),
+    tunisia: get('API_URL_TUNISIA', localUrl),
     websocket: get('WEBSOCKET_URL', localUrl),
   };
 };

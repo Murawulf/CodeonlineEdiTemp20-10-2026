@@ -4,6 +4,10 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 
+const LOCAL_API_BASE = import.meta.env.DEV
+  ? 'http://localhost:5001'
+  : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001');
+
 // Define types
 interface Option {
   label: string;
@@ -561,7 +565,7 @@ const [downloadUrl, setDownloadUrl] = useState('');
     const fetchData = async () => {
       try {
         const [segmentsRes] = await Promise.all([
-          axios.get('https://edi-dev.codeonline-info.comapi/segments')
+          axios.get(`${LOCAL_API_BASE}/api/segments`)
         ]);
 
         const segmentsData = Array.isArray(segmentsRes.data) ? segmentsRes.data : [];
@@ -774,7 +778,7 @@ const [downloadUrl, setDownloadUrl] = useState('');
     if (!formData.segment) return;
     const fetchFamilies = async () => {
       try {
-        const res = await axios.get<string[]>(`https://edi-dev.codeonline-info.comapi/familles/${encodeURIComponent(formData.segment)}`);
+        const res = await axios.get<string[]>(`${LOCAL_API_BASE}/api/familles_by_segment?codeSegment=${encodeURIComponent(formData.segment)}`);  
         setFamilies(Array.isArray(res.data) ? res.data : []);
         setFormData(prev => ({ ...prev, family: '', class: '', brick: '', rayon: '' }));
         setClasses([]);
@@ -793,7 +797,7 @@ const [downloadUrl, setDownloadUrl] = useState('');
     if (!formData.family) return;
     const fetchClasses = async () => {
       try {
-        const res = await axios.get<string[]>(`https://edi-dev.codeonline-info.comapi/classes/${encodeURIComponent(formData.family)}`);
+        const res = await axios.get<string[]>(`${LOCAL_API_BASE}/api/classes_by_famille?codeFamille=${encodeURIComponent(formData.family)}`);  
         setClasses(Array.isArray(res.data) ? res.data : []);
         setFormData(prev => ({ ...prev, class: '', brick: '', rayon: '' }));
         setBricks([]);
@@ -811,7 +815,7 @@ const [downloadUrl, setDownloadUrl] = useState('');
     if (!formData.class) return;
     const fetchBricks = async () => {
       try {
-        const res = await axios.get<string[]>(`https://edi-dev.codeonline-info.comapi/briques/${encodeURIComponent(formData.class)}`);
+        const res = await axios.get<string[]>(`${LOCAL_API_BASE}/api/bricks_by_class?codeClasse=${encodeURIComponent(formData.class)}`);  
         setBricks(Array.isArray(res.data) ? res.data : []);
         setFormData(prev => ({ ...prev, brick: '', rayon: '' }));
         setRayons([]);
@@ -1007,7 +1011,7 @@ useEffect(() => {
 // Helper function to fetch segments
 async function fetchSegments(): Promise<string[]> {
   try {
-    const response = await fetch('https://edi-dev.codeonline-info.comapi/segments', {
+    const response = await fetch(`${LOCAL_API_BASE}/api/segments`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -1072,7 +1076,7 @@ async function autoGenerateProductSheets() {
     // Fetch bricks for Nourriture/Boisson
     let bricks;
     try {
-      const response = await fetch('https://edi-dev.codeonline-info.comapi/briques-by-segment/Nourriture%2FBoisson', {
+      const response = await fetch(`${LOCAL_API_BASE}/api/bricks_by_class?codeClasse=Nourriture%2FBoisson`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1556,38 +1560,18 @@ async function generateProductSheet(
   }
 }
   return (
-    
-    <div className="bg-gray-50 min-h-screen p-4 font-sans flex">
-    
-
+    <div className="min-h-screen bg-white">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Produits</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Générateur Modèles</span>
+      </nav>
+      
+      <div className="bg-gray-50 min-h-screen p-4 font-sans flex">
       {/* Left Side: Classification Section */}
       
       <div className="w-[30%] pr-4">
-              {/* Breadcrumb */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 80,
-          left: 90,
-          backgroundColor: 'white',
-          padding: '10px 20px',
-          borderRadius: '8px',
-         
-          zIndex: 10,
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          color: '#3b82f6',
-        }}
-      >
-        <span style={{ color: '#2563eb' }}>Produits</span>
-        /
-        <span style={{ color: '#3b82f6' }}>Générateur Modèles</span>
-     
-      </div>
-&nbsp;
         <Card className="shadow-sm border border-gray-200 rounded-sm bg-white">
           <CardHeader className="bg-blue-50">
             <CardTitle className="text-blue-900 flex items-center">
@@ -1976,6 +1960,7 @@ async function generateProductSheet(
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

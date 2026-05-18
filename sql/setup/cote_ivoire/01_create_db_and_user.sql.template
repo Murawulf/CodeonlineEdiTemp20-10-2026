@@ -1,0 +1,44 @@
+-- ==============================================================================
+-- 🇨🇮 ÉTAPE 1 — CRÉATION BASE DE DONNÉES + UTILISATEUR APPLICATIF
+-- ==============================================================================
+-- À exécuter par un compte MySQL ROOT (ou avec privilèges CREATE/GRANT).
+--
+-- ⚠️  Avant exécution, remplacer les placeholders :
+--   __DB_NAME__       (ex: Dev_Entitedb)
+--   __DB_APP_USER__   (ex: consultant_ci)
+--   __DB_APP_PASS__   (mot de passe fort)
+--
+-- Substitution rapide en local :
+--   sed -e 's|__DB_NAME__|Dev_Entitedb|g' \
+--       -e 's|__DB_APP_USER__|consultant_ci|g' \
+--       -e 's|__DB_APP_PASS__|MotDePasseFort!|g' \
+--       01_create_db_and_user.sql.template > 01_create_db_and_user.sql
+-- ==============================================================================
+
+-- 1) Création de la base
+CREATE DATABASE IF NOT EXISTS `__DB_NAME__`
+  DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_0900_ai_ci;
+
+-- 2) Création de l'utilisateur applicatif (accès distant + local)
+CREATE USER IF NOT EXISTS '__DB_APP_USER__'@'%'         IDENTIFIED BY '__DB_APP_PASS__';
+CREATE USER IF NOT EXISTS '__DB_APP_USER__'@'localhost' IDENTIFIED BY '__DB_APP_PASS__';
+
+-- 3) Octroi des droits sur la base CI uniquement
+GRANT ALL PRIVILEGES ON `__DB_NAME__`.* TO '__DB_APP_USER__'@'%';
+GRANT ALL PRIVILEGES ON `__DB_NAME__`.* TO '__DB_APP_USER__'@'localhost';
+
+FLUSH PRIVILEGES;
+
+-- 4) Table de logs des étapes d'installation (idempotence des futures ré-exécutions)
+USE `__DB_NAME__`;
+
+CREATE TABLE IF NOT EXISTS `setup_logs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `step_name` VARCHAR(100) NOT NULL,
+  `status` VARCHAR(20) NOT NULL,
+  `details` TEXT,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+SELECT '✅ Base de données et utilisateur Côte d''Ivoire créés' AS status;

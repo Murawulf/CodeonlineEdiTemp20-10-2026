@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useLocalApiUrl } from '../contexts/SettingsContext';
 
 interface TPO {
   id_tpo: number;
@@ -22,7 +23,6 @@ interface SortConfig {
   direction: 'ascending' | 'descending';
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia",
@@ -51,6 +51,7 @@ const countries = [
 ];
 
 const TPO: React.FC = () => {
+  const API_BASE_URL = useLocalApiUrl();
   const [tpos, setTpos] = useState<TPO[]>([]);
   const [searchCountry, setSearchCountry] = useState<string>('');
   const [searchText, setSearchText] = useState<string>('');

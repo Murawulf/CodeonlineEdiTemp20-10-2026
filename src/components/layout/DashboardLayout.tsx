@@ -3,27 +3,8 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
 import { TopBarMenu } from "./TopBarMenu";
-import logo from "../layout/logo.png"; // Adjust path if needed
-
-interface Compte {
-  id_compte: number;
-  email: string;
-  name: string;
-  profile_id: number;
-  permissions: {
-    page_id: number;
-    read: number;
-    write: number;
-    hide: number;
-    page_name?: string;
-  }[];
-  certicode?: string | null;
-  role?: string | null;
-  is_suspended: number;
-  created_at: string;
-  id_entite: number;
-  producer_name: string | null;
-}
+import logo from "../layout/logo.png";
+import type { Compte } from "../../types/compte";
 
 interface DashboardLayoutProps {
   currentUser: Compte | null;

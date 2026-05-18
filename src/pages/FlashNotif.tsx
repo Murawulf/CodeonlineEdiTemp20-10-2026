@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
+import { useApi } from '@/hooks/useApi';
 import 'react-toastify/dist/ReactToastify.css';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -33,9 +33,12 @@ interface NotifResponse {
 
 interface FlashNotifProps {
   profileId: number;
+  idEntite: number;
+  idCompte: number;
 }
 
-const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
+const FlashNotif: React.FC<FlashNotifProps> = ({ profileId, idEntite, idCompte }) => {
+  const api = useApi();
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [selectedNotif, setSelectedNotif] = useState<Notif | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -67,23 +70,10 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    const fetchCurrentEntite = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get(`/api/compte/${profileId}`, { timeout: 10000 });
-        setCurrentEntiteId(response.data.id_entite);
-      } catch (error: any) {
-        console.error('Erreur lors de la récupération du compte:', error);
-        const message = error.response?.data?.error || 'Échec de la récupération du compte';
-        setError(message);
-        toast.error(message, { position: 'top-right', autoClose: 5000 });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCurrentEntite();
-  }, [profileId]);
+    if (idEntite) {
+      setCurrentEntiteId(idEntite);
+    }
+  }, [idEntite]);
 
   useEffect(() => {
     if (currentEntiteId !== null) {
@@ -115,7 +105,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get('/api/notifs', { timeout: 10000 });
+      const response = await api.get(`/api/notifs`, { timeout: 10000 });
       setNotifs(response.data);
     } catch (error: any) {
       console.error('Erreur lors de la récupération des notifications:', error);
@@ -129,7 +119,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
 
   const fetchAllResponses = async () => {
     try {
-      const response = await axios.get('/api/notif_responses', { timeout: 10000 });
+      const response = await api.get(`/api/notif_responses`, { timeout: 10000 });
       setResponses(response.data);
     } catch (error: any) {
       console.error('Erreur lors de la récupération des réponses:', error);
@@ -139,7 +129,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
 
   const fetchMyResponses = async () => {
     try {
-      const response = await axios.get(`/api/notif_responses?entite=${currentEntiteId}`, { timeout: 10000 });
+      const response = await api.get(`/api/notif_responses?entite=${currentEntiteId}`, { timeout: 10000 });
       setMyResponses(response.data);
     } catch (error: any) {
       console.error('Erreur lors de la récupération de vos réponses:', error);
@@ -157,7 +147,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
       return;
     }
     try {
-      await axios.post('/api/notifs', data, { timeout: 10000 });
+      await api.post(`/api/notifs`, data, { timeout: 10000 });
       toast.success('Notification ajoutée avec succès', { position: 'top-right', autoClose: 5000 });
       setIsAddModalOpen(false);
       setAddFormData({
@@ -190,7 +180,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
       return;
     }
     try {
-      await axios.put(`/api/notifs/${selectedNotif.id_notif}`, data, { timeout: 10000 });
+      await api.put(`/api/notifs/${selectedNotif.id_notif}`, data, { timeout: 10000 });
       toast.success('Notification mise à jour avec succès', { position: 'top-right', autoClose: 5000 });
       setIsEditModalOpen(false);
       setSelectedNotif(null);
@@ -214,7 +204,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
             onClick={async () => {
               setError(null);
               try {
-                await axios.delete(`/api/notifs/${id}`, { timeout: 10000 });
+                await api.delete(`/api/notifs/${id}`, { timeout: 10000 });
                 toast.success('Notification supprimée avec succès', { position: 'top-right', autoClose: 5000 });
                 fetchNotifs();
                 toast.dismiss(toastId);
@@ -252,7 +242,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
     if (currentEntiteId === null) return;
     setError(null);
     try {
-      await axios.post('/api/notif_responses', { id_notif, id_entite: currentEntiteId, response: resp }, { timeout: 10000 });
+      await api.post(`/api/notif_responses`, { id_notif, id_entite: currentEntiteId, response: resp }, { timeout: 10000 });
       toast.success('Réponse enregistrée avec succès', { position: 'top-right', autoClose: 5000 });
       fetchMyResponses();
     } catch (error: any) {
@@ -266,7 +256,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
   const openSelectLangModal = async (id: number) => {
     setError(null);
     try {
-      const response = await axios.get(`/api/notifs/${id}`, { timeout: 10000 });
+      const response = await api.get(`/api/notifs/${id}`, { timeout: 10000 });
       setSelectedNotif(response.data);
       setIsSelectLangModalOpen(true);
       setOpenDropdownId(null);
@@ -351,8 +341,12 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
   }
 
   return (
-    <div className="min-h-screen">
-      <span style={{ color: '#3b82f6', position: 'relative', top: '-14px' }}>Paramètres / Notifications</span>
+    <div className="min-h-screen bg-white">
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Paramètres</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Notifications</span>
+      </nav>
       <ToastContainer />
       <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg shadow-md overflow-hidden mt-4">
@@ -804,7 +798,7 @@ const FlashNotif: React.FC<FlashNotifProps> = ({ profileId }) => {
         </Draggable>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .animate-fade-in {
           animation: fadeIn 0.5s ease-in;
         }

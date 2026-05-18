@@ -36,12 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<Compte | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
     if (storedUser) {
       try {
         setCurrentUser(JSON.parse(storedUser));
       } catch (err) {
         console.error('Failed to parse stored user:', err);
+        localStorage.removeItem('currentUser');
         localStorage.removeItem('user');
       }
     }

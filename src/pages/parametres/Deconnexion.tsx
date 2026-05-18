@@ -3,14 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Deconnexion = () => {
   const navigate = useNavigate();
-  
+
   const handleLogout = () => {
-    // In a real application, you would clear authentication state here
-    console.log("User logged out");
-    navigate("/");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("user");
+    // Purge tout token Bearer résiduel sur l'instance axios par défaut
+    delete axios.defaults.headers.common["Authorization"];
+    // Notifie l'app pour clear le state currentUser sans recharger la page
+    window.dispatchEvent(new CustomEvent("auth:logout"));
+    navigate("/login");
   };
   
   return (

@@ -1,0 +1,169 @@
+50:app.use((req, res, next) => {
+231:app.use('/images/logo_entite', express.static(path.join(IMAGES_DIR, 'logo_entite')));
+232:app.use(express.static(IMAGES_DIR));
+233:app.use('/images', express.static(IMAGES_DIR));
+342:app.use('/images/uploads', express.static(avatarDir));
+366:app.use(cors({
+418:app.use(express.json());
+421:app.use('/ged', express.static(GED_DIR));
+422:app.use(express.static('public'))
+424:app.use('/Modeles', express.static(MODELES_DIR));
+1086:app.get('/', (req, res) => {
+1098:app.get('/health', (req, res) => {
+1114:app.get('/api/regions', async (req, res) => {
+1130:app.get('/api/delegations', async (req, res) => {
+1154:app.post('/api/localites', async (req, res) => {
+1176:app.get('/api/seed-companies', async (req, res) => {
+1286:app.get('/api/segments', async (req, res) => {
+1306:app.post('/api/update-segment', async (req, res) => {
+1323:app.post('/api/update-segment-status', async (req, res) => {
+1341:app.get('/api/familles', async (req, res) => {
+1364:app.post('/api/update-famille', async (req, res) => {
+1381:app.post('/api/update-famille-status', async (req, res) => {
+1401:app.get('/api/classes', async (req, res) => {
+1434:app.post('/api/update-classe', async (req, res) => {
+1451:app.post('/api/update-classe-status', async (req, res) => {
+1470:app.get('/api/bricks', async (req, res) => {
+1502:app.post('/api/update-brick', async (req, res) => {
+1519:app.post('/api/update-brick-status', async (req, res) => {
+1539:app.get('/api/users', async (req, res) => {
+1597:app.get('/api/pages', async (req, res) => {
+1620:app.get('/api/profiles/:id', async (req, res) => {
+1685:app.get("/api/profiles", async (req, res) => {
+1750:app.post("/api/profiles", async (req, res) => {
+1812:app.put("/api/profiles/:id_profile", async (req, res) => {
+1893:app.delete("/api/profiles/:id_profile", async (req, res) => {
+1921:app.get('/api/files', async (req, res) => {
+1944:app.get('/api/file-content/:id', async (req, res) => {
+1980:app.post('/api/files', async (req, res) => {
+2017:app.post('/api/save-file', async (req, res) => {
+2059:app.delete('/api/files/:id', async (req, res) => {
+2100:app.post('/save-observation', async (req, res) => {
+2174:app.get('/api/stats', async (req, res) => {
+2196:app.get('/api/enterprises-by-sector', async (req, res) => {
+2224:app.get('/api/product-sheets-by-sector', async (req, res) => {
+2263:app.get('/api/seed-regions', async (req, res) => {
+2316:app.get('/api/pays', async (req, res) => {
+2329:app.get('/api/segments', async (req, res) => {
+2351:app.get('/api/companies/max-id', async (req, res) => {
+2369:app.get('/api/companies', async (req, res) => {
+2418:app.get('/api/companies/:id', async (req, res) => {
+2472:app.post('/api/companies', uploadLogo.single('logo'), async (req, res) => {
+2565:app.put('/api/companies/:id', uploadLogo.single('logo'), async (req, res) => {
+2676:app.delete('/api/companies/:id', async (req, res) => {
+2709:app.put('/api/companies/:id/segments', async (req, res) => {
+2730:app.get("/api/companies/template", async (req, res) => {
+2754:app.post('/api/companies/import', async (req, res) => {
+2836:app.get('/api/sites/:id', async (req, res) => {
+2858:app.put('/api/companies/:id/segments', async (req, res) => {
+2895:app.get("/api/companies/template", async (req, res) => {
+2921:app.post('/api/companies/import', async (req, res) => {
+3819:app.post("/api/orders/eancom", async function (req, res) {
+4113:app.get("/api/orders/incoming", async function (req, res) {
+4297:app.post("/api/orders/accept-modifications", async function (req, res) {
+4453:app.post("/api/orders/respond", async function (req, res) {
+4807:app.get("/api/orders/sent", async function (req, res) {
+4938:app.get("/api/orders/invalid", async function (req, res) {
+4955:app.get("/api/orders/archived", async function (req, res) {
+4972:app.get("/api/orders/:id", async (req, res) => {
+5005:app.post("/api/orders/:id/response", async function (req, res) {
+5042:app.delete("/api/orders/:id", async function (req, res) {
+5064:app.get('/api/proxy/notifications', async (req, res) => {
+5081:app.put('/api/proxy/notifications/:id/read', async (req, res) => {
+5103:app.get('/api/edi/transmissions/:orderId', async (req, res) => {
+5128:app.post('/api/edi/transmissions/:id/retry', async (req, res) => {
+5159:app.post('/api/edi/transmissions/:id/reset', async (req, res) => {
+5190:app.get('/api/edi/worker-logs', async (req, res) => {
+5219:app.get('/api/edi/worker-stats', async (req, res) => {
+5241:app.post('/api/edi/receive', async (req, res) => {
+5776:app.post('/api/edi/desadv/send', async (req, res) => {
+5933:app.post('/api/edi/invoic/send', async (req, res) => {
+6080:app.get('/api/check-supervisor-profile/:id_entite', async (req, res) => {
+6107:app.post('/api/create-supervisor-profile', async (req, res) => {
+6176:app.get("/api/invoices", async (req, res) => {
+6199:app.get("/api/invoices/:id", async (req, res) => {
+6216:app.post("/api/invoices", async (req, res) => {
+6265:app.delete("/api/invoices/:id", async (req, res) => {
+6277:app.post("/api/invoices/:id/send", async (req, res) => {
+6378:app.get("/api/status", async (req, res) => {
+6389:app.get("/api/debug/orders", async (req, res) => {
+6400:app.get("/api/debug/entities", async (req, res) => {
+6412:app.get("/api/products", async (req, res) => {
+6488:app.get("/api/products/brands", async (req, res) => {
+6507:app.post("/api/products", uploadProducts.array("images", 10), async (req, res) => {
+6554:app.put("/api/products/:id", uploadProducts.array("images", 10), async (req, res) => {
+6617:app.get('/api/entite_segments', async (req, res) => {
+6636:app.get('/api/classes_by_segment', async (req, res) => {
+6655:app.get('/api/bricks_by_class', async (req, res) => {
+6688:app.delete("/api/products/:id", async (req, res) => {
+6719:app.get('/api/classes', async (req, res) => {
+6754:app.get("/api/briques-by-class/:codeClasse", async (req, res) => {
+6775:app.get("/api/products/template", async (req, res) => {
+6878:app.post("/api/products/import", async (req, res) => {
+7067:app.post("/api/declinaisons", async (req, res) => {
+7117:app.get("/api/products/:id/declinaisons", async (req, res) => {
+7135:app.put("/api/declinaisons/:id", async (req, res) => {
+7177:app.delete("/api/declinaisons/:id", async (req, res) => {
+7192:app.get("/api/declinaisons/meta", (req, res) => {
+7490:app.get("/api/caracteristiques", async (req, res) => {
+7538:app.get("/api/caracteristiques/:id", async (req, res) => {
+7572:app.post("/api/caracteristiques", async (req, res) => {
+7650:app.put("/api/caracteristiques/:id", async (req, res) => {
+7731:app.delete("/api/caracteristiques/:id", async (req, res) => {
+7745:app.post("/api/caracteristiques/upload", caracteristiqueUpload.single("file"), (req, res) => {
+7766:app.get('/api/avatars/:filename', (req, res) => {
+7817:app.get('/api/ged/:id/logs', async (req, res) => {
+7911:app.get('/api/ged/list', async (req, res) => {
+7972:app.post('/api/ged/upload', uploadGed.single('file'), async (req, res) => {
+8024:app.get('/api/ged/:id/download', async (req, res) => {
+8059:app.get('/api/ged/:id/view', async (req, res) => {
+8094:app.delete('/api/ged/:id', async (req, res) => {
+8118:app.post('/api/ged/:id/restore', async (req, res) => {
+8138:app.delete('/api/ged/:id/hard', async (req, res) => {
+8166:app.put('/api/ged/:id', async (req, res) => {
+8198:app.get('/api/ged/folders', async (req, res) => {
+8313:app.post('/api/ged/folders', async (req, res) => {
+8330:app.post('/api/ged/folders/:id/files', async (req, res) => {
+8346:app.delete('/api/ged/folders/:id/files/:ged_id', async (req, res) => {
+8362:app.delete('/api/ged/folders/:id', async (req, res) => {
+8379:app.post('/api/ged/folders/:id/restore', async (req, res) => {
+8394:app.delete('/api/ged/folders/:id/hard', async (req, res) => {
+8430:app.get('/api/notifications', async (req, res) => {
+8458:app.post('/api/notifications', async (req, res) => {
+8489:app.put('/api/notifications/:id/read', async (req, res) => {
+8519:app.delete('/api/notifications/:id', async (req, res) => {
+8548:app.delete('/api/notifications/clear', async (req, res) => {
+8572:app.get('/api/comptes', async (req, res) => {
+8642:app.get('/api/comptes/:id', async (req, res) => {
+8706:app.get("/api/account-permissions/:id", async (req, res) => {
+8740:app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
+8815:app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
+8940:app.delete('/api/comptes/:id', async (req, res) => {
+8987:app.get('/api/current-user/:id', async (req, res) => {
+9019:app.post('/api/login', async (req, res) => {
+9144:app.get('/api/notifs', async (req, res) => {
+9160:app.get('/api/notifs/:id', async (req, res) => {
+9183:app.post('/api/notifs', async (req, res) => {
+9211:app.put('/api/notifs/:id', async (req, res) => {
+9272:app.get('/api/notif_responses', async (req, res) => {
+9304:app.post('/api/notif_responses', async (req, res) => {
+9330:app.delete('/api/notifs/:id', async (req, res) => {
+9351:app.post('/api/update-profile', upload.single('avatar'), async (req, res) => {
+9484:app.post('/api/logout', async (req, res) => {
+9495:app.get('/api/Entite/:id', async (req, res) => {
+9602:app.post('/api/send-connection-info', async (req, res) => {
+9663:app.get('/api/check-model', async (req, res) => {
+9683:app.get('/api/get-model-json', async (req, res) => {
+9732:app.get('/api/tpo', (req, res) => {
+9756:app.put('/api/tpo/update-field', (req, res) => {
+9782:app.post('/api/tpo', (req, res) => {
+9822:app.put('/api/tpo', (req, res) => {
+9867:app.delete('/api/tpo/:id', (req, res) => {
+9889:app.get('/api/generate-model-template', async (req, res) => {
+9934:app.post('/api/save-model-json', async (req, res) => {
+9961:app.get("/api/account-permissions/:id", async (req, res) => {
+10029:app.get('/api/delegations', async (req, res) => {
+10071:app.use('/api/settings', settingsRoutes);
+10077:app.use('/api/edi-worker', ediWorkerRouter);
+10080:app.use('/api', router);
+10083:app.use('/api', apiProxyRoutes);

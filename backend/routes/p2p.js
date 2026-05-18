@@ -14,7 +14,7 @@ router.post('/receive', async (req, res) => {
         return res.status(400).json({ error: 'Invalid format' });
     }
 
-    const { sender_gln, transaction_id, message_type } = header;
+    const { sender_gln, receiver_gln, transaction_id, message_type } = header;
 
     console.log(`[P2P] Received message ${transaction_id} from ${sender_gln} (${message_type})`);
 
@@ -68,12 +68,13 @@ router.post('/receive', async (req, res) => {
 
         await runUpdate(db, `
             INSERT INTO edi_transmissions 
-            (direction, document_type, partner_gln, status, file_content, filename, related_type, created_at, updated_at)
-            VALUES (?, ?, ?, 'RECEIVED', ?, ?, 'P2P', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            (direction, document_type, sender_gln, partner_gln, status, file_content, filename, related_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'RECEIVED', ?, ?, 'P2P', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         `, [
             'INBOUND',
             message_type,
             sender_gln,
+            receiver_gln,
             eancomContent,
             filename
         ]);

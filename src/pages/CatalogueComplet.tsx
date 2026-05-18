@@ -1,16 +1,11 @@
-// CatalogueComplet.tsx
-// FULLY FIXED: Brique dropdown works | Array safety | All features preserved
-// Updated with SINGLE declinaison type select (as each product has one type)
-// Multiple parents select with dynamic filtering based on current type
-// Integrated declinaison table with full hierarchical breakdown display
-// Added quantity per parent-fils relationship
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Draggable from "react-draggable";
 import { Resizable } from "re-resizable";
 import debounce from "lodash/debounce";
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from "xlsx";
 import axios from "axios";
+import { useLocalApiUrl } from "../contexts/SettingsContext";
 interface Notification {
   id_notification: number;
   contenu: string;
@@ -26,14 +21,38 @@ interface NotificationContextType {
   clearNotifications: () => void;
 }
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-const API = {
-  notifications: `${API_BASE}/api/notifications`,
-  markRead: (id: number) => `${API_BASE}/api/notifications/${id}/read`,
-  delete: (id: number) => `${API_BASE}/api/notifications/${id}`,
-  clear: `${API_BASE}/api/notifications/clear`,
+
+// ============================================================================
+// HIERARCHY OPTIONS - Unité Logistique
+// ============================================================================
+const HIERARCHY_OPTIONS = {
+  PK: { code: "PK", label: "PK - Lot Consommateur Homogène", fields: ["gtin_d", "childTradeItem", "quantityofNextLowerLevelTradeItem", "quantityOfCompleteLayersContainedInATradeItem", "quantityOfTradeItemsContainedInACompleteLayer", "isTradeItemADespatchUnit", "isTradeItemAnInvoiceUnit", "isTradeItemAnOrderableUnit", "isTradeItemAModel", "isTradeItemADivisibleItem", "hasDisplayReadyPackaging", "isTradeItemPackedIrregularly", "compositionDepthValue", "compositionWidthValue", "alimentaryProduct", "TradeItemDisplayDimensions", "contactGLN", "orderingUnitOfMeasure", "invoicingUnitOfMeasure", "packageMarksDietAllergen", "cataloguePriceBasisQuantity", "cataloguePriceBasisUnitOfMeasure", "tradeItemWeight", "tradeItemVolume", "packagingMaterial", "stackingFactor", "maxStackingWeight", "palletLayerQuantity", "type_emballage", "palletTypeCode"] },
+  AP: { code: "AP", label: "AP - Lot Consommateur Hétérogène", fields: ["unite_logistique_ap", "unite_facturable_ap", "unite_commandable_ap", "isTradeItemAModel_ap", "isTradeItemADivisibleItem_ap", "hasDisplayReadyPackaging_ap", "isTradeItemPackedIrregularly_ap", "compositionDepthValue_ap", "compositionWidthValue_ap", "alimentaryProduct_ap", "TradeItemDisplayDimensions_ap", "contactGLN_ap", "orderingUnitOfMeasure_ap", "invoicingUnitOfMeasure_ap", "gtin_d_ap", "childTradeItem_ap", "quantityofNextLowerLevelTradeItem_ap", "packageMarksDietAllergen_ap", "tradeItemWeight_ap", "tradeItemVolume_ap", "packagingMaterial_ap", "stackingFactor_ap", "type_emballage", "palletTypeCode"] },
+  CA: { code: "CA", label: "CA - Colis Homogène", fields: ["gtin_d_ca", "childTradeItem_ca", "quantityofNextLowerLevelTradeItem_ca", "packagingTypeCode", "palletTypeCode", "quantityOfCompleteLayersContainedInATradeItem_ca", "quantityOfTradeItemsContainedInACompleteLayer_ca", "isTradeItemAConsumerUnit", "unite_facturable_ca", "unite_commandable_ca", "isTradeItemAFullDisplayStand", "hasDisplayReadyPackaging_ca", "isTradeItemPackedIrregularly_ca", "compositionDepthValue_ca", "compositionWidthValue_ca", "alimentaryProduct_ca", "contactGLN_ca", "orderingUnitOfMeasure_ca", "invoicingUnitOfMeasure_ca", "tradeItemWeight_ca", "tradeItemVolume_ca", "packagingMaterial_ca", "maxStackingWeight_ca", "palletLayerQuantity_ca", "type_emballage"] },
+  DS: { code: "DS", label: "DS - Colis Hétérogène", fields: ["quantityofNextLowerLevelTradeItem_ds", "packagingTypeCode", "palletTypeCode", "quantityOfCompleteLayersContainedInATradeItem_ds", "quantityOfTradeItemsContainedInACompleteLayer_ds", "unite_facturable_ds", "isTradeItemAFullDisplayStand_ds", "hasDisplayReadyPackaging_ds", "isTradeItemPackedIrregularly_ds", "compositionDepthValue_ds", "compositionWidthValue_ds", "contactGLN_ds", "orderingUnitOfMeasure_ds", "invoicingUnitOfMeasure_ds", "tradeItemWeight_ds", "tradeItemVolume_ds", "packagingMaterial_ds", "maxStackingWeight_ds", "palletLayerQuantity_ds", "type_emballage"] },
+  PL: { code: "PL", label: "PL - Palette Homogène", fields: ["gtin_d_pl", "childTradeItem_pl", "quantityofNextLowerLevelTradeItem_pl", "quantityOfCompleteLayersContainedInATradeItem_pl", "quantityOfTradeItemsContainedInACompleteLayer_pl", "isTradeItemAnInvoiceUnit_pl", "isTradeItemAnOrderableUnit_pl", "isTradeItemAFullDisplayStand_pl", "hasDisplayReadyPackaging_pl", "isTradeItemPackedIrregularly_pl", "compositionDepthValue_pl", "compositionWidthValue_pl", "contactGLN_pl", "orderingUnitOfMeasure_pl", "invoicingUnitOfMeasure_pl", "palletTypeCode", "palletLayerQuantity_pl", "tradeItemWeight_pl", "tradeItemVolume_pl", "packagingMaterial_pl", "maxStackingWeight_pl", "stackingFactor_pl", "palletDimensions_pl", "type_emballage"] },
+  MX: { code: "MX", label: "MX - Palette Hétérogène", fields: ["gtin_d_mx", "childTradeItem1", "quantityofNextLowerLevelTradeItem1", "childTradeItem2", "quantityofNextLowerLevelTradeItem2", "childTradeItem3", "quantityofNextLowerLevelTradeItem3", "childTradeItem4", "quantityofNextLowerLevelTradeItem4", "quantityOfCompleteLayersContainedInATradeItem_mx", "quantityOfTradeItemsContainedInACompleteLayer_mx", "isTradeItemAnInvoiceUnit_mx", "isTradeItemAFullDisplayStand_mx", "hasDisplayReadyPackaging_mx", "isTradeItemPackedIrregularly_mx", "compositionDepthValue_mx", "compositionWidthValue_mx", "contactGLN_mx", "orderingUnitOfMeasure_mx", "invoicingUnitOfMeasure_mx", "palletTypeCode", "palletLayerQuantity_mx", "tradeItemWeight_mx", "tradeItemVolume_mx", "packagingMaterial_mx", "maxStackingWeight_mx", "stackingFactor_mx", "palletDimensions_mx", "type_emballage"] }
 };
+
+const BASE_FIELDS = ["brand", "subBrand", "description", "gtin", "libelle", "short_libelle", "countryOfOrigin", "prix_min", "prix_max", "code_cader", "codeClasse", "codebrique", "activ_prix"];
 export const NotificationProvider: React.FC<{ children: React.ReactNode; compteId: number | null }> = ({ children, compteId }) => {
+  const API_BASE = useLocalApiUrl();
+  const API = useMemo(() => ({
+    notifications: `${API_BASE}/api/notifications`,
+    markRead: (id: number) => `${API_BASE}/api/notifications/${id}/read`,
+    delete: (id: number) => `${API_BASE}/api/notifications/${id}`,
+    clear: `${API_BASE}/api/notifications/clear`,
+    entiteSegments: `${API_BASE}/api/entite_segments`,
+    segmentsAll: `${API_BASE}/api/segments`,
+    classesBySegment: `${API_BASE}/api/classes_by_segment`,
+    famillesBySegment: `${API_BASE}/api/familles_by_segment`,
+    classesByFamille: `${API_BASE}/api/classes_by_famille`,
+    bricksByClass: `${API_BASE}/api/bricks_by_class`,
+    modelByBrick: `${API_BASE}/api/model_by_brick`,
+    rayonsByBrick: `${API_BASE}/api/rayongpc`,
+    modelByRayon: `${API_BASE}/api/model_by_rayon`,
+    templateDownload: `${API_BASE}/api/products/template-advanced`,
+  }), [API_BASE]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [retryCount, setRetryCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -61,18 +80,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
       setError(null);
       setRetryCount(0);
     } catch (err) {
-      console.error('Erreur de récupération des notifications:', err);
-      setError('Échec du chargement des notifications. Veuillez réessayer plus tard.');
+      console.error(`Erreur de récupération des notifications:`, err);
+      setError(`Échec du chargement des notifications. Veuillez réessayer plus tard.`);
       setNotifications([]);
     }
   }, [compteId, retryCount]);
   useEffect(() => {
-    if (compteId) fetchNotifications();
-    else {
+    // Don't fetch old notifications on mount - only show new ones created during this session
+    if (!compteId) {
       setNotifications([]);
       setError(null);
     }
-  }, [compteId, fetchNotifications]);
+  }, [compteId]);
   async function addNotification(contenu: string, type: 'success' | 'error') {
     if (!compteId) return;
     try {
@@ -85,13 +104,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
       if (!res.ok) throw new Error(`Erreur ${res.status}: Impossible d'ajouter la notification`);
       const newNotification = await res.json();
       setNotifications((prev) => [newNotification, ...prev]);
-      await fetchNotifications();
       setTimeout(async () => {
         await deleteNotification(newNotification.id_notification);
       }, 5000);
     } catch (err) {
-      console.error('Erreur lors de l’ajout de la notification:', err);
-      setError('Échec de l’ajout de la notification.');
+      console.error(`Erreur lors de l'ajout de la notification:`, err);
+      setError(`Échec de l'ajout de la notification.`);
     }
   }
   async function markAsRead(id: number) {
@@ -108,8 +126,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
         prev.map((n) => (n.id_notification === id ? { ...n, read: 1 } : n))
       );
     } catch (err) {
-      console.error('Erreur lors du marquage comme lu:', err);
-      setError('Échec du marquage de la notification comme lue.');
+      console.error(`Erreur lors du marquage comme lu:`, err);
+      setError(`Échec du marquage de la notification comme lue.`);
     }
   }
   async function deleteNotification(id: number) {
@@ -124,8 +142,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
       if (!res.ok) throw new Error(`Erreur ${res.status}: Impossible de supprimer la notification`);
       setNotifications((prev) => prev.filter((n) => n.id_notification !== id));
     } catch (err) {
-      console.error('Erreur lors de la suppression de la notification:', err);
-      setError('Échec de la suppression de la notification.');
+      console.error(`Erreur lors de la suppression de la notification:`, err);
+      setError(`Échec de la suppression de la notification.`);
     }
   }
   async function clearNotifications() {
@@ -140,8 +158,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode; compteI
       if (!res.ok) throw new Error(`Erreur ${res.status}: Impossible de vider les notifications`);
       setNotifications([]);
     } catch (err) {
-      console.error('Erreur lors du vidage des notifications:', err);
-      setError('Échec du vidage des notifications.');
+      console.error(`Erreur lors du vidage des notifications:`, err);
+      setError(`Échec du vidage des notifications.`);
       await fetchNotifications();
     }
   }
@@ -237,6 +255,7 @@ interface Product {
   activ_prix: number;
   status: number;
   done_new: number;
+  declinaison_count?: number;
   declinaison_type: string | null;
   parents: ParentItem[]; // Integrated from declinaison table
 }
@@ -318,13 +337,158 @@ const typeIcons: Record<string, string> = {
   PL: '🚛',
   MX: '🚛+',
 };
+
+
 const getTypeIcon = (code: string | null) => typeIcons[code || ''] || '❓';
 const getTypeLabel = (code: string | null) => declinaisonTypes.find(d => d.code === code)?.label || (code || '-');
-const Catalogue: React.FC = () => {
+const FRENCH_FIELD_LABELS: Record<string, string> = {
+  gtin_d: "GTIN enfant",
+  childTradeItem: "Article enfant",
+  quantityofNextLowerLevelTradeItem: "Quantité niveau inférieur",
+  quantityOfCompleteLayersContainedInATradeItem: "Quantité de couches complètes",
+  quantityOfTradeItemsContainedInACompleteLayer: "Quantité d'articles par couche",
+  isTradeItemADespatchUnit: "Est une unité d'expédition",
+  isTradeItemAnInvoiceUnit: "Est une unité de facturation",
+  isTradeItemAnOrderableUnit: "Est une unité commandable",
+  isTradeItemAModel: "Est un modèle",
+  isTradeItemADivisibleItem: "Est un article divisible",
+  hasDisplayReadyPackaging: "A un emballage prêt à l'exposition",
+  isTradeItemPackedIrregularly: "Est emballé irrégulièrement",
+  compositionDepthValue: "Valeur profondeur composition",
+  compositionWidthValue: "Valeur largeur composition",
+  alimentaryProduct: "Produit alimentaire",
+  TradeItemDisplayDimensions: "Dimensions d'affichage article",
+  contactGLN: "GLN contact",
+  orderingUnitOfMeasure: "Unité mesure commande",
+  invoicingUnitOfMeasure: "Unité mesure facturation",
+  packageMarksDietAllergen: "Marques emballage régime/allergènes",
+  cataloguePriceBasisQuantity: "Quantité base prix catalogue",
+  cataloguePriceBasisUnitOfMeasure: "Unité mesure prix catalogue",
+  tradeItemWeight: "Poids article",
+  tradeItemVolume: "Volume article",
+  packagingMaterial: "Matériau emballage",
+  stackingFactor: "Facteur empilage",
+  maxStackingWeight: "Poids max empilage",
+  palletLayerQuantity: "Quantité couches palette",
+  type_emballage: "Type emballage",
+  palletTypeCode: "Code type palette",
+  unite_logistique_ap: "Unité logistique AP",
+  unite_facturable_ap: "Unité facturable AP",
+  unite_commandable_ap: "Unité commandable AP",
+  isTradeItemAModel_ap: "Est un modèle AP",
+  isTradeItemADivisibleItem_ap: "Est divisible AP",
+  hasDisplayReadyPackaging_ap: "Prêt à l'exposition AP",
+  isTradeItemPackedIrregularly_ap: "Emballé irrégulièrement AP",
+  compositionDepthValue_ap: "Profondeur composition AP",
+  compositionWidthValue_ap: "Largeur composition AP",
+  alimentaryProduct_ap: "Produit alimentaire AP",
+  TradeItemDisplayDimensions_ap: "Dimensions affichage AP",
+  contactGLN_ap: "GLN contact AP",
+  orderingUnitOfMeasure_ap: "Unité commande AP",
+  invoicingUnitOfMeasure_ap: "Unité facturation AP",
+  gtin_d_ap: "GTIN enfant AP",
+  childTradeItem_ap: "Article enfant AP",
+  quantityofNextLowerLevelTradeItem_ap: "Quantité niveau inférieur AP",
+  packageMarksDietAllergen_ap: "Marques régime/allergènes AP",
+  tradeItemWeight_ap: "Poids article AP",
+  tradeItemVolume_ap: "Volume article AP",
+  packagingMaterial_ap: "Matériau emballage AP",
+  stackingFactor_ap: "Facteur empilage AP",
+  gtin_d_ca: "GTIN enfant CA",
+  childTradeItem_ca: "Article enfant CA",
+  quantityofNextLowerLevelTradeItem_ca: "Quantité niveau inférieur CA",
+  packagingTypeCode: "Code type emballage",
+  quantityOfCompleteLayersContainedInATradeItem_ca: "Quantité couches complètes CA",
+  quantityOfTradeItemsContainedInACompleteLayer_ca: "Quantité articles par couche CA",
+  isTradeItemAConsumerUnit: "Est une unité consommateur",
+  unite_facturable_ca: "Unité facturable CA",
+  unite_commandable_ca: "Unité commandable CA",
+  isTradeItemAFullDisplayStand: "Est un présentoir complet",
+  hasDisplayReadyPackaging_ca: "Prêt à l'exposition CA",
+  isTradeItemPackedIrregularly_ca: "Emballé irrégulièrement CA",
+  compositionDepthValue_ca: "Profondeur composition CA",
+  compositionWidthValue_ca: "Largeur composition CA",
+  alimentaryProduct_ca: "Produit alimentaire CA",
+  contactGLN_ca: "GLN contact CA",
+  orderingUnitOfMeasure_ca: "Unité commande CA",
+  invoicingUnitOfMeasure_ca: "Unité facturation CA",
+  tradeItemWeight_ca: "Poids article CA",
+  tradeItemVolume_ca: "Volume article CA",
+  packagingMaterial_ca: "Matériau emballage CA",
+  maxStackingWeight_ca: "Poids max empilage CA",
+  palletLayerQuantity_ca: "Quantité couches palette CA",
+  quantityofNextLowerLevelTradeItem_ds: "Quantité niveau inférieur DS",
+  quantityOfCompleteLayersContainedInATradeItem_ds: "Quantité couches complètes DS",
+  quantityOfTradeItemsContainedInACompleteLayer_ds: "Quantité articles par couche DS",
+  unite_facturable_ds: "Unité facturable DS",
+  isTradeItemAFullDisplayStand_ds: "Est un présentoir complet DS",
+  hasDisplayReadyPackaging_ds: "Prêt à l'exposition DS",
+  isTradeItemPackedIrregularly_ds: "Emballé irrégulièrement DS",
+  compositionDepthValue_ds: "Profondeur composition DS",
+  compositionWidthValue_ds: "Largeur composition DS",
+  contactGLN_ds: "GLN contact DS",
+  orderingUnitOfMeasure_ds: "Unité commande DS",
+  invoicingUnitOfMeasure_ds: "Unité facturation DS",
+  tradeItemWeight_ds: "Poids article DS",
+  tradeItemVolume_ds: "Volume article DS",
+  packagingMaterial_ds: "Matériau emballage DS",
+  maxStackingWeight_ds: "Poids max empilage DS",
+  palletLayerQuantity_ds: "Quantité couches palette DS",
+  gtin_d_pl: "GTIN enfant PL",
+  childTradeItem_pl: "Article enfant PL",
+  quantityofNextLowerLevelTradeItem_pl: "Quantité niveau inférieur PL",
+  quantityOfCompleteLayersContainedInATradeItem_pl: "Quantité couches complètes PL",
+  quantityOfTradeItemsContainedInACompleteLayer_pl: "Quantité articles par couche PL",
+  isTradeItemAnInvoiceUnit_pl: "Est unité facturation PL",
+  isTradeItemAnOrderableUnit_pl: "Est unité commandable PL",
+  isTradeItemAFullDisplayStand_pl: "Est présentoir complet PL",
+  hasDisplayReadyPackaging_pl: "Prêt à l'exposition PL",
+  isTradeItemPackedIrregularly_pl: "Emballé irrégulièrement PL",
+  compositionDepthValue_pl: "Profondeur composition PL",
+  compositionWidthValue_pl: "Largeur composition PL",
+  contactGLN_pl: "GLN contact PL",
+  orderingUnitOfMeasure_pl: "Unité commande PL",
+  invoicingUnitOfMeasure_pl: "Unité facturation PL",
+  palletLayerQuantity_pl: "Quantité couches palette PL",
+  tradeItemWeight_pl: "Poids article PL",
+  tradeItemVolume_pl: "Volume article PL",
+  packagingMaterial_pl: "Matériau emballage PL",
+  maxStackingWeight_pl: "Poids max empilage PL",
+  stackingFactor_pl: "Facteur empilage PL",
+  palletDimensions_pl: "Dimensions palette PL",
+  gtin_d_mx: "GTIN enfant MX",
+  childTradeItem1: "Article enfant 1",
+  quantityofNextLowerLevelTradeItem1: "Quantité niveau inférieur 1",
+  childTradeItem2: "Article enfant 2",
+  quantityofNextLowerLevelTradeItem2: "Quantité niveau inférieur 2",
+  childTradeItem3: "Article enfant 3",
+  quantityofNextLowerLevelTradeItem3: "Quantité niveau inférieur 3",
+  childTradeItem4: "Article enfant 4",
+  quantityofNextLowerLevelTradeItem4: "Quantité niveau inférieur 4",
+  quantityOfCompleteLayersContainedInATradeItem_mx: "Quantité couches complètes MX",
+  quantityOfTradeItemsContainedInACompleteLayer_mx: "Quantité articles par couche MX",
+  isTradeItemAnInvoiceUnit_mx: "Est unité facturation MX",
+  isTradeItemAFullDisplayStand_mx: "Est présentoir complet MX",
+  hasDisplayReadyPackaging_mx: "Prêt à l'exposition MX",
+  isTradeItemPackedIrregularly_mx: "Emballé irrégulièrement MX",
+  compositionDepthValue_mx: "Profondeur composition MX",
+  compositionWidthValue_mx: "Largeur composition MX",
+  contactGLN_mx: "GLN contact MX",
+  orderingUnitOfMeasure_mx: "Unité commande MX",
+  invoicingUnitOfMeasure_mx: "Unité facturation MX",
+  palletLayerQuantity_mx: "Quantité couches palette MX",
+  tradeItemWeight_mx: "Poids article MX",
+  tradeItemVolume_mx: "Volume article MX",
+  packagingMaterial_mx: "Matériau emballage MX",
+  maxStackingWeight_mx: "Poids max empilage MX",
+  stackingFactor_mx: "Facteur empilage MX",
+  palletDimensions_mx: "Dimensions palette MX"
+};
+const CatalogueComplet: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   useEffect(() => {
     const raw1 = localStorage.getItem("currentUser");
-    const raw2 = localStorage.getItem("currentUser");
+    const raw2 = localStorage.getItem("user");
     let parsed = null;
     if (raw1) {
       try { parsed = JSON.parse(raw1); } catch {}
@@ -341,16 +505,34 @@ const Catalogue: React.FC = () => {
   );
 };
 const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
+  const API_BASE = useLocalApiUrl();
+  const API = useMemo(() => ({
+    notifications: `${API_BASE}/api/notifications`,
+    markRead: (id: number) => `${API_BASE}/api/notifications/${id}/read`,
+    delete: (id: number) => `${API_BASE}/api/notifications/${id}`,
+    clear: `${API_BASE}/api/notifications/clear`,
+    entiteSegments: `${API_BASE}/api/entite_segments`,
+    segmentsAll: `${API_BASE}/api/segments`,
+    classesBySegment: `${API_BASE}/api/classes_by_segment`,
+    famillesBySegment: `${API_BASE}/api/familles_by_segment`,
+    classesByFamille: `${API_BASE}/api/classes_by_famille`,
+    bricksByClass: `${API_BASE}/api/bricks_by_class`,
+    modelByBrick: `${API_BASE}/api/model_by_brick`,
+    rayonsByBrick: `${API_BASE}/api/rayongpc`,
+    modelByRayon: `${API_BASE}/api/model_by_rayon`,
+    templateDownload: `${API_BASE}/api/products/template-advanced`,
+  }), [API_BASE]);
   const [products, setProducts] = useState<Product[]>([]);
   const [classesList, setClassesList] = useState<ClassItem[]>([]);
   const [allBricks, setAllBricks] = useState<BrickItem[]>([]);
   const [bricksList, setBricksList] = useState<BrickItem[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [entitiesMap, setEntitiesMap] = useState<Record<number, string>>({});
   const countries: CountryItem[] = [{"isoNumeric":"004","libelle":"Afghanistan"},{"isoNumeric":"008","libelle":"Albania"},{"isoNumeric":"012","libelle":"Algeria"},{"isoNumeric":"016","libelle":"American Samoa"},{"isoNumeric":"020","libelle":"Andorra"},{"isoNumeric":"024","libelle":"Angola"},{"isoNumeric":"660","libelle":"Anguilla"},{"isoNumeric":"010","libelle":"Antarctica"},{"isoNumeric":"028","libelle":"Antigua and Barbuda"},{"isoNumeric":"032","libelle":"Argentina"},{"isoNumeric":"051","libelle":"Armenia"},{"isoNumeric":"533","libelle":"Aruba"},{"isoNumeric":"036","libelle":"Australia"},{"isoNumeric":"040","libelle":"Austria"},{"isoNumeric":"031","libelle":"Azerbaijan"},{"isoNumeric":"044","libelle":"Bahamas"},{"isoNumeric":"048","libelle":"Bahrain"},{"isoNumeric":"050","libelle":"Bangladesh"},{"isoNumeric":"052","libelle":"Barbados"},{"isoNumeric":"112","libelle":"Belarus"},{"isoNumeric":"056","libelle":"Belgium"},{"isoNumeric":"084","libelle":"Belize"},{"isoNumeric":"204","libelle":"Benin"},{"isoNumeric":"060","libelle":"Bermuda"},{"isoNumeric":"064","libelle":"Bhutan"},{"isoNumeric":"068","libelle":"Bolivia"},{"isoNumeric":"070","libelle":"Bosnia and Herzegovina"},{"isoNumeric":"072","libelle":"Botswana"},{"isoNumeric":"074","libelle":"Bouvet Island"},{"isoNumeric":"076","libelle":"Brazil"},{"isoNumeric":"086","libelle":"British Indian Ocean Territory"},{"isoNumeric":"092","libelle":"British Virgin Islands"},{"isoNumeric":"096","libelle":"Brunei"},{"isoNumeric":"100","libelle":"Bulgaria"},{"isoNumeric":"854","libelle":"Burkina Faso"},{"isoNumeric":"108","libelle":"Burundi"},{"isoNumeric":"116","libelle":"Cambodia"},{"isoNumeric":"120","libelle":"Cameroon"},{"isoNumeric":"124","libelle":"Canada"},{"isoNumeric":"132","libelle":"Cape Verde"},{"isoNumeric":"136","libelle":"Cayman Islands"},{"isoNumeric":"140","libelle":"Central African Republic"},{"isoNumeric":"148","libelle":"Chad"},{"isoNumeric":"152","libelle":"Chile"},{"isoNumeric":"156","libelle":"China"},{"isoNumeric":"162","libelle":"Christmas Island"},{"isoNumeric":"166","libelle":"Cocos Islands"},{"isoNumeric":"170","libelle":"Colombia"},{"isoNumeric":"174","libelle":"Comoros"},{"isoNumeric":"184","libelle":"Cook Islands"},{"isoNumeric":"188","libelle":"Costa Rica"},{"isoNumeric":"191","libelle":"Croatia"},{"isoNumeric":"192","libelle":"Cuba"},{"isoNumeric":"196","libelle":"Cyprus"},{"isoNumeric":"203","libelle":"Czech Republic"},{"isoNumeric":"180","libelle":"Democratic Republic of the Congo"},{"isoNumeric":"208","libelle":"Denmark"},{"isoNumeric":"262","libelle":"Djibouti"},{"isoNumeric":"212","libelle":"Dominica"},{"isoNumeric":"214","libelle":"Dominican Republic"},{"isoNumeric":"626","libelle":"East Timor"},{"isoNumeric":"218","libelle":"Ecuador"},{"isoNumeric":"818","libelle":"Egypt"},{"isoNumeric":"222","libelle":"El Salvador"},{"isoNumeric":"226","libelle":"Equatorial Guinea"},{"isoNumeric":"232","libelle":"Eritrea"},{"isoNumeric":"233","libelle":"Estonia"},{"isoNumeric":"231","libelle":"Ethiopia"},{"isoNumeric":"238","libelle":"Falkland Islands"},{"isoNumeric":"234","libelle":"Faroe Islands"},{"isoNumeric":"242","libelle":"Fiji"},{"isoNumeric":"246","libelle":"Finland"},{"isoNumeric":"250","libelle":"France"},{"isoNumeric":"254","libelle":"French Guiana"},{"isoNumeric":"258","libelle":"French Polynesia"},{"isoNumeric":"260","libelle":"French Southern Territories"},{"isoNumeric":"266","libelle":"Gabon"},{"isoNumeric":"270","libelle":"Gambia"},{"isoNumeric":"268","libelle":"Georgia"},{"isoNumeric":"276","libelle":"Germany"},{"isoNumeric":"288","libelle":"Ghana"},{"isoNumeric":"292","libelle":"Gibraltar"},{"isoNumeric":"300","libelle":"Greece"},{"isoNumeric":"304","libelle":"Greenland"},{"isoNumeric":"308","libelle":"Grenada"},{"isoNumeric":"312","libelle":"Guadeloupe"},{"isoNumeric":"316","libelle":"Guam"},{"isoNumeric":"320","libelle":"Guatemala"},{"isoNumeric":"324","libelle":"Guinea"},{"isoNumeric":"624","libelle":"Guinea-Bissau"},{"isoNumeric":"328","libelle":"Guyana"},{"isoNumeric":"332","libelle":"Haiti"},{"isoNumeric":"334","libelle":"Heard Island and McDonald Islands"},{"isoNumeric":"340","libelle":"Honduras"},{"isoNumeric":"344","libelle":"Hong Kong"},{"isoNumeric":"348","libelle":"Hungary"},{"isoNumeric":"352","libelle":"Iceland"},{"isoNumeric":"356","libelle":"India"},{"isoNumeric":"360","libelle":"Indonesia"},{"isoNumeric":"364","libelle":"Iran"},{"isoNumeric":"368","libelle":"Iraq"},{"isoNumeric":"372","libelle":"Ireland"},{"isoNumeric":"376","libelle":"Israel"},{"isoNumeric":"380","libelle":"Italy"},{"isoNumeric":"384","libelle":"Ivory Coast"},{"isoNumeric":"388","libelle":"Jamaica"},{"isoNumeric":"392","libelle":"Japan"},{"isoNumeric":"400","libelle":"Jordan"},{"isoNumeric":"398","libelle":"Kazakhstan"},{"isoNumeric":"404","libelle":"Kenya"},{"isoNumeric":"296","libelle":"Kiribati"},{"isoNumeric":"414","libelle":"Kuwait"},{"isoNumeric":"417","libelle":"Kyrgyzstan"},{"isoNumeric":"418","libelle":"Laos"},{"isoNumeric":"428","libelle":"Latvia"},{"isoNumeric":"422","libelle":"Lebanon"},{"isoNumeric":"426","libelle":"Lesotho"},{"isoNumeric":"430","libelle":"Liberia"},{"isoNumeric":"434","libelle":"Libya"},{"isoNumeric":"438","libelle":"Liechtenstein"},{"isoNumeric":"440","libelle":"Lithuania"},{"isoNumeric":"442","libelle":"Luxembourg"},{"isoNumeric":"446","libelle":"Macao"},{"isoNumeric":"807","libelle":"Macedonia"},{"isoNumeric":"450","libelle":"Madagascar"},{"isoNumeric":"454","libelle":"Malawi"},{"isoNumeric":"458","libelle":"Malaysia"},{"isoNumeric":"462","libelle":"Maldives"},{"isoNumeric":"466","libelle":"Mali"},{"isoNumeric":"470","libelle":"Malta"},{"isoNumeric":"584","libelle":"Marshall Islands"},{"isoNumeric":"474","libelle":"Martinique"},{"isoNumeric":"478","libelle":"Mauritania"},{"isoNumeric":"480","libelle":"Mauritius"},{"isoNumeric":"175","libelle":"Mayotte"},{"isoNumeric":"484","libelle":"Mexico"},{"isoNumeric":"583","libelle":"Micronesia"},{"isoNumeric":"498","libelle":"Moldova"},{"isoNumeric":"492","libelle":"Monaco"},{"isoNumeric":"496","libelle":"Mongolia"},{"isoNumeric":"500","libelle":"Montserrat"},{"isoNumeric":"504","libelle":"Morocco"},{"isoNumeric":"508","libelle":"Mozambique"},{"isoNumeric":"104","libelle":"Myanmar"},{"isoNumeric":"516","libelle":"Namibia"},{"isoNumeric":"520","libelle":"Nauru"},{"isoNumeric":"524","libelle":"Nepal"},{"isoNumeric":"528","libelle":"Netherlands"},{"isoNumeric":"530","libelle":"Netherlands Antilles"},{"isoNumeric":"540","libelle":"New Caledonia"},{"isoNumeric":"554","libelle":"New Zealand"},{"isoNumeric":"558","libelle":"Nicaragua"},{"isoNumeric":"562","libelle":"Niger"},{"isoNumeric":"566","libelle":"Nigeria"},{"isoNumeric":"570","libelle":"Niue"},{"isoNumeric":"574","libelle":"Norfolk Island"},{"isoNumeric":"408","libelle":"North Korea"},{"isoNumeric":"580","libelle":"Northern Mariana Islands"},{"isoNumeric":"578","libelle":"Norway"},{"isoNumeric":"512","libelle":"Oman"},{"isoNumeric":"586","libelle":"Pakistan"},{"isoNumeric":"585","libelle":"Palau"},{"isoNumeric":"275","libelle":"Palestinian Territory"},{"isoNumeric":"591","libelle":"Panama"},{"isoNumeric":"598","libelle":"Papua New Guinea"},{"isoNumeric":"600","libelle":"Paraguay"},{"isoNumeric":"604","libelle":"Peru"},{"isoNumeric":"608","libelle":"Philippines"},{"isoNumeric":"612","libelle":"Pitcairn"},{"isoNumeric":"616","libelle":"Poland"},{"isoNumeric":"620","libelle":"Portugal"},{"isoNumeric":"630","libelle":"Puerto Rico"},{"isoNumeric":"634","libelle":"Qatar"},{"isoNumeric":"178","libelle":"Republic of the Congo"},{"isoNumeric":"638","libelle":"Reunion"},{"isoNumeric":"642","libelle":"Romania"},{"isoNumeric":"643","libelle":"Russia"},{"isoNumeric":"646","libelle":"Rwanda"},{"isoNumeric":"654","libelle":"Saint Helena"},{"isoNumeric":"659","libelle":"Saint Kitts and Nevis"},{"isoNumeric":"662","libelle":"Saint Lucia"},{"isoNumeric":"666","libelle":"Saint Pierre and Miquelon"},{"isoNumeric":"670","libelle":"Saint Vincent and the Grenadines"},{"isoNumeric":"882","libelle":"Samoa"},{"isoNumeric":"674","libelle":"San Marino"},{"isoNumeric":"678","libelle":"Sao Tome and Principe"},{"isoNumeric":"682","libelle":"Saudi Arabia"},{"isoNumeric":"686","libelle":"Senegal"},{"isoNumeric":"891","libelle":"Serbia and Montenegro"},{"isoNumeric":"690","libelle":"Seychelles"},{"isoNumeric":"694","libelle":"Sierra Leone"},{"isoNumeric":"702","libelle":"Singapore"},{"isoNumeric":"703","libelle":"Slovakia"},{"isoNumeric":"705","libelle":"Slovenia"},{"isoNumeric":"090","libelle":"Solomon Islands"},{"isoNumeric":"706","libelle":"Somalia"},{"isoNumeric":"710","libelle":"South Africa"},{"isoNumeric":"239","libelle":"South Georgia and the South Sandwich Islands"},{"isoNumeric":"410","libelle":"South Korea"},{"isoNumeric":"724","libelle":"Spain"},{"isoNumeric":"144","libelle":"Sri Lanka"},{"isoNumeric":"736","libelle":"Sudan"},{"isoNumeric":"740","libelle":"Suriname"},{"isoNumeric":"744","libelle":"Svalbard and Jan Mayen"},{"isoNumeric":"748","libelle":"Swaziland"},{"isoNumeric":"752","libelle":"Sweden"},{"isoNumeric":"756","libelle":"Switzerland"},{"isoNumeric":"760","libelle":"Syria"},{"isoNumeric":"158","libelle":"Taiwan"},{"isoNumeric":"762","libelle":"Tajikistan"},{"isoNumeric":"834","libelle":"Tanzania"},{"isoNumeric":"764","libelle":"Thailand"},{"isoNumeric":"768","libelle":"Togo"},{"isoNumeric":"772","libelle":"Tokelau"},{"isoNumeric":"776","libelle":"Tonga"},{"isoNumeric":"780","libelle":"Trinidad and Tobago"},{"isoNumeric":"788","libelle":"Tunisia"},{"isoNumeric":"792","libelle":"Turkey"},{"isoNumeric":"795","libelle":"Turkmenistan"},{"isoNumeric":"796","libelle":"Turks and Caicos Islands"},{"isoNumeric":"798","libelle":"Tuvalu"},{"isoNumeric":"850","libelle":"U.S. Virgin Islands"},{"isoNumeric":"800","libelle":"Uganda"},{"isoNumeric":"804","libelle":"Ukraine"},{"isoNumeric":"784","libelle":"United Arab Emirates"},{"isoNumeric":"826","libelle":"United Kingdom"},{"isoNumeric":"840","libelle":"United States"},{"isoNumeric":"581","libelle":"United States Minor Outlying Islands"},{"isoNumeric":"858","libelle":"Uruguay"},{"isoNumeric":"860","libelle":"Uzbekistan"},{"isoNumeric":"548","libelle":"Vanuatu"},{"isoNumeric":"336","libelle":"Vatican"},{"isoNumeric":"862","libelle":"Venezuela"},{"isoNumeric":"704","libelle":"Vietnam"},{"isoNumeric":"876","libelle":"Wallis and Futuna"},{"isoNumeric":"732","libelle":"Western Sahara"},{"isoNumeric":"887","libelle":"Yemen"},{"isoNumeric":"894","libelle":"Zambia"},{"isoNumeric":"716","libelle":"Zimbabwe"},{"isoNumeric":"NON_EU","libelle":"NON_EU"},{"isoNumeric":"688","libelle":"Austria"},{"isoNumeric":"248","libelle":"Åland Islands"},{"isoNumeric":"249","libelle":"Metropolitan France"}];
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<number>(1);
-  const [itemsPerPage] = useState<number>(25);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedBrand, setSelectedBrand] = useState<string>("");
@@ -370,6 +552,8 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [allNodes, setAllNodes] = useState<Record<number, Node>>({});
   const { addNotification } = useNotifications();
+
+
   const ACCENT_BG = "bg-blue-900";
   const ACCENT_TEXT = "text-blue-900";
   const debounced = useCallback(
@@ -395,10 +579,18 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
           credentials: "include",
         });
         const data = await res.json();
+        const dedup = (arr: any[]) => {
+          const seen = new Set();
+          return arr.filter((s: any) => {
+            const key = s.codeSegment || s.code;
+            if (seen.has(key)) return false;
+            seen.add(key); return true;
+          });
+        };
         if (Array.isArray(data)) {
-          user.segmentsList = data;
+          user.segmentsList = dedup(data);
         } else if (Array.isArray(data.segments)) {
-          user.segmentsList = data.segments;
+          user.segmentsList = dedup(data.segments);
         } else {
           user.segmentsList = [];
         }
@@ -490,6 +682,48 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
     };
     load();
   }, [retry]);
+  // FETCH ENTITIES
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/entites`, { credentials: "include" });
+        if (!res.ok) throw new Error("No entities");
+        const data = await res.json();
+        const map: Record<number, string> = {};
+        if (Array.isArray(data)) {
+          data.forEach((e: any) => {
+            map[e.id_entite || e.id] = e.entite_name || e.name || e.raison_sociale || "Inconnu";
+          });
+        }
+        setEntitiesMap(map);
+      } catch (err) {
+        console.warn("Entities not available", err);
+        setEntitiesMap({});
+      }
+    };
+    load();
+  }, []);
+  // FETCH ENTITIES
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/entites`, { credentials: "include" });
+        if (!res.ok) throw new Error("No entities");
+        const data = await res.json();
+        const map: Record<number, string> = {};
+        if (Array.isArray(data)) {
+          data.forEach((e: any) => {
+            map[e.id_entite || e.id] = e.entite_name || e.name || e.raison_sociale || "Inconnu";
+          });
+        }
+        setEntitiesMap(map);
+      } catch (err) {
+        console.warn("Entities not available", err);
+        setEntitiesMap({});
+      }
+    };
+    load();
+  }, []);
   // FETCH PAYS
   useEffect(() => {
     const loadPays = async () => {
@@ -528,7 +762,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
         setProducts(Array.isArray(data.products) ? data.products : []);
         setTotalPages(data.totalPages || 1);
         if (brands.length === 0) {
-          const uniques = Array.from(new Set((data.products || []).map((p: Product) => p.brand).filter(Boolean)));
+          const uniques = Array.from(new Set((data.products || []).map((p: Product) => p.brand).filter(Boolean))) as string[];
           setBrands(uniques.sort());
         }
       } catch (err) {
@@ -549,11 +783,11 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
           libelle: p.libelle,
           gtin: p.gtin,
           declinaison_type: p.declinaison_type,
-          parents: p.parents.map((pp) => ({ id: pp.id_parent, quantity: pp.quantity })),
+          parents: (p.parents || []).map((pp) => ({ id: pp.id_parent, quantity: pp.quantity })),
           children: [],
         };
       });
-      let queue: number[] = products.flatMap((p) => p.parents.map((pp) => pp.id_parent));
+      let queue: number[] = products.flatMap((p) => (p.parents || []).map((pp) => pp.id_parent));
       const fetched = new Set(products.map((p) => p.id));
       while (queue.length) {
         const current = queue.shift()!;
@@ -664,7 +898,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
       selectedSegment = seg?.codeSegment || "";
     }
     const selectedParents: Record<number, number> = {};
-    p.parents.forEach(pp => selectedParents[pp.id_parent] = pp.quantity);
+    (p.parents || []).forEach(pp => selectedParents[pp.id_parent] = pp.quantity);
     setEditingProduct({
       ...p,
       newImages: [],
@@ -716,13 +950,14 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
     };
     loadParents();
   }, [isModalOpen, editingProduct?.id, editingProduct?.selectedDeclinaison, user?.id_entite]);
+  const PLACEHOLDER_IMAGE = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23f3f4f6'/%3E%3Cpath d='M32 12c11 0 20 9 20 20s-9 20-20 20-20-9-20-20 9-20 20-20z' fill='%23e5e7eb'/%3E%3Ccircle cx='32' cy='20' r='3' fill='%23d1d5db'/%3E%3Cpath d='M16 40 L24 30 L32 38 L48 22 L48 48 L16 48 Z' fill='%23d1d5db'/%3E%3C/svg%3E`;
   const getImageUrl = (path: string | null): string => {
-    if (!path) return '/fallback-image.png';
+    if (!path) return PLACEHOLDER_IMAGE;
     if (path.startsWith('data:') || path.startsWith('http')) return path;
     return `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}?t=${Date.now()}`;
   };
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.src = '/fallback-image.png';
+    e.currentTarget.src = PLACEHOLDER_IMAGE;
   };
   const handleSave = async () => {
     if (!editingProduct) return;
@@ -808,25 +1043,166 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
       addNotification("Échec de l'enregistrement.", "error");
     }
   };
-  const handleDownloadTemplate = async () => {
+  const [templateModal, setTemplateModal] = useState({ open: false, selectedSegment: null as string|null, selectedFamille: null as string|null, selectedClasse: null as any, selectedBrick: null as string|null, selectedRayon: null as string|null, selectedHierarchies: [] as any[], segments: [] as any[], familles: [] as any[], classes: [] as any[], bricks: [] as any[], rayons: [] as any[], modelFields: [] as any[], loading: false, error: null as string|null, activeTab: 'download' as 'download' | 'upload' });
+  const [importTemplateFile, setImportTemplateFile] = useState<File | null>(null);
+  const [importingTemplate, setImportingTemplate] = useState(false);
+  const [rapportModal, setRapportModal] = useState<{open:boolean, results:any[], inserted:number, errors:number, total:number, failedFileBase64:string|null, failedFileName:string} | null>(null);
+
+  const handleOpenTemplateModal = useCallback(async () => {
+    if (!user?.id_entite) { addNotification("Entité non disponible", "error"); return; }
+    setTemplateModal(prev => ({ ...prev, open: true, loading: true, activeTab: 'download' }));
     try {
-      const res = await fetch(`${API_BASE}/api/products/template`, {
-        credentials: "include",
-        headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
-      });
-      if (!res.ok) throw new Error("download failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Modele_Produits.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
-      addNotification("Modèle téléchargé.", "success");
+      let segments = [];
+      if ([999, 111].includes(user.id_entite)) {
+        const res = await axios.get(`${API.segmentsAll}`);
+        const raw = res.data || [];
+        const seen = new Set();
+        segments = raw.filter((s: any) => {
+          const key = s.codeSegment || s.code;
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
+        });
+      } else {
+        const res = await axios.get(`${API.entiteSegments}?id_entite=${user.id_entite}`);
+        const raw = res.data || [];
+        // Deduplicate by codeSegment in case DB has duplicate rows
+        const seen = new Set();
+        segments = raw.filter((s: any) => {
+          const key = s.codeSegment || s.code;
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
+        });
+      }
+      setTemplateModal(prev => ({ ...prev, segments, loading: false }));
+    } catch (err) { console.error("Segment error:", err); addNotification("Erreur segments", "error"); setTemplateModal(prev => ({ ...prev, loading: false, error: "Impossible de charger les segments" })); }
+  }, [user?.id_entite, addNotification]);
+
+  const handleSegmentChange = useCallback(async (codeSegment) => {
+    setTemplateModal(prev => ({ ...prev, selectedSegment: codeSegment, selectedFamille: null, selectedClasse: null, selectedBrick: null, familles: [], classes: [], bricks: [], modelFields: [], selectedHierarchies: [], loading: true }));
+    try {
+      const res = await axios.get(`${API.famillesBySegment}?codeSegment=${codeSegment}`);
+      const familles = Array.isArray(res.data) ? res.data : [];
+      setTemplateModal(prev => ({ ...prev, familles, loading: false }));
+    } catch (err) { console.error("Famille error:", err); addNotification("Erreur familles", "error"); setTemplateModal(prev => ({ ...prev, loading: false })); }
+  }, [addNotification]);
+
+  const handleFamilleChange = useCallback(async (codeFamille) => {
+    setTemplateModal(prev => ({ ...prev, selectedFamille: codeFamille, selectedClasse: null, selectedBrick: null, classes: [], bricks: [], modelFields: [], selectedHierarchies: [], loading: true }));
+    try {
+      const res = await axios.get(`${API.classesByFamille}?codeFamille=${codeFamille}`);
+      setTemplateModal(prev => ({ ...prev, classes: res.data || [], loading: false }));
+    } catch (err) { console.error("Class error:", err); addNotification("Erreur classes", "error"); setTemplateModal(prev => ({ ...prev, loading: false })); }
+  }, [addNotification]);
+
+  const handleClassChange = useCallback(async (codeClasse) => {
+    setTemplateModal(prev => ({ ...prev, selectedClasse: codeClasse, selectedBrick: null, bricks: [], modelFields: [], selectedHierarchies: [], loading: true }));
+    try {
+      const res = await axios.get(`${API.bricksByClass}?codeClasse=${codeClasse}`);
+      setTemplateModal(prev => ({ ...prev, bricks: res.data || [], loading: false }));
+    } catch (err) { console.error("Brick error:", err); addNotification("Erreur briques", "error"); setTemplateModal(prev => ({ ...prev, loading: false })); }
+  }, [addNotification]);
+
+  const handleBrickChange = useCallback(async (codeBrique) => {
+    setTemplateModal(prev => ({ ...prev, selectedBrick: codeBrique, selectedRayon: null, rayons: [], modelFields: [], selectedHierarchies: [], loading: true }));
+    try {
+      const res = await axios.get(`${API.rayonsByBrick}?brick_code=${codeBrique}`);
+      const rayons = Array.isArray(res.data) ? res.data : [];
+      setTemplateModal(prev => ({ ...prev, rayons, loading: false }));
+    } catch (err) { console.error("Rayon error:", err); setTemplateModal(prev => ({ ...prev, rayons: [], loading: false })); }
+  }, []);
+
+  const handleRayonChange = useCallback(async (rayonCode: string, brickCode: string) => {
+    setTemplateModal(prev => ({ ...prev, selectedRayon: rayonCode, modelFields: [], loading: true }));
+    // Model key is rayon_code__brick_code (as stored by Generate.js)
+    const modelKey = `${rayonCode}__${brickCode}`;
+    try {
+      const res = await axios.get(`${API.modelByRayon}?rayon_code=${encodeURIComponent(modelKey)}`);
+      const fields = res.data?.fields || [];
+      setTemplateModal(prev => ({ ...prev, modelFields: fields, loading: false }));
     } catch (err) {
-      addNotification("Impossible de télécharger le modèle.", "error");
+      console.error("Model error:", err);
+      setTemplateModal(prev => ({ ...prev, modelFields: [], loading: false }));
+    }
+  }, []);
+
+  const handleDownloadTemplate = async () => {
+    if (!templateModal.selectedBrick) { addNotification("Sélectionnez une brique", "error"); return; }
+    if (!templateModal.selectedRayon) { addNotification("Sélectionnez un rayon", "error"); return; }
+    const modelKey = `${templateModal.selectedRayon}__${templateModal.selectedBrick}`;
+    try {
+      setTemplateModal(prev => ({ ...prev, loading: true }));
+      const response = await axios.get(API.templateDownload, {
+        params: {
+          codebrique:   templateModal.selectedBrick,
+          rayon_code:   templateModal.selectedRayon,
+          model_key:    modelKey,
+          codeSegment:  templateModal.selectedSegment  || "",
+          codeFamille:  templateModal.selectedFamille  || "",
+          codeClasse:   templateModal.selectedClasse   || "",
+        },
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Modele_Produits_${templateModal.selectedRayon}_${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      addNotification("Modèle téléchargé", "success");
+      setTemplateModal(prev => ({ ...prev, open: false, loading: false }));
+    } catch (err) { console.error("Template error:", err); addNotification("Erreur template", "error"); setTemplateModal(prev => ({ ...prev, loading: false })); }
+  };
+  const handleImportTemplate = async () => {
+    if (!importTemplateFile) { addNotification("Sélectionnez un fichier", "error"); return; }
+    setImportingTemplate(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", importTemplateFile);
+      if (user?.id_entite) formData.append("id_entite", String(user.id_entite));
+      const res = await fetch(`${API_BASE}/api/products/import-template`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) { addNotification(data.error || "Erreur import", "error"); return; }
+      setRapportModal({
+        open: true,
+        results: data.results || [],
+        inserted: data.inserted || 0,
+        errors: data.errors || 0,
+        total: data.total || 0,
+        failedFileBase64: data.failedFileBase64 || null,
+        failedFileName: data.failedFileName || "Echecs_Import.xlsx",
+      });
+      setTemplateModal(prev => ({ ...prev, open: false }));
+      setImportTemplateFile(null);
+      if (data.inserted > 0) setRetry(r => r + 1);
+    } catch (err: any) {
+      addNotification("Erreur: " + err.message, "error");
+    } finally {
+      setImportingTemplate(false);
     }
   };
+
+  const handleDownloadFailedFile = () => {
+    if (!rapportModal?.failedFileBase64) return;
+    const bin = atob(rapportModal.failedFileBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", rapportModal.failedFileName);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleBulkImport = async () => {
     if (!bulkFile || !user?.id_entite) {
       addNotification("Fichier ou utilisateur manquant", "error");
@@ -922,6 +1298,243 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
     if (sortBy !== key) return <span className="ml-2 text-gray-300">⇅</span>;
     return <span className="ml-2">{sortDir === "ASC" ? "↑" : "↓"}</span>;
   };
+  const handlePublier = async (p: Product) => {
+    try {
+      const newStatus = canEditStatus ? 2 : 1;
+      const res = await fetch(`${API_BASE}/api/products/${p.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to publish');
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, status: newStatus } : x));
+      addNotification("Produit publié.", "success");
+      setIsActionOpen(null);
+    } catch (err) {
+      addNotification("Échec de la publication.", "error");
+    }
+  };
+  const handleSuspend = async (p: Product) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/products/${p.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 0 }),
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to suspend');
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, status: 0 } : x));
+      addNotification("Produit suspendu.", "success");
+      setIsActionOpen(null);
+    } catch (err) {
+      addNotification("Échec de la suspension.", "error");
+    }
+  };
+  const handleDelete = async (id: number) => {
+    if (!confirm("Confirmer la suppression ?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/products/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setProducts(prev => prev.filter(x => x.id !== id));
+      addNotification("Produit supprimé.", "success");
+      setIsActionOpen(null);
+    } catch (err) {
+      addNotification("Échec de la suppression.", "error");
+    }
+  };
+  // ==================== STATES POUR DÉCLINAISONS ====================
+const [declinaisons, setDeclinaisons] = useState<Record<number, any[]>>({});
+
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [declinaisonMeta, setDeclinaisonMeta] = useState<any | null>(null);
+  const [editingDeclinaison, setEditingDeclinaison] = useState<any>(null);
+  const [addingForProduct, setAddingForProduct] = useState<number | null>(null);
+  const [newDeclinaison, setNewDeclinaison] = useState<any>({
+    hierarchy_code: '', gtin: '', packaging_type: '', pallet_type: '', hierarchy_fields: {}, parent_id: null
+  });
+const HIERARCHY_LABELS_FR: Record<string, string> = {
+  gtin_d: "GTIN du niveau inférieur",
+  childTradeItem: "Article enfant",
+  quantityofNextLowerLevelTradeItem: "Quantité du niveau inférieur",
+  quantityOfCompleteLayersContainedInATradeItem: "Nombre de couches complètes",
+  quantityOfTradeItemsContainedInACompleteLayer: "Articles par couche",
+  isTradeItemADespatchUnit: "Unité d'expédition",
+  isTradeItemAnInvoiceUnit: "Unité de facturation",
+  isTradeItemAnOrderableUnit: "Unité commandable",
+  isTradeItemAModel: "Article modèle",
+  isTradeItemADivisibleItem: "Article divisible",
+  hasDisplayReadyPackaging: "Emballage prêt à l'exposition",
+  isTradeItemPackedIrregularly: "Conditionnement irrégulier",
+  compositionDepthValue: "Profondeur",
+  compositionWidthValue: "Largeur",
+  alimentaryProduct: "Produit alimentaire",
+  TradeItemDisplayDimensions: "Dimensions d'exposition",
+  contactGLN: "GLN de contact",
+  orderingUnitOfMeasure: "Unité de commande",
+  invoicingUnitOfMeasure: "Unité de facturation",
+  tradeItemWeight: "Poids",
+  tradeItemVolume: "Volume",
+  packagingMaterial: "Matériau d'emballage",
+  stackingFactor: "Facteur d'empilage",
+  maxStackingWeight: "Poids max empilé",
+  palletLayerQuantity: "Couches par palette",
+  type_emballage: "Type d'emballage",
+  palletTypeCode: "Type de palette"
+};
+  // Charger meta déclinaisons
+  useEffect(() => {
+    fetch(`${API_BASE}/api/declinaisons/meta`, { credentials: 'include' })
+      .then(r => r.json()).then(setDeclinaisonMeta).catch(console.error);
+  }, []);
+const fetchDeclinaisons = useCallback(async (productId: number) => {
+  if (!productId || isNaN(productId)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/products/${productId}/declinaisons`, {
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    // Safety: make sure we always have array
+const safeData = Array.isArray(data) ? data : [];
+
+setDeclinaisons(prev => ({
+  ...prev,
+  [productId]: safeData.map(item => ({
+    id: Number(item.id ?? 0),
+    id_produit: Number(item.id_produit ?? productId),
+    parent_id: item.parent_id != null ? Number(item.parent_id) : null,
+    hierarchy_code: item.hierarchy_code || '',
+    hierarchy_label: item.hierarchy_label || '', // make sure label exists
+    hierarchy_fields: item.hierarchy_fields || {}, // safe fallback
+    gtin: item.gtin ?? null,
+    packaging_type: item.packaging_type ?? null,
+    pallet_type: item.pallet_type ?? null,
+    declinaison_type: item.declinaison_type || null, // optional
+    quantity: item.quantity ?? 1, // default quantity
+  }))
+}));
+
+  } catch (err) {
+    console.error(`Impossible de charger déclinaisons pour produit ${productId}:`, err);
+    addNotification("Échec chargement des déclinaisons", "error");
+  }
+}, [addNotification]);
+
+const toggleExpand = (id: number) => {
+  const productId = Number(id);
+  const newSet = new Set(expanded);
+
+  if (newSet.has(productId)) {
+    newSet.delete(productId);
+  } else {
+    newSet.add(productId);
+    // Load if not already loaded
+    if (!declinaisons[productId]) {
+      fetchDeclinaisons(productId);
+    }
+  }
+
+  setExpanded(newSet);
+};
+  const resetNewDeclinaison = () => setNewDeclinaison({ hierarchy_code: '', gtin: '', packaging_type: '', pallet_type: '', hierarchy_fields: {}, parent_id: null });
+const handleSaveDeclinaison = async (decl: any, isEdit: boolean) => {
+  if (!decl.hierarchy_code) {
+    addNotification("Type de hiérarchie requis", "error");
+    return;
+  }
+
+  // Very important: keep reference to product id as NUMBER
+  const productId = Number(decl.id_produit);
+
+  if (!productId || isNaN(productId)) {
+    addNotification("Erreur interne : ID produit invalide", "error");
+    return;
+  }
+
+  const url = isEdit 
+    ? `${API_BASE}/api/declinaisons/${decl.id}`
+    : `${API_BASE}/api/declinaisons`;
+
+  const method = isEdit ? 'PUT' : 'POST';
+
+  const body = {
+    id_produit: productId,
+    hierarchy_code: decl.hierarchy_code,
+    parent_id: decl.parent_id || null,
+    gtin: decl.gtin || null,
+    packaging_type: decl.packaging_type || null,
+    pallet_type: decl.pallet_type || null,
+    hierarchy_fields: decl.hierarchy_fields || {}
+  };
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Erreur ${res.status} - ${errText}`);
+    }
+
+    addNotification(isEdit ? "Déclinaison modifiée" : "Déclinaison ajoutée", "success");
+
+    // ────────────────────── CRITICAL FIXES ──────────────────────
+    // 1. Refresh data immediately
+    await fetchDeclinaisons(productId);
+
+    // 2. Force expand the current product so user sees result right away
+    setExpanded(prev => {
+      const newSet = new Set(prev);
+      newSet.add(productId);
+      return newSet;
+    });
+
+    // Clean up form
+    setEditingDeclinaison(null);
+    setAddingForProduct(null);
+    resetNewDeclinaison();
+
+  } catch (err: any) {
+    console.error("Échec sauvegarde déclinaison:", err);
+    addNotification(`Erreur: ${err.message}`, "error");
+  }
+};
+const handleDeleteDeclinaison = async (id: number, productId: number) => {
+  if (!confirm("Supprimer cette déclinaison ?")) return;
+
+  try {
+    await fetch(
+      `${API_BASE}/api/declinaisons/${id}?product=${productId}`,
+      {
+        method: "DELETE",
+        credentials: "include"
+      }
+    );
+
+    await fetchDeclinaisons(productId);
+    addNotification("Déclinaison supprimée", "success");
+  } catch (err) {
+    console.error(err);
+    addNotification("Erreur suppression", "error");
+  }
+};
+
+  const isBooleanField = (field: string) => field.startsWith('is') || field.startsWith('has');
+  const isNumberField = (field: string) => field.toLowerCase().includes('quantity') || field.toLowerCase().includes('value') || field.toLowerCase().includes('weight') || field.toLowerCase().includes('volume') || field.toLowerCase().includes('factor') || field.toLowerCase().includes('dimension');
   if (loading) return <div className="p-6 text-center">Chargement...</div>;
   if (error) return (
     <div className="p-6 text-center text-red-600">
@@ -929,153 +1542,376 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
       <button className={`${ACCENT_BG} px-4 py-2 text-white rounded mt-4`} onClick={() => setRetry(r => r + 1)}>Réessayer</button>
     </div>
   );
+
   return (
     <div className="min-h-screen bg-white">
+      <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
+        <span className="text-blue-600 font-medium">Produits</span>
+        <span className="text-gray-300">›</span>
+        <span className="text-blue-600 font-medium">Catalogue Complet</span>
+      </nav>
       <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-4">
-          <div className="p-6">
-            <span style={{ color: '#3b82f6', position: 'relative', top: '-14px' }}>Produits / </span>
-            <span style={{ color: '#3b82f6', position: 'relative', top: '-14px' }}>Catalogue Produits</span>
-          </div>
-          <div className="flex gap-3 items-center">
-            {user && <div className="text-sm text-gray-600">Connecté: {user.name || user.email}</div>}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex gap-4 items-center flex-wrap">
+            {user && <div className="text-xs sm:text-sm font-medium text-slate-700 bg-blue-50 px-3 py-1.5 rounded-lg whitespace-nowrap">👤 {user.name || user.email}</div>}
             {!hideAddAndImport && (
               <>
-                <button className={`${ACCENT_BG} px-4 py-2 text-white rounded hover:opacity-95 transition`} onClick={handleAdd}>Ajouter</button>
+                <button className={`${ACCENT_BG} px-3 sm:px-4 py-2 text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium`} onClick={handleAdd}>➕ Ajouter</button>
                 <div className="flex items-center gap-2">
-                  <button className="px-4 py-2 bg-gray-100 rounded" onClick={() => setBulkOpen(true)}>Importer</button>
-                  <button className={`${ACCENT_BG} px-3 py-2 text-white rounded`} onClick={handleDownloadTemplate}>Télécharger modèle</button>
+                  <button className="px-3 sm:px-4 py-2 bg-white text-blue-900 border border-blue-900 rounded-lg hover:bg-blue-50 transition-all text-sm font-medium" onClick={handleOpenTemplateModal}>📥 Importer</button>
+                  <button className={`${ACCENT_BG} px-3 sm:px-4 py-2 text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium`} onClick={handleOpenTemplateModal}>⬇️ Télécharger</button>
                 </div>
               </>
             )}
           </div>
         </div>
-        <div className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-lg shadow-md mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Marque</label>
-            <select value={selectedBrand} onChange={(e) => { setSelectedBrand(e.target.value); setPage(1); }} className="p-2 border rounded w-full text-sm">
+            <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">Marque</label>
+            <select value={selectedBrand} onChange={(e) => { setSelectedBrand(e.target.value); setPage(1); }} className="p-2.5 border border-slate-300 rounded-lg w-full text-xs sm:text-sm hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
               <option value="">Toutes</option>
               {brands.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Secteur (Brique)</label>
-            <select value={selectedSector} onChange={(e) => { setSelectedSector(e.target.value); setPage(1); }} className="p-2 border rounded w-full text-sm">
+            <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">Secteur (Brique)</label>
+            <select value={selectedSector} onChange={(e) => { setSelectedSector(e.target.value); setPage(1); }} className="p-2.5 border border-slate-300 rounded-lg w-full text-xs sm:text-sm hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
               <option value="">Tous</option>
               {allBricks.map((b) => <option key={b.codeBrique} value={b.codeBrique}>{b.libelleBrique}</option>)}
             </select>
           </div>
-          <div className="col-span-1 md:col-span-2">
-            <label className="block text-sm font-medium mb-1">Recherche</label>
-            <input type="text" onChange={onSearchChange} placeholder="Rechercher..." className="p-2 border rounded w-full" />
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+            <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">Afficher par page</label>
+            <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setPage(1); }} className="p-2.5 border border-slate-300 rounded-lg w-full text-xs sm:text-sm hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
+              <option value="10">10 produits</option>
+              <option value="25">25 produits</option>
+              <option value="50">50 produits</option>
+            </select>
+          </div>
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+            <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">Recherche</label>
+            <input type="text" onChange={onSearchChange} placeholder="Chercher..." className="p-2.5 border border-slate-300 rounded-lg w-full text-xs sm:text-sm hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition" />
           </div>
         </div>
-        <div className="overflow-x-auto bg-white rounded shadow">
-          <table className="min-w-full">
-            <thead className={`${ACCENT_BG} text-white`}>
+        <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-slate-200">
+          <table className="min-w-full text-xs sm:text-sm">
+            <thead className={`${ACCENT_BG} text-white sticky top-0`}>
               <tr>
-                <th className="p-3 cursor-pointer" onClick={() => changeSort("id")}>ID {renderSortArrow("id")}</th>
-                <th className="p-3">Image</th>
-                <th className="p-3 cursor-pointer" onClick={() => changeSort("gtin")}>GTIN {renderSortArrow("gtin")}</th>
-                <th className="p-3 cursor-pointer" onClick={() => changeSort("libelle")}>Libellé {renderSortArrow("libelle")}</th>
-                <th className="p-3">Marque</th>
-                <th className="p-3">Brique</th>
-                <th className="p-3">Entreprise</th>
-                <th className="p-3">Prix min</th>
-                <th className="p-3">Prix max</th>
-                <th className="p-3 cursor-pointer" onClick={() => changeSort("declinaison_type")}>Type Declinaison {renderSortArrow("declinaison_type")}</th> {/* Added */}
-                <th className="p-3">Hiérarchie</th> {/* Updated to Hierarchy */}
-                <th className="p-3">Statut</th>
-                <th className="p-3">Actions</th>
+                <th className="p-2 sm:p-4 text-left text-xs">Image</th>
+                <th className="p-2 sm:p-4 text-left cursor-pointer hover:bg-blue-800 transition text-xs" onClick={() => changeSort("gtin")}>GTIN {renderSortArrow("gtin")}</th>
+                <th className="p-2 sm:p-4 text-left cursor-pointer hover:bg-blue-800 transition text-xs" onClick={() => changeSort("libelle")}>Libellé {renderSortArrow("libelle")}</th>
+                <th className="p-2 sm:p-4 text-left text-xs">Marque</th>
+                <th className="p-2 sm:p-4 text-left text-xs hidden md:table-cell">Brique</th>
+                <th className="p-2 sm:p-4 text-left text-xs hidden lg:table-cell">Entreprise</th>
+                <th className="p-2 sm:p-4 text-left text-right text-xs">Prix</th>
+                <th className="p-2 sm:p-4 text-left cursor-pointer hover:bg-blue-800 transition text-xs hidden sm:table-cell" onClick={() => changeSort("declinaison_type")}>Type {renderSortArrow("declinaison_type")}</th>
+                <th className="p-2 sm:p-4 text-left text-xs hidden lg:table-cell">Décl.</th>
+                <th className="p-2 sm:p-4 text-left text-xs">Statut</th>
+                <th className="p-2 sm:p-4 text-center text-xs">Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 && (
-                <tr><td colSpan={13} className="p-6 text-center text-gray-500">Aucun produit trouvé</td></tr>
+                <tr><td colSpan={11} className="p-6 sm:p-8 text-center text-slate-500">ℹ️ Aucun produit trouvé</td></tr>
               )}
               {products.map((p) => {
                 const paths = getPaths(p.id);
                 return (
-                  <tr key={p.id} className="border-t hover:bg-gray-50">
-                    <td className="p-3 text-sm">{p.id}</td>
-                    <td className="p-3">
-                      <img
-                        src={p.images ? getImageUrl(p.images.split(";")[0]) : "/fallback-image.png"}
-                        alt={p.libelle}
-                        className="w-16 h-16 object-cover rounded cursor-pointer"
-                        onClick={() => setSelectedImage(getImageUrl(p.images.split(";")[0]))}
-                        onError={handleImageError}
-                      />
+                  <React.Fragment key={p.id}>
+                    <tr className="border-t hover:bg-blue-50 transition-all duration-150">
+                    <td className="p-2 sm:p-4">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                        <img
+                          src={p.images ? getImageUrl(p.images.split(";")[0]) : PLACEHOLDER_IMAGE}
+                          alt={p.libelle}
+                          className="w-full h-full object-cover"
+                          onClick={() => setSelectedImage(p.images ? getImageUrl(p.images.split(";")[0]) : PLACEHOLDER_IMAGE)}
+                          onError={handleImageError}
+                        />
+                      </div>
                     </td>
-                    <td className="p-3 text-sm">{p.gtin}</td>
-                    <td className="p-3 text-sm">{p.libelle}</td>
-                    <td className="p-3 text-sm">{p.brand}</td>
-                    <td className="p-3 text-sm">{allBricks.find(b => b.codeBrique === p.codebrique)?.libelleBrique || p.codebrique}</td>
-                    <td className="p-3 text-sm">{p.idEntreprise}</td>
-                    <td className="p-3 text-sm">{p.prix_min}</td>
-                    <td className="p-3 text-sm">{p.prix_max}</td>
-                    <td className="p-3 text-sm">{p.declinaison_type || '-'}</td> {/* Added */}
-                    <td className="p-3 text-sm">
-                      {paths.length === 0 ? '-' : paths.map((path, idx) => (
-                        <div key={idx} className="flex items-center gap-1 flex-wrap">
-                          {path.map((item, i) => (
-                            <React.Fragment key={item.id}>
-                              {i > 0 && <span>&gt;</span>}
-                              <span>{getTypeIcon(item.declinaison_type)} {getTypeLabel(item.declinaison_type)} (x{item.quantity})</span>
-                            </React.Fragment>
-                          ))}
-                        </div>
-                      ))}
-                    </td> {/* Updated Hierarchy Display with quantity */}
-                    <td className="p-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs ${p.status === 2 ? "bg-green-100 text-green-800" : p.status === 1 ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800"}`}>
-                        {statusLabel(p.status)}
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-slate-800 truncate">{p.gtin}</td>
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-slate-700 font-medium">{p.libelle}</td>
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-slate-600">{p.brand}</td>
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-slate-600 hidden md:table-cell">{allBricks.find(b => b.codeBrique === p.codebrique)?.libelleBrique || p.codebrique}</td>
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-slate-600 hidden lg:table-cell truncate">{entitiesMap[p.idEntreprise] || `Entité ${p.idEntreprise}`}</td>
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-right text-slate-700 font-semibold">{p.prix_min} - {p.prix_max}</td>
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-slate-700 hidden sm:table-cell">{p.declinaison_type || '—'}</td>
+                    <td className="p-2 sm:p-4 text-xs text-slate-600 hidden lg:table-cell">{declinaisons[p.id]?.length ?? p.declinaison_count ?? 0}</td>
+                    <td className="p-2 sm:p-4 text-xs">
+                      <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold inline-block ${p.status === 2 ? "bg-green-100 text-green-700" : p.status === 1 ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-700"}`}>
+                        {p.status === 2 ? "Validé ✓" : p.status === 1 ? " En attente⏳" : " Enregistré📝"}
                       </span>
                     </td>
-                    <td className="p-3 text-sm">
+                    <td className="p-2 sm:p-4 text-center">
                       {hasActionPermission && (
                         <div className="relative inline-block">
-                          <button className={`${ACCENT_BG} px-3 py-1 text-white rounded text-xs`} onClick={() => setIsActionOpen(isActionOpen === p.id ? null : p.id)}>Actions</button>
+                          <button className={`${ACCENT_BG} px-2 sm:px-3 py-1.5 sm:py-2 text-white rounded-lg text-xs font-semibold hover:shadow-md transition-all`} onClick={() => setIsActionOpen(isActionOpen === p.id ? null : p.id)}>⋮ Actions</button>
                           {isActionOpen === p.id && (
-                            <div className="absolute right-0 mt-2 bg-white border rounded shadow z-20 w-44">
-                              <button className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm" onClick={() => handleEdit(p)}>Modifier</button>
+                            <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-xl z-20 w-40 overflow-hidden">
+                              <button className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs text-slate-700 hover:text-slate-900 border-b border-slate-100 transition" onClick={() => handleEdit(p)}>✏️ Modifier</button>
                               {!canEditStatus && p.status !== 1 && p.status !== 2 && (
-                                <button className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-yellow-700" onClick={() => handlePublier(p)}>Publier</button>
+                                <button className="w-full text-left px-3 py-2 hover:bg-yellow-50 text-xs text-yellow-700 border-b border-slate-100 transition" onClick={() => handlePublier(p)}>⬆️ Publier</button>
                               )}
                               {canEditStatus && p.status !== 2 && (
-                                <button className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-green-700" onClick={() => handlePublier(p)}>Publier (Valider)</button>
+                                <button className="w-full text-left px-3 py-2 hover:bg-green-50 text-xs text-green-700 border-b border-slate-100 transition" onClick={() => handlePublier(p)}>✓ Valider</button>
                               )}
                               {!canEditStatus && p.status !== 0 && (
-                                <button className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-red-700" onClick={() => handleSuspend(p)}>Suspendre</button>
+                                <button className="w-full text-left px-3 py-2 hover:bg-orange-50 text-xs text-orange-700 border-b border-slate-100 transition" onClick={() => handleSuspend(p)}>⏸️ Suspendre</button>
                               )}
                               {canEditStatus && p.status !== 0 && (
-                                <button className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-red-700" onClick={() => handleSuspend(p)}>Suspendre</button>
+                                <button className="w-full text-left px-3 py-2 hover:bg-orange-50 text-xs text-orange-700 border-b border-slate-100 transition" onClick={() => handleSuspend(p)}>⏸️ Suspendre</button>
                               )}
-                              <button className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-red-600" onClick={() => handleDelete(p.id, p)}>Supprimer</button>
+                              <button className="w-full text-left px-3 py-2 hover:bg-red-50 text-xs text-red-600 hover:text-red-700 transition" onClick={() => handleDelete(p.id)}>🗑️ Supprimer</button>
                             </div>
                           )}
                         </div>
                       )}
                     </td>
-                  </tr>
+                    </tr>
+                    {expanded.has(p.id) && (
+                      <tr>
+                        <td colSpan={12} className="p-0 bg-slate-50 border-t-2 border-blue-200">
+                          <div className="px-6 py-5 text-sm text-slate-700">
+                            <h3 className="font-bold text-lg mb-4 text-slate-900 flex items-center gap-2">📊 Déclinaisons de « {p.libelle} »</h3>
+                           {Array.isArray(declinaisons[p.id]) && declinaisons[p.id].length > 0 ? (
+  declinaisons[p.id].map((d: any) => (
+    <div key={d?.id ?? Math.random()} className="mb-4 p-4 border border-slate-200 rounded-lg bg-white shadow-sm hover:shadow-md transition">
+      <div className="font-semibold text-slate-900 mb-2">
+        {d?.hierarchy_label ?? "—"} — GTIN: {d?.gtin ?? "—"}
+      </div>
+      <div className="text-xs text-slate-600 mb-3">
+        📦 Packaging: {d?.packaging_type ?? "—"} | 🚛 Palette: {d?.pallet_type ?? "—"}
+      </div>
+      <details className="mt-3">
+        <summary className="cursor-pointer text-blue-600 hover:text-blue-800 font-semibold">🔍 Champs détaillés</summary>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-3">
+  {(declinaisonMeta?.hierarchyFields?.[d.hierarchy_code] ?? []).map((field: string) => (
+    <div key={field} className="flex flex-col">
+      <label className="text-xs font-semibold text-slate-700 mb-2">
+        {FRENCH_FIELD_LABELS[field] || field.replace(/_/g, " ")}
+      </label>
+      <div className="p-2.5 bg-slate-100 rounded-lg text-sm text-slate-800">
+        {isBooleanField(field) 
+          ? (d.hierarchy_fields?.[field] == 1 ? "✓ Oui" : d.hierarchy_fields?.[field] == 0 ? "✗ Non" : "—")
+          : (d.hierarchy_fields?.[field] ?? "—")
+        }
+      </div>
+    </div>
+  ))}
+</div>
+      </details>
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => setEditingDeclinaison(d)}
+          className="text-blue-600 hover:text-blue-800 font-medium text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
+        >
+          ✏️ Modifier
+        </button>
+        <button
+          onClick={() => handleDeleteDeclinaison(d?.id, p.id)}
+          className="text-red-600 hover:text-red-800 font-medium text-sm px-3 py-1.5 rounded-lg hover:bg-red-50 transition"
+        >
+          🗑️ Supprimer
+        </button>
+      </div>
+    </div>
+  ))
+) : (
+  <div className="text-sm text-slate-500 py-3">ℹ️ Aucune déclinaison</div>
+)}
+
+                            <button onClick={() => setAddingForProduct(p.id)} className="bg-blue-900 text-white px-4 py-2.5 rounded-lg hover:bg-blue-800 shadow-md hover:shadow-lg transition font-semibold mt-3">
+                              ➕ Ajouter hiérarchie
+                            </button>
+                           {(addingForProduct === p.id || (editingDeclinaison && editingDeclinaison.id_produit === p.id)) && (
+  <div className="mt-4 p-4 border-2 border-blue-200 rounded bg-white">
+    <h4 className="font-semibold mb-3">
+      {editingDeclinaison ? "Modifier hiérarchie" : "Nouvelle hiérarchie"}
+    </h4>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+      {/* Hierarchy select */}
+      <select
+        value={(editingDeclinaison || newDeclinaison).hierarchy_code || ""}
+        onChange={(e) => {
+          const code = e.target.value;
+          const fields: Record<string, any> = {};
+          if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, hierarchy_code: code, hierarchy_fields: fields });
+          else setNewDeclinaison({ ...newDeclinaison, hierarchy_code: code, hierarchy_fields: fields });
+        }}
+        className="p-2 border rounded col-span-1"
+      >
+        <option value="">— Type de hiérarchie —</option>
+        {declinaisonMeta &&
+          Object.entries(declinaisonMeta.hierarchyOptions).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v as string}
+            </option>
+          ))}
+      </select>
+
+      {/* GTIN input */}
+      <input
+        placeholder="GTIN"
+        className="p-2 border rounded col-span-1"
+        value={(editingDeclinaison || newDeclinaison).gtin || ""}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, gtin: val });
+          else setNewDeclinaison({ ...newDeclinaison, gtin: val });
+        }}
+      />
+
+      {/* Packaging type select */}
+      <select
+        className="p-2 border rounded col-span-1"
+        value={(editingDeclinaison || newDeclinaison).packaging_type || ""}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, packaging_type: val });
+          else setNewDeclinaison({ ...newDeclinaison, packaging_type: val });
+        }}
+      >
+        <option value="">Type emballage</option>
+        {declinaisonMeta?.packagingTypes.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
+
+      {/* Pallet type select */}
+      <select
+        className="p-2 border rounded col-span-1"
+        value={(editingDeclinaison || newDeclinaison).pallet_type || ""}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, pallet_type: val });
+          else setNewDeclinaison({ ...newDeclinaison, pallet_type: val });
+        }}
+      >
+        <option value="">Type palette</option>
+        {declinaisonMeta?.palletTypes.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
+
+      {/* Parent ID input */}
+      <input
+        type="number"
+        min={1}
+        placeholder="ID parent (optionnel)"
+        className="p-2 border rounded col-span-1"
+        value={(editingDeclinaison || newDeclinaison).parent_id ?? ""}
+        onChange={(e) => {
+          const val = e.target.value ? Number(e.target.value) : null;
+          if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, parent_id: val });
+          else setNewDeclinaison({ ...newDeclinaison, parent_id: val });
+        }}
+      />
+    </div>
+
+    {/* Hierarchy fields */}
+    {declinaisonMeta && (editingDeclinaison || newDeclinaison).hierarchy_code && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+        {(declinaisonMeta.hierarchyFields?.[(editingDeclinaison || newDeclinaison).hierarchy_code] ?? []).map((field: string) => {
+          const currentFields = (editingDeclinaison || newDeclinaison).hierarchy_fields || {};
+          return (
+            <div key={field} className="flex flex-col">
+              <label className="text-sm font-semibold text-gray-700 mb-1">
+                {FRENCH_FIELD_LABELS[field] || field.replace(/_/g, " ")}
+              </label>
+
+              {isBooleanField(field) ? (
+                <div className="flex gap-6 mt-1">
+                  {["1", "0"].map((v) => (
+                    <label key={v} className="flex items-center gap-1 text-sm">
+                      <input
+                        type="radio"
+                        name={field}
+                        value={v}
+                        checked={currentFields[field] == v} // loose equality safe for "1"/1
+                        onChange={() => {
+                          const fields = { ...currentFields, [field]: Number(v) };
+                          if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, hierarchy_fields: fields });
+                          else setNewDeclinaison({ ...newDeclinaison, hierarchy_fields: fields });
+                        }}
+                      />
+                      {v === "1" ? "Oui" : "Non"}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <input
+                  type={isNumberField(field) ? "number" : "text"}
+                  className="p-2 border rounded focus:ring-2 focus:ring-blue-400"
+                  value={currentFields[field] ?? ""}
+                  onChange={(e) => {
+                    const val = isNumberField(field) && e.target.value !== "" ? Number(e.target.value) : e.target.value;
+                    const fields = { ...currentFields, [field]: val };
+                    if (editingDeclinaison) setEditingDeclinaison({ ...editingDeclinaison, hierarchy_fields: fields });
+                    else setNewDeclinaison({ ...newDeclinaison, hierarchy_fields: fields });
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )}
+
+    {/* Action buttons */}
+    <div className="mt-4 flex gap-3">
+      <button
+        onClick={() => {
+          const decl = editingDeclinaison || { ...newDeclinaison, id_produit: p.id };
+          handleSaveDeclinaison(decl, !!editingDeclinaison);
+        }}
+        className="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700"
+      >
+        Sauvegarder
+      </button>
+
+      <button
+        onClick={() => {
+          setEditingDeclinaison(null);
+          setAddingForProduct(null);
+          resetNewDeclinaison();
+        }}
+        className="bg-gray-300 px-5 py-2 rounded"
+      >
+        Annuler
+      </button>
+    </div>
+  </div>
+)}
+
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-sm text-gray-600">Page {page} / {totalPages}</div>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 border rounded disabled:opacity-50" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Précédent</button>
-            <button className="px-3 py-1 border rounded disabled:opacity-50" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Suivant</button>
+        <div className="flex items-center justify-between mt-6 px-2">
+          <div className="text-sm font-semibold text-slate-700">📄 Page {page} / {totalPages}</div>
+          <div className="flex gap-3">
+            <button className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Précédent</button>
+            <button className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Suivant →</button>
           </div>
         </div>
         {selectedImage && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={() => setSelectedImage(null)}>
-            <div className="bg-white p-4 rounded shadow-lg" onClick={(e) => e.stopPropagation()}>
-              <img src={selectedImage} alt="Zoom" className="max-w-[80vw] max-h-[80vh] object-contain" onError={handleImageError} />
-              <div className="mt-3 text-right">
-                <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => setSelectedImage(null)}>Fermer</button>
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm" onClick={() => setSelectedImage(null)}>
+            <div className="bg-white p-6 rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <img src={selectedImage} alt="Zoom" className="max-w-[80vw] max-h-[80vh] object-contain rounded" onError={handleImageError} />
+              <div className="mt-4 text-right">
+                <button className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition font-semibold" onClick={() => setSelectedImage(null)}>✕ Fermer</button>
               </div>
             </div>
           </div>
@@ -1085,11 +1921,10 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
             <Draggable handle=".modal-handle" nodeRef={modalRef}>
               <Resizable defaultSize={{ width: 760, height: 700 }} minWidth={480} minHeight={450}>
                 <div ref={modalRef} className="bg-white rounded shadow-lg p-4 overflow-auto max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
-                  <div className="modal-handle bg-gray-200 p-2 rounded-t text-center font-semibold cursor-move">
+                  <div className="modal-handle bg-slate-50 border-b border-gray-100 p-3 rounded-t text-sm font-semibold text-slate-700 cursor-move text-center">
                     {editingProduct.id === 0 ? "Ajouter Produit" : "Modifier Produit"}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    {/* SEGMENT SELECT */}
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-blue-900 mb-1">Sélectionner un segment</label>
                       <select
@@ -1099,7 +1934,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                           setEditingProduct({
                             ...editingProduct,
                             selectedSegment: val,
-                            codeClasse: "",
+                            codeClasse: 0,
                             codebrique: "",
                             bricksList: [],
                           });
@@ -1115,7 +1950,6 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                           ))}
                       </select>
                     </div>
-                    {/* CLASSES FOR SELECTED SEGMENT */}
                     {editingProduct.selectedSegment && (
                       <div className="md:col-span-1">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Classe pour ce segment</label>
@@ -1125,7 +1959,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                             const val = e.target.value;
                             setEditingProduct({
                               ...editingProduct,
-                              codeClasse: val,
+                              codeClasse: Number(val) || 0,
                               codebrique: "",
                               bricksList: [] // ← reset
                             });
@@ -1157,7 +1991,6 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                         </select>
                       </div>
                     )}
-                    {/* BRIQUES FOR SELECTED CLASS */}
                     {editingProduct.selectedSegment && editingProduct.codeClasse && (
                       <div className="md:col-span-1">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Brique liée à la classe</label>
@@ -1184,14 +2017,13 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                         )}
                       </div>
                     )}
-                    {/* REST OF FORM (unchanged) */}
                     <div><label className="block text-sm text-gray-700 font-medium mb-1">Marque *</label><input value={editingProduct.brand || ""} onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })} className="p-2 border rounded w-full" /></div>
                     <div><label className="block text-sm text-gray-700 font-medium mb-1">Sous Marque</label><input value={editingProduct.subBrand || ""} onChange={(e) => setEditingProduct({ ...editingProduct, subBrand: e.target.value })} className="p-2 border rounded w-full" /></div>
                     <div><label className="block text-sm text-gray-700 font-medium mb-1">GTIN *</label><input value={editingProduct.gtin || ""} onChange={(e) => setEditingProduct({ ...editingProduct, gtin: e.target.value })} className="p-2 border rounded w-full" /></div>
                     <div><label className="block text-sm text-gray-700 font-medium mb-1">Libellé *</label><input value={editingProduct.libelle || ""} onChange={(e) => setEditingProduct({ ...editingProduct, libelle: e.target.value })} className="p-2 border rounded w-full" /></div>
                     <div className="md:col-span-2"><label className="block text-sm text-gray-700 font-medium mb-1">Description</label><textarea value={editingProduct.description || ""} onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })} rows={3} className="p-2 border rounded w-full" /></div>
-                    <div><label className="block text-sm text-gray-700 font-medium mb-1">Prix Min</label><input type="number" step="0.01" value={editingProduct.prix_min || ""} onChange={(e) => setEditingProduct({ ...editingProduct, prix_min: e.target.value })} className="p-2 border rounded w-full" /></div>
-                    <div><label className="block text-sm text-gray-700 font-medium mb-1">Prix Max</label><input type="number" step="0.01" value={editingProduct.prix_max || ""} onChange={(e) => setEditingProduct({ ...editingProduct, prix_max: e.target.value })} className="p-2 border rounded w-full" /></div>
+                    <div><label className="block text-sm text-gray-700 font-medium mb-1">Prix Min</label><input type="number" step="0.01" value={editingProduct.prix_min || ""} onChange={(e) => setEditingProduct({ ...editingProduct, prix_min: parseFloat(e.target.value) || 0 })} className="p-2 border rounded w-full" /></div>
+                    <div><label className="block text-sm text-gray-700 font-medium mb-1">Prix Max</label><input type="number" step="0.01" value={editingProduct.prix_max || ""} onChange={(e) => setEditingProduct({ ...editingProduct, prix_max: parseFloat(e.target.value) || 0 })} className="p-2 border rounded w-full" /></div>
                     <div>
                       <label className="block text-sm text-gray-700 font-medium mb-1">Pays d'origine</label>
                       <select value={editingProduct.countryOfOrigin || "686"} onChange={(e) => setEditingProduct({ ...editingProduct, countryOfOrigin: e.target.value })} className="p-2 border rounded w-full bg-white">
@@ -1201,7 +2033,6 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                         ))}
                       </select>
                     </div>
-                    {/* Updated: Single Declinaison Type Select */}
                     <div className="md:col-span-2 bg-gray-50 p-3 rounded">
                       <label className="block text-sm text-gray-700 font-medium mb-2">Type de Déclinaison</label>
                       <select
@@ -1225,10 +2056,9 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                         ))}
                       </select>
                     </div>
-                    {/* Updated: Multiple Parents with quantity input */}
                     <div className="md:col-span-2 bg-gray-50 p-3 rounded">
                       <label className="block text-sm text-gray-700 font-medium mb-2">Produits Parents (Sélection multiple pour hiérarchies)</label>
-                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto scroll-smooth">
                         {(editingProduct.possibleParents || []).map((parent) => (
                           <div key={parent.id} className="flex items-center text-sm">
                             <input
@@ -1248,7 +2078,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
                               }}
                               className="mr-2"
                             />
-                            {parent.libelle} (GTIN: {parent.gtin}, Type: {parent.declinaison_type || '-'})
+                           {parent.libelle} (GTIN: {parent.gtin}, Type: {parent.declinaison_type || '-'})
                             {editingProduct.selectedParents?.[parent.id] && (
                               <input
                                 type="number"
@@ -1307,7 +2137,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
               <div className="mb-3">
                 <div className="flex gap-2 items-center">
                   <input type="file" accept=".csv,.xlsx" onChange={(e) => setBulkFile(e.target.files?.[0] || null)} />
-                  <button className={`${ACCENT_BG} px-3 py-2 text-white rounded`} onClick={handleDownloadTemplate}>Télécharger modèle</button>
+                  <button className={`${ACCENT_BG} px-3 py-2 text-white rounded`} onClick={handleOpenTemplateModal}>Télécharger modèle</button>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -1316,8 +2146,247 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
             </div>
           </div>
         )}
-      </div>
+
+
+
+        {/* ========== TEMPLATE MODAL ========== */}
+        {templateModal.open && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center" onClick={() => setTemplateModal(prev => ({...prev, open: false}))}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-[95%] max-w-2xl max-h-[92vh] overflow-y-auto scroll-smooth" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-700 to-blue-900 px-6 py-4 text-white sticky top-0 z-10 rounded-t-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold">Gestion Modèle Produits</h2>
+                    <p className="text-blue-200 text-xs mt-0.5">Téléchargez le modèle ou importez un fichier rempli</p>
+                  </div>
+                  <button onClick={() => setTemplateModal(prev => ({...prev, open: false, selectedSegment: null, selectedFamille: null, selectedClasse: null, selectedBrick: null, selectedRayon: null, rayons: [], modelFields: []}))} className="text-white opacity-70 hover:opacity-100 text-2xl font-bold leading-none">×</button>
+                </div>
+                {/* Tabs */}
+                <div className="flex mt-4 gap-1">
+                  <button onClick={() => setTemplateModal(prev => ({...prev, activeTab:'download'}))} className={`px-4 py-1.5 rounded-t text-sm font-semibold transition-all ${templateModal.activeTab==='download' ? 'bg-white text-blue-800' : 'bg-blue-800 text-blue-200 hover:bg-blue-700'}`}>
+                    📥 Télécharger modèle
+                  </button>
+                  <button onClick={() => setTemplateModal(prev => ({...prev, activeTab:'upload'}))} className={`px-4 py-1.5 rounded-t text-sm font-semibold transition-all ${templateModal.activeTab==='upload' ? 'bg-white text-blue-800' : 'bg-blue-800 text-blue-200 hover:bg-blue-700'}`}>
+                    📤 Importer fichier rempli
+                  </button>
+                </div>
+              </div>
+
+              {/* ===== TAB: DOWNLOAD ===== */}
+              {templateModal.activeTab === 'download' && (
+                <div className="p-6 space-y-4">
+                  {templateModal.error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{templateModal.error}</div>}
+                  <p className="text-sm text-gray-500">Sélectionnez le rayon en 5 étapes. Le modèle contiendra tous les champs obligatoires + optionnels + les 6 niveaux d'unités logistiques + données tarifaires.</p>
+
+                  {/* Row 1: Segment + Famille */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                      <label className="flex items-center gap-2 text-sm font-bold text-blue-800 mb-2">
+                        <span className="bg-blue-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">1</span>
+                        Segment
+                      </label>
+                      <select value={templateModal.selectedSegment || ""} onChange={(e) => handleSegmentChange(e.target.value)} className="w-full p-2.5 border border-blue-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400" disabled={templateModal.loading}>
+                        <option value="">-- Choisir un segment --</option>
+                        {[...new Map(templateModal.segments.map((s: any) => [s.codeSegment || s.code, s])).values()].map((seg: any) => <option key={seg.codeSegment || seg.code} value={seg.codeSegment || seg.code}>{seg.codeSegment || seg.code} — {seg.libelleSegment || seg.libelle}</option>)}
+                      </select>
+                    </div>
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                      <label className="flex items-center gap-2 text-sm font-bold text-blue-800 mb-2">
+                        <span className={`${templateModal.selectedSegment ? 'bg-blue-700' : 'bg-gray-300'} text-white rounded-full w-5 h-5 flex items-center justify-center text-xs`}>2</span>
+                        Famille
+                      </label>
+                      <select value={templateModal.selectedFamille || ""} onChange={(e) => handleFamilleChange(e.target.value)} className="w-full p-2.5 border border-blue-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400" disabled={templateModal.loading || !templateModal.selectedSegment || !templateModal.familles.length}>
+                        <option value="">{!templateModal.selectedSegment ? "Choisir un segment d'abord" : templateModal.loading ? "Chargement..." : templateModal.familles.length === 0 ? "Aucune famille" : "-- Choisir une famille --"}</option>
+                        {[...new Map(templateModal.familles.map((f: any) => [f.codeFamille, f])).values()].map((f: any) => <option key={f.codeFamille} value={f.codeFamille}>{f.codeFamille} — {f.libelleFamille || f.libelle || "(Sans libellé)"}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Classe + Brique */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                        <span className={`${templateModal.selectedFamille ? 'bg-blue-700' : 'bg-gray-300'} text-white rounded-full w-5 h-5 flex items-center justify-center text-xs`}>3</span>
+                        Classe
+                      </label>
+                      <select value={templateModal.selectedClasse || ""} onChange={(e) => handleClassChange(Number(e.target.value))} className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400" disabled={templateModal.loading || !templateModal.selectedFamille || !templateModal.classes.length}>
+                        <option value="">{!templateModal.selectedFamille ? "Choisir une famille d'abord" : templateModal.loading ? "Chargement..." : "-- Choisir une classe --"}</option>
+                        {[...new Map(templateModal.classes.map((c: any) => [c.codeClasse, c])).values()].map((cls: any) => <option key={cls.codeClasse} value={cls.codeClasse}>{cls.codeClasse} — {cls.libelleClasse}</option>)}
+                      </select>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                        <span className={`${templateModal.selectedClasse ? 'bg-blue-700' : 'bg-gray-300'} text-white rounded-full w-5 h-5 flex items-center justify-center text-xs`}>4</span>
+                        Brique
+                      </label>
+                      <select value={templateModal.selectedBrick || ""} onChange={(e) => handleBrickChange(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400" disabled={templateModal.loading || !templateModal.selectedClasse || !templateModal.bricks.length}>
+                        <option value="">{!templateModal.selectedClasse ? "Choisir une classe d'abord" : templateModal.loading ? "Chargement..." : "-- Choisir une brique --"}</option>
+                        {[...new Map(templateModal.bricks.map((b: any) => [b.codeBrique, b])).values()].map((brick: any) => <option key={brick.codeBrique} value={brick.codeBrique}>{brick.codeBrique} — {brick.libelleBrique || "(Sans libellé)"}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Rayon — step 5 */}
+                  {templateModal.selectedBrick && (
+                    <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                      <label className="flex items-center gap-2 text-sm font-bold text-indigo-800 mb-2">
+                        <span className={`${templateModal.selectedBrick ? 'bg-indigo-600' : 'bg-gray-300'} text-white rounded-full w-5 h-5 flex items-center justify-center text-xs`}>5</span>
+                        Rayon
+                        {templateModal.loading && <span className="text-xs text-indigo-400 font-normal ml-1">Chargement...</span>}
+                        {!templateModal.loading && templateModal.rayons.length === 0 && (
+                          <span className="text-xs text-orange-500 font-normal ml-1">Aucun rayon mappé pour cette brique</span>
+                        )}
+                      </label>
+                      <select
+                        value={templateModal.selectedRayon || ""}
+                        onChange={(e) => handleRayonChange(e.target.value, templateModal.selectedBrick!)}
+                        className="w-full p-2.5 border border-indigo-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-400"
+                        disabled={templateModal.loading || !templateModal.rayons.length}
+                      >
+                        <option value="">{templateModal.loading ? "Chargement des rayons..." : templateModal.rayons.length === 0 ? "Aucun rayon disponible" : "-- Choisir un rayon --"}</option>
+                        {templateModal.rayons.map((r: any) => (
+                          <option key={r.rayon_code} value={r.rayon_code}>
+                            {r.rayon_code}{r.rayon_libelle ? ` — ${r.rayon_libelle}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Ready banner */}
+                  {templateModal.selectedRayon && (
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200 flex items-start gap-3">
+                      <span className="text-2xl mt-0.5">✅</span>
+                      <div>
+                        <p className="font-semibold text-green-800 text-sm">Prêt à télécharger</p>
+                        <p className="text-green-600 text-xs mt-0.5">
+                          Rayon <strong>{templateModal.selectedRayon}</strong> — Brique <strong>{templateModal.selectedBrick}</strong> — champs de base + modèle spécifique + données tarifaires + 6 niveaux UL (PK / AP / CA / DS / PL / MX). Segment, Famille, Classe, Brique et Rayon seront pré-remplis.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ===== TAB: UPLOAD ===== */}
+              {templateModal.activeTab === 'upload' && (
+                <div className="p-6 space-y-5">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    <p className="font-semibold mb-1">📋 Instructions d'import</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-blue-700">
+                      <li>Utilisez uniquement le fichier modèle téléchargé depuis cet outil</li>
+                      <li>Champs obligatoires : <strong>Marque, GTIN, Libellé Produit, Brique</strong></li>
+                      <li>Les champs Unité Logistique (PK, AP, CA, DS, PL, MX) sont optionnels</li>
+                      <li>Les colonnes inconnues seront stockées dans les <code>extra_fields</code></li>
+                      <li>Un rapport détaillé sera affiché après l'import</li>
+                    </ul>
+                  </div>
+
+                  <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-blue-50 hover:bg-blue-100 transition-colors">
+                    <div className="text-4xl mb-2">📂</div>
+                    <p className="text-sm font-semibold text-blue-800 mb-1">Sélectionner votre fichier Excel rempli</p>
+                    <p className="text-xs text-blue-500 mb-4">Format accepté : .xlsx (max 20 Mo)</p>
+                    <label className="cursor-pointer">
+                      <input type="file" accept=".xlsx" className="hidden" onChange={(e) => setImportTemplateFile(e.target.files?.[0] || null)} />
+                      <span className="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors">
+                        Choisir le fichier
+                      </span>
+                    </label>
+                    {importTemplateFile && (
+                      <div className="mt-4 flex items-center justify-center gap-2 bg-white border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-800 font-medium">
+                        <span>📄</span>
+                        <span>{importTemplateFile.name}</span>
+                        <span className="text-blue-400 text-xs">({(importTemplateFile.size / 1024).toFixed(0)} Ko)</span>
+                        <button onClick={() => setImportTemplateFile(null)} className="ml-2 text-red-400 hover:text-red-600 font-bold">×</button>
+                      </div>
+                    )}
+                  </div>
+
+                  {importTemplateFile && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+                      ✅ Fichier prêt. Cliquez sur <strong>Lancer l'import</strong> — un rapport sera généré avec le statut de chaque ligne.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-4 flex justify-between items-center sticky bottom-0 rounded-b-xl border-t">
+                <button onClick={() => setTemplateModal(prev => ({...prev, open: false, selectedSegment: null, selectedFamille: null, selectedClasse: null, selectedBrick: null, selectedRayon: null, selectedHierarchies: [], segments: [], familles: [], classes: [], bricks: [], rayons: [], modelFields: [], error: null}))} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm">
+                  Fermer
+                </button>
+                {templateModal.activeTab === 'download' && (
+                  <button onClick={handleDownloadTemplate} disabled={!templateModal.selectedRayon || templateModal.loading} className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm">
+                    {templateModal.loading ? <><span className="animate-spin inline-block">⏳</span> Génération...</> : <>📥 Télécharger le modèle Excel</>}
+                  </button>
+                )}
+                {templateModal.activeTab === 'upload' && (
+                  <button onClick={handleImportTemplate} disabled={!importTemplateFile || importingTemplate} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm">
+                    {importingTemplate ? <><span className="animate-spin inline-block">⏳</span> Import en cours...</> : <>🚀 Lancer l'import</>}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ========== RAPPORT MODAL ========== */}
+        {rapportModal?.open && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center" onClick={() => setRapportModal(null)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-xl shadow-2xl w-[95%] max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              {/* Rapport header */}
+              <div className={`px-6 py-4 rounded-t-xl text-white ${rapportModal.errors === 0 ? 'bg-gradient-to-r from-green-600 to-green-700' : rapportModal.inserted === 0 ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-yellow-500 to-orange-500'}`}>
+                <h2 className="text-xl font-bold">Rapport d'Import</h2>
+                <div className="flex gap-6 mt-2 text-sm">
+                  <span>Total lignes : <strong>{rapportModal.total}</strong></span>
+                  <span>✅ Importés : <strong>{rapportModal.inserted}</strong></span>
+                  {rapportModal.errors > 0 && <span>❌ Échecs : <strong>{rapportModal.errors}</strong></span>}
+                </div>
+              </div>
+
+              {/* Summary banner */}
+              <div className="px-6 py-3 border-b bg-gray-50">
+                {rapportModal.errors === 0 ? (
+                  <p className="text-green-700 font-semibold text-sm">🎉 Tous les produits ont été importés avec succès !</p>
+                ) : rapportModal.inserted === 0 ? (
+                  <p className="text-red-700 font-semibold text-sm">⚠️ Aucun produit importé — veuillez corriger les erreurs et réessayer.</p>
+                ) : (
+                  <p className="text-orange-700 font-semibold text-sm">⚠️ Import partiel — {rapportModal.inserted} réussi(s), {rapportModal.errors} échec(s). Téléchargez le fichier des lignes en erreur pour les corriger.</p>
+                )}
+              </div>
+
+              {/* Results list */}
+              <div className="flex-1 overflow-y-auto px-6 py-3 space-y-1">
+                {rapportModal.results.map((r, i) => (
+                  <div key={i} className={`flex items-start gap-3 px-3 py-2 rounded text-sm ${r.status === 'success' ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'}`}>
+                    <span className="mt-0.5 flex-shrink-0">{r.status === 'success' ? '✅' : '❌'}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-gray-700">Ligne {r.row}</span>
+                      {r.gtin && <span className="text-gray-500 ml-2">GTIN: {r.gtin}</span>}
+                      {r.status === 'success' && r.libelle && <span className="text-green-700 ml-2">— {r.libelle}</span>}
+                      {r.status === 'error' && <span className="text-red-700 ml-2 block mt-0.5">{r.error}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t rounded-b-xl flex justify-between items-center">
+                <button onClick={() => setRapportModal(null)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                  Fermer
+                </button>
+                {rapportModal.failedFileBase64 && (
+                  <button onClick={handleDownloadFailedFile} className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-2">
+                    📥 Télécharger les lignes en erreur ({rapportModal.errors})
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+        </div>
     </div>
   );
 };
-export default Catalogue;
+export default CatalogueComplet;
