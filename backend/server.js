@@ -518,6 +518,7 @@ app.use('/Modeles', express.static(MODELES_DIR));
 const JWT_EXCLUDED_PATHS = [
   { path: '/login', method: 'POST' },
   { path: '/settings', method: 'GET' },
+  { path: '/companies/template', method: 'GET' },
 ];
 app.use('/api', (req, res, next) => {
   const isExcluded = JWT_EXCLUDED_PATHS.some(
@@ -1972,7 +1973,363 @@ app.get('/api/segments', async (req, res) => {
 // Compatible with Entite.tsx + MySQL schema (gln in site, not entite)
 // Protect /api/companies with a PIN
 // GET /api/companies/max-id
-// GET /api/companies/max-id
+app.get("/api/companies/template", async (req, res) => {
+  try {
+    const SEGMENTS = [
+      '10000000 - Nourriture/Soins pour animal',
+      '120000000 - Ingénierie & Services',
+      '47000000 - Produits d\'Entretien/Nettoyage',
+      '50000000 - Nourriture/Boisson',
+      '51000000 - Santé',
+      '53000000 - Beauté/Soin Personnel/Hygiène',
+      '54000000 - Soins Bébé Puériculture',
+      '60000000 - Oeuvres Textuelles/Imprimées/De Référence',
+      '63000000 - Chaussures',
+      '64000000 - Accessoires Corporels',
+      '67000000 - Vêtements Habillement Textile',
+      '71000000 - Equipements Sportifs',
+      '72000000 - Equipement de la Maison',
+      '73000000 - Ustensiles de Cuisine et Art de la Table',
+      '75000000 - Meubles Domestiques/De Bureau/Ameublement',
+      '77000000 - Composants, Outils et Consommables Auto et autres véhicules',
+      '78000000 - Matériels Electriques',
+      '79000000 - Plomberie/Chauffage/Ventilation/Climatisation',
+      '80000000 - Outillages/Equipements Manuels',
+      '82000000 - Outils/Equipements à Moteur',
+      '83000000 - Produits de Construction',
+      '84000000 - Rangements pour l\'Outillage – Mobiliers d\'Atelier',
+      '85000000 - Sécurité/Protection – Bricolage',
+      '86000000 - Jouets/Jeux',
+      '87000000 - Carburants/Gaz',
+      '88000000 - Lubrifiants',
+      '91000000 - Sûreté/Sécurité/Surveillance',
+      '93000000 - Plantes Horticoles',
+      '94000000 - Cultures',
+      '99000000 - Métiers d\'Art - Série Limitée',
+    ];
+
+    const TYPE_OPTIONS = [
+      '1 - Entreprise privée produits & services',
+      '2 - Entreprise privée ingénierie & services',
+      '3 - Entreprise privée transport logistique & stockage',
+      '4 - Entreprise publique transport logistique & stockage',
+      '5 - Entreprise publique produits & services',
+      '6 - Entreprise publique ingénierie & services',
+      '7 - Autre institution publique d\'appui à l\'exportation',
+      '8 - Banque',
+      '9 - Douane',
+      '10 - Assurance',
+    ];
+    const STATUS_OPTIONS = ['E - En attente', 'A - Actif', 'I - Inactif'];
+    const PAYS_OPTIONS   = ['788 - Tunisie'];
+
+    const workbook = new ExcelJS.Workbook();
+
+    // Hidden sheet for dropdown data
+    const dataWs = workbook.addWorksheet('_data', { state: 'veryHidden' });
+    TYPE_OPTIONS  .forEach((v, i) => { dataWs.getCell(i + 1, 1).value = v; });
+    STATUS_OPTIONS.forEach((v, i) => { dataWs.getCell(i + 1, 2).value = v; });
+    PAYS_OPTIONS  .forEach((v, i) => { dataWs.getCell(i + 1, 3).value = v; });
+    SEGMENTS      .forEach((v, i) => { dataWs.getCell(i + 1, 4).value = v; });
+
+    const typeRange   = `_data!$A$1:$A$${TYPE_OPTIONS.length}`;
+    const statusRange = `_data!$B$1:$B$${STATUS_OPTIONS.length}`;
+    const paysRange   = `_data!$C$1:$C$${PAYS_OPTIONS.length}`;
+    const segRange    = `_data!$D$1:$D$${SEGMENTS.length}`;
+
+    const ws = workbook.addWorksheet('Entites');
+
+    // ✅ Display-friendly headers (what user sees) vs internal keys (what parser reads)
+    // The frontend cleanKey() strips " *" and " ▼" — so the key is always the clean version
+    ws.columns = [
+      { header: 'Raison Sociale *',         key: 'raison_socialle',        width: 38 },
+      { header: 'Identifiant National *',    key: 'identifiant_national',   width: 22 },
+      { header: 'Personne Contact *',        key: 'personne_contact',       width: 28 },
+      { header: 'Type Producteur ▼',         key: 'type_prod',              width: 48 },
+      { header: 'Email',                     key: 'email',                  width: 30 },
+      { header: 'Tél Mobile',                key: 'tel_mobile',             width: 18 },
+      { header: 'Téléphone',                 key: 'telephone',              width: 18 },
+      { header: 'Fax',                       key: 'fax',                    width: 16 },
+      { header: 'Adresse',                   key: 'adresse',                width: 40 },
+      { header: 'Région',                    key: 'region',                 width: 20 },
+      { header: 'Délégation',                key: 'delegation',             width: 20 },
+      { header: 'Ville',                     key: 'city',                   width: 20 },
+      { header: 'Localité',                  key: 'localite',               width: 20 },
+      { header: 'Code Postal',               key: 'postalCode',             width: 12 },
+      { header: 'Pays ▼',                    key: 'pays',                   width: 18 },
+      { header: 'Site Web',                  key: 'site',                   width: 30 },
+      { header: 'Service',                   key: 'service',                width: 20 },
+      { header: 'État',                      key: 'etat',                   width: 12 },
+      { header: 'Identifiant REX',           key: 'identifiant_rex',        width: 20 },
+      { header: 'Date Enregistrement REX',   key: 'date_enregistrement_rex',width: 24 },
+      { header: 'Début Validité REX',        key: 'debut_validite_rex',     width: 18 },
+      { header: 'Fin Validité REX',          key: 'fin_validite_rex',       width: 18 },
+      { header: 'Date Abonnement',           key: 'date_abonnement',        width: 18 },
+      { header: 'Date Échéance',             key: 'date_echeance',          width: 18 },
+      { header: 'Nb FP',                     key: 'nb_fp',                  width: 10 },
+      { header: 'Inscription',               key: 'inscription',            width: 12 },
+      { header: 'Statut Entité ▼',           key: 'status_ent',             width: 18 },
+      { header: 'Titre FR',                  key: 'titre_fr',               width: 30 },
+      { header: 'Titre AR',                  key: 'titre_ar',               width: 30 },
+      { header: 'Titre EN',                  key: 'titre_en',               width: 30 },
+      { header: 'Segment 1 ▼',               key: 'segment1',               width: 48 },
+      { header: 'Segment 2 ▼',               key: 'segment2',               width: 48 },
+      { header: 'Segment 3 ▼',               key: 'segment3',               width: 48 },
+      { header: 'Segment 4 ▼',               key: 'segment4',               width: 48 },
+    ];
+
+    // ✅ Build COL map from key (not header display text)
+    const COL = {};
+    ws.columns.forEach((c, i) => { COL[c.key] = i + 1; });
+
+    // ✅ Style header — detect required/dropdown from display header
+    const headerRow = ws.getRow(1);
+    headerRow.height = 36;
+    ws.columns.forEach((col, ci) => {
+      const cell = headerRow.getCell(ci + 1);
+      const isRequired  = col.header.includes('*');
+      const hasDropdown = col.header.includes('▼');
+      cell.value = col.header;
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+      cell.fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: isRequired ? 'FF8B0000' : hasDropdown ? 'FF1A4A7A' : 'FF1E3A5F' },
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = {
+        top:    { style: 'thin',   color: { argb: 'FF000000' } },
+        bottom: { style: 'medium', color: { argb: 'FF000000' } },
+        left:   { style: 'thin',   color: { argb: 'FF000000' } },
+        right:  { style: 'thin',   color: { argb: 'FF000000' } },
+      };
+    });
+
+    // 100 data rows with dropdowns
+    for (let r = 2; r <= 101; r++) {
+      const row = ws.getRow(r);
+      row.height = 20;
+      const bgColor = r % 2 === 0 ? 'FFFFFFFF' : 'FFF0F4FA';
+
+      ws.columns.forEach((_, ci) => {
+        const cell = row.getCell(ci + 1);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        cell.border = {
+          top:    { style: 'hair', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } },
+          left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
+          right:  { style: 'hair', color: { argb: 'FFCCCCCC' } },
+        };
+        cell.alignment = { vertical: 'middle' };
+      });
+
+      ws.getCell(r, COL['type_prod']).dataValidation = {
+        type: 'list', allowBlank: true, showDropDown: false,
+        formulae: [typeRange],
+        showErrorMessage: true, errorStyle: 'warning',
+        errorTitle: 'Type invalide',
+        error: 'Choisissez un type dans la liste déroulante',
+      };
+      ws.getCell(r, COL['pays']).dataValidation = {
+        type: 'list', allowBlank: true, showDropDown: false,
+        formulae: [paysRange],
+        showErrorMessage: true, errorStyle: 'warning',
+        errorTitle: 'Pays invalide',
+        error: 'Choisissez un pays dans la liste déroulante',
+      };
+      ws.getCell(r, COL['status_ent']).dataValidation = {
+        type: 'list', allowBlank: true, showDropDown: false,
+        formulae: [statusRange],
+        showErrorMessage: true, errorStyle: 'warning',
+        errorTitle: 'Statut invalide',
+        error: 'Choisissez un statut dans la liste déroulante',
+      };
+      ['segment1','segment2','segment3','segment4'].forEach(seg => {
+        ws.getCell(r, COL[seg]).dataValidation = {
+          type: 'list', allowBlank: true, showDropDown: false,
+          formulae: [segRange],
+          showErrorMessage: true, errorStyle: 'warning',
+          errorTitle: 'Segment invalide',
+          error: 'Choisissez un segment dans la liste déroulante',
+        };
+      });
+    }
+
+    ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
+
+    // Notes sheet
+    const notesWs = workbook.addWorksheet('Notes');
+    notesWs.columns = [
+      { header: 'Colonne',      key: 'col',  width: 35 },
+      { header: 'Obligatoire',  key: 'req',  width: 14 },
+      { header: 'Description',  key: 'desc', width: 80 },
+    ];
+    notesWs.getRow(1).height = 26;
+    notesWs.getRow(1).eachCell(cell => {
+      cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+    [
+      ['Raison Sociale *',                   'OUI',  'Raison sociale de l\'entreprise — obligatoire'],
+      ['Identifiant National *',             'OUI',  'Matricule fiscal ou identifiant national — obligatoire'],
+      ['Personne Contact *',                 'OUI',  'Nom complet du contact principal — obligatoire'],
+      ['Type Producteur ▼',                  'NON',  'Menu déroulant. Laisser vide = type 1 par défaut'],
+      ['Email',                              'NON',  'Adresse email professionnelle'],
+      ['Tél Mobile',                         'NON',  'Téléphone mobile (ex: +21698000000)'],
+      ['Téléphone',                          'NON',  'Téléphone fixe'],
+      ['Fax',                                'NON',  'Numéro de fax'],
+      ['Adresse',                            'NON',  'Adresse physique complète'],
+      ['Région',                             'NON',  'Région (ex: Tunis, Sfax, Sousse, Monastir...)'],
+      ['Délégation',                         'NON',  'Délégation'],
+      ['Ville',                              'NON',  'Ville'],
+      ['Localité',                           'NON',  'Localité'],
+      ['Code Postal',                        'NON',  'Code postal (ex: 1000)'],
+      ['Pays ▼',                             'NON',  'Menu déroulant. Laisser vide = Tunisie par défaut'],
+      ['Site Web',                           'NON',  'Site web (ex: https://exemple.tn)'],
+      ['Service',                            'NON',  'Service ou département'],
+      ['État',                               'NON',  'État libre'],
+      ['Statut Entité ▼',                    'NON',  'Menu déroulant: E=En attente (défaut), A=Actif, I=Inactif'],
+      ['Segment 1 à Segment 4 ▼',            'NON',  'Menu déroulant — jusqu\'à 4 segments d\'activité'],
+      ['Date Abonnement / Date Échéance',    'NON',  'Format YYYY-MM-DD (ex: 2025-01-15)'],
+      ['Nb FP / Inscription',                'NON',  'Nombres entiers (ex: 0, 1, 5)'],
+      ['Titre FR / Titre AR / Titre EN',     'NON',  'Titre de présentation multilingue'],
+      ['Identifiant REX',                    'NON',  'Identifiant REX si applicable'],
+      ['Colonnes rouges *',                  'INFO', 'Champs obligatoires — le reste est optionnel'],
+      ['Colonnes bleues ▼',                  'INFO', 'Champs avec menu déroulant — cliquez sur la cellule'],
+      ['100 lignes disponibles',             'INFO', 'Remplissez autant de lignes que nécessaire puis importez'],
+    ].forEach(([col, req, desc]) => {
+      const row = notesWs.addRow({ col, req, desc });
+      row.height = 20;
+      row.getCell(2).alignment = { horizontal: 'center' };
+      if (req === 'OUI')  { row.getCell(2).font = { bold: true, color: { argb: 'FFCC0000' } }; }
+      if (req === 'NON')  { row.getCell(2).font = { color: { argb: 'FF2E7D32' } }; }
+      if (req === 'INFO') { row.getCell(2).font = { bold: true, color: { argb: 'FF1565C0' } }; row.font = { italic: true }; }
+    });
+    notesWs.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="modele_entites_complet.xlsx"');
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error generating template:', err);
+    res.status(500).json({ error: 'Failed to generate Excel template' });
+  }
+});
+
+
+app.post('/api/companies/import', async (req, res) => {
+  try {
+    const { entities } = req.body;
+    if (!Array.isArray(entities) || entities.length === 0) {
+      return res.status(400).json({ error: 'No entities provided' });
+    }
+
+    const added  = [];
+    const errors = [];
+
+    // "50000000 - Nourriture/Boisson" → "50000000"
+    // "1 - Entreprise..." → "1"
+    // "E - En attente" → "E"
+    const parseCode = (val) => {
+      if (val === null || val === undefined) return null;
+      const s = String(val).trim();
+      if (!s) return null;
+      return s.includes(' - ') ? s.split(' - ')[0].trim() : s;
+    };
+
+    for (const e of entities) {
+      try {
+        // Accept both spellings — frontend sends raison_socialle but be defensive
+        const raison = (e.raison_socialle || e.raison_sociale || '').toString().trim();
+        if (!raison) {
+          errors.push({ raison_socialle: 'N/A', message: 'raison_socialle manquante' });
+          continue;
+        }
+
+        if (!e.identifiant_national) {
+          errors.push({ raison_socialle: raison, message: 'identifiant_national manquant' });
+          continue;
+        }
+
+        if (!e.personne_contact) {
+          errors.push({ raison_socialle: raison, message: 'personne_contact manquant' });
+          continue;
+        }
+
+        const company = {
+          identifiant_rex:          e.identifiant_rex              || null,
+          date_enregistrement_rex:  e.date_enregistrement_rex      || null,
+          debut_validite_rex:       e.debut_validite_rex           || null,
+          fin_validite_rex:         e.fin_validite_rex             || null,
+          etat:                     e.etat                         || null,
+          raison_socialle:          raison,
+          identifiant_national:     String(e.identifiant_national).trim(),
+          gln:                      e.gln || e.identifiant_national || null,
+          certicode:                Number(e.certicode)            || 0,
+          date_create:              new Date().toISOString().slice(0, 10),
+          pays:                     parseCode(e.pays)              || null,
+          site:                     e.site                         || null,
+          personne_contact:         String(e.personne_contact).trim(),
+          service:                  e.service                      || null,
+          email:                    e.email                        || null,
+          tel_mobile:               e.tel_mobile ? String(e.tel_mobile) : null,
+          telephone:                e.telephone  ? String(e.telephone)  : null,
+          fax:                      e.fax        ? String(e.fax)        : null,
+          adresse:                  e.adresse                      || null,
+          region:                   e.region                       || '',
+          city:                     e.city                         || null,
+          localite:                 e.localite                     || '',
+          postalCode:               e.postalCode ? String(e.postalCode) : null,
+          type_prod:                Number(parseCode(e.type_prod)) || 1,
+          statut:                   Number(e.statut)               || 0,
+          date_abonnement:          e.date_abonnement              || null,
+          date_echeance:            e.date_echeance                || null,
+          pwd:                      e.pwd                          || 'empty',
+          nb_fp:                    Number(e.nb_fp)                || 0,
+          inscription:              Number(e.inscription)          || 0,
+          status_ent:               parseCode(e.status_ent)        || 'E',
+          delegation:               e.delegation                   || null,
+          titre_fr:                 e.titre_fr                     || null,
+          titre_ar:                 e.titre_ar                     || null,
+          titre_en:                 e.titre_en                     || null,
+        };
+
+        const [result] = await entiteDB.query('INSERT INTO Entite SET ?', company);
+        const newId = result.insertId;
+
+        // Accept pre-resolved segments array from frontend OR raw segment1–4 columns
+        const rawSegs = Array.isArray(e.segments) && e.segments.length > 0
+          ? e.segments
+          : [e.segment1, e.segment2, e.segment3, e.segment4];
+
+        const segCodes = rawSegs
+          .map(s => s ? parseCode(String(s).trim()) : null)
+          .filter(Boolean);
+
+        for (const seg of segCodes) {
+          await entiteDB.query(
+            'INSERT IGNORE INTO Entite_segment (id_entite, id_segment) VALUES (?, ?)',
+            [newId, seg]
+          );
+        }
+
+        added.push(newId);
+      } catch (innerErr) {
+        console.error('Failed to import entity:', e.raison_socialle || e.raison_sociale, innerErr);
+        errors.push({
+          raison_socialle: e.raison_socialle || e.raison_sociale || 'Inconnu',
+          message: innerErr.message,
+        });
+      }
+    }
+
+    res.json({ added: added.length, errors });
+  } catch (err) {
+    console.error('POST /api/companies/import error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
 app.get('/api/companies/max-id', async (req, res) => {
   try {
     if (!entiteDB) {
@@ -2352,110 +2709,9 @@ app.put('/api/companies/:id/segments', async (req, res) => {
   }
 });
 
-app.get("/api/companies/template", async (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "files", "modele_entites_complet.xlsx");
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        error: "Template file not found. Please upload modele_entites_complet.xlsx in /backend/files/",
-      });
-    }
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="modele_entites_complet.xlsx"'
-    );
-    fs.createReadStream(filePath).pipe(res);
-  } catch (err) {
-    console.error("? Error sending template file:", err);
-    res.status(500).json({ error: "Failed to send Excel template" });
-  }
-});
 
-// ? BULK IMPORT COMPANIES FROM EXCEL
-app.post('/api/companies/import', async (req, res) => {
-  try {
-    const { entities } = req.body;
-    if (!Array.isArray(entities) || entities.length === 0) {
-      return res.status(400).json({ error: 'No entities provided' });
-    }
-    const conn = await mysql.createConnection(dbConfig);
-    const added = [];
-    const errors = [];
-    for (const e of entities) {
-      try {
-        // Prepare company object (same as POST /api/companies)
-        const company = {
-          identifiant_rex: e.identifiant_rex || '',
-          date_enregistrement_rex: e.date_enregistrement_rex || '',
-          debut_validite_rex: e.debut_validite_rex || '',
-          fin_validite_rex: e.fin_validite_rex || '',
-          etat: e.etat || '',
-          raison_socialle: e.raison_socialle || e.raison_sociale,
-          identifiant_national: e.identifiant_national,
-          certicode: Number(e.certicode) || 0,
-          date_create: new Date().toISOString().slice(0, 10),
-          pays: e.pays || '',
-          site: e.site || '',
-          personne_contact: e.personne_contact,
-          service: e.service || '',
-          email: e.email || '',
-          tel_mobile: e.tel_mobile || '',
-          telephone: e.telephone || '',
-          fax: e.fax || '',
-          adresse: e.adresse || '',
-          region: e.region || '',
-          city: e.city || '',
-          localite: e.localite || '',
-          postalCode: e.postalCode || '',
-          type_prod: Number(e.type_prod || e.type_operateur) || 1, // Default to 1
-          statut: Number(e.statut) || 0,
-          date_abonnement: e.date_abonnement || '',
-          date_echeance: e.date_echeance || '',
-          pwd: e.pwd || 'empty',
-          nb_fp: Number(e.nb_fp) || 0,
-          inscription: Number(e.inscription) || 0,
-          status_ent: e.status_ent || 'E',
-          delegation: e.delegation || '',
-          titre_fr: e.titre_fr || '',
-          titre_ar: e.titre_ar || '',
-          titre_en: e.titre_en || '',
-          // No gln here
-        };
-        // Insert company
-        const [result] = await conn.query('INSERT INTO Entite SET ?', company);
-        const newId = result.insertId;
-        // Insert segments (if provided)
-        if (Array.isArray(e.segments) && e.segments.length > 0) {
-          for (const seg of e.segments) {
-            await conn.query(
-              'INSERT INTO Entite_segment (id_entite, id_segment) VALUES (?, ?)',
-              [newId, seg]
-            );
-          }
-        }
-        added.push(newId);
-      } catch (innerErr) {
-        console.error('? Failed to import entity:', e.raison_socialle, innerErr);
-        errors.push({
-          raison_socialle: e.raison_socialle,
-          message: innerErr.message,
-        });
-      }
-    }
-    await conn.end();
-    res.json({
-      added: added.length,
-      errors,
-    });
-  } catch (err) {
-    console.error('POST /api/companies/import error:', err);
-    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
-  }
-});
+
+
 
 // GET sites for an entite
 app.get('/api/sites/:id', async (req, res) => {
@@ -2595,119 +2851,7 @@ const typeOptions = [
   { value: "10", label: "Assurance" },
 ];
 
-app.get("/api/companies/template", async (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "files", "modele_entites_complet.xlsx");
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        error: "Template file not found. Please upload modele_entites_complet.xlsx in /backend/files/",
-      });
-    }
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="modele_entites_complet.xlsx"'
-    );
-
-    fs.createReadStream(filePath).pipe(res);
-  } catch (err) {
-    console.error("? Error sending template file:", err);
-    res.status(500).json({ error: "Failed to send Excel template" });
-  }
-});
-// ? BULK IMPORT COMPANIES FROM EXCEL
-app.post('/api/companies/import', async (req, res) => {
-  try {
-    const { entities } = req.body;
-    if (!Array.isArray(entities) || entities.length === 0) {
-      return res.status(400).json({ error: 'No entities provided' });
-    }
-
-    const conn = await mysql.createConnection(dbConfig);
-    const added = [];
-    const errors = [];
-
-    for (const e of entities) {
-      try {
-        // Prepare company object (same as POST /api/companies)
-        const company = {
-          identifiant_rex: e.identifiant_rex || '',
-          date_enregistrement_rex: e.date_enregistrement_rex || '',
-          debut_validite_rex: e.debut_validite_rex || '',
-          fin_validite_rex: e.fin_validite_rex || '',
-          etat: e.etat || '',
-          raison_socialle: e.raison_socialle || e.raison_sociale,
-          identifiant_national: e.identifiant_national,
-          certicode: Number(e.certicode) || 0,
-          date_create: new Date().toISOString().slice(0, 10),
-          pays: e.pays || '',
-          site: e.site || '',
-          personne_contact: e.personne_contact,
-          service: e.service || '',
-          email: e.email || '',
-          tel_mobile: e.tel_mobile || '',
-          telephone: e.telephone || '',
-          fax: e.fax || '',
-          adresse: e.adresse || '',
-          region: e.region || '',
-          city: e.city || '',
-          localite: e.localite || '',
-          postalCode: e.postalCode || '',
-          type_prod: Number(e.type_prod || e.type_operateur) || 1, // Default to 1
-          statut: Number(e.statut) || 0,
-          date_abonnement: e.date_abonnement || '',
-          date_echeance: e.date_echeance || '',
-          pwd: e.pwd || 'empty',
-          nb_fp: Number(e.nb_fp) || 0,
-          inscription: Number(e.inscription) || 0,
-          status_ent: e.status_ent || 'E',
-          delegation: e.delegation || '',
-          titre_fr: e.titre_fr || '',
-          titre_ar: e.titre_ar || '',
-          titre_en: e.titre_en || '',
-          gln: e.gln || e.identifiant_national || '',
-        };
-
-        // Insert company
-        const [result] = await conn.query('INSERT INTO Entite SET ?', company);
-        const newId = result.insertId;
-
-        // Insert segments (if provided)
-        if (Array.isArray(e.segments) && e.segments.length > 0) {
-          for (const seg of e.segments) {
-            await conn.query(
-              'INSERT INTO Entite_segment (id_entite, id_segment) VALUES (?, ?)',
-              [newId, seg]
-            );
-          }
-        }
-
-        added.push(newId);
-      } catch (innerErr) {
-        console.error('? Failed to import entity:', e.raison_socialle, innerErr);
-        errors.push({
-          raison_socialle: e.raison_socialle,
-          message: innerErr.message,
-        });
-      }
-    }
-
-    await conn.end();
-
-    res.json({
-      added: added.length,
-      errors,
-    });
-  } catch (err) {
-    console.error('POST /api/companies/import error:', err);
-    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
-  }
-});
 
 // --- 1. UTILITAIRES DE VALIDATION & PRÃ‰CISION ---
 
@@ -9209,23 +9353,33 @@ app.post('/api/login', async (req, res) => {
 
     const isBackoffice = (email === 'fp_back_office@codeonline-info.com');
 
-    // Handle certicode
+   // Handle certicode
     if (!isBackoffice) {
       if (!certicode) {
         // Generate and send certicode
         const newCerticode = generateCerticode();
-        
+
         await runUpdate(entiteDB,
           'UPDATE comptes SET certicode = ?, certicode_generated_at = CURRENT_TIMESTAMP WHERE id_compte = ?',
           [newCerticode, account.id_compte]
         );
 
-        await transporter.sendMail({
-          from: getFromEmail(),
-          to: email,
-          subject: 'Votre Certicode pour Codeonline EDI',
-          text: `Votre certicode est : ${newCerticode}. Il expire dans 3 minutes.`,
-        });
+        if (!transporter) {
+          console.error('[Login] ❌ Mailer not initialized — cannot send certicode to', email);
+          return res.status(503).json({ error: 'Email service unavailable. Contact your administrator.' });
+        }
+
+        try {
+          await transporter.sendMail({
+            from: getFromEmail(),
+            to: email,
+            subject: 'Votre Certicode pour Codeonline EDI',
+            text: `Votre certicode est : ${newCerticode}. Il expire dans 3 minutes.`,
+          });
+        } catch (mailErr) {
+          console.error('[Login] ❌ Failed to send certicode email:', mailErr.message);
+          return res.status(503).json({ error: 'Failed to send certicode email. Contact your administrator.' });
+        }
 
         return res.json({ status: 'certicode_sent' });
       } else {
@@ -9831,23 +9985,23 @@ Le support CodeOnline
     });
   }
 });
-// ✅ FINAL FIXED ENDPOINT: Send connection info PDF (MySQL + frontend match)
+// ? FINAL FIXED ENDPOINT: Send connection info PDF (MySQL + frontend match)
 app.post('/api/send-connection-info', async (req, res) => {
-  console.log('📩 /api/send-connection-info body:', req.body);
+  console.log('?? /api/send-connection-info body:', req.body);
   const { email, password } = req.body;
-  console.log('📧 email received:', email);
+  console.log('?? email received:', email);
 
   if (!email) return res.status(400).json({ error: 'Email is required' });
   let conn;
   try {
     conn = await mysql.createConnection(dbConfig);
-    console.log('✅ Connected to MySQL');
+    console.log('? Connected to MySQL');
 
     const [rows] = await conn.query(
       'SELECT * FROM comptes WHERE email = ?',
       [email]
     );
-    console.log('📊 comptes query result:', rows);
+    console.log('?? comptes query result:', rows);
 
     if (rows.length === 0) {
       await conn.end();
@@ -9863,11 +10017,11 @@ app.post('/api/send-connection-info', async (req, res) => {
       'UPDATE comptes SET password = ? WHERE id_compte = ?',
       [hashed, account.id_compte]
     );
-    console.log('🔑 Password updated for', email);
+    console.log('?? Password updated for', email);
 
     const pdfUint8 = await generateFichePDF(account, company, newPassword);
-    const pdfBuffer = Buffer.from(pdfUint8); // Convert Uint8Array → Buffer for nodemailer
-    console.log('📄 PDF generated successfully, size:', pdfBuffer.length);
+    const pdfBuffer = Buffer.from(pdfUint8); // Convert Uint8Array ? Buffer for nodemailer
+    console.log('?? PDF generated successfully, size:', pdfBuffer.length);
 
     await transporter.sendMail({
       from: getFromEmail(),
@@ -9878,12 +10032,12 @@ app.post('/api/send-connection-info', async (req, res) => {
         { filename: 'fiche_connexion.pdf', content: pdfBuffer, contentType: 'application/pdf' }
       ]
     });
-    console.log('✅ Email sent to', email);
+    console.log('? Email sent to', email);
 
     await conn.end();
     res.json({ message: 'Fiche connexion envoyée avec succès', email });
   } catch (err) {
-    console.error('❌ send-connection-info failed:', err);
+    console.error('? send-connection-info failed:', err);
     if (conn) await conn.end().catch(() => {});
     res.status(500).json({ error: err.message });
   }

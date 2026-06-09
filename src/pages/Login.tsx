@@ -126,7 +126,7 @@ const Login: React.FC = () => {
           <div className="flex items-center gap-3">
             <img src="/images/logo-codeonline.png" className="h-8" />
             <span className="font-semibold text-[#001861]">
-              CodeonlineEdi
+              CodeonlineEDI
             </span>
           </div>
 
@@ -152,7 +152,7 @@ const Login: React.FC = () => {
             />
 
             <h1 className="text-2xl font-semibold">
-              CodeonlineEdi
+              CodeonlineEDI
             </h1>
 
             <p className="text-gray-300 mt-2 text-center">
