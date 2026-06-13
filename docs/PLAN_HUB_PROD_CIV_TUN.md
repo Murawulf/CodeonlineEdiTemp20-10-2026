@@ -1,7 +1,8 @@
-# PLAN — Mise en PROD du Hub orchestrateur EDI (registry) + test EANCOM CIV PROD ↔ TUN PROD
+# PLAN — Mise en PROD du Hub orchestrateur EDI (registry) + test EANCOM CIV / TUN / SEN PROD
 
-> **But** : disposer d'un **Hub orchestrateur PROD** isolé du DEV, et prouver l'échange EANCOM (ORDERS + INVOIC) **CIV PROD ↔ TUN PROD** dans les deux sens.
-> **Critère de succès mesurable** : 4 messages (ORDERS CIV→TUN, ORDERS TUN→CIV, INVOIC CIV→TUN, INVOIC TUN→CIV) en statut `DELIVERED` dans `transactions` du Hub PROD **et** persistés en `edi_transmissions` (INBOUND) chez le destinataire PROD. Aucune régression sur le trafic PROD existant.
+> **But** : disposer d'un **Hub orchestrateur PROD** isolé du DEV, et prouver l'échange EANCOM (ORDERS + INVOIC) entre les nœuds **CIV PROD ↔ TUN PROD ↔ SEN PROD** dans les deux sens.
+> **Périmètre prioritaire** : CIV PROD ↔ TUN PROD (cœur de la demande). **SEN PROD ajouté comme 3e nœud** (état initial : non déployé — cf. P0.4 / P3S).
+> **Critère de succès mesurable** : pour chaque paire de nœuds activée, ORDERS + INVOIC dans les **2 sens** en statut `DELIVERED` dans `transactions` du Hub PROD **et** persistés en `edi_transmissions` (INBOUND) chez le destinataire. Minimum bloquant = paire CIV↔TUN (4 messages). Cible complète 3 nœuds = 12 messages (3 paires × 2 docs × 2 sens). Aucune régression sur le trafic PROD existant.
 > **Exécutant** : IA (Claude Code) ou dev. Cocher `[x]` = DoD vérifié sur sortie réelle.
 
 ---
@@ -17,6 +18,7 @@
 - **Auth nœud** : middleware global `app.use('/api', verifyJWT)` avec allowlist `JWT_EXCLUDED_PATHS` (login, settings, companies/template). `/api/edi/receive` est protégé → exige Bearer JWT signé avec le `JWT_SECRET` du réseau.
 - **GLN DEV (référence)** : TUN `6191234567890`, CIV `6181234567890`, SEN `SN02583102G3`.
 - **Correctif repo** : `backend/scripts/init_db_params.js` rend `EDI_ORDERS_PATH` surchargeable via `process.env.EDI_ORDERS_PATH` (commit `0c46958`).
+- **SEN PROD (vérifié 2026-06-13)** : serveur `91.134.35.126` (user `Consultant`), domaine `https://codeonline-edi.net` (HTTP 200) mais **PROD non opérationnelle** : `/api/settings` → `Cannot GET` (backend incomplet), un listener sur **port 5000 hors PM2** (pas de process `senegal-prod`), DB **`Entitedb` vide (1 table)**, dossier `/var/www/Edi-prod/backend/server.js` présent. SEN PROD = **squelette non déployé** (équivalent de SEN DEV avant migration). SEN DEV (`codeonline-edi-senegal`, port 5001) opérationnel sur le même serveur.
 
 ### INCONNU — à établir en P0 (ne pas supposer)
 - **TUN PROD** : host/IP, user SSH, port Node, DB, domaine, chemin repo, version de code déployée, état de divergence vs `main`. *Mentionné comme « diverge de la dernière version ».*
@@ -65,24 +67,33 @@
   *Vérif* : `ssh civ "grep -c process.env.EDI_ORDERS_PATH /var/www/Edi-prod/backend/scripts/init_db_params.js"` → `0` ou `1` (valeur notée).
 
 - [ ] **P0.3 — Inventaire des GLN réels PROD**
-  *Description* : obtenir les GLN officiels des entités CIV PROD et TUN PROD à utiliser dans l'annuaire PROD. Si non disponibles, définir des GLN de test PROD dédiés (préfixés, distincts du DEV) et le documenter.
+  *Description* : obtenir les GLN officiels des entités CIV PROD, TUN PROD **et SEN PROD** (si SEN activé) pour l'annuaire PROD. Si non disponibles, définir des GLN de test PROD dédiés (préfixés, distincts du DEV) et le documenter.
   *Prompt exécutant* :
-  > Demande à l'opérateur les **GLN officiels** des entités émettrices/réceptrices CIV PROD et TUN PROD. À défaut, lis en base PROD un GLN d'entité réelle : `SELECT gln, raison_sociale FROM Entite WHERE gln IS NOT NULL LIMIT 5` sur CIV `Entitedb` et sur TUN PROD DB. Proposer un mapping GLN→pays pour l'annuaire PROD. Si aucun GLN réel, définir `TUNPROD-GLN`/`CIVPROD-GLN` explicitement marqués « test PROD ». Écrire le mapping dans P0.3.
+  > Demande à l'opérateur les **GLN officiels** des entités émettrices/réceptrices CIV PROD, TUN PROD et SEN PROD. À défaut, lis en base PROD un GLN d'entité réelle : `SELECT gln, raison_sociale FROM Entite WHERE gln IS NOT NULL LIMIT 5` sur chaque DB PROD. Proposer un mapping GLN→pays pour l'annuaire PROD. Si aucun GLN réel, définir `CIVPROD-GLN`/`TUNPROD-GLN`/`SENPROD-GLN` explicitement marqués « test PROD ». Écrire le mapping dans P0.3.
   *Tests unitaires* : N/A. Bloquant avant P1.
-  *DoD* : table `pays → GLN PROD → rôle` figée dans ce fichier.
-  *Vérif* : section P0.3 contient au moins un GLN par pays.
+  *DoD* : table `pays → GLN PROD → rôle` figée dans ce fichier (CIV + TUN obligatoires ; SEN si activé).
+  *Vérif* : section P0.3 contient au moins un GLN par pays activé.
+
+- [ ] **P0.4 — Recensement SEN PROD + décision d'activation**
+  *Description* : confirmer l'état SEN PROD (vérifié : squelette non déployé) et décider de son inclusion dans ce cycle PROD.
+  *Prompt exécutant* :
+  > `ssh Consultant@91.134.35.126`. Confirmer : `pm2 list | grep -i senegal` (présence/absence d'un process PROD distinct du DEV port 5001) ; `MYSQL_PWD=… mysql -u admin -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='Entitedb'"` (attendu : ~1 = vide) ; `ss -ltnp | grep :5000` (listener orphelin ?) ; `ls /var/www/Edi-prod/backend/server.js`. Reporter l'état dans P0.4. Demander à l'opérateur : **SEN PROD inclus dans ce cycle (oui/non) ?** Si oui → P3S obligatoire. Si non → SEN exclu, périmètre = CIV↔TUN seulement.
+  *Tests unitaires* : N/A (recon + décision). Bloquant avant P1.
+  *DoD* : état SEN PROD documenté + décision d'activation (oui/non) consignée dans ce fichier.
+  *Vérif* : section P0.4 contient l'état + la décision.
 
 - [ ] **P0.G — GATE humain : décisions d'architecture PROD**
   Décisions à valider par l'opérateur AVANT P1 (consigner la réponse dans ce fichier) :
   1. **Hébergement Hub PROD** : (a) même serveur que TUN PROD, port dédié `5012` ; (b) serveur séparé. → *Recommandation : (a) si TUN PROD a la ressource, sinon (b).*
   2. **Exposition** : (a) interne IP:port + firewall (CIV PROD doit pouvoir l'atteindre) ; (b) sous-domaine public `hub.codeonline-edi.net` + TLS. → *Recommandation : (b) avec TLS Let's Encrypt + restriction par service token (déjà en place).* 
-  3. **Alignement de version des nœuds PROD** : (a) déployer la version corrigée `main` sur CIV PROD **et** TUN PROD (aligne tout, risque déploiement) ; (b) appliquer uniquement le minimum EDI (route receive + correctif path + GLN) sans déploiement applicatif complet. → *Recommandation : (a) pour CIV PROD (n-1, faible delta) ; pour TUN PROD, trancher après P0.1 selon l'ampleur de la divergence.*
+  3. **Alignement de version des nœuds PROD** : (a) déployer la version corrigée `main` sur les nœuds PROD (aligne tout, risque déploiement) ; (b) minimum EDI (route receive + correctif path + GLN) sans déploiement complet. → *Recommandation : (a) pour CIV PROD (n-1, faible delta) et SEN PROD (vierge, à déployer de toute façon) ; pour TUN PROD, trancher après P0.1 selon l'ampleur de la divergence.*
   4. **`JWT_SECRET` PROD** : générer `openssl rand -base64 64` dédié PROD. Confirmer le canal de distribution sécurisé.
-  **La phase P0 n'est cochable que si ces 4 décisions sont écrites dans ce fichier.**
+  5. **Inclusion SEN PROD** : oui/non dans ce cycle (cf. P0.4). Si oui → P3S + combos SEN dans P4/P5 activés.
+  **La phase P0 n'est cochable que si ces 5 décisions sont écrites dans ce fichier.**
 
 - [ ] **P0.T — Scénario de test complet P0**
-  1. `ssh <tun_prod> "echo ok"` → `ok`. 2. `ssh civ "echo ok"` → `ok`. 3. Les sections P0.1, P0.2, P0.3 ne contiennent plus aucun `<…>`. 4. Les 4 décisions du GATE sont consignées.
-  Critères de réussite : 4/4. Phase cochable seulement si tout passe.
+  1. `ssh <tun_prod> "echo ok"` → `ok`. 2. `ssh civ "echo ok"` → `ok`. 3. `ssh Consultant@91.134.35.126 "echo ok"` → `ok`. 4. Sections P0.1–P0.4 sans aucun `<…>`. 5. Les 5 décisions du GATE consignées.
+  Critères de réussite : 5/5. Phase cochable seulement si tout passe.
 
 **GATE humain** : l'opérateur valide P0.G avant P1.
 
@@ -191,43 +202,82 @@
 
 ---
 
-## P4 — Annuaire PROD (registry) + enregistrement des nœuds 🔴
-**Objectif** : l'annuaire `partners` du Hub PROD contient CIV PROD et TUN PROD avec les bons GLN et `target_url`.
+## P3S — Déployer SEN PROD (3e nœud) 🟠
+**Objectif** : SEN PROD opérationnelle (DB peuplée, version corrigée, GLN PROD, secret PROD) et capable d'émettre/recevoir via le Hub PROD. **Conditionnel** : exécuter seulement si P0.4 = SEN activé. SEN PROD étant vierge, c'est un déploiement complet (pas un simple alignement).
 
-- [ ] **P4.1 — Enregistrer CIV PROD et TUN PROD dans le Hub PROD**
-  *Description* : insérer les 2 lignes `partners` (gln, name, country_code, target_url=`<domaine>/api/edi/receive`, status=ACTIVE) dans `codeonline_edi_db_prod`.
+- [ ] **P3S.1 — Backup SEN PROD (sécurité, même si vierge)**
+  *Description* : sauvegarder l'état actuel SEN PROD (code `/var/www/Edi-prod`, DB `Entitedb`, `.env` s'il existe) avant déploiement.
   *Prompt exécutant* :
-  > Sur la DB Hub PROD `codeonline_edi_db_prod` :
-  > `INSERT INTO partners (gln,name,country_code,target_url,status) VALUES ('<CIV_PROD_GLN>','Cote Ivoire PROD','384','https://civ.codeonline-edi.net/api/edi/receive','ACTIVE'), ('<TUN_PROD_GLN>','Tunisie PROD','788','<domaine TUN PROD>/api/edi/receive','ACTIVE') ON DUPLICATE KEY UPDATE target_url=VALUES(target_url),status='ACTIVE';`
-  > Vérifier `SELECT gln,country_code,target_url,status FROM partners`.
-  *Tests unitaires* : `SELECT COUNT(*) FROM partners WHERE status='ACTIVE'` = 2 ; chaque `target_url` finit par `/api/edi/receive`. Bloquant avant P4.T.
-  *DoD* : annuaire PROD = 2 nœuds actifs avec GLN PROD et URLs PROD.
-  *Vérif* : `mysql codeonline_edi_db_prod -e "SELECT gln,target_url FROM partners"` → 2 lignes CIV/TUN PROD.
+  > `ssh Consultant@91.134.35.126` : `cp -r /var/www/Edi-prod/backend /var/www/Edi-prod/_BACKUPS/backend_$(date +%s) 2>/dev/null` ; `MYSQL_PWD='A4b6xb1s*' mysqldump -u admin Entitedb > /var/www/Edi-prod/_BACKUPS/Entitedb_$(date +%s).sql 2>/dev/null || true` ; `cp /var/www/Edi-prod/backend/.env /var/www/Edi-prod/_BACKUPS/env_$(date +%s) 2>/dev/null || true`. Identifier et documenter le **listener orphelin port 5000** (`ss -ltnp | grep :5000`) ; décider de l'arrêter proprement avant le déploiement PM2.
+  *Tests unitaires* : dossier `_BACKUPS` créé. Bloquant avant P3S.2.
+  *DoD* : backups SEN PROD présents ; listener 5000 orphelin identifié.
+  *Vérif* : `ssh Consultant@91.134.35.126 "ls /var/www/Edi-prod/_BACKUPS | tail -3"` → entrées récentes.
 
-- [ ] **P4.T — Scénario de test complet P4**
-  1. `partners` PROD = exactement 2 lignes ACTIVE (CIV, TUN). 2. `target_url` CIV = `https://civ.codeonline-edi.net/api/edi/receive`. 3. `target_url` TUN = `<domaine TUN PROD>/api/edi/receive`. 4. GLN = ceux de P0.3.
-  Critères de réussite : 4/4. Phase cochable seulement si tout passe.
+- [ ] **P3S.2 — Peupler la DB SEN PROD `Entitedb`**
+  *Description* : migrer le schéma + données vers `Entitedb` SEN (vierge), comme fait en DEV. Source = un nœud de référence (TUN PROD une fois aligné, ou DEV selon politique données PROD).
+  *Prompt exécutant* :
+  > Dump source (préférer un nœud PROD déjà aligné, ex. CIV PROD `Entitedb` ou TUN PROD) : `ssh <src> "MYSQL_PWD=… mysqldump --single-transaction --no-tablespaces --routines <src_db>"` > `/tmp/seed_prod.sql`. Charger dans SEN `Entitedb` avec FK off : `( echo "SET FOREIGN_KEY_CHECKS=0;"; cat /tmp/seed_prod.sql ) | ssh Consultant@91.134.35.126 "MYSQL_PWD='A4b6xb1s*' mysql -u admin Entitedb"`. Vérifier `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='Entitedb'` ≈ 82+. **ATTENTION données PROD** : valider avec l'opérateur quelle source de données est légitime pour SEN PROD (ne pas copier des données d'un autre pays sans accord).
+  *Tests unitaires* : table count SEN `Entitedb` ≥ 80 ; tables `Entite` et `app_parameters` présentes. Bloquant avant P3S.3.
+  *DoD* : SEN `Entitedb` peuplée avec le schéma complet.
+  *Vérif* : `ssh Consultant@91.134.35.126 "MYSQL_PWD='A4b6xb1s*' mysql -u admin -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"Entitedb\"'"` → ≥ 80.
+
+  **GATE humain** : valider la source de données légitime pour SEN PROD avant P3S.2.
+
+- [ ] **P3S.3 — Déployer la version corrigée + config SEN PROD**
+  *Description* : créer `deploy_configs/senegal_prod.conf` + `env/.env.senegal_prod`, déployer `main`, PM2 `codeonline-edi-senegal-prod` (port 5000), arrêter le listener orphelin, fixer params SEN PROD.
+  *Prompt exécutant* :
+  > Créer `deploy_configs/senegal_prod.conf` (calqué sur `cote_ivoire_prod.conf` : REMOTE_HOST=91.134.35.126, REMOTE_USER=Consultant, REMOTE_ROOT=/var/www/Edi-prod, PM2_APP_NAME=codeonline-edi-senegal-prod, PM2_PORT=5000, DB_NAME=Entitedb, ENV_FILE=env/.env.senegal_prod, API_PUBLIC_URL=https://codeonline-edi.net) et `env/.env.senegal_prod` (JWT_SECRET=<secret PROD>, EDI_ORDERS_PATH inscriptible, etc.). Arrêter proprement le listener orphelin port 5000. Lancer `bash deploy_universal.sh deploy_configs/senegal_prod.conf`. Puis en base `Entitedb` : `MY_GLN=<SEN_PROD_GLN>`, `ORCHESTRATOR_URL=<HUB_PROD_URL>`, `CURRENT_INSTANCE_CODE=senegal`, `EDI_ORDERS_PATH` inscriptible. `pm2 restart codeonline-edi-senegal-prod --update-env` + `pm2 save`.
+  *Tests unitaires* : `pm2 list | grep senegal-prod` = online ; `curl -sk https://codeonline-edi.net/api/settings | head -c 80` → JSON `success:true` ; params SEN PROD = valeurs attendues. Bloquant avant P3S.T.
+  *DoD* : SEN PROD tourne la version corrigée, API répond, GLN+secret+URL PROD configurés.
+  *Vérif* : `curl -sk https://codeonline-edi.net/api/settings | head -c 80` → `{"success":true...`.
+
+- [ ] **P3S.T — Scénario de test complet P3S**
+  1. `/api/settings` SEN PROD → JSON `success:true` (plus de `Cannot GET`). 2. PM2 `codeonline-edi-senegal-prod` online port 5000. 3. SEN `Entitedb` ≥ 80 tables. 4. `MY_GLN`/`ORCHESTRATOR_URL`/`EDI_ORDERS_PATH` = PROD. 5. `JWT_SECRET` SEN PROD == Hub PROD. 6. Backups P3S.1 présents.
+  Critères de réussite : 6/6. Phase cochable seulement si tout passe.
+
+**GATE humain** : déploiement complet SEN PROD = impact PROD → valider la fenêtre.
 
 ---
 
-## P5 — Test E2E EANCOM CIV PROD ↔ TUN PROD 🔴
-**Objectif** : prouver ORDERS + INVOIC dans les deux sens, `DELIVERED` au Hub PROD + persistés chez le destinataire.
+## P4 — Annuaire PROD (registry) + enregistrement des nœuds 🔴
+**Objectif** : l'annuaire `partners` du Hub PROD contient CIV PROD et TUN PROD avec les bons GLN et `target_url`.
 
-- [ ] **P5.1 — Envoyer les 4 messages de validation via le Hub PROD**
-  *Description* : POST `relay` au Hub PROD pour ORDERS CIV→TUN, ORDERS TUN→CIV, INVOIC CIV→TUN, INVOIC TUN→CIV. `transactionRef` préfixés `TESTPROD-`. EANCOM valides (réutiliser les gabarits ORDERS/INVOIC validés en DEV, avec GLN PROD).
+- [ ] **P4.1 — Enregistrer les nœuds PROD dans le Hub PROD**
+  *Description* : insérer 1 ligne `partners` par nœud activé (CIV, TUN, +SEN si P0.4=oui) dans `codeonline_edi_db_prod`.
   *Prompt exécutant* :
-  > Construire 4 paquets `{senderGln,receiverGln,eancomContent,messageType,filename,transactionRef:"TESTPROD-…",orderRef}` avec les GLN PROD (P0.3) et des contenus EANCOM ORDERS/INVOIC valides (gabarits `docs/RAPPORT_FIX_HUB_EDI_2026-06-13.md`). POST chacun sur `<HUB_PROD_URL>/api/orchestrator/relay`. Émettre depuis un point ayant accès réseau au Hub PROD (serveur CIV PROD ou TUN PROD selon exposition). Collecter les réponses (`success`, `route`).
-  *Tests unitaires* : les 4 réponses `success=true`. Bloquant avant P5.2.
-  *DoD* : 4 relais acceptés par le Hub PROD.
-  *Vérif* : 4 réponses JSON `"success":true` capturées.
+  > Sur la DB Hub PROD `codeonline_edi_db_prod` :
+  > `INSERT INTO partners (gln,name,country_code,target_url,status) VALUES ('<CIV_PROD_GLN>','Cote Ivoire PROD','384','https://civ.codeonline-edi.net/api/edi/receive','ACTIVE'), ('<TUN_PROD_GLN>','Tunisie PROD','788','<domaine TUN PROD>/api/edi/receive','ACTIVE')` — **ajouter si SEN activé** : `, ('<SEN_PROD_GLN>','Senegal PROD','686','https://codeonline-edi.net/api/edi/receive','ACTIVE')` — `ON DUPLICATE KEY UPDATE target_url=VALUES(target_url),status='ACTIVE';`
+  > Vérifier `SELECT gln,country_code,target_url,status FROM partners`.
+  *Tests unitaires* : `SELECT COUNT(*) FROM partners WHERE status='ACTIVE'` = 2 (sans SEN) ou 3 (avec SEN) ; chaque `target_url` finit par `/api/edi/receive`. Bloquant avant P4.T.
+  *DoD* : annuaire PROD = tous les nœuds activés, GLN PROD et URLs PROD.
+  *Vérif* : `mysql codeonline_edi_db_prod -e "SELECT gln,target_url FROM partners"` → 2 ou 3 lignes PROD.
+
+- [ ] **P4.T — Scénario de test complet P4**
+  1. `partners` PROD = exactement N lignes ACTIVE (N=2 sans SEN, 3 avec). 2. `target_url` CIV = `https://civ.codeonline-edi.net/api/edi/receive`. 3. `target_url` TUN = `<domaine TUN PROD>/api/edi/receive`. 4. (si SEN) `target_url` SEN = `https://codeonline-edi.net/api/edi/receive`. 5. GLN = ceux de P0.3.
+  Critères de réussite : tous. Phase cochable seulement si tout passe.
+
+---
+
+## P5 — Test E2E EANCOM (CIV / TUN [/ SEN] PROD) 🔴
+**Objectif** : prouver ORDERS + INVOIC dans les deux sens, `DELIVERED` au Hub PROD + persistés chez le destinataire. Minimum bloquant = paire CIV↔TUN. Si SEN activé → matrice 3 nœuds.
+
+- [ ] **P5.1 — Envoyer les messages de validation via le Hub PROD**
+  *Description* : POST `relay` au Hub PROD pour chaque combo activé. `transactionRef` préfixés `TESTPROD-`. EANCOM valides (gabarits ORDERS/INVOIC validés en DEV, avec GLN PROD).
+  > **Combos CIV↔TUN (bloquant, 4)** : ORDERS CIV→TUN, ORDERS TUN→CIV, INVOIC CIV→TUN, INVOIC TUN→CIV.
+  > **Combos SEN (si activé, +8)** : ORDERS et INVOIC pour CIV↔SEN et TUN↔SEN, dans les 2 sens. → matrice complète = 12.
+  *Prompt exécutant* :
+  > Construire les paquets `{senderGln,receiverGln,eancomContent,messageType,filename,transactionRef:"TESTPROD-…",orderRef}` avec les GLN PROD (P0.3) et des contenus EANCOM ORDERS/INVOIC valides (gabarits `docs/RAPPORT_FIX_HUB_EDI_2026-06-13.md`). POST chacun sur `<HUB_PROD_URL>/api/orchestrator/relay` depuis un point ayant accès réseau au Hub PROD. Collecter les réponses (`success`, `route`).
+  *Tests unitaires* : toutes les réponses `success=true` (4 sans SEN, 12 avec). Bloquant avant P5.2.
+  *DoD* : tous les relais acceptés par le Hub PROD.
+  *Vérif* : N réponses JSON `"success":true` capturées (N=4 ou 12).
 
 - [ ] **P5.2 — Vérifier journal Hub PROD + persistance destinataires**
-  *Description* : confirmer `DELIVERED` dans `transactions` PROD et lignes `INBOUND` correspondantes dans `edi_transmissions` de CIV PROD et TUN PROD.
+  *Description* : confirmer `DELIVERED` dans `transactions` PROD et lignes `INBOUND` correspondantes dans `edi_transmissions` de chaque destinataire activé.
   *Prompt exécutant* :
-  > Hub PROD : `SELECT document_type,sender_gln,receiver_gln,status FROM transactions WHERE transaction_ref LIKE 'TESTPROD-%'` → 4 lignes `DELIVERED`. CIV PROD `Entitedb` : `SELECT document_type,partner_gln,status,filename FROM edi_transmissions WHERE direction='INBOUND' AND filename LIKE '%TESTPROD%'` → 2 lignes (ORDERS+INVOIC reçus de TUN). TUN PROD DB : idem → 2 lignes (reçus de CIV). Reporter le tableau de résultats dans ce fichier.
-  *Tests unitaires* : 4 `DELIVERED` au Hub ; 2 INBOUND côté CIV ; 2 INBOUND côté TUN. Bloquant avant P5.T.
-  *DoD* : matrice 2 docs × 2 sens entièrement verte (livré + persisté).
-  *Vérif* : requêtes ci-dessus renvoient les comptes attendus (4 / 2 / 2).
+  > Hub PROD : `SELECT document_type,sender_gln,receiver_gln,status FROM transactions WHERE transaction_ref LIKE 'TESTPROD-%'` → toutes `DELIVERED` (4 ou 12). Pour chaque destinataire (CIV `Entitedb`, TUN PROD DB, et SEN `Entitedb` si activé) : `SELECT document_type,partner_gln,status,filename FROM edi_transmissions WHERE direction='INBOUND' AND filename LIKE '%TESTPROD%'` → comptes attendus par nœud. Reporter le tableau de résultats dans ce fichier.
+  *Tests unitaires* : toutes `DELIVERED` au Hub ; INBOUND attendus par destinataire (CIV↔TUN : 2 chez CIV, 2 chez TUN ; +SEN : 4 chez SEN, et +2 chez CIV, +2 chez TUN). Bloquant avant P5.T.
+  *DoD* : matrice activée entièrement verte (livré + persisté).
+  *Vérif* : requêtes renvoient les comptes attendus.
 
 - [ ] **P5.3 — Nettoyage des messages de test**
   *Description* : retirer/مarquer les transactions et transmissions `TESTPROD-` pour ne pas polluer le PROD.
@@ -238,8 +288,9 @@
   *Vérif* : compte `TESTPROD-` = 0.
 
 - [ ] **P5.T — Scénario de test complet P5**
-  1. ORDERS CIV→TUN : Hub `DELIVERED` + INBOUND chez TUN. 2. ORDERS TUN→CIV : `DELIVERED` + INBOUND chez CIV. 3. INVOIC CIV→TUN : `DELIVERED` + INBOUND chez TUN. 4. INVOIC TUN→CIV : `DELIVERED` + INBOUND chez CIV.
-  Critères de réussite : 4/4 livrés ET persistés. Phase cochable seulement si tout passe.
+  **Paire CIV↔TUN (bloquant)** : 1. ORDERS CIV→TUN : Hub `DELIVERED` + INBOUND chez TUN. 2. ORDERS TUN→CIV : `DELIVERED` + INBOUND chez CIV. 3. INVOIC CIV→TUN : `DELIVERED` + INBOUND chez TUN. 4. INVOIC TUN→CIV : `DELIVERED` + INBOUND chez CIV.
+  **Si SEN activé** : 5-8. CIV↔SEN ORDERS+INVOIC 2 sens livrés+persistés. 9-12. TUN↔SEN ORDERS+INVOIC 2 sens livrés+persistés.
+  Critères de réussite : 4/4 (CIV↔TUN) obligatoires ; +8 si SEN activé. Phase cochable seulement si tous les combos activés passent.
 
 ---
 
@@ -270,26 +321,26 @@
 
 ## Ordre d'exécution
 ```
-P0 (recon + GATE) ──► P1 (Hub PROD)
-                       │
-                       ├──► P2 (CIV PROD)  ┐
-                       └──► P3 (TUN PROD)  ┘  (P2 ∥ P3 parallélisables après P1)
-                                  │
-                                  └──► P4 (annuaire) ──► P5 (E2E) ──► P6 (durcissement/doc)
+P0 (recon CIV+TUN+SEN + GATE) ──► P1 (Hub PROD)
+                                   │
+                                   ├──► P2  (CIV PROD)            ┐
+                                   ├──► P3  (TUN PROD)            ┤ parallélisables après P1
+                                   └──► P3S (SEN PROD, si activé) ┘
+                                              │
+                                              └──► P4 (annuaire) ──► P5 (E2E) ──► P6 (durcissement/doc)
 ```
-- P2 et P3 sont **parallélisables** une fois P1 terminé.
-- P4 exige P1 + P2 + P3 (besoin des GLN et URLs PROD réels).
-- P5 exige P4. P6 exige P5.
+- P2, P3 et P3S (si SEN activé) sont **parallélisables** une fois P1 terminé.
+- P3S est **conditionnel** à la décision P0.4. SEN PROD est vierge → déploiement complet (plus lourd que P2/P3).
+- P4 exige P1 + P2 + P3 (+ P3S si SEN). P5 exige P4. P6 exige P5.
 
 ## DoD globale
 - [ ] Hub PROD en ligne, **isolé** du DEV (DB `codeonline_edi_db_prod`, port dédié, `JWT_SECRET` PROD distinct), `health` 200.
 - [ ] CIV PROD sur la version corrigée, GLN PROD, chemin EANCOM inscriptible, pointant le Hub PROD.
 - [ ] TUN PROD aligné (route receive OK, GLN PROD, secret PROD), sans régression du site PROD.
-- [ ] Annuaire PROD = CIV PROD + TUN PROD actifs.
-- [ ] **4/4** messages (ORDERS×2 sens, INVOIC×2 sens) `DELIVERED` au Hub PROD **et** persistés chez le destinataire.
+- [ ] **(si SEN activé)** SEN PROD déployée (DB `Entitedb` peuplée, version corrigée, PM2 `senegal-prod` port 5000, GLN PROD, secret PROD), `/api/settings` 200.
+- [ ] Annuaire PROD = nœuds activés actifs (CIV + TUN [+ SEN]).
+- [ ] **CIV↔TUN 4/4** messages `DELIVERED` + persistés (bloquant). **Si SEN : 12/12** sur les 3 paires.
 - [ ] Données de test `TESTPROD-` nettoyées (ou conservées et documentées).
 - [ ] Accès Hub PROD restreint + TLS (si public).
 - [ ] `docs/PROD_HUB_EDI.md` écrite + import du code Hub dans git planifié.
-- [ ] Backups CIV PROD et TUN PROD (code+DB+.env) présents et horodatés.
-```
-```
+- [ ] Backups CIV PROD, TUN PROD (+ SEN PROD si activé) (code+DB+.env) présents et horodatés.
