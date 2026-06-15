@@ -11,6 +11,7 @@ import DashboardLayout from "./components/layout/DashboardLayout";
 import GenerateurModele from "./pages/GenerateurModele";
 import VueModeles from "./pages/VueModeles";
 import Login from "./pages/Login";
+import Enquete from "./pages/Enquete";
 import Profile from "./pages/Profile";
 import Comptes from "./pages/comptes";
 import Index from "./pages/Index";
@@ -201,7 +202,7 @@ const App: React.FC = () => {
                     <Route path="/catalogueComplet" element={<ProtectedRoute><CatalogueComplet /></ProtectedRoute>} />
                     <Route path="/tarification" element={<ProtectedRoute><Tarification /></ProtectedRoute>} />
                     <Route path="/operation-edi/order" element={<ProtectedRoute><Order /></ProtectedRoute>} />
-
+<Route path="/enquete" element={<ProtectedRoute><Enquete /></ProtectedRoute>} />
                     <Route path="/operation-edi/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
                     <Route path="/operation-edi/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
                     <Route path="/operation-edi/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />

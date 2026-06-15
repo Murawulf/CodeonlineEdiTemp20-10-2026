@@ -2039,13 +2039,13 @@ app.get("/api/companies/template", async (req, res) => {
 
     const ws = workbook.addWorksheet('Entites');
 
-    // ✅ Display-friendly headers (what user sees) vs internal keys (what parser reads)
-    // The frontend cleanKey() strips " *" and " ▼" — so the key is always the clean version
+    // ? Display-friendly headers (what user sees) vs internal keys (what parser reads)
+    // The frontend cleanKey() strips " *" and " ?" — so the key is always the clean version
     ws.columns = [
       { header: 'Raison Sociale *',         key: 'raison_socialle',        width: 38 },
       { header: 'Identifiant National *',    key: 'identifiant_national',   width: 22 },
       { header: 'Personne Contact *',        key: 'personne_contact',       width: 28 },
-      { header: 'Type Producteur ▼',         key: 'type_prod',              width: 48 },
+      { header: 'Type Producteur ?',         key: 'type_prod',              width: 48 },
       { header: 'Email',                     key: 'email',                  width: 30 },
       { header: 'Tél Mobile',                key: 'tel_mobile',             width: 18 },
       { header: 'Téléphone',                 key: 'telephone',              width: 18 },
@@ -2056,7 +2056,7 @@ app.get("/api/companies/template", async (req, res) => {
       { header: 'Ville',                     key: 'city',                   width: 20 },
       { header: 'Localité',                  key: 'localite',               width: 20 },
       { header: 'Code Postal',               key: 'postalCode',             width: 12 },
-      { header: 'Pays ▼',                    key: 'pays',                   width: 18 },
+      { header: 'Pays ?',                    key: 'pays',                   width: 18 },
       { header: 'Site Web',                  key: 'site',                   width: 30 },
       { header: 'Service',                   key: 'service',                width: 20 },
       { header: 'État',                      key: 'etat',                   width: 12 },
@@ -2068,27 +2068,27 @@ app.get("/api/companies/template", async (req, res) => {
       { header: 'Date Échéance',             key: 'date_echeance',          width: 18 },
       { header: 'Nb FP',                     key: 'nb_fp',                  width: 10 },
       { header: 'Inscription',               key: 'inscription',            width: 12 },
-      { header: 'Statut Entité ▼',           key: 'status_ent',             width: 18 },
+      { header: 'Statut Entité ?',           key: 'status_ent',             width: 18 },
       { header: 'Titre FR',                  key: 'titre_fr',               width: 30 },
       { header: 'Titre AR',                  key: 'titre_ar',               width: 30 },
       { header: 'Titre EN',                  key: 'titre_en',               width: 30 },
-      { header: 'Segment 1 ▼',               key: 'segment1',               width: 48 },
-      { header: 'Segment 2 ▼',               key: 'segment2',               width: 48 },
-      { header: 'Segment 3 ▼',               key: 'segment3',               width: 48 },
-      { header: 'Segment 4 ▼',               key: 'segment4',               width: 48 },
+      { header: 'Segment 1 ?',               key: 'segment1',               width: 48 },
+      { header: 'Segment 2 ?',               key: 'segment2',               width: 48 },
+      { header: 'Segment 3 ?',               key: 'segment3',               width: 48 },
+      { header: 'Segment 4 ?',               key: 'segment4',               width: 48 },
     ];
 
-    // ✅ Build COL map from key (not header display text)
+    // ? Build COL map from key (not header display text)
     const COL = {};
     ws.columns.forEach((c, i) => { COL[c.key] = i + 1; });
 
-    // ✅ Style header — detect required/dropdown from display header
+    // ? Style header — detect required/dropdown from display header
     const headerRow = ws.getRow(1);
     headerRow.height = 36;
     ws.columns.forEach((col, ci) => {
       const cell = headerRow.getCell(ci + 1);
       const isRequired  = col.header.includes('*');
-      const hasDropdown = col.header.includes('▼');
+      const hasDropdown = col.header.includes('?');
       cell.value = col.header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
       cell.fill = {
@@ -2173,7 +2173,7 @@ app.get("/api/companies/template", async (req, res) => {
       ['Raison Sociale *',                   'OUI',  'Raison sociale de l\'entreprise — obligatoire'],
       ['Identifiant National *',             'OUI',  'Matricule fiscal ou identifiant national — obligatoire'],
       ['Personne Contact *',                 'OUI',  'Nom complet du contact principal — obligatoire'],
-      ['Type Producteur ▼',                  'NON',  'Menu déroulant. Laisser vide = type 1 par défaut'],
+      ['Type Producteur ?',                  'NON',  'Menu déroulant. Laisser vide = type 1 par défaut'],
       ['Email',                              'NON',  'Adresse email professionnelle'],
       ['Tél Mobile',                         'NON',  'Téléphone mobile (ex: +21698000000)'],
       ['Téléphone',                          'NON',  'Téléphone fixe'],
@@ -2184,18 +2184,18 @@ app.get("/api/companies/template", async (req, res) => {
       ['Ville',                              'NON',  'Ville'],
       ['Localité',                           'NON',  'Localité'],
       ['Code Postal',                        'NON',  'Code postal (ex: 1000)'],
-      ['Pays ▼',                             'NON',  'Menu déroulant. Laisser vide = Tunisie par défaut'],
+      ['Pays ?',                             'NON',  'Menu déroulant. Laisser vide = Tunisie par défaut'],
       ['Site Web',                           'NON',  'Site web (ex: https://exemple.tn)'],
       ['Service',                            'NON',  'Service ou département'],
       ['État',                               'NON',  'État libre'],
-      ['Statut Entité ▼',                    'NON',  'Menu déroulant: E=En attente (défaut), A=Actif, I=Inactif'],
-      ['Segment 1 à Segment 4 ▼',            'NON',  'Menu déroulant — jusqu\'à 4 segments d\'activité'],
+      ['Statut Entité ?',                    'NON',  'Menu déroulant: E=En attente (défaut), A=Actif, I=Inactif'],
+      ['Segment 1 à Segment 4 ?',            'NON',  'Menu déroulant — jusqu\'à 4 segments d\'activité'],
       ['Date Abonnement / Date Échéance',    'NON',  'Format YYYY-MM-DD (ex: 2025-01-15)'],
       ['Nb FP / Inscription',                'NON',  'Nombres entiers (ex: 0, 1, 5)'],
       ['Titre FR / Titre AR / Titre EN',     'NON',  'Titre de présentation multilingue'],
       ['Identifiant REX',                    'NON',  'Identifiant REX si applicable'],
       ['Colonnes rouges *',                  'INFO', 'Champs obligatoires — le reste est optionnel'],
-      ['Colonnes bleues ▼',                  'INFO', 'Champs avec menu déroulant — cliquez sur la cellule'],
+      ['Colonnes bleues ?',                  'INFO', 'Champs avec menu déroulant — cliquez sur la cellule'],
       ['100 lignes disponibles',             'INFO', 'Remplissez autant de lignes que nécessaire puis importez'],
     ].forEach(([col, req, desc]) => {
       const row = notesWs.addRow({ col, req, desc });
@@ -2221,113 +2221,253 @@ app.get("/api/companies/template", async (req, res) => {
 app.post('/api/companies/import', async (req, res) => {
   try {
     const { entities } = req.body;
+
     if (!Array.isArray(entities) || entities.length === 0) {
-      return res.status(400).json({ error: 'No entities provided' });
+      return res.status(400).json({
+        error: 'No entities provided'
+      });
     }
 
-    const added  = [];
     const errors = [];
+    let added = 0;
 
-    // "50000000 - Nourriture/Boisson" → "50000000"
-    // "1 - Entreprise..." → "1"
-    // "E - En attente" → "E"
-    const parseCode = (val) => {
-      if (val === null || val === undefined) return null;
-      const s = String(val).trim();
+    const clean = (v) => {
+      if (v === undefined || v === null) return null;
+      const s = String(v).trim();
+      return s === '' ? null : s;
+    };
+
+    const parseCode = (v) => {
+      const s = clean(v);
       if (!s) return null;
-      return s.includes(' - ') ? s.split(' - ')[0].trim() : s;
+      return s.includes(' - ')
+        ? s.split(' - ')[0].trim()
+        : s;
     };
 
     for (const e of entities) {
       try {
-        // Accept both spellings — frontend sends raison_socialle but be defensive
-        const raison = (e.raison_socialle || e.raison_sociale || '').toString().trim();
+
+        const raison =
+          clean(e.raison_socialle) ||
+          clean(e.raison_sociale);
+
+        const identifiant =
+          clean(e.identifiant_national);
+
+        const contact =
+          clean(e.personne_contact);
+
         if (!raison) {
-          errors.push({ raison_socialle: 'N/A', message: 'raison_socialle manquante' });
+          errors.push({
+            raison_socialle: 'N/A',
+            message: 'Raison sociale manquante'
+          });
           continue;
         }
 
-        if (!e.identifiant_national) {
-          errors.push({ raison_socialle: raison, message: 'identifiant_national manquant' });
+        if (!identifiant) {
+          errors.push({
+            raison_socialle: raison,
+            message: 'Identifiant national manquant'
+          });
           continue;
         }
 
-        if (!e.personne_contact) {
-          errors.push({ raison_socialle: raison, message: 'personne_contact manquant' });
+        if (!contact) {
+          errors.push({
+            raison_socialle: raison,
+            message: 'Personne contact manquante'
+          });
           continue;
         }
 
         const company = {
-          identifiant_rex:          e.identifiant_rex              || null,
-          date_enregistrement_rex:  e.date_enregistrement_rex      || null,
-          debut_validite_rex:       e.debut_validite_rex           || null,
-          fin_validite_rex:         e.fin_validite_rex             || null,
-          etat:                     e.etat                         || null,
-          raison_socialle:          raison,
-          identifiant_national:     String(e.identifiant_national).trim(),
-          gln:                      e.gln || e.identifiant_national || null,
-          certicode:                Number(e.certicode)            || 0,
-          date_create:              new Date().toISOString().slice(0, 10),
-          pays:                     parseCode(e.pays)              || null,
-          site:                     e.site                         || null,
-          personne_contact:         String(e.personne_contact).trim(),
-          service:                  e.service                      || null,
-          email:                    e.email                        || null,
-          tel_mobile:               e.tel_mobile ? String(e.tel_mobile) : null,
-          telephone:                e.telephone  ? String(e.telephone)  : null,
-          fax:                      e.fax        ? String(e.fax)        : null,
-          adresse:                  e.adresse                      || null,
-          region:                   e.region                       || '',
-          city:                     e.city                         || null,
-          localite:                 e.localite                     || '',
-          postalCode:               e.postalCode ? String(e.postalCode) : null,
-          type_prod:                Number(parseCode(e.type_prod)) || 1,
-          statut:                   Number(e.statut)               || 0,
-          date_abonnement:          e.date_abonnement              || null,
-          date_echeance:            e.date_echeance                || null,
-          pwd:                      e.pwd                          || 'empty',
-          nb_fp:                    Number(e.nb_fp)                || 0,
-          inscription:              Number(e.inscription)          || 0,
-          status_ent:               parseCode(e.status_ent)        || 'E',
-          delegation:               e.delegation                   || null,
-          titre_fr:                 e.titre_fr                     || null,
-          titre_ar:                 e.titre_ar                     || null,
-          titre_en:                 e.titre_en                     || null,
+          identifiant_rex: clean(e.identifiant_rex),
+          date_enregistrement_rex: clean(e.date_enregistrement_rex),
+          debut_validite_rex: clean(e.debut_validite_rex),
+          fin_validite_rex: clean(e.fin_validite_rex),
+
+          etat: clean(e.etat),
+
+          raison_socialle: raison,
+
+          identifiant_national: identifiant,
+
+          gln: clean(e.gln) || identifiant,
+
+          certicode: Number(e.certicode) || 0,
+
+          date_create: new Date()
+            .toISOString()
+            .slice(0, 10),
+
+          pays: parseCode(e.pays),
+
+          site: clean(e.site),
+
+          personne_contact: contact,
+
+          service: clean(e.service),
+
+          email: clean(e.email),
+
+          tel_mobile: clean(e.tel_mobile),
+
+          telephone: clean(e.telephone),
+
+          fax: clean(e.fax),
+
+          adresse: clean(e.adresse),
+
+          region: clean(e.region) || '',
+
+          city: clean(e.city),
+
+          localite: clean(e.localite) || '',
+
+          postalCode: clean(e.postalCode),
+
+          type_prod:
+            Number(parseCode(e.type_prod)) || 1,
+
+          statut:
+            Number(e.statut) || 0,
+
+          date_abonnement:
+            clean(e.date_abonnement),
+
+          date_echeance:
+            clean(e.date_echeance),
+
+          pwd:
+            clean(e.pwd) || 'empty',
+
+          nb_fp:
+            Number(e.nb_fp) || 0,
+
+          inscription:
+            Number(e.inscription) || 0,
+
+          status_ent:
+            parseCode(e.status_ent) || 'E',
+
+          delegation:
+            clean(e.delegation),
+
+          titre_fr:
+            clean(e.titre_fr),
+
+          titre_ar:
+            clean(e.titre_ar),
+
+          titre_en:
+            clean(e.titre_en)
         };
 
-        const [result] = await entiteDB.query('INSERT INTO Entite SET ?', company);
-        const newId = result.insertId;
+        // ⚠️ FIX: id_entite has NO AUTO_INCREMENT in the current schema.
+        // Until you run:
+        //   ALTER TABLE Entite MODIFY id_entite INT NOT NULL AUTO_INCREMENT;
+        //   (+ ensure it is the PRIMARY KEY)
+        // we must compute the next id manually, otherwise MySQL strict mode
+        // rejects every row with "Field 'id_entite' doesn't have a default value"
+        // and the whole import silently fails (added stays 0).
+        const [[{ nextId }]] = await entiteDB.query(
+          'SELECT COALESCE(MAX(id_entite), 0) + 1 AS nextId FROM Entite'
+        );
+        company.id_entite = nextId;
 
-        // Accept pre-resolved segments array from frontend OR raw segment1–4 columns
-        const rawSegs = Array.isArray(e.segments) && e.segments.length > 0
-          ? e.segments
-          : [e.segment1, e.segment2, e.segment3, e.segment4];
+        console.log(
+          'IMPORT:',
+          company.id_entite,
+          company.raison_socialle,
+          company.identifiant_national
+        );
 
-        const segCodes = rawSegs
-          .map(s => s ? parseCode(String(s).trim()) : null)
-          .filter(Boolean);
-
-        for (const seg of segCodes) {
+        const [result] =
           await entiteDB.query(
-            'INSERT IGNORE INTO Entite_segment (id_entite, id_segment) VALUES (?, ?)',
-            [newId, seg]
+            'INSERT INTO Entite SET ?',
+            company
           );
+
+        const newId = company.id_entite;
+
+        const segs = Array.isArray(e.segments)
+          ? e.segments
+          : [
+              e.segment1,
+              e.segment2,
+              e.segment3,
+              e.segment4
+            ];
+
+        for (const seg of segs) {
+
+          const code = parseCode(seg);
+
+          if (!code) continue;
+
+          try {
+            await entiteDB.query(
+              `
+              INSERT IGNORE INTO Entite_segment
+              (id_entite,id_segment)
+              VALUES (?,?)
+              `,
+              [newId, code]
+            );
+          } catch (segErr) {
+            console.error(
+              'SEGMENT ERROR',
+              code,
+              segErr.message
+            );
+          }
         }
 
-        added.push(newId);
-      } catch (innerErr) {
-        console.error('Failed to import entity:', e.raison_socialle || e.raison_sociale, innerErr);
+        added++;
+
+      } catch (err) {
+
+        console.error(
+          'IMPORT ERROR',
+          err
+        );
+
         errors.push({
-          raison_socialle: e.raison_socialle || e.raison_sociale || 'Inconnu',
-          message: innerErr.message,
+          raison_socialle:
+            e.raison_socialle ||
+            e.raison_sociale ||
+            'Inconnu',
+
+          // ⚠️ FIX: surface the real DB error (err.sqlMessage) so the
+          // frontend's importResult.backErrors actually shows you WHY
+          // a row failed instead of a generic message.
+          message:
+            err.sqlMessage ||
+            err.message ||
+            'Erreur inconnue'
         });
       }
     }
 
-    res.json({ added: added.length, errors });
+    return res.json({
+      success: true,
+      added,
+      errors
+    });
+
   } catch (err) {
-    console.error('POST /api/companies/import error:', err);
-    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+
+    console.error(
+      'GLOBAL IMPORT ERROR',
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 });
 app.get('/api/companies/max-id', async (req, res) => {
@@ -2850,7 +2990,171 @@ const typeOptions = [
   { value: "9", label: "Douane" },
   { value: "10", label: "Assurance" },
 ];
+// ------------------------------------------------------------------------------
+// ENQUETES — Transport Logistique Afrique de l'Ouest
+// ------------------------------------------------------------------------------
 
+// GET /api/enquetes — list (light columns for table)
+app.get('/api/enquetes', verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, `
+      SELECT id_enquete, id_entite, raison_sociale, secteur, flux, pays, foprodex, date_enquete
+      FROM Enquete
+      ORDER BY date_enquete DESC
+    `, []);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/enquetes error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// GET /api/enquetes/by-entite/:id_entite — all enquêtes for one entité
+app.get('/api/enquetes/by-entite/:id_entite', verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, `
+      SELECT id_enquete, raison_sociale, secteur, flux, pays, foprodex, date_enquete
+      FROM Enquete WHERE id_entite = ? ORDER BY date_enquete DESC
+    `, [Number(req.params.id_entite)]);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/enquetes/by-entite error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// GET /api/enquetes/:id — full detail for edit modal
+// ??  Must come AFTER /by-entite to avoid route collision
+app.get('/api/enquetes/:id', verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(entiteDB, 'SELECT * FROM Enquete WHERE id_enquete = ?', [Number(req.params.id)]);
+    if (!rows.length) return res.status(404).json({ error: 'Enquête introuvable' });
+    const row = rows[0];
+    // Parse JSON columns (mysql2 may return them as strings)
+    ['volumes', 'frequences', 'transporteurs', 'difficultes'].forEach(col => {
+      if (typeof row[col] === 'string') {
+        try { row[col] = JSON.parse(row[col]); } catch { row[col] = null; }
+      }
+    });
+    res.json(row);
+  } catch (err) {
+    console.error('GET /api/enquetes/:id error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/enquetes — create
+app.post('/api/enquetes', verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const {
+      id_entite, raison_sociale, identifiant_fiscal,
+      secteur, flux, pays,
+      volumes, groupage, frequences,
+      transporteurs, difficultes,
+      foprodex, besoins_transport,
+    } = req.body;
+
+    if (!raison_sociale || !secteur || !flux || !pays) {
+      return res.status(400).json({ error: 'Champs obligatoires manquants (raison_sociale, secteur, flux, pays)' });
+    }
+
+    const result = await runUpdate(entiteDB, `
+      INSERT INTO Enquete
+        (id_entite, raison_sociale, identifiant_fiscal, secteur, flux, pays,
+         volumes, groupage, frequences, transporteurs, difficultes,
+         foprodex, besoins_transport, date_enquete)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `, [
+      id_entite || null,
+      raison_sociale,
+      identifiant_fiscal || null,
+      secteur,
+      flux,
+      pays,
+      JSON.stringify(volumes || []),
+      groupage || null,
+      JSON.stringify(frequences || []),
+      JSON.stringify(transporteurs || []),
+      JSON.stringify(difficultes || []),
+      foprodex || null,
+      besoins_transport || null,
+    ]);
+    res.status(201).json({ id_enquete: result.insertId ?? result.lastID });
+  } catch (err) {
+    console.error('POST /api/enquetes error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// PUT /api/enquetes/:id — update
+app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const {
+      id_entite, raison_sociale, identifiant_fiscal,
+      secteur, flux, pays,
+      volumes, groupage, frequences,
+      transporteurs, difficultes,
+      foprodex, besoins_transport,
+    } = req.body;
+
+    await runUpdate(entiteDB, `
+      UPDATE Enquete SET
+        id_entite          = ?,
+        raison_sociale     = ?,
+        identifiant_fiscal = ?,
+        secteur            = ?,
+        flux               = ?,
+        pays               = ?,
+        volumes            = ?,
+        groupage           = ?,
+        frequences         = ?,
+        transporteurs      = ?,
+        difficultes        = ?,
+        foprodex           = ?,
+        besoins_transport  = ?,
+        updated_at         = NOW()
+      WHERE id_enquete = ?
+    `, [
+      id_entite || null,
+      raison_sociale,
+      identifiant_fiscal || null,
+      secteur,
+      flux,
+      pays,
+      JSON.stringify(volumes || []),
+      groupage || null,
+      JSON.stringify(frequences || []),
+      JSON.stringify(transporteurs || []),
+      JSON.stringify(difficultes || []),
+      foprodex || null,
+      besoins_transport || null,
+      Number(req.params.id),
+    ]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT /api/enquetes/:id error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// DELETE /api/enquetes/:id
+app.delete('/api/enquetes/:id', verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    await runUpdate(entiteDB, 'DELETE FROM Enquete WHERE id_enquete = ?', [Number(req.params.id)]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/enquetes/:id error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// ------------------------------------------------------------------------------
 
 
 // --- 1. UTILITAIRES DE VALIDATION & PRÃ‰CISION ---
@@ -9365,7 +9669,7 @@ app.post('/api/login', async (req, res) => {
         );
 
         if (!transporter) {
-          console.error('[Login] ❌ Mailer not initialized — cannot send certicode to', email);
+          console.error('[Login] ? Mailer not initialized — cannot send certicode to', email);
           return res.status(503).json({ error: 'Email service unavailable. Contact your administrator.' });
         }
 
@@ -9377,7 +9681,7 @@ app.post('/api/login', async (req, res) => {
             text: `Votre certicode est : ${newCerticode}. Il expire dans 3 minutes.`,
           });
         } catch (mailErr) {
-          console.error('[Login] ❌ Failed to send certicode email:', mailErr.message);
+          console.error('[Login] ? Failed to send certicode email:', mailErr.message);
           return res.status(503).json({ error: 'Failed to send certicode email. Contact your administrator.' });
         }
 
@@ -13404,4 +13708,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-startServer();  
+startServer();
