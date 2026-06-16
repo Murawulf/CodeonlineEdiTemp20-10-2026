@@ -2220,10 +2220,18 @@ app.get("/api/companies/template", async (req, res) => {
 
 app.post('/api/companies/import', async (req, res) => {
   try {
+    if (!entiteDB) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database unavailable'
+      });
+    }
+
     const { entities } = req.body;
 
     if (!Array.isArray(entities) || entities.length === 0) {
       return res.status(400).json({
+        success: false,
         error: 'No entities provided'
       });
     }
@@ -2287,95 +2295,48 @@ app.post('/api/companies/import', async (req, res) => {
           date_enregistrement_rex: clean(e.date_enregistrement_rex),
           debut_validite_rex: clean(e.debut_validite_rex),
           fin_validite_rex: clean(e.fin_validite_rex),
-
           etat: clean(e.etat),
-
           raison_socialle: raison,
-
           identifiant_national: identifiant,
-
           gln: clean(e.gln) || identifiant,
-
           certicode: Number(e.certicode) || 0,
-
-          date_create: new Date()
-            .toISOString()
-            .slice(0, 10),
-
+          date_create: new Date().toISOString().slice(0, 10),
           pays: parseCode(e.pays),
-
           site: clean(e.site),
-
           personne_contact: contact,
-
           service: clean(e.service),
-
           email: clean(e.email),
-
           tel_mobile: clean(e.tel_mobile),
-
           telephone: clean(e.telephone),
-
           fax: clean(e.fax),
-
           adresse: clean(e.adresse),
-
           region: clean(e.region) || '',
-
           city: clean(e.city),
-
           localite: clean(e.localite) || '',
-
           postalCode: clean(e.postalCode),
-
-          type_prod:
-            Number(parseCode(e.type_prod)) || 1,
-
-          statut:
-            Number(e.statut) || 0,
-
-          date_abonnement:
-            clean(e.date_abonnement),
-
-          date_echeance:
-            clean(e.date_echeance),
-
-          pwd:
-            clean(e.pwd) || 'empty',
-
-          nb_fp:
-            Number(e.nb_fp) || 0,
-
-          inscription:
-            Number(e.inscription) || 0,
-
-          status_ent:
-            parseCode(e.status_ent) || 'E',
-
-          delegation:
-            clean(e.delegation),
-
-          titre_fr:
-            clean(e.titre_fr),
-
-          titre_ar:
-            clean(e.titre_ar),
-
-          titre_en:
-            clean(e.titre_en)
+          type_prod: Number(parseCode(e.type_prod)) || 1,
+          statut: Number(e.statut) || 0,
+          date_abonnement: clean(e.date_abonnement),
+          date_echeance: clean(e.date_echeance),
+          pwd: clean(e.pwd) || 'empty',
+          nb_fp: Number(e.nb_fp) || 0,
+          inscription: Number(e.inscription) || 0,
+          status_ent: parseCode(e.status_ent) || 'E',
+          delegation: clean(e.delegation),
+          titre_fr: clean(e.titre_fr),
+          titre_ar: clean(e.titre_ar),
+          titre_en: clean(e.titre_en)
         };
 
-        // ⚠️ FIX: id_entite has NO AUTO_INCREMENT in the current schema.
-        // Until you run:
-        //   ALTER TABLE Entite MODIFY id_entite INT NOT NULL AUTO_INCREMENT;
-        //   (+ ensure it is the PRIMARY KEY)
-        // we must compute the next id manually, otherwise MySQL strict mode
-        // rejects every row with "Field 'id_entite' doesn't have a default value"
-        // and the whole import silently fails (added stays 0).
-        const [[{ nextId }]] = await entiteDB.query(
-          'SELECT COALESCE(MAX(id_entite), 0) + 1 AS nextId FROM Entite'
+        const idRows = await queryDB(
+          entiteDB,
+          'SELECT COALESCE(MAX(id_entite),0)+1 AS nextId FROM Entite'
         );
-        company.id_entite = nextId;
+
+        company.id_entite =
+          Array.isArray(idRows) && idRows.length
+            ? Number(idRows[0].nextId)
+            : 1;
 
         console.log(
           'IMPORT:',
@@ -2384,11 +2345,24 @@ app.post('/api/companies/import', async (req, res) => {
           company.identifiant_national
         );
 
-        const [result] =
-          await entiteDB.query(
-            'INSERT INTO Entite SET ?',
-            company
-          );
+        const fields = Object.keys(company);
+        const placeholders = fields.map(() => '?').join(',');
+        const values = fields.map(field => company[field]);
+
+        const insertSql = `
+          INSERT INTO Entite (
+            ${fields.join(',')}
+          )
+          VALUES (
+            ${placeholders}
+          )
+        `;
+
+        await queryDB(
+          entiteDB,
+          insertSql,
+          values
+        );
 
         const newId = company.id_entite;
 
@@ -2402,18 +2376,14 @@ app.post('/api/companies/import', async (req, res) => {
             ];
 
         for (const seg of segs) {
-
           const code = parseCode(seg);
 
           if (!code) continue;
 
           try {
-            await entiteDB.query(
-              `
-              INSERT IGNORE INTO Entite_segment
-              (id_entite,id_segment)
-              VALUES (?,?)
-              `,
+            await queryDB(
+              entiteDB,
+              'INSERT IGNORE INTO Entite_segment (id_entite,id_segment) VALUES (?,?)',
               [newId, code]
             );
           } catch (segErr) {
@@ -2429,20 +2399,13 @@ app.post('/api/companies/import', async (req, res) => {
 
       } catch (err) {
 
-        console.error(
-          'IMPORT ERROR',
-          err
-        );
+        console.error('IMPORT ERROR', err);
 
         errors.push({
           raison_socialle:
             e.raison_socialle ||
             e.raison_sociale ||
             'Inconnu',
-
-          // ⚠️ FIX: surface the real DB error (err.sqlMessage) so the
-          // frontend's importResult.backErrors actually shows you WHY
-          // a row failed instead of a generic message.
           message:
             err.sqlMessage ||
             err.message ||
@@ -2459,10 +2422,7 @@ app.post('/api/companies/import', async (req, res) => {
 
   } catch (err) {
 
-    console.error(
-      'GLOBAL IMPORT ERROR',
-      err
-    );
+    console.error('GLOBAL IMPORT ERROR', err);
 
     return res.status(500).json({
       success: false,
@@ -2723,12 +2683,12 @@ app.put('/api/companies/:id', uploadLogo.single('logo'), async (req, res) => {
     await conn.query('DELETE FROM Entite_segment WHERE id_entite = ?', [id]);
     const segments = f.segments ? JSON.parse(f.segments) : [];
     if (Array.isArray(segments) && segments.length > 0) {
-      const values = segments.map(code => [id, code]);
-      await conn.query('INSERT INTO Entite_segment (id_entite, id_segment) VALUES ?', [values]);
+      const segValues = segments.map(code => [id, code]);
+      await conn.query('INSERT INTO Entite_segment (id_entite, id_segment) VALUES ?', [segValues]);
     }
 
     // Handle sites (optional, can be zero - delete existing and re-insert)
-    await conn.query('DELETE FROM site WHERE id_entite = ?', [id]);
+    await conn.query('DELETE FROM `Site` WHERE id_entite = ?', [id]);
     const sites = f.sites ? JSON.parse(f.sites) : [];
     if (Array.isArray(sites) && sites.length > 0) {
       for (const site of sites) {
@@ -2744,7 +2704,7 @@ app.put('/api/companies/:id', uploadLogo.single('logo'), async (req, res) => {
           principal: site.principal ? 1 : 0,
           created_at: site.created_at || new Date().toISOString(),
         };
-        await conn.query('INSERT INTO site SET ?', siteData);
+        await conn.query('INSERT INTO `Site` SET ?', siteData);
       }
     }
 

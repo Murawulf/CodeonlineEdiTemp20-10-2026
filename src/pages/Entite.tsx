@@ -484,7 +484,7 @@ const Entite = () => {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+ const handleFileUpload = async (file: File) => {
     if (!file) return;
     setIsLoading(true);
     setImportResult(null);
@@ -493,7 +493,7 @@ const Entite = () => {
     try {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data);
-      const ws = wb.Sheets[wb.SheetNames[0]];
+      const ws = wb.Sheets['Entites'] || wb.Sheets[wb.SheetNames.find(n => !n.startsWith('_')) || wb.SheetNames[0]];
       const json: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
 
       if (!json || json.length < 2) {
@@ -502,8 +502,51 @@ const Entite = () => {
         return;
       }
 
-      const cleanKey = (h: any): string =>
-        (h || "").toString().replace(/\s*\*\s*/g, '').replace(/\s*▼\s*/g, '').replace(/\s*\?\s*/g, '').trim();
+      const HEADER_KEY_MAP: Record<string, string> = {
+        'Raison Sociale': 'raison_socialle',
+        'Identifiant National': 'identifiant_national',
+        'Personne Contact': 'personne_contact',
+        'Type Producteur': 'type_prod',
+        'Email': 'email',
+        'Tél Mobile': 'tel_mobile',
+        'Téléphone': 'telephone',
+        'Fax': 'fax',
+        'Adresse': 'adresse',
+        'Région': 'region',
+        'Délégation': 'delegation',
+        'Ville': 'city',
+        'Localité': 'localite',
+        'Code Postal': 'postalCode',
+        'Pays': 'pays',
+        'Site Web': 'site',
+        'Service': 'service',
+        'État': 'etat',
+        'Identifiant REX': 'identifiant_rex',
+        'Date Enregistrement REX': 'date_enregistrement_rex',
+        'Début Validité REX': 'debut_validite_rex',
+        'Fin Validité REX': 'fin_validite_rex',
+        'Date Abonnement': 'date_abonnement',
+        'Date Échéance': 'date_echeance',
+        'Nb FP': 'nb_fp',
+        'Inscription': 'inscription',
+        'Statut Entité': 'status_ent',
+        'Titre FR': 'titre_fr',
+        'Titre AR': 'titre_ar',
+        'Titre EN': 'titre_en',
+        'Segment 1': 'segment1',
+        'Segment 2': 'segment2',
+        'Segment 3': 'segment3',
+        'Segment 4': 'segment4',
+      };
+
+      const cleanKey = (h: any): string => {
+        const label = (h || "").toString()
+          .replace(/\s*\*\s*/g, '')
+          .replace(/\s*▼\s*/g, '')
+          .replace(/\s*\?\s*/g, '')
+          .trim();
+        return HEADER_KEY_MAP[label] || label;
+      };
 
       const rawHeaders: string[] = (json[0] || []).map((h: any) => (h || "").toString().trim());
       const headerRow: string[] = rawHeaders.map(cleanKey);
@@ -630,7 +673,6 @@ const Entite = () => {
       setIsLoading(false);
     }
   };
-
   const downloadFailedRows = () => {
     if (!importResult || importResult.failedRows.length === 0) return;
     const wbOut = XLSX.utils.book_new();

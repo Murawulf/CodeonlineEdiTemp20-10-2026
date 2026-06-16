@@ -43,6 +43,13 @@ interface Company {
   raison_socialle: string;
 }
 
+// ─── HIERARCHY RULE: entity 999 is the top of the tree, 111 sits directly under it ───
+// 999 can see every account, including its own.
+// 111 can see every account EXCEPT accounts belonging to entity 999.
+// Everyone else can only ever see accounts belonging to their own entity.
+const TOP_ENTITY_ID = 999;
+const SECOND_ENTITY_ID = 111;
+
 const Comptes: React.FC = () => {
   const api = useApi();
   const { addNotification } = useNotifications();
@@ -92,6 +99,9 @@ const Comptes: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterEntity, setFilterEntity] = useState<number | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
+  // ─── NEW: creation-date range filters ───
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
 
   const modalRef = useRef<HTMLDivElement>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
@@ -101,9 +111,13 @@ const Comptes: React.FC = () => {
 
   const parentKeywords = ['EDI', 'Produits', 'Paramètres'];
 
+  // ─── HIERARCHY RULE: who is at the top (999) vs second level (111) ───
+  const isTopEntity = useMemo(() => userIdProducteur === TOP_ENTITY_ID, [userIdProducteur]);
+  const isSecondEntity = useMemo(() => userIdProducteur === SECOND_ENTITY_ID, [userIdProducteur]);
+
   const isSpecialUser = useMemo(() => {
-    return userIdProducteur === 111 || userIdProducteur === 999;
-  }, [userIdProducteur]);
+    return isSecondEntity || isTopEntity;
+  }, [isSecondEntity, isTopEntity]);
 
   const isAdminUser = useMemo(() => {
     if (isSpecialUser) return true;
@@ -188,14 +202,23 @@ const Comptes: React.FC = () => {
       const res = await api.get<Account[]>(`/api/comptes`, { withCredentials: true });
       let filteredAccounts = res.data;
 
-      if (userIdProducteur === 111 || userIdProducteur === 999) {
-        // Special user - no filters
+      // ─── HIERARCHY RULE: visibility of accounts based on entity level ───
+      if (userIdProducteur === TOP_ENTITY_ID) {
+        // Top of the hierarchy (999): sees absolutely everyone, including its own accounts.
+        // No filtering applied.
+      } else if (userIdProducteur === SECOND_ENTITY_ID) {
+        // Second level (111): sees everyone EXCEPT accounts belonging to entity 999.
+        filteredAccounts = filteredAccounts.filter((account) => account.id_entite !== TOP_ENTITY_ID);
       } else {
+        // Regular users: only their own entity's accounts, with the suspended-profile filter,
+        // and entity 999 is excluded as a defense-in-depth measure (it should never match anyway
+        // since these users are filtered down to their own id_entite below).
         filteredAccounts = filteredAccounts.filter((account) => {
           if (!account.profile_id) return true;
           const profile = profiles.find((p) => p.id_profile === account.profile_id);
           return profile && !profile.is_suspended;
         });
+        filteredAccounts = filteredAccounts.filter((account) => account.id_entite !== TOP_ENTITY_ID);
         if (userIdProducteur) {
           filteredAccounts = filteredAccounts.filter((account) => account.id_entite === userIdProducteur);
         } else {
@@ -560,6 +583,12 @@ const Comptes: React.FC = () => {
           } else if (key === 'prenom') {
             aValue = a.prenom || '';
             bValue = b.prenom || '';
+          } else if (key === 'created_at') {
+            // ─── NEW: sort chronologically rather than lexically ───
+            const aTime = new Date(a.created_at).getTime();
+            const bTime = new Date(b.created_at).getTime();
+            aValue = Number.isNaN(aTime) ? 0 : aTime;
+            bValue = Number.isNaN(bTime) ? 0 : bTime;
           } else {
             aValue = (a as any)[key] || '';
             bValue = (b as any)[key] || '';
@@ -593,6 +622,28 @@ const Comptes: React.FC = () => {
     return [...global, ...entityProfiles];
   }, [profiles, currentEntityId, userIdProducteur]);
 
+  // ─── HIERARCHY RULE: entity 999 never appears in entity pickers/dropdowns unless you ARE 999 ───
+  // This keeps 111 (and everyone else) from filtering by, or assigning new accounts to, entity 999.
+  const visibleCompanies = useMemo(() => {
+    if (isTopEntity) return companies;
+    return companies.filter((c) => c.id_entite !== TOP_ENTITY_ID);
+  }, [companies, isTopEntity]);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString('fr-FR');
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setFilterEntity('all');
+    setFilterStatus('all');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+  };
+
   const filteredAccounts = useMemo(() => {
     return accounts.filter((account) => {
       const searchLower = searchQuery.toLowerCase();
@@ -607,9 +658,15 @@ const Comptes: React.FC = () => {
         filterStatus === 'all' ||
         (filterStatus === 'active' && !account.is_suspended) ||
         (filterStatus === 'suspended' && !!account.is_suspended);
-      return matchesSearch && matchesEntity && matchesStatus;
+
+      // ─── NEW: creation-date range filter ───
+      const accountDate = new Date(account.created_at);
+      const matchesDateFrom = !filterDateFrom || (!Number.isNaN(accountDate.getTime()) && accountDate >= new Date(filterDateFrom));
+      const matchesDateTo = !filterDateTo || (!Number.isNaN(accountDate.getTime()) && accountDate <= new Date(`${filterDateTo}T23:59:59.999`));
+
+      return matchesSearch && matchesEntity && matchesStatus && matchesDateFrom && matchesDateTo;
     });
-  }, [accounts, searchQuery, filterEntity, filterStatus, companies, profiles]);
+  }, [accounts, searchQuery, filterEntity, filterStatus, filterDateFrom, filterDateTo, companies, profiles]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -631,13 +688,14 @@ const Comptes: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-4">
+            {/* ─── NEW: filter bar now includes entity, status, creation-date range, and a reset action ─── */}
+            <div className="flex flex-col md:flex-row md:flex-wrap md:items-end gap-4 mb-4">
               <input
                 type="text"
                 placeholder="Rechercher par email, nom, prénom, entité ou profil..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-950 focus:border-blue-950"
+                className="w-full md:flex-1 md:min-w-[220px] border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-950 focus:border-blue-950"
               />
               <select
                 value={filterEntity}
@@ -645,7 +703,7 @@ const Comptes: React.FC = () => {
                 className="w-full md:w-auto border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-950 focus:border-blue-950"
               >
                 <option value="all">Toutes les entités</option>
-                {companies.map((company) => (
+                {visibleCompanies.map((company) => (
                   <option key={company.id_entite} value={company.id_entite}>{company.raison_socialle}</option>
                 ))}
               </select>
@@ -658,6 +716,30 @@ const Comptes: React.FC = () => {
                 <option value="active">Actif</option>
                 <option value="suspended">Suspendue</option>
               </select>
+              <div className="w-full md:w-auto">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Créé à partir du</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="w-full md:w-auto border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-950 focus:border-blue-950"
+                />
+              </div>
+              <div className="w-full md:w-auto">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Créé jusqu'au</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="w-full md:w-auto border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-950 focus:border-blue-950"
+                />
+              </div>
+              <button
+                onClick={resetFilters}
+                className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors"
+              >
+                Réinitialiser les filtres
+              </button>
             </div>
 
             {loading ? (
@@ -684,6 +766,9 @@ const Comptes: React.FC = () => {
                       <th className="p-2 md:p-4 text-left cursor-pointer hover:bg-blue-800 transition-colors" onClick={() => handleSort('raison_socialle')}>
                         Entité {sortConfig.key === 'raison_socialle' && <span className="ml-1">{sortConfig.direction === 'ASC' ? '↑' : '↓'}</span>}
                       </th>
+                      <th className="p-2 md:p-4 text-center cursor-pointer hover:bg-blue-800 transition-colors" onClick={() => handleSort('created_at')}>
+                        Date de création {sortConfig.key === 'created_at' && <span className="ml-1">{sortConfig.direction === 'ASC' ? '↑' : '↓'}</span>}
+                      </th>
                       <th className="p-2 md:p-4 text-center cursor-pointer hover:bg-blue-800 transition-colors" onClick={() => handleSort('is_suspended')}>
                         Statut {sortConfig.key === 'is_suspended' && <span className="ml-1">{sortConfig.direction === 'ASC' ? '↑' : '↓'}</span>}
                       </th>
@@ -707,6 +792,9 @@ const Comptes: React.FC = () => {
                           <td className="border-t border-gray-200 p-2 md:p-4 text-left whitespace-normal break-words">{account.prenom || 'N/A'}</td>
                           <td className="border-t border-gray-200 p-2 md:p-4 text-left whitespace-normal break-words">
                             {companies.find((c) => c.id_entite === account.id_entite)?.raison_socialle || account.producer_name || 'N/A'}
+                          </td>
+                          <td className="border-t border-gray-200 p-2 md:p-4 text-center whitespace-normal break-words">
+                            {formatDate(account.created_at)}
                           </td>
                           <td className="border-t border-gray-200 p-2 md:p-4 text-center whitespace-normal break-words">
                             {account.is_suspended ? 'Suspendue' : 'Actif'}
@@ -796,7 +884,7 @@ const Comptes: React.FC = () => {
                     disabled={!isSpecialUser}
                   >
                     <option value="">Sélectionner une entité (par défaut: ID 1)</option>
-                    {companies.map((company) => (
+                    {visibleCompanies.map((company) => (
                       <option key={company.id_entite} value={company.id_entite}>{company.raison_socialle}</option>
                     ))}
                   </select>
