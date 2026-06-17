@@ -86,6 +86,7 @@ const Entite = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [delegations, setDelegations] = useState<{ delegation: string }[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [paysList, setPaysList] = useState<{ isoNumeric: string; libelle: string }[]>([]);
   const typeOptions = [
     { value: "1", label: "Entreprise privée produits & services" },
     { value: "2", label: "Entreprise privée ingénierie & services" },
@@ -98,7 +99,15 @@ const Entite = () => {
     { value: "9", label: "Douane" },
     { value: "10", label: "Assurance" },
   ];
-  const paysList = [{ isoNumeric: '788', libelle: 'Tunisie' }];
+const fetchPaysList = async () => {
+    try {
+      const response = await api.get(`/api/pays`, { withCredentials: true });
+      setPaysList(response.data || []);
+    } catch (err) {
+      console.error('Fetch pays error:', err);
+      debouncedAddNotification('Échec du chargement des pays', 'error');
+    }
+  };
 
   const [searchRegion, setSearchRegion] = useState('');
   const [searchDelegation, setSearchDelegation] = useState('');
@@ -280,10 +289,9 @@ const Entite = () => {
     }
   };
 
-  const baseCompanies = initialShowAll
-    ? companies.filter(c => ![111, 999].includes(c.id_entite))
-    : companies.filter(c => c.id_entite === initialUser?.id_entite && ![111, 999].includes(c.id_entite));
-
+const baseCompanies = initialShowAll
+    ? companies.filter(c => ![111, 999].includes(c.id_entite) && c.etat !== 'archivé')
+    : companies.filter(c => c.id_entite === initialUser?.id_entite && ![111, 999].includes(c.id_entite) && c.etat !== 'archivé');
   const filteredCompanies = baseCompanies.filter(company =>
     company.raison_socialle.toLowerCase().includes(searchText.toLowerCase()) ||
     (company.personne_contact || '').toLowerCase().includes(searchText.toLowerCase()) ||
@@ -385,17 +393,26 @@ const Entite = () => {
       const newId = response.data?.id_entite;
       if (!newId) throw new Error("No id_entite returned");
 
-      debouncedAddNotification("Entité créée. Complétez les informations.", "success");
+      debouncedAddNotification("Entité créée avec succès", "success");
       setIsBasicModalOpen(false);
-      await fetchCompanies();
       setCurrentPage(1);
 
       const createdResponse = await api.get(`/api/companies/${newId}`, { withCredentials: true });
       const created = createdResponse.data;
+
       if (created) {
+        // Prepend locally so the new entity appears first in the table,
+        // instead of refetching the whole list (which would re-sort it alphabetically).
+        setCompanies(prev => [created, ...prev.filter(c => c.id_entite !== created.id_entite)]);
+
+        window.alert("Veuillez compléter les détails de votre entité");
+
         setEditingCompany(created);
         setModalSegments(created.segments || []);
         setIsModalOpen(true);
+      } else {
+        // Fallback: if for some reason we couldn't refetch the created entity, refresh the list normally.
+        await fetchCompanies();
       }
     } catch (err: any) {
       debouncedAddNotification(`Erreur création: ${err.response?.data?.error || err.message}`, "error");
@@ -858,16 +875,16 @@ const Entite = () => {
     }
   };
 
-  const handleDeleteCompany = async (id: number) => {
+  const handleArchiveCompany = async (id: number) => {
     if (!canWrite) return;
-    if (!window.confirm('Confirmer suppression ?')) return;
+    if (!window.confirm('Confirmer archivage ?')) return;
     try {
-      await api.delete(`/api/companies/${id}`, { withCredentials: true });
+      await api.put(`/api/companies/${id}/archive`, { etat: 'archivé' }, { withCredentials: true });
       setCompanies(companies.filter(c => c.id_entite !== id));
       setIsActionOpen(null);
-      debouncedAddNotification('Entité supprimée', 'success');
+      debouncedAddNotification('Entité archivée', 'success');
     } catch (error: any) {
-      debouncedAddNotification('Échec suppression', 'error');
+      debouncedAddNotification('Échec archivage', 'error');
     }
   };
 
@@ -1027,6 +1044,7 @@ const Entite = () => {
   useEffect(() => {
     fetchCompanies();
     fetchSegments();
+    fetchPaysList();
   }, [searchRegion, searchSegment, searchDelegation, searchType]);
 
   useEffect(() => {
@@ -1767,8 +1785,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                           {company.email && (
                             <div className="action-dropdown-item" onClick={() => handleSendConnection(company.email!)}>Envoyer connexion</div>
                           )}
-                          <div className="action-dropdown-item danger" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteCompany(company.id_entite)}>Supprimer</div>
-                        </div>
+                        <div className="action-dropdown-item danger" style={{ color: 'var(--danger)' }} onClick={() => handleArchiveCompany(company.id_entite)}>Archiver</div>     </div>
                       )}
                     </td>
                   )}

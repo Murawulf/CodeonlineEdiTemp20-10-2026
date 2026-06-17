@@ -2551,7 +2551,7 @@ app.post('/api/companies', uploadLogo.single('logo'), async (req, res) => {
   try {
     const f = req.body;
     const logoFile = req.file;
-    const logoPath = logoFile ? `https://fp.codeonline-info.com/images/logo_entite/${logoFile.filename}` : null;
+    const logoPath = logoFile ? logoFile.filename : null;
 
     if (!f.raison_socialle || !f.identifiant_national || !f.personne_contact || !f.type_prod) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -2646,7 +2646,7 @@ app.put('/api/companies/:id', uploadLogo.single('logo'), async (req, res) => {
   try {
     const f = req.body;
     const logoFile = req.file;
-    const logoPath = logoFile ? `https://fp.codeonline-info.com/images/logo_entite/${logoFile.filename}` : null;
+    const logoPath = logoFile ? logoFile.filename : null;
 
     const allowed = [
       'identifiant_rex', 'date_enregistrement_rex', 'debut_validite_rex', 'fin_validite_rex', 'etat',
@@ -2787,6 +2787,32 @@ app.delete('/api/companies/:id', async (req, res) => {
   }
 });
 
+app.put('/api/companies/:id/archive', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+  let conn;
+  try {
+    conn = await mysql.createConnection(dbConfig);
+
+    const [result] = await conn.query(
+      'UPDATE Entite SET etat = ? WHERE id_entite = ?',
+      ['archivé', id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    console.log(`[ENTITE] Company archived - id_entite=${id}`);
+    res.json({ message: 'Company archived successfully' });
+  } catch (err) {
+    console.error('PUT /api/companies/:id/archive error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  } finally {
+    if (conn) await conn.end();
+  }
+});
 // 7?? Update Segments Only
 app.put('/api/companies/:id/segments', async (req, res) => {
   try {
@@ -9564,14 +9590,15 @@ app.get('/api/current-user/:id', async (req, res) => {
   }
 });
 
-// Login endpoint (fixed runDB to runUpdate)
+// Login endpoint - CERTICODE DISABLED
 app.post('/api/login', async (req, res) => {
   if (!entiteDB) {
     console.error('Login failed: entiteDB unavailable');
     return res.status(503).json({ error: 'Database unavailable - try again later' });
   }
 
-  const { email, password, certicode } = req.body;
+  const { email, password } = req.body;
+
   if (!email) {
     return res.status(400).json({ error: 'Email required' });
   }
@@ -9597,17 +9624,20 @@ app.post('/api/login', async (req, res) => {
     const account = accounts[0];
 
     // Debug: Log GLN retrieval
-    console.log('ðŸ” LOGIN DEBUG - User:', email);
-    console.log('ðŸ” LOGIN DEBUG - id_entite:', account.id_entite);
-    console.log('ðŸ” LOGIN DEBUG - GLN rÃ©cupÃ©rÃ©:', account.gln);
-    console.log('ðŸ” LOGIN DEBUG - Producer name:', account.producer_name);
+    console.log('LOGIN DEBUG - User:', email);
+    console.log('LOGIN DEBUG - id_entite:', account.id_entite);
+    console.log('LOGIN DEBUG - GLN récupéré:', account.gln);
+    console.log('LOGIN DEBUG - Producer name:', account.producer_name);
 
     // Verify password
     if (password) {
       const passwordMatch = await bcrypt.compare(password, account.password);
+
       if (!passwordMatch) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
+    } else {
+      return res.status(400).json({ error: 'Password required' });
     }
 
     // Suspended account
@@ -9615,56 +9645,8 @@ app.post('/api/login', async (req, res) => {
       return res.status(403).json({ error: 'Account suspended' });
     }
 
-    const isBackoffice = (email === 'fp_back_office@codeonline-info.com');
-
-   // Handle certicode
-    if (!isBackoffice) {
-      if (!certicode) {
-        // Generate and send certicode
-        const newCerticode = generateCerticode();
-
-        await runUpdate(entiteDB,
-          'UPDATE comptes SET certicode = ?, certicode_generated_at = CURRENT_TIMESTAMP WHERE id_compte = ?',
-          [newCerticode, account.id_compte]
-        );
-
-        if (!transporter) {
-          console.error('[Login] ? Mailer not initialized — cannot send certicode to', email);
-          return res.status(503).json({ error: 'Email service unavailable. Contact your administrator.' });
-        }
-
-        try {
-          await transporter.sendMail({
-            from: getFromEmail(),
-            to: email,
-            subject: 'Votre Certicode pour Codeonline EDI',
-            text: `Votre certicode est : ${newCerticode}. Il expire dans 3 minutes.`,
-          });
-        } catch (mailErr) {
-          console.error('[Login] ? Failed to send certicode email:', mailErr.message);
-          return res.status(503).json({ error: 'Failed to send certicode email. Contact your administrator.' });
-        }
-
-        return res.json({ status: 'certicode_sent' });
-      } else {
-        // Validate certicode
-        if (!account.certicode || account.certicode !== certicode) {
-          return res.status(401).json({ error: 'Invalid certicode' });
-        }
-
-        const generatedAt = new Date(account.certicode_generated_at).getTime();
-        if (Date.now() - generatedAt > 180 * 1000) {
-          return res.status(401).json({ error: 'Certicode expired' });
-        }
-
-        // Clear certicode after successful use
-        await runUpdate(entiteDB,
-          'UPDATE comptes SET certicode = NULL, certicode_generated_at = NULL WHERE id_compte = ?',
-          [account.id_compte]
-        );
-      }
-    }
-    // console.log('âš ï¸  CERTICODE VALIDATION BYPASSED FOR TESTING - Email:', email);
+    // CERTICODE BYPASSED
+    console.log('CERTICODE BYPASSED - Direct login:', email);
 
     // Fetch permissions
     const permissions = await queryDB(entiteDB, `
@@ -9681,7 +9663,12 @@ app.post('/api/login', async (req, res) => {
       role: account.role,
       gln: account.gln || ''
     };
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    const token = jwt.sign(
+      tokenPayload,
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
 
     return res.json({
       token,
@@ -9704,10 +9691,12 @@ app.post('/api/login', async (req, res) => {
 
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed', details: safeErrDetails(err) });
+    res.status(500).json({
+      error: 'Login failed',
+      details: safeErrDetails(err)
+    });
   }
 });
-
 
 
 // GET /api/notifs - Fetch all notifications
@@ -10299,7 +10288,8 @@ app.post('/api/send-connection-info', async (req, res) => {
     console.log('? Email sent to', email);
 
     await conn.end();
-    res.json({ message: 'Fiche connexion envoyée avec succès', email });
+    const pdfBase64 = pdfBuffer.toString('base64');
+    res.json({ message: 'Fiche connexion envoyée avec succès', email, pdfBase64 });
   } catch (err) {
     console.error('? send-connection-info failed:', err);
     if (conn) await conn.end().catch(() => {});
