@@ -441,57 +441,20 @@ const Comptes: React.FC = () => {
     return password;
   };
 
-  // ─── Turn the base64 PDF returned by the backend into a local file download ───
-  const downloadBase64Pdf = (base64: string, filename: string) => {
-    try {
-      const byteCharacters = atob(base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Erreur téléchargement fiche connexion:', err);
-      addNotification('Échec du téléchargement local de la fiche', 'error');
-    }
-  };
-
-  // ─── Shared core: backend always resets the password and emails it on every call
-  // (the password is hashed, so there's no way to regenerate the same PDF later
-  // without resetting it again). The download itself is controlled separately
-  // so "Envoyer" only sends, and "Télécharger" is the only one that saves a local file ───
-  const sendConnectionInfoCore = async (account: Account, successMessage: string, shouldDownload: boolean) => {
+  const handleSendConnectionInfo = async (account: Account) => {
+    // Close action menu
     setActionMenuOpen(null);
     setMenuPosition(null);
 
     try {
-      const response = await api.post(
+      // Backend handles password generation, hashing, DB update, PDF generation and email all in one call
+      await api.post(
         `/api/send-connection-info`,
         { email: account.email },
         { withCredentials: true }
       );
 
-      addNotification(successMessage, 'success');
-
-      if (shouldDownload) {
-        const pdfBase64 = response.data?.pdfBase64;
-        if (pdfBase64) {
-          const safeName = (account.email || 'compte').replace(/[^a-zA-Z0-9_.-]/g, '_');
-          downloadBase64Pdf(pdfBase64, `fiche_connexion_${safeName}.pdf`);
-        } else {
-          addNotification("La fiche n'a pas pu être téléchargée (PDF manquant dans la réponse)", 'error');
-        }
-      }
-
+      addNotification('Fiche de connexion envoyée avec succès', 'success');
       fetchAccounts();
     } catch (error: any) {
       addNotification(
@@ -500,12 +463,6 @@ const Comptes: React.FC = () => {
       );
     }
   };
-
-  const handleSendConnectionInfo = (account: Account) =>
-    sendConnectionInfoCore(account, 'Fiche de connexion envoyée avec succès', false);
-
-  const handleDownloadConnectionInfo = (account: Account) =>
-    sendConnectionInfoCore(account, 'Fiche de connexion téléchargée avec succès', true);
 
   const handleSubmit = async () => {
     if (!email) { addNotification("L'email est requis", 'error'); return; }
@@ -896,7 +853,7 @@ const Comptes: React.FC = () => {
                                 <button
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
-                                    handleDownloadConnectionInfo(account);
+                                    handleSendConnectionInfo(account);
                                   }}
                                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-100 hover:text-blue-950 transition-colors"
                                   role="menuitem"
