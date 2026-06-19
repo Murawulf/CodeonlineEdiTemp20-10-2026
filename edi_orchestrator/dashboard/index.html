@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codeonline EDI — Hub Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ════════════════ LOGIN SCREEN ════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:1.5rem;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">📡</div>
+      <h1>EDI Hub Dashboard</h1>
+      <p>Codeonline Orchestrator — Tracking & Monitoring</p>
+    </div>
+    <form id="login-form">
+      <input type="text" id="login-user" placeholder="Nom d'utilisateur" autocomplete="username" />
+      <input type="password" id="login-key" placeholder="Clé API Tracking" autocomplete="current-password" />
+      <button type="submit">Se connecter</button>
+      <div class="login-error" id="login-error">Clé API invalide. Veuillez réessayer.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════ APP SHELL ════════════════ -->
+<div id="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>📡 EDI Hub</h2>
+      <span>Orchestrator v1.0</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Principal</div>
+        <div class="nav-item active" data-page="overview" onclick="navigateTo('overview')">
+          <i data-lucide="layout-dashboard" style="width:18px;height:18px"></i>
+          Vue d'ensemble
+        </div>
+        <div class="nav-item" data-page="transactions" onclick="navigateTo('transactions')">
+          <i data-lucide="arrow-left-right" style="width:18px;height:18px"></i>
+          Transactions
+        </div>
+        <div class="nav-item" data-page="tracking" onclick="navigateTo('tracking')">
+          <i data-lucide="search" style="width:18px;height:18px"></i>
+          Tracking
+        </div>
+        <div class="nav-item" data-page="orders" onclick="navigateTo('orders')">
+          <i data-lucide="package" style="width:18px;height:18px"></i>
+          Suivi Commandes
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Réseau</div>
+        <div class="nav-item" data-page="partners" onclick="navigateTo('partners')">
+          <i data-lucide="building-2" style="width:18px;height:18px"></i>
+          Partenaires
+        </div>
+        <div class="nav-item" data-page="alerts" onclick="navigateTo('alerts')">
+          <i data-lucide="alert-triangle" style="width:18px;height:18px"></i>
+          Alertes
+          <span class="badge" id="alerts-badge" style="display:none">0</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Outils</div>
+        <div class="nav-item" data-page="doctypes" onclick="navigateTo('doctypes')">
+          <i data-lucide="file-text" style="width:18px;height:18px"></i>
+          Types EANCOM
+        </div>
+        <div class="nav-item" data-page="api-explorer" onclick="navigateTo('api-explorer')">
+          <i data-lucide="terminal" style="width:18px;height:18px"></i>
+          API Explorer
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="avatar" id="user-avatar">A</div>
+        <div>
+          <div class="user-name" id="user-display-name">Admin</div>
+          <div class="user-role">Administrateur</div>
+        </div>
+        <button class="btn-icon" style="margin-left:auto" onclick="logout()" title="Déconnexion">
+          <i data-lucide="log-out" style="width:16px;height:16px"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-icon" id="menu-toggle" onclick="toggleSidebar()" style="display:none">
+          <i data-lucide="menu" style="width:18px;height:18px"></i>
+        </button>
+        <div>
+          <h1 id="page-title">Vue d'ensemble</h1>
+          <div class="breadcrumb" id="page-breadcrumb">Dashboard &gt; Overview</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div style="display:flex;align-items:center;gap:6px;color:var(--success);font-size:0.8rem;">
+          <span class="pulse"></span> Live
+        </div>
+        <button class="btn-icon" onclick="refreshCurrentPage()" title="Rafraîchir" id="refresh-btn">
+          <i data-lucide="refresh-cw" style="width:16px;height:16px"></i>
+        </button>
+        <button class="btn-icon" onclick="toggleTheme()" title="Mode sombre/clair">
+          <i data-lucide="moon" style="width:16px;height:16px" id="theme-icon"></i>
+        </button>
+        <button class="btn-icon" onclick="toggleAutoRefresh()" title="Auto-refresh (30s)" id="autorefresh-btn">
+          <i data-lucide="timer" style="width:16px;height:16px"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content" id="page-content">
+      <!-- Dynamic content injected here -->
+    </main>
+  </div>
+</div>
+
+<!-- ── Detail Drawer ── -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <h3 id="drawer-title">Détails</h3>
+    <button class="btn-icon" onclick="closeDrawer()">
+      <i data-lucide="x" style="width:18px;height:18px"></i>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js?v=20260402-3"></script>
+</body>
+</html>
