@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — PAESN Registry (Orchestrateur EDI Codeonline)</title>
+<style>
+  :root{
+    --navy-900:#0b1220;
+    --navy-800:#0f1b2d;
+    --navy-700:#13243b;
+    --navy-600:#1b3252;
+    --panel:#101a2b;
+    --panel-2:#0d1626;
+    --border:#1f3350;
+    --ink:#dce6f5;
+    --ink-soft:#a9bcd6;
+    --ink-dim:#7d92b3;
+    --accent:#3b82f6;
+    --accent-2:#38bdf8;
+    --accent-3:#22d3ee;
+    --gold:#f4b740;
+    --green:#34d399;
+    --red:#f87171;
+    --amber:#fbbf24;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:
+      radial-gradient(1200px 600px at 12% -10%, rgba(56,189,248,.10), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(59,130,246,.12), transparent 55%),
+      var(--navy-900);
+    color:var(--ink);
+    line-height:1.65;
+    font-size:16px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 80px;}
+
+  /* HEADER */
+  header.hero{
+    background:linear-gradient(135deg,var(--navy-800) 0%,var(--navy-700) 55%,var(--navy-600) 100%);
+    border-bottom:1px solid var(--border);
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(90deg,transparent 0,transparent 39px,rgba(56,189,248,.04) 40px),
+      linear-gradient(0deg,transparent 0,transparent 39px,rgba(56,189,248,.04) 40px);
+    background-size:40px 40px;
+    opacity:.5;pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;padding:54px 24px 40px;position:relative;}
+  .eyebrow{
+    font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-2);
+    font-weight:700;margin-bottom:14px;
+  }
+  header.hero h1{
+    margin:0 0 10px;font-size:clamp(28px,4.4vw,44px);line-height:1.12;
+    font-weight:800;letter-spacing:-.01em;
+    background:linear-gradient(90deg,#fff,#bcd6ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero .subtitle{font-size:clamp(15px,1.9vw,19px);color:var(--ink-soft);max-width:760px;margin:0 0 22px;}
+  .badges{display:flex;flex-wrap:wrap;gap:10px;}
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--border);background:rgba(11,18,32,.55);color:var(--ink-soft);
+    backdrop-filter:blur(4px);
+  }
+  .badge .dot{width:8px;height:8px;border-radius:50%;}
+  .badge.dev{border-color:rgba(244,183,64,.4);color:#ffe2a3;}
+  .badge.dev .dot{background:var(--gold);}
+  .badge.port{border-color:rgba(56,189,248,.4);color:#bde6ff;}
+  .badge.port .dot{background:var(--accent-2);}
+  .badge.db{border-color:rgba(52,211,153,.4);color:#b6f3da;}
+  .badge.db .dot{background:var(--green);}
+  .badge.node{border-color:rgba(59,130,246,.4);color:#c7dbff;}
+  .badge.node .dot{background:var(--accent);}
+  .meta-line{margin-top:22px;font-size:13px;color:var(--ink-dim);border-top:1px solid var(--border);padding-top:16px;}
+  .meta-line strong{color:var(--ink-soft);}
+
+  /* TOC */
+  nav.toc{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:24px 26px;margin:34px 0 8px;box-shadow:0 10px 30px rgba(0,0,0,.3);
+  }
+  nav.toc h2{margin:0 0 16px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-2);}
+  .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 22px;}
+  .toc-grid a{
+    display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink-soft);
+    padding:6px 8px;border-radius:8px;font-size:14.5px;transition:background .15s,color .15s;
+  }
+  .toc-grid a:hover{background:rgba(56,189,248,.10);color:#fff;}
+  .toc-grid a .num{color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:22px;}
+
+  /* SECTIONS */
+  section{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:30px 34px;margin:22px 0;box-shadow:0 8px 26px rgba(0,0,0,.25);
+    scroll-margin-top:18px;
+  }
+  section h2{
+    font-size:clamp(20px,2.6vw,27px);margin:0 0 18px;font-weight:800;letter-spacing:-.01em;
+    color:#fff;display:flex;align-items:center;gap:14px;
+  }
+  section h2 .h-num{
+    flex:none;font-size:14px;font-weight:800;color:var(--navy-900);
+    background:linear-gradient(135deg,var(--accent-2),var(--accent));
+    width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    box-shadow:0 4px 12px rgba(56,189,248,.35);
+  }
+  section h3{font-size:18px;margin:26px 0 10px;color:#e7f0ff;font-weight:700;}
+  h3 + p, h3 + ul, h3 + table{margin-top:8px;}
+  p{margin:0 0 14px;color:var(--ink);}
+  ul,ol{margin:0 0 14px;padding-left:22px;color:var(--ink);}
+  li{margin:5px 0;}
+  li::marker{color:var(--accent-2);}
+  strong{color:#fff;font-weight:700;}
+  a{color:var(--accent-2);}
+  code{
+    font-family:var(--mono);font-size:13px;background:rgba(56,189,248,.12);
+    color:#bfe9ff;padding:1.5px 6px;border-radius:5px;border:1px solid rgba(56,189,248,.18);
+  }
+  hr{border:none;border-top:1px solid var(--border);margin:30px 0;}
+
+  /* TABLES */
+  .table-scroll{overflow-x:auto;margin:14px 0 18px;border-radius:12px;border:1px solid var(--border);}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px;}
+  thead th{
+    background:linear-gradient(180deg,var(--navy-600),var(--navy-700));
+    color:#e9f2ff;text-align:left;padding:11px 14px;font-weight:700;font-size:13px;
+    letter-spacing:.02em;border-bottom:2px solid var(--accent);white-space:nowrap;
+  }
+  tbody td{padding:10px 14px;border-top:1px solid var(--border);color:var(--ink-soft);vertical-align:top;}
+  tbody tr:nth-child(odd){background:rgba(255,255,255,.018);}
+  tbody tr:nth-child(even){background:rgba(56,189,248,.035);}
+  tbody tr:hover{background:rgba(56,189,248,.09);}
+  tbody td code{font-size:12.5px;}
+  table strong{color:#fff;}
+
+  /* CODE BLOCKS */
+  pre{
+    background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--accent-2);
+    border-radius:10px;padding:18px 20px;overflow-x:auto;margin:14px 0 18px;
+    box-shadow:inset 0 2px 18px rgba(0,0,0,.4);
+  }
+  pre code{
+    background:none;border:none;padding:0;color:#d6e6ff;font-size:13px;line-height:1.6;
+    font-family:var(--mono);white-space:pre;
+  }
+  pre.eancom code{color:#bdf0d6;}
+
+  /* CALLOUTS */
+  .callout{
+    border-radius:12px;padding:16px 20px;margin:18px 0;border:1px solid var(--border);
+    border-left-width:4px;display:flex;gap:14px;align-items:flex-start;
+  }
+  .callout .ic{flex:none;font-size:20px;line-height:1.3;}
+  .callout p{margin:0;color:var(--ink-soft);font-size:14.5px;}
+  .callout p:not(:last-child){margin-bottom:8px;}
+  .callout.note{background:rgba(56,189,248,.07);border-left-color:var(--accent-2);}
+  .callout.warn{background:rgba(244,183,64,.08);border-left-color:var(--gold);}
+  .callout.warn .ic{color:var(--gold);}
+  .callout.sec{background:rgba(248,113,113,.07);border-left-color:var(--red);}
+  .callout.sec .ic{color:var(--red);}
+  .callout.road{background:rgba(52,211,153,.07);border-left-color:var(--green);}
+  .callout.road .ic{color:var(--green);}
+  .callout .ct{font-weight:700;color:#fff;letter-spacing:.04em;font-size:12px;text-transform:uppercase;display:block;margin-bottom:5px;}
+
+  blockquote{
+    margin:16px 0;padding:14px 20px;background:rgba(56,189,248,.06);
+    border-left:4px solid var(--accent-2);border-radius:8px;color:var(--ink-soft);font-size:14.5px;
+  }
+  blockquote p:last-child{margin-bottom:0;}
+
+  /* MERMAID */
+  .mermaid-card{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:12px;
+    padding:18px;margin:18px 0;overflow-x:auto;text-align:center;
+  }
+  .mermaid{display:flex;justify-content:center;}
+
+  /* status pills inline in tables */
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.02em;}
+  .pill.ok{background:rgba(52,211,153,.16);color:#7df0c2;border:1px solid rgba(52,211,153,.35);}
+  .pill.target{background:rgba(244,183,64,.16);color:#ffd884;border:1px solid rgba(244,183,64,.35);}
+
+  /* FOOTER */
+  footer{
+    max-width:1080px;margin:60px auto 0;padding:30px 24px 10px;border-top:1px solid var(--border);
+    color:var(--ink-dim);font-size:13px;text-align:center;
+  }
+  footer .brand{font-weight:800;color:var(--ink-soft);letter-spacing:.04em;}
+  footer .sep{margin:0 8px;color:var(--border);}
+
+  @media(max-width:680px){
+    section{padding:22px 18px;}
+    .hero-inner{padding:40px 18px 32px;}
+    .toc-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Codeonline EDI · Documentation d'architecture</div>
+    <h1>Architecture — PAESN Registry</h1>
+    <p class="subtitle">Orchestrateur EDI Codeonline · Hub central de relais EANCOM et Data Registry de routage GLN multi-pays</p>
+    <div class="badges">
+      <span class="badge dev"><span class="dot"></span>Environnement DEV</span>
+      <span class="badge port"><span class="dot"></span>Port 5010</span>
+      <span class="badge db"><span class="dot"></span>MySQL · codeonline_edi_db</span>
+      <span class="badge node"><span class="dot"></span>Node.js / Express 4</span>
+    </div>
+    <div class="meta-line">
+      <strong>Date :</strong> 21 juin 2026 &nbsp;·&nbsp; <strong>Périmètre :</strong> environnement DEV &nbsp;·&nbsp; <strong>Statut :</strong> vérité terrain (vérifiée en production le jour J)
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <h2>Sommaire</h2>
+    <div class="toc-grid">
+      <a href="#s1"><span class="num">1</span>Résumé exécutif</a>
+      <a href="#s2"><span class="num">2</span>Vision et rôle stratégique</a>
+      <a href="#s3"><span class="num">3</span>Topologie réseau</a>
+      <a href="#s4"><span class="num">4</span>Stack technique</a>
+      <a href="#s5"><span class="num">5</span>Architecture des composants</a>
+      <a href="#s6"><span class="num">6</span>Modèle de données</a>
+      <a href="#s7"><span class="num">7</span>Surface d'API</a>
+      <a href="#s8"><span class="num">8</span>Logique de routage GLN</a>
+      <a href="#s9"><span class="num">9</span>Cycle de vie d'un message</a>
+      <a href="#s10"><span class="num">10</span>Sécurité</a>
+      <a href="#s11"><span class="num">11</span>Génération EANCOM / APERAK</a>
+      <a href="#s12"><span class="num">12</span>Observabilité</a>
+      <a href="#s13"><span class="num">13</span>Déploiement</a>
+      <a href="#s14"><span class="num">14</span>Roadmap / évolutions</a>
+      <a href="#s15"><span class="num">15</span>Annexes</a>
+    </div>
+  </nav>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><span class="h-num">1</span>Résumé exécutif</h2>
+    <p>Le <strong>PAESN Registry</strong> est l'orchestrateur central d'échange de documents EDI (EANCOM) du réseau Codeonline. Il joue <strong>deux rôles complémentaires</strong> :</p>
+    <ol>
+      <li><strong>Relais / hub EDI</strong> — il reçoit les documents commerciaux (ORDERS, ORDRSP, DESADV, RECADV, INVOIC, APERAK) émis par les nœuds pays, résout le routage à partir du GLN du destinataire, signe une identité de service, puis relaie le message vers l'URL cible du partenaire. Chaque transmission est journalisée de bout en bout (RECEIVED → DELIVERED/FAILED).</li>
+      <li><strong>Data registry central multi-pays</strong> — la table <code>partners</code> constitue <strong>l'annuaire de référence</strong> : elle indexe les GLN (Global Location Numbers) de tous les partenaires des différents pays et leur point de livraison. C'est aujourd'hui un registre de routage GLN ; la vision est d'en faire l'index canonique des <strong>GLN, puis des GTIN (codes produits) et des marques</strong> de tous les pays du réseau.</li>
+    </ol>
+    <p>Concrètement, l'orchestrateur expose aujourd'hui :</p>
+    <ul>
+      <li>un <strong>annuaire de routage GLN</strong> (table <code>partners</code>, source de vérité de <code>resolveRoute</code>) ;</li>
+      <li>un <strong>journal des échanges</strong> (table <code>transactions</code>, 115 lignes en prod) ;</li>
+      <li>une <strong>API de tracking mobile</strong> (<code>/api/tracking/*</code>, 13 endpoints, clé <code>X-Tracking-Api-Key</code>) ;</li>
+      <li>un <strong>dashboard admin</strong> SPA servi statiquement.</li>
+    </ul>
+    <p>Il tourne en Node.js + Express 4, en mode PM2 <code>fork</code>, sur le serveur <code>217.182.94.86</code> (port <code>5010</code>), avec une base MySQL <code>codeonline_edi_db</code>.</p>
+    <div class="callout warn">
+      <span class="ic">&#9888;</span>
+      <p><span class="ct">Point d'attention déploiement</span>Le serveur <code>217.182.94.86</code> (hostname <code>ns3254711</code>) héberge <strong>simultanément</strong> le nœud TUN DEV (PM2 <code>codeonline-edi-tunisie</code>) <strong>et</strong> l'orchestrateur (PM2 <code>codeonline-edi-orchestrator</code>).</p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><span class="h-num">2</span>Vision et rôle stratégique</h2>
+    <p>Au-delà du simple relais de messages, le PAESN Registry a vocation à devenir le <strong>Data Registry central du réseau Codeonline multi-pays</strong>.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Horizon</th><th>Périmètre du registre</th><th>État</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Aujourd'hui</strong></td><td>Index des <strong>GLN</strong> (Global Location Numbers) des partenaires + URL de livraison + statut</td><td><span class="pill ok">&#10003; En production</span> (<code>partners</code>, 5 lignes)</td></tr>
+          <tr><td><strong>Court / moyen terme</strong></td><td>Index des <strong>GTIN</strong> (codes produits, Global Trade Item Numbers)</td><td><span class="pill target">&#127919; Cible</span></td></tr>
+          <tr><td><strong>Moyen / long terme</strong></td><td>Index des <strong>marques</strong> (brands) de tous les pays</td><td><span class="pill target">&#127919; Cible</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>La logique : un seul point d'autorité partagé par les nœuds pays (Tunisie, Sénégal, Côte d'Ivoire, et à venir d'autres) pour résoudre « qui est qui » et « où livrer ». La table <code>partners</code> est déjà la matérialisation de cette ambition pour la couche GLN. Le même socle (table de référence indexée par identifiant GS1 + API de découverte <code>/api/orchestrator/discovery</code>) se prête naturellement à l'extension vers les GTIN et les marques.</p>
+    <p>En parallèle, l'orchestrateur fournit la <strong>traçabilité</strong> : chaque échange est journalisé, agrégé par commande (<code>order_tracking_summary</code>) et consultable via une API de tracking et un dashboard. Le registre devient ainsi à la fois <strong>annuaire</strong> (qui/où) et <strong>observatoire</strong> (quoi/quand/statut) des flux EDI inter-pays.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><span class="h-num">3</span>Topologie réseau</h2>
+    <p>Le réseau est constitué de <strong>nœuds pays</strong> (chacun héberge ses partenaires acheteurs/fournisseurs) et d'un <strong>hub central</strong> (l'orchestrateur PAESN Registry) qui assure le routage inter-pays et la signature de service.</p>
+    <div class="mermaid-card">
+      <div class="mermaid">
+graph TB
+    subgraph TUN["Nœud Tunisie (DEV)"]
+        TUNHub["Tunisie Hub&lt;br/&gt;GLN 6191234567890"]
+        TUNBuyer["Tunisie Buyer&lt;br/&gt;GLN 6191907700002"]
+        TUNurl["edi-dev.codeonline-info.com&lt;br/&gt;/api/edi/receive"]
+    end
+
+    subgraph SEN["Nœud Sénégal (DEV)"]
+        SENHub["Senegal Hub&lt;br/&gt;GLN SN02583102G3"]
+        SENSup["Senegal Supplier&lt;br/&gt;GLN SN02583102G4"]
+        SENurl["dev.codeonline-edi.net&lt;br/&gt;/api/edi/receive"]
+    end
+
+    subgraph CIV["Nœud Côte d'Ivoire (DEV)"]
+        CIVHub["Cote Ivoire Hub&lt;br/&gt;GLN 6181234567890"]
+        CIVurl["civ-dev.codeonline-edi.net&lt;br/&gt;/api/edi/receive"]
+    end
+
+    subgraph HUB["Hub central — PAESN Registry"]
+        ORCH["Orchestrateur EDI&lt;br/&gt;217.182.94.86:5010&lt;br/&gt;PM2 codeonline-edi-orchestrator"]
+        DB[("MySQL&lt;br/&gt;codeonline_edi_db&lt;br/&gt;partners / transactions")]
+        ORCH --- DB
+    end
+
+    TUNHub --&gt;|"POST /api/orchestrator/relay"| ORCH
+    SENHub --&gt;|"POST /api/orchestrator/relay"| ORCH
+    CIVHub --&gt;|"POST /api/orchestrator/relay"| ORCH
+
+    ORCH --&gt;|"forward + Bearer JWT"| TUNurl
+    ORCH --&gt;|"forward + Bearer JWT"| SENurl
+    ORCH --&gt;|"forward + Bearer JWT"| CIVurl
+
+    ORCH -.-&gt;|"GET /api/orchestrator/discovery"| TUNHub
+    ORCH -.-&gt;|"GET /api/orchestrator/discovery"| SENHub
+
+    Mobile["App mobile / Dashboard&lt;br/&gt;X-Tracking-Api-Key"] --&gt;|"GET /api/tracking/*"| ORCH
+      </div>
+    </div>
+    <p><strong>Lecture :</strong></p>
+    <ul>
+      <li>Les nœuds pays poussent leurs messages vers l'orchestrateur via <code>ORCHESTRATOR_URL</code> (<code>http://217.182.94.86:5010</code>).</li>
+      <li>L'orchestrateur résout la cible (<code>target_url</code> du partenaire) et relaie vers <code>/api/edi/receive</code> du nœud destinataire, en y joignant un JWT de service et l'en-tête <code>x-api-pin</code>.</li>
+      <li>Les nœuds peuvent interroger l'annuaire via <code>/api/orchestrator/discovery</code>.</li>
+      <li>L'API de tracking et le dashboard consomment <code>/api/tracking/*</code>.</li>
+    </ul>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><span class="h-num">4</span>Stack technique</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Couche</th><th>Choix</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr><td>Langage / runtime</td><td><strong>Node.js</strong></td><td>Mode PM2 <code>fork</code>, <code>max_memory_restart 500M</code></td></tr>
+          <tr><td>Framework HTTP</td><td><strong>Express 4</strong> (<code>4.18.2</code>)</td><td>Routeur, middlewares</td></tr>
+          <tr><td>Parsing</td><td><strong>body-parser</strong> (<code>1.20.2</code>)</td><td><code>limit 50mb</code> (gros EANCOM), <code>urlencoded extended:true</code></td></tr>
+          <tr><td>CORS</td><td><strong>cors</strong> (<code>2.8.5</code>)</td><td>Activé sans restriction (<code>cors()</code>)</td></tr>
+          <tr><td>Relais HTTP sortant</td><td><strong>axios</strong> (<code>1.6.0</code>)</td><td><code>timeout 30s</code>, <code>httpsAgent</code> <code>rejectUnauthorized:false</code> (DEV)</td></tr>
+          <tr><td>Base de données</td><td><strong>mysql2</strong> (<code>3.6.1</code>)</td><td>API <code>mysql2/promise</code>, pool 10 connexions</td></tr>
+          <tr><td>Config</td><td><strong>dotenv</strong> (<code>16.3.1</code>)</td><td>Secrets en <code>.env</code> (git-ignored)</td></tr>
+          <tr><td>Identifiants</td><td><strong>uuid</strong> (<code>13.0.0</code>)</td><td>Génération de références</td></tr>
+          <tr><td>Signature JWT</td><td><strong>crypto natif</strong></td><td>HS256 via <code>createHmac('sha256', …)</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Pourquoi le <code>crypto</code> natif et pas <code>jsonwebtoken</code> ?</h3>
+    <p>L'orchestrateur <strong>n'a aucune dépendance <code>jsonwebtoken</code></strong>. Le JWT de service est forgé à la main avec le module <code>crypto</code> natif de Node.js :</p>
+    <ul>
+      <li><strong>Surface minimale</strong> — la signature HS256 est triviale (<code>base64url(header).base64url(payload)</code> + HMAC-SHA256). Inutile d'embarquer une lib tierce et sa chaîne de dépendances pour un seul cas d'usage très simple.</li>
+      <li><strong>Contrôle total du format</strong> — payload figé <code>{ sub, role, instance, iat, exp }</code>, encodage base64url maîtrisé (<code>b64url</code> custom), TTL fixe de 900 s.</li>
+      <li><strong>Compatibilité réseau</strong> — le token reste un JWT HS256 standard, donc accepté tel quel par le <code>verifyJWT</code> standard des nœuds. Le choix crypto natif côté émetteur n'impose rien côté récepteurs.</li>
+      <li><strong>Moins de dépendances = moins de risque supply-chain</strong> et empreinte mémoire réduite (cohérent avec <code>max_memory_restart 500M</code>).</li>
+    </ul>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><span class="h-num">5</span>Architecture des composants</h2>
+    <p>Le serveur s'organise en couches claires : point d'entrée (<code>server.js</code>) → routeurs → controllers → services → accès données / middleware. Le dashboard est une SPA statique.</p>
+    <div class="mermaid-card">
+      <div class="mermaid">
+graph TD
+    subgraph Entrypoint
+        SRV["server.js&lt;br/&gt;Express app · port 5010 (def 5002)&lt;br/&gt;CORS · body-parser 50mb"]
+    end
+
+    subgraph Routes
+        DISP["routes/dispatch.js&lt;br/&gt;/api/orchestrator/*"]
+        TRK["routes/tracking.js&lt;br/&gt;/api/tracking/*"]
+        DASH["/dashboard (static SPA)"]
+    end
+
+    subgraph Controllers
+        HUB["HubController&lt;br/&gt;relayMessage · syncOfflineLogs · getDirectory"]
+        ACK["AckController&lt;br/&gt;handleAck (APERAK)"]
+        TC["TrackingController&lt;br/&gt;read-only API (sanitize)"]
+    end
+
+    subgraph Services
+        RS["routingService&lt;br/&gt;resolveRoute · mintServiceToken · dispatchMessage"]
+        AP["generateAperakEANCOM&lt;br/&gt;APERAK D.96A"]
+    end
+
+    subgraph Middleware_Config
+        TAUTH["middleware/trackingAuth&lt;br/&gt;X-Tracking-Api-Key"]
+        DBP["config/db.js&lt;br/&gt;pool mysql2 (10)"]
+    end
+
+    DBASE[("MySQL codeonline_edi_db")]
+
+    SRV --&gt; DISP
+    SRV --&gt; TRK
+    SRV --&gt; DASH
+
+    DISP --&gt; HUB
+    DISP --&gt; ACK
+    TRK --&gt; TAUTH --&gt; TC
+
+    HUB --&gt; RS
+    ACK --&gt; RS
+    ACK --&gt; AP
+    RS --&gt; DBP
+    HUB --&gt; DBP
+    TC --&gt; DBP
+    TAUTH --&gt; DBP
+    DBP --&gt; DBASE
+      </div>
+    </div>
+    <p><strong>Rôles :</strong></p>
+    <ul>
+      <li><strong><code>server.js</code></strong> — bootstrap Express, CORS, body-parser (50 MB), health-check racine <code>GET /</code>, montage des routeurs <code>/api/orchestrator</code> et <code>/api/tracking</code>, et serveur statique du dashboard sur <code>/dashboard</code>.</li>
+      <li><strong><code>routes/dispatch.js</code></strong> — 5 endpoints orchestrateur (dispatch, relay, ack, audit/sync, discovery). Pas d'authentification au niveau routeur (confiance réseau interne) ; la légitimité est portée par les JWT de service en relais.</li>
+      <li><strong><code>routes/tracking.js</code></strong> — 2 endpoints publics (health, document-types) puis le middleware <code>trackingAuth</code> appliqué avant les 11 endpoints protégés.</li>
+      <li><strong><code>HubController</code></strong> — cœur du relais EDI : idempotence, journalisation, routage, dispatch, transitions de statut, synchronisation des logs P2P offline, annuaire de découverte.</li>
+      <li><strong><code>AckController</code></strong> — génération et routage des APERAK (accusés ACK/NACK).</li>
+      <li><strong><code>TrackingController</code></strong> — API read-only de tracking (transactions, stats, partners, alerts, orders), avec assainissement systématique des messages d'erreur (<code>sanitizeError</code>) et format de sortie sécurisé (<code>formatTx</code>, ne jamais exposer le contenu EANCOM/crypto).</li>
+      <li><strong><code>routingService</code></strong> — résolution de route (<code>resolveRoute</code>), signature du JWT de service (<code>mintServiceToken</code>), relais HTTP sortant (<code>dispatchMessage</code>).</li>
+      <li><strong><code>generateAperakEANCOM</code></strong> — fabrication d'un message APERAK EANCOM D.96A conforme GS1 (orchestrateur uniquement).</li>
+      <li><strong><code>middleware/trackingAuth</code></strong> — double validation des clés de tracking (clé maître <code>.env</code> ou clé <code>ACTIVE</code> en base) avec cache mémoire 60 s.</li>
+      <li><strong><code>config/db.js</code></strong> — pool MySQL <code>mysql2/promise</code> (10 connexions), paramétré exclusivement par variables d'environnement.</li>
+      <li><strong>Dashboard (<code>/dashboard</code>, <code>app.js</code> ~1403 lignes)</strong> — SPA stateful consommant <code>/api/tracking/*</code>, login par clé API, 8 vues, graphiques Chart.js, export CSV, auto-refresh 30 s.</li>
+    </ul>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><span class="h-num">6</span>Modèle de données</h2>
+    <p>Base <strong>MySQL <code>codeonline_edi_db</code></strong> — 3 tables + 1 vue. <strong>La table <code>partners</code> EST le registre</strong> (annuaire de routage GLN, source de vérité de <code>resolveRoute</code>).</p>
+    <div class="mermaid-card">
+      <div class="mermaid">
+erDiagram
+    partners {
+        int id PK
+        varchar gln UK "13 — Global Location Number"
+        varchar name "100"
+        varchar country_code "3 — ISO 3166-1 numérique"
+        varchar target_url "255 — webhook /api/edi/receive"
+        varchar api_key "64 — NULL"
+        enum status "ACTIVE | INACTIVE (def ACTIVE)"
+        datetime created_at
+        datetime updated_at
+    }
+    transactions {
+        bigint id PK
+        varchar transaction_ref "64 — idx"
+        varchar sender_gln "13 — idx"
+        varchar receiver_gln "13 — idx"
+        varchar document_type "10"
+        enum status "RECEIVED|FORWARDED|DELIVERED|FAILED|RETRY_QUEUED"
+        enum transport_mode "ORCHESTRATOR|P2P|P2P_SYNC"
+        text error_message
+        int payload_size
+        enum aperak_status "PENDING|ACK|NACK (NULL)"
+        datetime created_at "idx"
+        datetime delivered_at
+        datetime updated_at
+        varchar order_ref "64 — idx, NULL"
+    }
+    tracking_api_keys {
+        int id PK
+        varchar api_key UK "128"
+        varchar app_name "100"
+        enum scope "full | readonly (def readonly)"
+        enum status "ACTIVE | REVOKED (def ACTIVE, idx)"
+        datetime created_at
+        datetime expires_at "NULL = jamais"
+        text notes
+    }
+    order_tracking_summary {
+        varchar order_ref "VUE — GROUP BY order_ref"
+        varchar buyer_gln
+        varchar supplier_gln
+        datetime order_date
+        datetime last_activity
+        int total_steps
+        bool has_orders
+        bool has_ordrsp
+        bool has_desadv
+        bool has_recadv
+        bool has_invoic
+        bool has_aperak
+        varchar lifecycle_status
+        bool has_errors
+        int failed_steps
+    }
+
+    partners ||--o{ transactions : "GLN (sender/receiver)"
+    transactions ||--o{ order_tracking_summary : "agrégation par order_ref"
+      </div>
+    </div>
+
+    <h3>6.1 <code>partners</code> — TABLE registre / routage <strong>(LE REGISTRE)</strong></h3>
+    <p>Annuaire de référence des partenaires EDI par pays. Source unique de vérité pour <code>resolveRoute()</code> (match exact GLN).</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Colonne</th><th>Type</th><th>Clé / contrainte</th><th>Sémantique</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>INT AUTO_INCREMENT</td><td><strong>PK</strong></td><td>Identifiant interne</td></tr>
+          <tr><td><code>gln</code></td><td>VARCHAR(13)</td><td><strong>UNIQUE</strong> (<code>idx_gln</code>), NOT NULL</td><td>Global Location Number</td></tr>
+          <tr><td><code>name</code></td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Nom du partenaire</td></tr>
+          <tr><td><code>country_code</code></td><td>VARCHAR(3)</td><td>NOT NULL</td><td>ISO 3166-1 numérique (788/686/384)</td></tr>
+          <tr><td><code>target_url</code></td><td>VARCHAR(255)</td><td>NOT NULL</td><td>Webhook de réception EDI</td></tr>
+          <tr><td><code>api_key</code></td><td>VARCHAR(64)</td><td>NULL</td><td>Clé optionnelle d'auth vers ce partenaire</td></tr>
+          <tr><td><code>status</code></td><td>ENUM('ACTIVE','INACTIVE')</td><td>DEFAULT 'ACTIVE'</td><td>Filtre de routage</td></tr>
+          <tr><td><code>created_at</code></td><td>DATETIME</td><td>DEFAULT CURRENT_TIMESTAMP</td><td></td></tr>
+          <tr><td><code>updated_at</code></td><td>DATETIME</td><td>ON UPDATE CURRENT_TIMESTAMP</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>6.2 <code>transactions</code> — TABLE journal (audit)</h3>
+    <p>Journal exhaustif de tous les échanges EDI relayés. Une ligne par transmission. <strong>115 lignes en prod.</strong></p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Colonne</th><th>Type</th><th>Clé / contrainte</th><th>Sémantique</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>BIGINT AUTO_INCREMENT</td><td><strong>PK</strong></td><td></td></tr>
+          <tr><td><code>transaction_ref</code></td><td>VARCHAR(64)</td><td>idx (<code>idx_ref</code>)</td><td>Référence de transmission</td></tr>
+          <tr><td><code>sender_gln</code></td><td>VARCHAR(13)</td><td>idx (<code>idx_sender</code>)</td><td>GLN émetteur</td></tr>
+          <tr><td><code>receiver_gln</code></td><td>VARCHAR(13)</td><td>idx (<code>idx_receiver</code>)</td><td>GLN destinataire</td></tr>
+          <tr><td><code>document_type</code></td><td>VARCHAR(10)</td><td></td><td>ORDERS, ORDRSP, DESADV, RECADV, INVOIC, APERAK, UNKNOWN</td></tr>
+          <tr><td><code>status</code></td><td>ENUM</td><td>DEFAULT 'RECEIVED'</td><td>RECEIVED, FORWARDED, DELIVERED, FAILED, RETRY_QUEUED</td></tr>
+          <tr><td><code>transport_mode</code></td><td>ENUM</td><td>DEFAULT 'ORCHESTRATOR'</td><td>ORCHESTRATOR, P2P, P2P_SYNC</td></tr>
+          <tr><td><code>error_message</code></td><td>TEXT</td><td>NULL</td><td>Trace d'erreur (assainie avant exposition)</td></tr>
+          <tr><td><code>payload_size</code></td><td>INT</td><td>NULL</td><td>Taille payload (octets)</td></tr>
+          <tr><td><code>aperak_status</code></td><td>ENUM('PENDING','ACK','NACK')</td><td>NULL</td><td>Résultat ACK/NACK du nœud récepteur</td></tr>
+          <tr><td><code>created_at</code></td><td>DATETIME</td><td>idx (<code>idx_created_at</code>)</td><td></td></tr>
+          <tr><td><code>delivered_at</code></td><td>DATETIME</td><td>NULL</td><td>Horodatage de livraison</td></tr>
+          <tr><td><code>updated_at</code></td><td>DATETIME</td><td>ON UPDATE CURRENT_TIMESTAMP</td><td></td></tr>
+          <tr><td><code>order_ref</code></td><td>VARCHAR(64)</td><td>idx (<code>idx_order_ref</code>), NULL</td><td>Référence métier de commande</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Index utilitaires supplémentaires : <code>idx_tracking_lookup (sender_gln, receiver_gln, created_at)</code> et <code>idx_tracking_status_date (status, created_at)</code>.</p>
+
+    <h3>6.3 <code>tracking_api_keys</code> — TABLE sécurité</h3>
+    <p>Clés API par-application pour authentifier les appels <code>/api/tracking/*</code>. <strong>1 ligne en prod.</strong> Fallback : clé maître <code>TRACKING_API_KEY</code> (env).</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Colonne</th><th>Type</th><th>Clé / contrainte</th><th>Sémantique</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>INT AUTO_INCREMENT</td><td><strong>PK</strong></td><td></td></tr>
+          <tr><td><code>api_key</code></td><td>VARCHAR(128)</td><td><strong>UNIQUE</strong> (<code>idx_api_key</code>)</td><td>Clé brute</td></tr>
+          <tr><td><code>app_name</code></td><td>VARCHAR(100)</td><td>NOT NULL</td><td>Application cliente</td></tr>
+          <tr><td><code>scope</code></td><td>ENUM('full','readonly')</td><td>DEFAULT 'readonly'</td><td>Portée</td></tr>
+          <tr><td><code>status</code></td><td>ENUM('ACTIVE','REVOKED')</td><td>DEFAULT 'ACTIVE', idx (<code>idx_status</code>)</td><td>Révocation</td></tr>
+          <tr><td><code>created_at</code></td><td>DATETIME</td><td>DEFAULT CURRENT_TIMESTAMP</td><td></td></tr>
+          <tr><td><code>expires_at</code></td><td>DATETIME</td><td>NULL</td><td>NULL = jamais</td></tr>
+          <tr><td><code>notes</code></td><td>TEXT</td><td>NULL</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>6.4 <code>order_tracking_summary</code> — VUE d'agrégation</h3>
+    <p>Vue (GROUP BY <code>order_ref</code>, filtre implicite <code>WHERE order_ref IS NOT NULL</code>) qui synthétise le cycle de vie d'une commande. <strong>19 lignes en prod.</strong> Utilisée par <code>listOrders</code> (avec fallback requête brute si la vue est absente).</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Colonne</th><th>Calcul</th><th>Sémantique</th></tr></thead>
+        <tbody>
+          <tr><td><code>order_ref</code></td><td>clé d'agrégation</td><td>Référence métier de commande</td></tr>
+          <tr><td><code>buyer_gln</code></td><td><code>MIN(sender_gln)</code></td><td>Acheteur</td></tr>
+          <tr><td><code>supplier_gln</code></td><td><code>MAX(CASE doc=ORDRSP/DESADV/INVOIC THEN sender_gln)</code></td><td>Fournisseur</td></tr>
+          <tr><td><code>order_date</code></td><td><code>MIN(created_at)</code></td><td>Date de commande</td></tr>
+          <tr><td><code>last_activity</code></td><td><code>MAX(created_at)</code></td><td>Dernière activité</td></tr>
+          <tr><td><code>total_steps</code></td><td><code>COUNT(*)</code></td><td>Nombre d'étapes</td></tr>
+          <tr><td><code>has_orders … has_aperak</code></td><td><code>MAX(document_type=…)=1</code></td><td>Présence de chaque étape</td></tr>
+          <tr><td><code>lifecycle_status</code></td><td>CASE</td><td>COMPLETED / INVOICED / RECEIVED / SHIPPED / CONFIRMED / ORDERED / ERROR / IN_PROGRESS</td></tr>
+          <tr><td><code>has_errors</code></td><td><code>MAX(status='FAILED')=1</code></td><td>Présence d'erreur</td></tr>
+          <tr><td><code>failed_steps</code></td><td><code>SUM(status='FAILED')</code></td><td>Nombre d'étapes échouées</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><span class="h-num">7</span>Surface d'API</h2>
+
+    <h3>7.1 <code>/api/orchestrator/*</code> — relais inter-nœuds</h3>
+    <blockquote><p>Aucune authentification au niveau du routeur (confiance réseau interne). La légitimité du relais sortant est portée par le JWT de service signé par le hub.</p></blockquote>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Méthode</th><th>Chemin</th><th>Auth</th><th>But</th></tr></thead>
+        <tbody>
+          <tr><td>POST</td><td><code>/api/orchestrator/dispatch</code></td><td>aucune (JWT de service en relais)</td><td>Relais principal EDI — reçoit l'EANCOM, route vers le partenaire cible</td></tr>
+          <tr><td>POST</td><td><code>/api/orchestrator/relay</code></td><td>aucune (JWT de service en relais)</td><td>Alias de <code>dispatch</code> (même handler <code>HubController.relayMessage</code>)</td></tr>
+          <tr><td>POST</td><td><code>/api/orchestrator/ack</code></td><td>aucune (confiance nœud émetteur)</td><td>Reçoit ACK/NACK d'un nœud → génère APERAK et le route au fournisseur</td></tr>
+          <tr><td>POST</td><td><code>/api/orchestrator/audit/sync</code></td><td>aucune</td><td>Synchronisation des logs P2P offline (<code>transport_mode=P2P_SYNC</code>)</td></tr>
+          <tr><td>GET</td><td><code>/api/orchestrator/discovery</code></td><td>aucune (public)</td><td>Annuaire des partenaires <code>ACTIVE</code> pour découverte inter-nœud</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote><p>Note : les controllers exposent aussi des chemins historiques <code>/api/dispatch</code>, <code>/api/audit/sync</code>, <code>/api/discovery</code> (mêmes handlers, compatibilité).</p></blockquote>
+
+    <h3>7.2 <code>/api/tracking/*</code> — API de tracking mobile / dashboard</h3>
+    <blockquote><p>Tous protégés par le middleware <code>trackingAuth</code> (en-tête <code>X-Tracking-Api-Key</code> ou query <code>api_key</code>), <strong>sauf</strong> <code>health</code> et <code>document-types</code> qui sont publics.</p></blockquote>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Méthode</th><th>Chemin</th><th>Auth</th><th>But</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/api/tracking/health</code></td><td>publique</td><td>Health-check (db, uptime, compteurs tx, partenaires actifs)</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/document-types</code></td><td>publique</td><td>Référence statique des types EANCOM</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/transactions</code></td><td><code>X-Tracking-Api-Key</code></td><td>Liste filtrée (gln, sender_gln, receiver_gln, document_type, status, from, to, page, limit)</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/transactions/:ref</code></td><td><code>X-Tracking-Api-Key</code></td><td>Détail d'une transaction par référence</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/transactions/:ref/history</code></td><td><code>X-Tracking-Api-Key</code></td><td>Timeline de statut (reconstruite) + APERAK liées</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/stats</code></td><td><code>X-Tracking-Api-Key</code></td><td>Stats globales (by_status, by_type, top_senders, avg_delivery_s, 24h, delivery_rate_pct, recent_failures)</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/partners</code></td><td><code>X-Tracking-Api-Key</code></td><td>Annuaire + agrégat de transmission (total/delivered/failed/taux)</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/partners/:gln/timeline</code></td><td><code>X-Tracking-Api-Key</code></td><td>Timeline chronologique (SENT/RECEIVED) d'un GLN</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/alerts</code></td><td><code>X-Tracking-Api-Key</code></td><td>Alertes : FAILED (7 j) + STUCK (RECEIVED/FORWARDED &gt; 5 min)</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/orders</code></td><td><code>X-Tracking-Api-Key</code></td><td>Liste des commandes tracées + lifecycle_status (fallback vue)</td></tr>
+          <tr><td>GET</td><td><code>/api/tracking/orders/:orderRef</code></td><td><code>X-Tracking-Api-Key</code></td><td>Détail complet du cycle de vie (6 étapes) + transactions liées</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Le routeur racine fournit aussi : <code>GET /</code> (health-check JSON) et <code>GET /dashboard</code> (SPA statique) — sans authentification.</p>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2><span class="h-num">8</span>Logique de routage GLN</h2>
+    <p>La résolution de route est centralisée dans <code>routingService.resolveRoute(gln)</code>. Elle procède en trois temps :</p>
+    <ol>
+      <li><strong>Match EXACT</strong> du GLN dans <code>partners WHERE status='ACTIVE'</code> → <code>target_url</code> (source <code>DATABASE</code>). C'est le cas nominal : le registre fait foi.</li>
+      <li><strong>Fallback par PRÉFIXE</strong> si le GLN est absent de la base : <code>SN…</code> → Sénégal, <code>619…</code> → Tunisie, <code>618…</code> → Côte d'Ivoire (source <code>PREFIX_RULE</code>). Filet de sécurité pour les GLN non encore enregistrés.</li>
+      <li><strong>Sinon <code>null</code></strong> → destinataire inconnu (le relais répond 404 et marque la transaction FAILED).</li>
+    </ol>
+    <pre><code>async function resolveRoute(gln) {
+  // 1. Match exact en base (le registre fait foi)
+  const [rows] = await db.execute(
+    'SELECT target_url, country_code, name FROM partners WHERE gln = ? AND status = "ACTIVE"',
+    [gln]
+  );
+  if (rows.length &gt; 0) {
+    return { url: rows[0].target_url, country: rows[0].country_code,
+             name: rows[0].name, source: 'DATABASE' };
+  }
+  // 2. Fallback par préfixe
+  if (gln.startsWith('SN')) {
+    return { url: 'https://dev.codeonline-edi.net/api/edi/receive',
+             country: '686', name: 'Senegal Gateway', source: 'PREFIX_RULE' };
+  } else if (gln.startsWith('619')) {
+    return { url: 'https://edi-dev.codeonline-info.com/api/edi/receive',
+             country: '788', name: 'Tunisia Gateway', source: 'PREFIX_RULE' };
+  } else if (gln.startsWith('618')) {
+    return { url: 'https://civ-dev.codeonline-edi.net/api/edi/receive',
+             country: '384', name: 'Cote Ivoire Gateway', source: 'PREFIX_RULE' };
+  }
+  // 3. Inconnu
+  return null;
+}</code></pre>
+    <div class="callout note">
+      <span class="ic">&#128640;</span>
+      <p><span class="ct">Smart routing</span>Lorsque le payload est détecté comme chiffré (présence de <code>header</code>/<code>envelope</code> P2P sécurisé), <code>HubController.relayMessage</code> détourne la livraison vers <code>/api/p2p/receive</code> au lieu de <code>/api/edi/receive</code>.</p>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <h2><span class="h-num">9</span>Cycle de vie d'un message</h2>
+    <p>Le relais nominal d'un message via l'orchestrateur suit la séquence ci-dessous. Le hub journalise systématiquement la transaction (<code>RECEIVED</code> puis <code>DELIVERED</code> ou <code>FAILED</code>) et signe une identité de service à chaque relais sortant.</p>
+    <div class="mermaid-card">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant N as Nœud émetteur
+    participant O as Orchestrateur (Hub)
+    participant DB as MySQL codeonline_edi_db
+    participant T as Nœud cible (/api/edi/receive)
+
+    N->>O: POST /api/orchestrator/relay (EANCOM + senderGln/receiverGln)
+    O->>DB: SELECT idempotence (transaction_ref)
+    alt nouvelle transaction
+        O->>DB: INSERT transactions (status=RECEIVED, transport_mode=ORCHESTRATOR, order_ref)
+    end
+    O->>DB: resolveRoute(receiver_gln) — partners WHERE status=ACTIVE
+    alt route introuvable
+        O->>DB: UPDATE status=FAILED (error="No route found")
+        O-->>N: 404 Unknown recipient GLN
+    else route trouvée
+        O->>O: mintServiceToken() — JWT HS256, exp +900s
+        O->>T: POST target_url (Bearer JWT + x-api-pin + X-Hub-Transaction-Ref)
+        alt dispatch OK
+            T-->>O: 200 OK
+            O->>DB: UPDATE status=DELIVERED, delivered_at=NOW()
+            O-->>N: 200 { success, transactionRef, route }
+        else dispatch échoue
+            O->>DB: UPDATE status=FAILED (error)
+            O-->>N: 502 dispatch error
+        end
+    end
+      </div>
+    </div>
+
+    <h3>Statuts (<code>transactions.status</code>)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Statut</th><th>Signification</th></tr></thead>
+        <tbody>
+          <tr><td><code>RECEIVED</code></td><td>Message reçu par le hub, transaction créée (défaut)</td></tr>
+          <tr><td><code>FORWARDED</code></td><td>Quittance de routage (étape intermédiaire)</td></tr>
+          <tr><td><code>DELIVERED</code></td><td>Livré au destinataire (ACK reçu / dispatch OK)</td></tr>
+          <tr><td><code>FAILED</code></td><td>Échec (route inconnue → 404, ou erreur de dispatch → 502)</td></tr>
+          <tr><td><code>RETRY_QUEUED</code></td><td>En attente de relance</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Modes de transport (<code>transactions.transport_mode</code>)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Mode</th><th>Signification</th></tr></thead>
+        <tbody>
+          <tr><td><code>ORCHESTRATOR</code></td><td>Relais via le hub (cas nominal) — <strong>défaut</strong></td></tr>
+          <tr><td><code>P2P</code></td><td>Échange pair-à-pair direct</td></tr>
+          <tr><td><code>P2P_SYNC</code></td><td>Log P2P offline synchronisé a posteriori via <code>/api/orchestrator/audit/sync</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <h2><span class="h-num">10</span>Sécurité</h2>
+    <h3>Mécanismes en place</h3>
+    <ul>
+      <li><strong>JWT de service HS256</strong> — à chaque relais, le hub forge un token via <code>mintServiceToken()</code> (<code>crypto</code> natif) : payload <code>{ sub:'system', role:'service', instance:'hub', iat, exp:+900s }</code>, signé avec <code>JWT_SECRET</code>. Ajouté en <code>Authorization: Bearer &lt;token&gt;</code>, accepté par le <code>verifyJWT</code> standard des nœuds.</li>
+      <li><strong>Secret partagé réseau</strong> — <code>JWT_SECRET</code> est <strong>identique sur tous les nœuds d'un même environnement</strong> (et <strong>distinct entre DEV et PROD</strong>).</li>
+      <li><strong>En-tête legacy <code>x-api-pin</code></strong> — <code>API_PIN</code> transmis en parallèle à chaque relais.</li>
+      <li><strong>Clé de tracking double-vérif</strong> — <code>trackingAuth</code> valide soit la clé maître <code>TRACKING_API_KEY</code> (env, scope <code>full</code>), soit une clé <code>ACTIVE</code> de la table <code>tracking_api_keys</code> (cache mémoire 60 s). 401 si clé manquante, 403 si invalide/révoquée. Vérifié : <code>/api/tracking/partners</code> renvoie 401 sans clé, 200 avec clé.</li>
+      <li><strong>Assainissement des erreurs</strong> — <code>sanitizeError()</code> masque les termes cryptographiques (<code>aes</code>, <code>rsa</code>, <code>encrypt</code>, blocs PEM, base64 longs → <code>[CRYPTO]</code>/<code>[PEM_REDACTED]</code>/<code>[B64_REDACTED]</code>) avant toute exposition publique ; <code>formatTx()</code> n'expose <strong>jamais</strong> le contenu EANCOM, <code>envelope</code> ni <code>header</code>.</li>
+      <li><strong>Secrets externalisés</strong> — uniquement dans <code>.env</code> (git-ignored) : <code>DB_HOST</code>, <code>DB_USER</code>, <code>DB_PASSWORD</code>, <code>DB_NAME</code>, <code>PORT</code>, <code>API_PIN</code>, <code>JWT_SECRET</code>, <code>TRACKING_API_KEY</code>. Aucun secret hardcodé, jamais poussé par le déploiement.</li>
+    </ul>
+
+    <h3>Limites connues et pistes de durcissement</h3>
+    <div class="callout sec">
+      <span class="ic">&#128274;</span>
+      <p><span class="ct">À surveiller — surface de durcissement sécurité</span>Le tableau ci-dessous recense les écarts connus de l'environnement DEV et les axes de renforcement prioritaires avant mise en PROD.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Limite actuelle</th><th>Piste de durcissement</th></tr></thead>
+        <tbody>
+          <tr><td>Endpoints <code>/api/orchestrator/*</code> sans auth (confiance réseau)</td><td>Valider le claim <code>instance:'hub'</code> côté nœuds ; restreindre par IP (allowlist des nœuds)</td></tr>
+          <tr><td>Pas de TLS dédié sur l'orchestrateur (<code>http://217.182.94.86:5010</code>)</td><td>Terminaison TLS / reverse-proxy ; <strong>mTLS</strong> entre hub et nœuds</td></tr>
+          <tr><td><code>httpsAgent</code> <code>rejectUnauthorized:false</code> (DEV)</td><td>Réactiver la validation de certificat en PROD</td></tr>
+          <tr><td>CORS ouvert (<code>cors()</code> sans options)</td><td>Restreindre les origines autorisées</td></tr>
+          <tr><td>Pas de rate-limiting détecté</td><td>Ajouter un rate-limiter sur <code>/api/tracking/*</code> et <code>/api/orchestrator/*</code></td></tr>
+          <tr><td>Canal P2P chiffré non finalisé</td><td>Généraliser le canal <strong>P2P chiffré</strong> (<code>/api/p2p/receive</code>)</td></tr>
+          <tr><td>Clé API stockée en clair dans le <code>localStorage</code> du dashboard</td><td>Passage à un schéma de session / token court terme</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section id="s11">
+    <h2><span class="h-num">11</span>Génération EANCOM / APERAK</h2>
+    <p>L'orchestrateur est <strong>la seule entité</strong> responsable de la génération et du routage des <strong>APERAK</strong> (accusés de réception). Les nœuds buyer/supplier ne génèrent jamais d'APERAK directement : ils postent un ACK/NACK au hub via <code>POST /api/orchestrator/ack</code>, et le hub fabrique l'APERAK conforme.</p>
+    <p><strong>Flux <code>AckController.handleAck</code> :</strong></p>
+    <ol>
+      <li>Validation stricte des entrées (<code>original_ref</code>, <code>sender_gln</code>, <code>receiver_gln</code>, <code>status ∈ {ACK, NACK}</code> ; <code>error_code</code> obligatoire si NACK).</li>
+      <li><code>generateAperakEANCOM(...)</code> produit le message APERAK <strong>EANCOM D.96A</strong> (BGM function code <code>313</code> pour ACK, <code>314</code> pour NACK).</li>
+      <li><code>resolveRoute(receiver_gln)</code> localise le fournisseur destinataire.</li>
+      <li><code>dispatchMessage(route.url, payload, headers)</code> envoie l'APERAK (Bearer JWT + <code>x-api-pin</code>).</li>
+      <li><code>_logAckEvent</code> met à jour la transaction d'origine (<code>LIKE %originalRef%</code>), puis <code>INSERT</code> d'une nouvelle ligne <code>document_type=APERAK, status=DELIVERED, transport_mode=ORCHESTRATOR</code>.</li>
+    </ol>
+    <p><strong>Structure du message APERAK</strong> (segments générés, joints par apostrophe <code>'</code>, échappement GS1 via <code>escapeEancom</code>) :</p>
+    <pre class="eancom"><code>UNB+UNOB:1+&lt;senderGln&gt;:14+&lt;receiverGln&gt;:14+&lt;YYYYMMDD&gt;:&lt;HHMM&gt;+&lt;icr&gt;'
+UNH+&lt;msgRef&gt;+APERAK:D:96A:UN:EAN008'
+BGM+&lt;313|314&gt;+&lt;msgRef&gt;'
+DTM+137:&lt;YYYYMMDD&gt;:102'
+RFF+ACE:&lt;originalRef&gt;'
+DOC+131:&lt;originalMsgType&gt;'
+NAD+MS+&lt;senderGln&gt;::9'
+NAD+MR+&lt;receiverGln&gt;::9'
+ERC+&lt;errorCode&gt;'           (NACK uniquement)
+FTX+AAO+++&lt;errorText&gt;'      (NACK uniquement, si fourni)
+UNT+&lt;segmentCount+1&gt;+&lt;msgRef&gt;'
+UNZ+1+&lt;icr&gt;'</code></pre>
+    <p>Segments : UNB (interchange header), UNH (message header), BGM (function code), DTM (date), RFF (référence à l'original), DOC (type référencé), NAD MS/MR (émetteur/récepteur), ERC + FTX (erreurs NACK), UNT/UNZ (trailers).</p>
+  </section>
+
+  <!-- 12 -->
+  <section id="s12">
+    <h2><span class="h-num">12</span>Observabilité</h2>
+    <p>Trois surfaces d'observabilité complémentaires :</p>
+    <ul>
+      <li><strong>Dashboard admin</strong> (SPA <code>/dashboard</code>, ~1403 lignes) — login par clé <code>X-Tracking-Api-Key</code>, 8 vues : overview (stat-cards + Chart.js doughnut/bar), transactions (filtres + pagination 25/page + export CSV), tracking avancé (par ref/GLN), orders (cycle de vie 6 étapes avec progression %), partners (cards + timeline), alerts, document-types, API explorer. Auto-refresh 30 s, thème clair/sombre.</li>
+      <li><strong>API de tracking mobile</strong> — 13 endpoints <code>/api/tracking/*</code> (cf. §7.2), read-only, sécurisés et assainis.</li>
+      <li><strong>Vue <code>order_tracking_summary</code></strong> — agrégation par commande pour le suivi de cycle de vie (ORDERED → CONFIRMED → SHIPPED → RECEIVED → INVOICED → COMPLETED).</li>
+    </ul>
+
+    <h3>Métriques réelles (115 transactions en prod)</h3>
+
+    <p><strong>Par statut :</strong></p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Statut</th><th>Nombre</th></tr></thead>
+        <tbody>
+          <tr><td>DELIVERED</td><td>72</td></tr>
+          <tr><td>FAILED</td><td>43</td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>115</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote><p>Taux de livraison ≈ <strong>62,6 %</strong> (72 / 115).</p></blockquote>
+
+    <p><strong>Par type de document :</strong></p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Type</th><th>Nombre</th></tr></thead>
+        <tbody>
+          <tr><td>ORDRSP</td><td>32</td></tr>
+          <tr><td>UNKNOWN</td><td>30</td></tr>
+          <tr><td>ORDERS</td><td>23</td></tr>
+          <tr><td>INVOIC</td><td>19</td></tr>
+          <tr><td>DESADV</td><td>9</td></tr>
+          <tr><td>RECADV</td><td>1</td></tr>
+          <tr><td>APERAK</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>Par mode de transport :</strong></p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Mode</th><th>Nombre</th></tr></thead>
+        <tbody>
+          <tr><td>ORCHESTRATOR</td><td>101</td></tr>
+          <tr><td>P2P_SYNC</td><td>14</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote><p>Lecture : la part élevée de <code>FAILED</code> (43) et de <code>UNKNOWN</code> (30) sur l'environnement DEV reflète l'activité de mise au point ; ces compteurs sont surveillés via <code>/api/tracking/alerts</code> (FAILED &lt; 7 j + STUCK &gt; 5 min).</p></blockquote>
+  </section>
+
+  <!-- 13 -->
+  <section id="s13">
+    <h2><span class="h-num">13</span>Déploiement</h2>
+    <p>Modèle <strong>immutable-secrets</strong> : le code est déployé par <code>rsync</code>, mais le <code>.env</code> n'est <strong>jamais</strong> poussé. Deux profils strictement isolés DEV / PROD.</p>
+
+    <h3>Configuration PM2 (<code>ecosystem.config.cjs</code>)</h3>
+    <ul>
+      <li>Défauts : nom <code>codeonline-edi-orchestrator</code>, port <code>5010</code>, logs <code>./logs</code>.</li>
+      <li>Surchargeables via <code>ORCH_PM2_NAME</code> / <code>ORCH_PORT</code> / <code>ORCH_LOG_DIR</code>.</li>
+      <li>Mode <code>fork</code> (1 instance), <code>max_memory_restart 500M</code>, logs fusionnés (<code>merge_logs:true</code>).</li>
+      <li>Secrets (<code>DB_*</code>, <code>JWT_SECRET</code>, <code>API_PIN</code>, <code>TRACKING_API_KEY</code>) chargés via dotenv — <strong>jamais</strong> dans <code>ecosystem.config.cjs</code>.</li>
+    </ul>
+
+    <h3>Script <code>deploy/deploy_orchestrator.sh &lt;dev|prod&gt;</code></h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Étape</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Validation des 9 variables obligatoires de la conf (<code>ENV_NAME</code>, <code>REMOTE_HOST</code>, <code>REMOTE_PORT</code>, <code>REMOTE_USER</code>, <code>REMOTE_DIR</code>, <code>LOG_DIR</code>, <code>PM2_APP_NAME</code>, <code>PM2_PORT</code>, <code>DB_NAME</code>)</td></tr>
+          <tr><td>1</td><td><strong>Pré-flight fatal</strong> : si <code>.env</code> distant absent → déploiement avorté (+ instructions <code>scp</code>)</td></tr>
+          <tr><td>2</td><td><code>rsync -az --delete</code> du code (exclut <code>node_modules/</code>, <code>.env</code>, <code>.env.bak*</code>, <code>*.bak.*</code>, <code>deploy/</code>, <code>logs/</code>, <code>.git/</code>)</td></tr>
+          <tr><td>3</td><td><code>npm install</code> + <code>ORCH_* … pm2 startOrReload ecosystem.config.cjs --update-env</code></td></tr>
+          <tr><td>4</td><td>Health-check interne <code>http://localhost:${PM2_PORT}/api/tracking/health</code> + externe <code>${PUBLIC_URL}/api/tracking/health</code></td></tr>
+          <tr><td>5</td><td>Fin</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Profils</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Paramètre</th><th>DEV (<code>orchestrator.dev.conf</code>)</th><th>PROD (<code>orchestrator.prod.conf</code>)</th></tr></thead>
+        <tbody>
+          <tr><td><code>REMOTE_HOST</code></td><td><code>217.182.94.86</code></td><td><code>__A_RENSEIGNER__</code></td></tr>
+          <tr><td><code>REMOTE_DIR</code></td><td><code>/var/www/Edi-dev/edi_orchestrator</code></td><td><code>/var/www/Edi-prod/edi_orchestrator</code></td></tr>
+          <tr><td><code>LOG_DIR</code></td><td><code>/var/www/Edi-dev/logs</code></td><td><code>/var/www/Edi-prod/logs</code></td></tr>
+          <tr><td><code>PM2_APP_NAME</code></td><td><code>codeonline-edi-orchestrator</code></td><td><code>codeonline-edi-orchestrator-prod</code></td></tr>
+          <tr><td><code>PM2_PORT</code></td><td><code>5010</code></td><td><code>5012</code></td></tr>
+          <tr><td><code>DB_NAME</code></td><td><code>codeonline_edi_db</code></td><td><code>codeonline_edi_db_prod</code> (<strong>isolée</strong>)</td></tr>
+          <tr><td><code>PUBLIC_URL</code></td><td><code>http://217.182.94.86:5010</code></td><td><code>__A_RENSEIGNER__</code></td></tr>
+          <tr><td><code>JWT_SECRET</code></td><td>—</td><td><strong>DISTINCT</strong> de DEV</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Principes :</strong> secrets jamais poussés (pré-flight <code>.env</code> obligatoire) · base PROD totalement isolée (<code>codeonline_edi_db_prod</code>) · <code>JWT_SECRET</code> PROD distinct de DEV · health-check interne + externe après chaque reload.</p>
+  </section>
+
+  <!-- 14 -->
+  <section id="s14">
+    <h2><span class="h-num">14</span>Roadmap / évolutions</h2>
+    <div class="callout road">
+      <span class="ic">&#128205;</span>
+      <p><span class="ct">Trajectoire produit</span>Axes d'évolution priorisés du PAESN Registry, du Data Registry étendu (GTIN, marques) au passage en production et au durcissement sécurité.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Axe</th><th>Objectif</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Data Registry étendu</strong></td><td>Étendre la table de référence des <strong>GLN</strong> aux <strong>GTIN</strong> (produits) et aux <strong>marques</strong>, faisant du PAESN Registry l'index canonique GS1 multi-pays</td></tr>
+          <tr><td><strong>Mise en PROD</strong></td><td>Renseigner <code>REMOTE_HOST</code>/<code>PUBLIC_URL</code> PROD, provisionner <code>codeonline_edi_db_prod</code>, <code>JWT_SECRET</code> distinct, premier déploiement <code>deploy_orchestrator.sh prod</code></td></tr>
+          <tr><td><strong>Durcissement sécurité</strong></td><td>TLS dédié + <strong>mTLS</strong> hub↔nœuds, validation du claim <code>instance:'hub'</code>, allowlist IP, CORS restreint, rate-limiting</td></tr>
+          <tr><td><strong>Canal P2P chiffré</strong></td><td>Généraliser le routage <code>/api/p2p/receive</code> et le chiffrement de bout en bout</td></tr>
+          <tr><td><strong>Fiabilité</strong></td><td>Exploiter <code>RETRY_QUEUED</code> (relances automatiques), réduire le taux de <code>FAILED</code>/<code>UNKNOWN</code></td></tr>
+          <tr><td><strong>Découverte</strong></td><td>Enrichir <code>/api/orchestrator/discovery</code> pour la synchronisation automatique de l'annuaire entre nœuds</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 15 -->
+  <section id="s15">
+    <h2><span class="h-num">15</span>Annexes</h2>
+
+    <h3>A. Plan des GLN (registre <code>partners</code> réel)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>GLN</th><th>Nom</th><th>Pays (ISO 3166 num.)</th><th>URL cible</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td><code>6191234567890</code></td><td>Tunisie Hub</td><td>Tunisie (788)</td><td><code>https://edi-dev.codeonline-info.com/api/edi/receive</code></td><td><span class="pill ok">ACTIVE</span></td></tr>
+          <tr><td><code>6191907700002</code></td><td>Tunisie Buyer</td><td>Tunisie (788)</td><td><code>https://edi-dev.codeonline-info.com/api/edi/receive</code></td><td><span class="pill ok">ACTIVE</span></td></tr>
+          <tr><td><code>SN02583102G3</code></td><td>Senegal Hub</td><td>Sénégal (686)</td><td><code>https://dev.codeonline-edi.net/api/edi/receive</code></td><td><span class="pill ok">ACTIVE</span></td></tr>
+          <tr><td><code>SN02583102G4</code></td><td>Senegal Supplier</td><td>Sénégal (686)</td><td><code>https://dev.codeonline-edi.net/api/edi/receive</code></td><td><span class="pill ok">ACTIVE</span></td></tr>
+          <tr><td><code>6181234567890</code></td><td>Cote Ivoire Hub</td><td>Côte d'Ivoire (384)</td><td><code>https://civ-dev.codeonline-edi.net/api/edi/receive</code></td><td><span class="pill ok">ACTIVE</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Correspondance des préfixes de fallback : <code>SN</code> → Sénégal (686) · <code>619</code> → Tunisie (788) · <code>618</code> → Côte d'Ivoire (384).</p>
+
+    <h3>B. Variables d'environnement (<code>.env</code>, git-ignored)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Variable</th><th>Usage</th><th>Remarques</th></tr></thead>
+        <tbody>
+          <tr><td><code>DB_HOST</code></td><td>Hôte MySQL</td><td></td></tr>
+          <tr><td><code>DB_USER</code></td><td>Utilisateur MySQL</td><td></td></tr>
+          <tr><td><code>DB_PASSWORD</code></td><td>Mot de passe MySQL</td><td></td></tr>
+          <tr><td><code>DB_NAME</code></td><td>Base</td><td><code>codeonline_edi_db</code> (DEV) / <code>codeonline_edi_db_prod</code> (PROD, isolée)</td></tr>
+          <tr><td><code>PORT</code></td><td>Port d'écoute</td><td><code>5010</code> (DEV) / <code>5012</code> (PROD) ; défaut code <code>5002</code></td></tr>
+          <tr><td><code>JWT_SECRET</code></td><td>Secret HS256 du JWT de service</td><td><strong>Partagé</strong> entre nœuds d'un même env, <strong>distinct</strong> DEV/PROD</td></tr>
+          <tr><td><code>API_PIN</code></td><td>En-tête legacy <code>x-api-pin</code></td><td>Transmis aux nœuds à chaque relais</td></tr>
+          <tr><td><code>TRACKING_API_KEY</code></td><td>Clé maître API mobile de tracking</td><td>Scope <code>full</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>C. Référence — endpoints de découverte et health</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Auth</th><th>Usage</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /</code></td><td>aucune</td><td>Health-check racine (service, status, port, endpoints)</td></tr>
+          <tr><td><code>GET /api/tracking/health</code></td><td>aucune</td><td>Health-check détaillé (db, uptime, compteurs, partenaires actifs) — utilisé par le déploiement</td></tr>
+          <tr><td><code>GET /api/orchestrator/discovery</code></td><td>aucune</td><td>Annuaire des partenaires <code>ACTIVE</code> (découverte inter-nœud)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div><span class="brand">Netconsulting</span><span class="sep">·</span>Codeonline EDI<span class="sep">·</span>PAESN Registry — Orchestrateur EDI</div>
+  <div style="margin-top:8px;">Document d'architecture · environnement DEV · 21 juin 2026 · vérité terrain</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+</script>
+</body>
+</html>
