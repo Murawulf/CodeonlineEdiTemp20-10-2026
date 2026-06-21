@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnostic &amp; proposition — Fallback produits cross-pays (registry_fp · PAESN Registry)</title>
+<style>
+  :root{
+    --navy-900:#0b1220;
+    --navy-800:#0f1b2d;
+    --navy-700:#13243b;
+    --navy-600:#1b3252;
+    --panel:#101a2b;
+    --panel-2:#0d1626;
+    --border:#1f3350;
+    --ink:#dce6f5;
+    --ink-soft:#a9bcd6;
+    --ink-dim:#7d92b3;
+    --accent:#3b82f6;
+    --accent-2:#38bdf8;
+    --accent-3:#22d3ee;
+    --gold:#f4b740;
+    --green:#34d399;
+    --red:#f87171;
+    --amber:#fbbf24;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:
+      radial-gradient(1200px 600px at 12% -10%, rgba(56,189,248,.10), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(59,130,246,.12), transparent 55%),
+      var(--navy-900);
+    color:var(--ink);
+    line-height:1.65;
+    font-size:16px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 80px;}
+
+  /* HEADER */
+  header.hero{
+    background:linear-gradient(135deg,var(--navy-800) 0%,var(--navy-700) 55%,var(--navy-600) 100%);
+    border-bottom:1px solid var(--border);
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(90deg,transparent 0,transparent 39px,rgba(56,189,248,.04) 40px),
+      linear-gradient(0deg,transparent 0,transparent 39px,rgba(56,189,248,.04) 40px);
+    background-size:40px 40px;
+    opacity:.5;pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;padding:54px 24px 40px;position:relative;}
+  .eyebrow{
+    font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-2);
+    font-weight:700;margin-bottom:14px;
+  }
+  header.hero h1{
+    margin:0 0 10px;font-size:clamp(28px,4.4vw,44px);line-height:1.12;
+    font-weight:800;letter-spacing:-.01em;
+    background:linear-gradient(90deg,#fff,#bcd6ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero .subtitle{font-size:clamp(15px,1.9vw,19px);color:var(--ink-soft);max-width:780px;margin:0 0 22px;}
+  .badges{display:flex;flex-wrap:wrap;gap:10px;}
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--border);background:rgba(11,18,32,.55);color:var(--ink-soft);
+    backdrop-filter:blur(4px);
+  }
+  .badge .dot{width:8px;height:8px;border-radius:50%;}
+  .badge.fallback{border-color:rgba(244,183,64,.4);color:#ffe2a3;}
+  .badge.fallback .dot{background:var(--gold);}
+  .badge.registry{border-color:rgba(56,189,248,.4);color:#bde6ff;}
+  .badge.registry .dot{background:var(--accent-2);}
+  .badge.iso{border-color:rgba(52,211,153,.4);color:#b6f3da;}
+  .badge.iso .dot{background:var(--green);}
+  .badge.stack{border-color:rgba(59,130,246,.4);color:#c7dbff;}
+  .badge.stack .dot{background:var(--accent);}
+  .meta-line{margin-top:22px;font-size:13px;color:var(--ink-dim);border-top:1px solid var(--border);padding-top:16px;}
+  .meta-line strong{color:var(--ink-soft);}
+
+  /* TOC */
+  nav.toc{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:24px 26px;margin:34px 0 8px;box-shadow:0 10px 30px rgba(0,0,0,.3);
+  }
+  nav.toc h2{margin:0 0 16px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-2);}
+  .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 22px;}
+  .toc-grid a{
+    display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink-soft);
+    padding:6px 8px;border-radius:8px;font-size:14.5px;transition:background .15s,color .15s;
+  }
+  .toc-grid a:hover{background:rgba(56,189,248,.10);color:#fff;}
+  .toc-grid a .num{color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:22px;}
+
+  /* SECTIONS */
+  section{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:30px 34px;margin:22px 0;box-shadow:0 8px 26px rgba(0,0,0,.25);
+    scroll-margin-top:18px;
+  }
+  section h2{
+    font-size:clamp(20px,2.6vw,27px);margin:0 0 18px;font-weight:800;letter-spacing:-.01em;
+    color:#fff;display:flex;align-items:center;gap:14px;
+  }
+  section h2 .h-num{
+    flex:none;font-size:14px;font-weight:800;color:var(--navy-900);
+    background:linear-gradient(135deg,var(--accent-2),var(--accent));
+    width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    box-shadow:0 4px 12px rgba(56,189,248,.35);
+  }
+  section h3{font-size:18px;margin:26px 0 10px;color:#e7f0ff;font-weight:700;}
+  h3 + p, h3 + ul, h3 + table, h3 + pre, h3 + .table-scroll, h3 + .mermaid-card{margin-top:8px;}
+  p{margin:0 0 14px;color:var(--ink);}
+  ul,ol{margin:0 0 14px;padding-left:22px;color:var(--ink);}
+  li{margin:5px 0;}
+  li::marker{color:var(--accent-2);}
+  strong{color:#fff;font-weight:700;}
+  a{color:var(--accent-2);}
+  code{
+    font-family:var(--mono);font-size:13px;background:rgba(56,189,248,.12);
+    color:#bfe9ff;padding:1.5px 6px;border-radius:5px;border:1px solid rgba(56,189,248,.18);
+  }
+  hr{border:none;border-top:1px solid var(--border);margin:30px 0;}
+
+  /* TABLES */
+  .table-scroll{overflow-x:auto;margin:14px 0 18px;border-radius:12px;border:1px solid var(--border);}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px;}
+  thead th{
+    background:linear-gradient(180deg,var(--navy-600),var(--navy-700));
+    color:#e9f2ff;text-align:left;padding:11px 14px;font-weight:700;font-size:13px;
+    letter-spacing:.02em;border-bottom:2px solid var(--accent);white-space:nowrap;
+  }
+  tbody td{padding:10px 14px;border-top:1px solid var(--border);color:var(--ink-soft);vertical-align:top;}
+  tbody tr:nth-child(odd){background:rgba(255,255,255,.018);}
+  tbody tr:nth-child(even){background:rgba(56,189,248,.035);}
+  tbody tr:hover{background:rgba(56,189,248,.09);}
+  tbody td code{font-size:12.5px;}
+  table strong{color:#fff;}
+
+  /* CODE BLOCKS */
+  pre{
+    background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--accent-2);
+    border-radius:10px;padding:18px 20px;overflow-x:auto;margin:14px 0 18px;
+    box-shadow:inset 0 2px 18px rgba(0,0,0,.4);position:relative;
+  }
+  pre code{
+    background:none;border:none;padding:0;color:#d6e6ff;font-size:13px;line-height:1.6;
+    font-family:var(--mono);white-space:pre;
+  }
+  pre .lang-tag{
+    position:absolute;top:0;right:0;font-family:var(--mono);font-size:10.5px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--navy-900);
+    background:linear-gradient(135deg,var(--accent-2),var(--accent));
+    padding:2px 10px;border-bottom-left-radius:8px;border-top-right-radius:9px;
+  }
+  pre.sql{border-left-color:var(--gold);} pre.sql code{color:#ffe7b3;}
+  pre.sql .lang-tag{background:linear-gradient(135deg,var(--gold),#d99a1f);}
+  pre.json{border-left-color:var(--green);} pre.json code{color:#bdf0d6;}
+  pre.json .lang-tag{background:linear-gradient(135deg,var(--green),#1fa97a);color:#06241a;}
+
+  /* CALLOUTS */
+  .callout{
+    border-radius:12px;padding:16px 20px;margin:18px 0;border:1px solid var(--border);
+    border-left-width:4px;display:flex;gap:14px;align-items:flex-start;
+  }
+  .callout .ic{flex:none;font-size:20px;line-height:1.3;}
+  .callout p{margin:0;color:var(--ink-soft);font-size:14.5px;}
+  .callout p:not(:last-child){margin-bottom:8px;}
+  .callout.note{background:rgba(56,189,248,.07);border-left-color:var(--accent-2);}
+  .callout.warn{background:rgba(244,183,64,.08);border-left-color:var(--gold);}
+  .callout.warn .ic{color:var(--gold);}
+  .callout.sec{background:rgba(248,113,113,.07);border-left-color:var(--red);}
+  .callout.sec .ic{color:var(--red);}
+  .callout.road{background:rgba(52,211,153,.07);border-left-color:var(--green);}
+  .callout.road .ic{color:var(--green);}
+  .callout .ct{font-weight:700;color:#fff;letter-spacing:.04em;font-size:12px;text-transform:uppercase;display:block;margin-bottom:5px;}
+
+  blockquote{
+    margin:16px 0;padding:14px 20px;background:rgba(56,189,248,.06);
+    border-left:4px solid var(--accent-2);border-radius:8px;color:var(--ink-soft);font-size:14.5px;
+  }
+  blockquote p:last-child{margin-bottom:0;}
+
+  /* MERMAID */
+  .mermaid-card{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:12px;
+    padding:18px;margin:18px 0;overflow-x:auto;text-align:center;
+  }
+  .mermaid{display:flex;justify-content:center;}
+
+  /* status pills inline in tables */
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap;}
+  .pill.ok{background:rgba(52,211,153,.16);color:#7df0c2;border:1px solid rgba(52,211,153,.35);}
+  .pill.target{background:rgba(244,183,64,.16);color:#ffd884;border:1px solid rgba(244,183,64,.35);}
+  .pill.low{background:rgba(52,211,153,.16);color:#7df0c2;border:1px solid rgba(52,211,153,.35);}
+  .pill.mid{background:rgba(244,183,64,.16);color:#ffd884;border:1px solid rgba(244,183,64,.35);}
+  .pill.reco{background:rgba(56,189,248,.16);color:#bde6ff;border:1px solid rgba(56,189,248,.35);}
+
+  /* FOOTER */
+  footer{
+    max-width:1080px;margin:60px auto 0;padding:30px 24px 10px;border-top:1px solid var(--border);
+    color:var(--ink-dim);font-size:13px;text-align:center;
+  }
+  footer .brand{font-weight:800;color:var(--ink-soft);letter-spacing:.04em;}
+  footer .sep{margin:0 8px;color:var(--border);}
+
+  @media(max-width:680px){
+    section{padding:22px 18px;}
+    .hero-inner{padding:40px 18px 32px;}
+    .toc-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Codeonline EDI · Diagnostic &amp; proposition technique</div>
+    <h1>Fallback produits cross-pays via <code style="background:none;border:none;color:#bcd6ff;padding:0;font-size:.78em;">registry_fp</code></h1>
+    <p class="subtitle">Quand l'app mobile ne trouve pas un produit (GTIN, marque) sur un serveur pays, basculer vers le Hub PAESN Registry — index central des produits/marques de tous les pays. Déclenché par un simple appel HTTP depuis le PHP, sans logique métier ajoutée.</p>
+    <div class="badges">
+      <span class="badge fallback"><span class="dot"></span>Fallback cross-pays</span>
+      <span class="badge registry"><span class="dot"></span>PAESN Registry</span>
+      <span class="badge iso"><span class="dot"></span>Isolation API</span>
+      <span class="badge stack"><span class="dot"></span>Node + PHP</span>
+    </div>
+    <div class="meta-line">
+      <strong>Date :</strong> 21 juin 2026 &nbsp;·&nbsp; <strong>Périmètre :</strong> API produits mobile (CodeIgniter, <code>codeonline-fp</code>) + Hub orchestrateur (PAESN Registry, Node) &nbsp;·&nbsp; <strong>Principe directeur :</strong> proxy mince PHP → tout en Node, isolation totale
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <h2>Sommaire</h2>
+    <div class="toc-grid">
+      <a href="#s1"><span class="num">1</span>Diagnostic de l'existant</a>
+      <a href="#s2"><span class="num">2</span>Principe architectural retenu</a>
+      <a href="#s3"><span class="num">3</span>Architecture cible</a>
+      <a href="#s4"><span class="num">4</span>Côté Node — service registry_fp</a>
+      <a href="#s5"><span class="num">5</span>Côté PHP — modification minimale</a>
+      <a href="#s6"><span class="num">6</span>Cycle de vie d'une requête</a>
+      <a href="#s7"><span class="num">7</span>Sécurité</a>
+      <a href="#s8"><span class="num">8</span>Phasage</a>
+      <a href="#s9"><span class="num">9</span>Migration future PHP → Node</a>
+      <a href="#s10"><span class="num">10</span>Décisions à trancher</a>
+      <a href="#s11"><span class="num">11</span>Annexes</a>
+    </div>
+  </nav>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><span class="h-num">1</span>Diagnostic de l'existant</h2>
+
+    <h3>1.1 Composants &amp; emplacements (serveur CIV)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Élément</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr><td>App API produits</td><td><code>/var/www/codeonline-fp</code> — <strong>CodeIgniter 3</strong> (PHP), distincte de l'app EDI Node</td></tr>
+          <tr><td>Contrôleur API</td><td><code>application/controllers/api_fp/V1_fp.php</code> (REST_Controller, méthodes <code>*_get</code>)</td></tr>
+          <tr><td>Modèle SQL</td><td><code>application/models/api_fp/Api_model_fp.php</code></td></tr>
+          <tr><td>Base de données</td><td><strong><code>Entitedb</code></strong> (localhost, groupe <code>dbEntite</code>) — différente du <code>Dev_Entitedb</code> de l'EDI</td></tr>
+          <tr><td>Table produits</td><td><strong><code>fiche_produit</code></strong> + jointures <code>Entite</code>, <code>pays</code>, <code>brickgpc</code></td></tr>
+          <tr><td>Hub (PAESN)</td><td><code>217.182.94.86:5010</code>, Node/Express, DB <code>codeonline_edi_db</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>1.2 Fonctionnement actuel de l'API</h3>
+    <p><strong>Recherche par GTIN</strong> — <code>fiche_produit_by_gtin_get()</code> :</p>
+    <ol>
+      <li><code>fiche_produit_gtin()</code> exécute :
+      <pre class="sql"><span class="lang-tag">sql</span><code>SELECT fiche_produit.images, brand, subBrand, libelle AS productName,
+       short_libelle AS shortName, gtin, pays.libelle AS countryOfOrigin,
+       brickgpc.libelleBrique..., prix_min AS prixMin, prix_max AS prixMax,
+       code_cader AS codeCader, Entite.raison_socialle AS companyName,
+       Entite.gln, Entite.adresse, Entite.telephone, Entite.email, Entite.site
+FROM fiche_produit
+JOIN Entite   ON Entite.id_entite = fiche_produit.idEntreprise
+JOIN pays     ON pays.isoNumeric  = fiche_produit.countryOfOrigin
+JOIN brickgpc ON brickgpc.codeBrique = fiche_produit.codebrique
+WHERE fiche_produit.gtin LIKE &lt;gtin&gt; AND fiche_produit.status = 2;</code></pre>
+      </li>
+      <li><strong>Si trouvé</strong> → renvoie la fiche, taggée <code>serveur = "local"</code>.</li>
+      <li><strong>Si vide</strong> → appelle <code>gs1_FP($gtin)</code> = fallback vers l'<strong>API GS1 France</strong> (<code>api.gs1.fr</code>).</li>
+    </ol>
+
+    <p><strong>Recherche par marque :</strong></p>
+    <ul>
+      <li><code>fiche_produit_name_brand($brand)</code> → liste de marques (<code>LIKE brand</code>).</li>
+      <li><code>fiche_produit_marque_categorie_by_brand_get</code> → marques + catégories.</li>
+      <li><code>fiche_produit_by_brand_category_get</code> → produits paginés par marque + catégorie.</li>
+    </ul>
+
+    <p><strong>Forme de réponse attendue par le mobile (shape) :</strong><br>
+    <code>images[]</code>, <code>brand</code>, <code>subBrand</code>, <code>productName</code>, <code>shortName</code>, <code>gtin</code>, <code>countryOfOrigin</code>, <code>libelleBrique</code>, <code>prixMin</code>, <code>prixMax</code>, <code>codeCader</code> / <code>codeCaderAr</code>, <code>companyName</code>, <code>gln</code>, <code>adresse</code>, <code>telephone</code>, <code>email</code>, <code>site</code>, <code>netContent</code>, <code>serveur</code>.</p>
+
+    <h3>1.3 Constat clé : un point de fallback existe déjà</h3>
+    <p>Le contrôleur applique <strong>déjà</strong> le motif exact souhaité (et tague la source) :</p>
+    <pre class="php"><span class="lang-tag">php</span><code>if (!empty($response)) {
+    // ... mise en forme ...
+    $response['serveur'] = "local";
+    $this-&gt;response($response, REST_Controller::HTTP_OK);
+} else {
+    $this-&gt;gs1_FP($this-&gt;get('gtin'));   // fallback externe existant
+}</code></pre>
+    <div class="callout note">
+      <span class="ic">&#128161;</span>
+      <p><span class="ct">Conséquence</span>Brancher le Hub = <strong>insérer un appel</strong> entre « local vide » et <code>gs1_FP</code>. Le champ <code>serveur</code> permet déjà de distinguer la source.</p>
+    </div>
+
+    <h3>1.4 État du Hub aujourd'hui</h3>
+    <p>DB <code>codeonline_edi_db</code> = uniquement <code>partners</code>, <code>transactions</code>, <code>tracking_api_keys</code>, <code>order_tracking_summary</code>.</p>
+    <div class="callout warn">
+      <span class="ic">&#10060;</span>
+      <p><span class="ct">Seul vrai chantier</span><strong>Aucune table produit/marque, aucun index cross-pays, aucun endpoint de recherche produit.</strong> Le Hub possède sa base, mais l'<strong>index produit reste à créer et à alimenter</strong>. C'est le seul vrai chantier.</p>
+    </div>
+
+    <h3>1.5 Verdict de faisabilité</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Côté</th><th>Difficulté</th><th>Justification</th></tr></thead>
+        <tbody>
+          <tr><td><strong>API mobile (PHP)</strong></td><td><span class="pill low">&#128994; Très faible</span></td><td>Motif de fallback déjà présent ; un seul appel HTTP à ajouter ; <strong>zéro logique</strong></td></tr>
+          <tr><td><strong>Service Node <code>registry_fp</code></strong></td><td><span class="pill mid">&#128993; Modéré</span></td><td>Table d'index + endpoints (triviaux) + <strong>ingestion</strong> des produits pays → Hub (le vrai travail)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout road">
+      <span class="ic">&#9989;</span>
+      <p><span class="ct">Conclusion</span><strong>Faisable proprement.</strong> Le PHP reste minimal et jetable ; l'intelligence est en Node.</p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><span class="h-num">2</span>Principe architectural retenu</h2>
+    <ol>
+      <li><strong>Isolation stricte</strong> : le PHP ne connaît du Hub qu'<strong>une URL et une clé</strong>. Aucune requête SQL cross-base, aucun partage de code.</li>
+      <li><strong>PHP = proxy mince</strong> : on ajoute <strong>une seule méthode</strong> <code>registry_fp()</code> au contrôleur, qui fait un <code>curl</code> vers le service Node — exactement comme <code>gs1_FP()</code>. Pas de modèle, pas de SQL, pas de règle métier.</li>
+      <li><strong>Toute la logique en Node</strong> (<code>registry_fp</code>) : recherche dans l'index cross-pays, dédup multi-pays, mise en forme à la shape mobile, et — à terme — la recherche locale elle-même.</li>
+      <li><strong>Migration future PHP → Node</strong> : comme le contrat est purement HTTP, on pourra remplacer <code>V1_fp.php</code> par un service Node sans toucher au mobile ni au Hub. Le <code>registry_fp</code> PHP disparaît, le mobile pointe directement vers le service Node.</li>
+    </ol>
+    <div class="callout note">
+      <span class="ic">&#128279;</span>
+      <p><span class="ct">Principe d'isolation</span>Le contrat entre PHP et Hub est <strong>purement HTTP</strong> (une URL + une clé). C'est cette isolation qui rend le PHP <strong>jetable</strong> et la bascule full-Node <strong>non bloquante</strong> pour le mobile : la shape de réponse reste constante quel que soit le moteur sous-jacent.</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><span class="h-num">3</span>Architecture cible</h2>
+    <div class="mermaid-card">
+      <div class="mermaid">
+graph LR
+    subgraph Mobile
+      APP[App mobile]
+    end
+    subgraph SP["Serveur pays (CIV) — codeonline-fp (PHP, CI3)"]
+      PHP["V1_fp.php&lt;br/&gt;recherche locale"]
+      PROXY["registry_fp&#40;&#41;&lt;br/&gt;proxy mince HTTP"]
+      LDB[("Entitedb&lt;br/&gt;fiche_produit")]
+      PHP --&gt; LDB
+      PHP -. miss .-&gt; PROXY
+    end
+    subgraph HUB["Hub PAESN Registry (Node, 5010)"]
+      RFP["Service registry_fp&lt;br/&gt;/api/registry/fp/*"]
+      PIDX[("product_index&lt;br/&gt;cross-pays")]
+      RFP --&gt; PIDX
+    end
+    GS1["API GS1 France"]
+
+    APP --&gt;|HTTP| PHP
+    PROXY --&gt;|"HTTP + clé"| RFP
+    PHP -. "dernier recours" .-&gt; GS1
+      </div>
+    </div>
+    <div class="callout note">
+      <span class="ic">&#128260;</span>
+      <p><span class="ct">Chaîne de résolution (GTIN)</span>recherche <strong>locale</strong> → si vide, <strong><code>registry_fp</code> (Hub)</strong> → si vide, <strong>GS1</strong>.</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><span class="h-num">4</span>Côté Node — nouveau service <code>registry_fp</code> (dans le Hub PAESN)</h2>
+    <blockquote><p>Exposé comme une <strong>surface d'API indépendante</strong> (<code>/api/registry/fp/*</code>) afin de pouvoir, plus tard, l'extraire en microservice dédié ou y rapatrier la recherche locale.</p></blockquote>
+
+    <h3>4.1 Table d'index <code>product_index</code> (denormalisée = shape mobile, zéro jointure à la lecture)</h3>
+    <pre class="sql"><span class="lang-tag">sql</span><code>CREATE TABLE product_index (
+  id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+  country_code  VARCHAR(3)  NOT NULL,      -- 788 TUN / 686 SEN / 384 CIV
+  source_gln    VARCHAR(13) NOT NULL,      -- GLN entreprise détentrice
+  gtin          VARCHAR(14) NOT NULL,
+  brand         VARCHAR(150),
+  sub_brand     VARCHAR(150),
+  product_name  VARCHAR(255),
+  short_name    VARCHAR(255),
+  images        TEXT,                       -- liste séparée par ';' (idem fiche_produit)
+  country_origin VARCHAR(3),
+  brick_code    VARCHAR(20),
+  brick_fr      VARCHAR(255),
+  brick_ar      VARCHAR(255),
+  brick_en      VARCHAR(255),
+  prix_min      DECIMAL(12,2),
+  prix_max      DECIMAL(12,2),
+  code_cader    VARCHAR(20),
+  company_name  VARCHAR(255),
+  adresse       VARCHAR(255),
+  telephone     VARCHAR(50),
+  email         VARCHAR(150),
+  site          VARCHAR(150),
+  status        TINYINT DEFAULT 2,
+  updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_country_gtin (country_code, gtin),  -- même GTIN possible dans plusieurs pays
+  KEY idx_gtin (gtin),
+  KEY idx_brand (brand),
+  KEY idx_brand_brick (brand, brick_code)
+);</code></pre>
+
+    <h3>4.2 Endpoints du service</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Méthode</th><th>Chemin</th><th>Rôle</th><th>Auth</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/api/registry/fp?gtin=</code></td><td>Fiche produit cross-pays par GTIN (le « registry_fp »)</td><td>clé service</td></tr>
+          <tr><td>GET</td><td><code>/api/registry/fp/brands?brand=</code></td><td>Marques cross-pays (LIKE)</td><td>clé service</td></tr>
+          <tr><td>GET</td><td><code>/api/registry/fp/products?brand=&amp;categoryCode=&amp;page=</code></td><td>Produits par marque + catégorie, paginés</td><td>clé service</td></tr>
+          <tr><td>POST</td><td><code>/api/registry/fp/sync</code></td><td>Upsert batch (ingestion depuis un pays)</td><td>clé service</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>La réponse <code>GET /api/registry/fp?gtin=</code> renvoie <strong>directement la shape mobile</strong> (mêmes clés que la fiche locale, <code>serveur = country_code</code>), pour que le PHP la relaie sans transformation.</p>
+
+    <h3>4.3 Authentification (interne, jamais exposée au mobile)</h3>
+    <ul>
+      <li>Header dédié <code>x-registry-key</code>, <strong>ou</strong> réutilisation du <strong>JWT de service HS256</strong> déjà en place sur le Hub.</li>
+      <li>Le <strong>mobile ne parle jamais au Hub</strong> : seul le serveur pays (ou, demain, le service Node de remplacement) appelle <code>registry_fp</code> avec la clé interne.</li>
+    </ul>
+
+    <h3>4.4 Ingestion — alimentation de l'index (le vrai chantier)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Option</th><th>Principe</th><th>Recommandation</th></tr></thead>
+        <tbody>
+          <tr><td><strong>1. Push pays → Hub (cron)</strong></td><td>Chaque pays pousse les deltas <code>fiche_produit</code> (status=2, <code>updated_at &gt; dernier_sync</code>) vers <code>POST /api/registry/fp/sync</code></td><td><span class="pill reco">&#9989; Recommandé</span> — chaque pays reste maître de ses données, robuste, index toujours à jour</td></tr>
+          <tr><td>2. Pull Hub → pays</td><td>Le Hub lit chaque base pays / appelle un endpoint d'export</td><td>Couplage cross-serveur, plus fragile</td></tr>
+          <tr><td>3. Live federated</td><td>Le Hub interroge l'API pays en direct à chaque miss</td><td>Pas d'index réel, latence, dépend de tous les pays en ligne</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Reco : Option 1</strong>, upsert idempotent sur <code>(country_code, gtin)</code>, cron horaire ou quotidien par pays.</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><span class="h-num">5</span>Côté PHP — modification minimale (<code>V1_fp.php</code>)</h2>
+    <blockquote><p><strong>Une seule méthode ajoutée + une seule insertion.</strong> Aucune logique métier, aucun accès base. Conçu pour être <strong>supprimé</strong> le jour de la bascule full-Node.</p></blockquote>
+
+    <h3>5.1 La méthode proxy <code>registry_fp()</code></h3>
+    <pre class="php"><span class="lang-tag">php</span><code>/**
+ * Proxy mince vers le service Node registry_fp (Hub PAESN).
+ * Aucune logique métier ici : on relaie la requête et la réponse.
+ */
+private function registry_fp($gtin) {
+    $url = HUB_REGISTRY_URL . '/api/registry/fp?gtin=' . urlencode($gtin);
+    $ch  = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER =&gt; true,
+        CURLOPT_TIMEOUT        =&gt; 4,                       // court : ne bloque pas le mobile
+        CURLOPT_HTTPHEADER     =&gt; ['x-registry-key: ' . HUB_REGISTRY_KEY],
+    ]);
+    $out  = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($out === false || $code != 200) return null;
+    return json_decode($out, true);                        // déjà à la shape mobile
+}</code></pre>
+
+    <h3>5.2 L'insertion dans <code>fiche_produit_by_gtin_get()</code></h3>
+    <pre class="php"><span class="lang-tag">php</span><code>// ... if (!empty($response)) { ... serveur="local" ... return ... }
+else {
+    $hub = $this-&gt;registry_fp($this-&gt;get('gtin'));        // fallback Hub
+    if (!empty($hub)) {
+        $this-&gt;response($hub, REST_Controller::HTTP_OK);  // serveur = country_code (renseigné par le Node)
+    } else {
+        $this-&gt;gs1_FP($this-&gt;get('gtin'));                // dernier recours : GS1 (inchangé)
+    }
+}</code></pre>
+
+    <h3>5.3 Configuration PHP</h3>
+    <p>Dans <code>application/config</code> : <code>HUB_REGISTRY_URL</code> (ex. <code>http://217.182.94.86:5010</code>) et <code>HUB_REGISTRY_KEY</code> (clé interne). Rien d'autre.</p>
+    <blockquote><p>La recherche par marque suivra le même motif en phase 2 (méthodes <code>registry_fp_brands()</code> / <code>registry_fp_products()</code>, toujours de simples proxys).</p></blockquote>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><span class="h-num">6</span>Cycle de vie d'une requête (GTIN)</h2>
+    <div class="mermaid-card">
+      <div class="mermaid">
+sequenceDiagram
+    participant M as App mobile
+    participant P as API pays (PHP)
+    participant N as registry_fp (Node/Hub)
+    participant DB as product_index
+    participant G as GS1 France
+
+    M->>P: GET fiche_produit_by_gtin?gtin=...
+    P->>P: recherche locale (fiche_produit, status=2)
+    alt trouvé localement
+        P-->>M: fiche (serveur="local")
+    else absent localement
+        P->>N: GET /api/registry/fp?gtin= (x-registry-key)
+        N->>DB: SELECT ... WHERE gtin=...
+        alt trouvé au Hub
+            N-->>P: fiche (serveur=country_code)
+            P-->>M: fiche (relai direct)
+        else absent au Hub
+            N-->>P: 404 / vide
+            P->>G: gs1_FP(gtin)
+            G-->>P: fiche GS1 (ou rien)
+            P-->>M: fiche GS1 / introuvable
+        end
+    end
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><span class="h-num">7</span>Sécurité</h2>
+    <ul>
+      <li><strong>Mobile → API pays</strong> : authentification existante, inchangée.</li>
+      <li><strong>API pays → <code>registry_fp</code></strong> : header <code>x-registry-key</code> (ou JWT de service). Communication interne uniquement.</li>
+      <li><strong>Hub jamais exposé au mobile.</strong> Le service <code>registry_fp</code> n'est appelé que par les serveurs pays de confiance.</li>
+      <li><code>POST /api/registry/fp/sync</code> : protégé, <strong>idempotent</strong> (upsert), vérifie le <code>country_code</code> de l'émetteur.</li>
+    </ul>
+    <div class="callout sec">
+      <span class="ic">&#128274;</span>
+      <p><span class="ct">Surface d'exposition</span>Le mobile ne détient <strong>jamais</strong> la clé interne du Hub. Toute la chaîne de confiance repose sur les serveurs pays, seuls porteurs de <code>HUB_REGISTRY_KEY</code> ; le Hub reste invisible côté client.</p>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2><span class="h-num">8</span>Phasage</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Phase</th><th>Contenu</th><th>Effort indicatif</th></tr></thead>
+        <tbody>
+          <tr><td><strong>MVP</strong></td><td>Table <code>product_index</code> + <code>GET /api/registry/fp</code> (GTIN) + ingestion CIV + méthode <code>registry_fp()</code> + insertion dans V1_fp</td><td><span class="pill low">~0,5–1 j</span></td></tr>
+          <tr><td><strong>P2</strong></td><td>Ingestion TUN + SEN + fallback marque / catégorie (proxys supplémentaires)</td><td><span class="pill mid">~1 j</span></td></tr>
+          <tr><td><strong>P3</strong></td><td>Cron deltas automatique, dédup multi-pays, dashboard Hub (stats index)</td><td><span class="pill mid">~1 j</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote><p>Tout est d'abord monté sur l'environnement <strong>DEV</strong> (Hub 5010 + CIV) puis validé avant PROD.</p></blockquote>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <h2><span class="h-num">9</span>Migration future PHP → Node (rendue triviale par l'isolation)</h2>
+    <p>Parce que le contrat est purement HTTP :</p>
+    <ol>
+      <li><strong>Aujourd'hui</strong> : <code>V1_fp.php</code> fait la recherche locale + délègue le fallback à <code>registry_fp</code> (Node).</li>
+      <li><strong>Étape suivante</strong> : on rapatrie aussi la <strong>recherche locale</strong> dans le service Node (<code>registry_fp</code> interroge la base pays). Le PHP devient un proxy quasi vide.</li>
+      <li><strong>Bascule</strong> : le mobile pointe directement vers le service Node ; <code>V1_fp.php</code> et son proxy <code>registry_fp()</code> sont <strong>supprimés</strong>. Aucun changement côté Hub.</li>
+    </ol>
+    <div class="callout road">
+      <span class="ic">&#9989;</span>
+      <p><span class="ct">Garantie de non-régression</span>Aucune étape ne casse le mobile : le <strong>contrat de réponse (shape) reste constant</strong>.</p>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <h2><span class="h-num">10</span>Décisions à trancher avant implémentation</h2>
+    <ol>
+      <li><strong>Ingestion</strong> : push pays → Hub (recommandé) ou pull ?</li>
+      <li><strong>GTIN multi-pays</strong> : si le produit existe dans plusieurs pays, on renvoie quoi ? (premier trouvé / priorité au pays appelant / liste)</li>
+      <li><strong>Détail produit</strong> : le Hub renvoie la fiche complète denormalisée (recommandé, simple) ou un pointeur que le mobile re-résout côté pays ?</li>
+      <li><strong>Fraîcheur</strong> : synchronisation à la création/maj d'une fiche, ou batch cron périodique ?</li>
+      <li><strong>Clé interne</strong> : header <code>x-registry-key</code> dédié ou réutilisation du JWT de service existant ?</li>
+      <li><strong>DEV d'abord</strong> : valider sur Hub DEV (5010) + CIV, puis PROD ?</li>
+    </ol>
+  </section>
+
+  <!-- 11 -->
+  <section id="s11">
+    <h2><span class="h-num">11</span>Annexes</h2>
+
+    <h3>11.1 Shape de réponse <code>registry_fp</code> (identique à la fiche locale)</h3>
+    <pre class="json"><span class="lang-tag">json</span><code>{
+  "images": ["url1", "url2"],
+  "brand": "…", "subBrand": "…",
+  "productName": "…", "shortName": "…",
+  "gtin": "…", "countryOfOrigin": "…",
+  "libelleBrique": "…",
+  "prixMin": 0, "prixMax": 0,
+  "codeCader": "…", "codeCaderAr": "…",
+  "companyName": "…", "gln": "…",
+  "adresse": "…", "telephone": "…", "email": "…", "site": "…",
+  "netContent": "", "unitCodeNetContent": "",
+  "serveur": "384"
+}</code></pre>
+
+    <h3>11.2 Variables de configuration</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Côté</th><th>Variable</th><th>Exemple</th></tr></thead>
+        <tbody>
+          <tr><td>PHP (<code>config</code>)</td><td><code>HUB_REGISTRY_URL</code></td><td><code>http://217.182.94.86:5010</code></td></tr>
+          <tr><td>PHP (<code>config</code>)</td><td><code>HUB_REGISTRY_KEY</code></td><td>(clé interne)</td></tr>
+          <tr><td>Node (<code>.env</code>)</td><td>clé d'auth registry / JWT_SECRET</td><td>(secret)</td></tr>
+          <tr><td>Node (<code>.env</code>)</td><td>accès DB <code>codeonline_edi_db</code></td><td>(existant)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div><span class="brand">Netconsulting</span><span class="sep">·</span>Codeonline EDI<span class="sep">·</span>Fallback produits cross-pays — registry_fp / PAESN Registry</div>
+  <div style="margin-top:8px;">Diagnostic &amp; proposition technique · API produits mobile + Hub orchestrateur · 21 juin 2026</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+</script>
+</body>
+</html>
