@@ -246,8 +246,9 @@
       <a href="#s11"><span class="num">11</span>Génération EANCOM / APERAK</a>
       <a href="#s12"><span class="num">12</span>Observabilité</a>
       <a href="#s13"><span class="num">13</span>Déploiement</a>
-      <a href="#s14"><span class="num">14</span>Roadmap / évolutions</a>
-      <a href="#s15"><span class="num">15</span>Annexes</a>
+      <a href="#s14"><span class="num">14</span>Stratégie de stockage et montée en charge</a>
+      <a href="#s15"><span class="num">15</span>Roadmap / évolutions</a>
+      <a href="#s16"><span class="num">16</span>Annexes</a>
     </div>
   </nav>
 
@@ -903,7 +904,62 @@ UNZ+1+&lt;icr&gt;'</code></pre>
 
   <!-- 14 -->
   <section id="s14">
-    <h2><span class="h-num">14</span>Roadmap / évolutions</h2>
+    <h2><span class="h-num">14</span>Stratégie de stockage et montée en charge (relationnel vs NoSQL)</h2>
+
+    <h3>14.1 Choix retenu : rester en relationnel (MySQL)</h3>
+    <p>Le PAESN Registry <strong>reste sur MySQL</strong> comme source de vérité. NoSQL n'est <strong>pas</strong> justifié par la charge ni par la forme des données.</p>
+    <p><strong>Charge cible (estimation).</strong> Plusieurs milliers de requêtes/jour, ≥ 10 serveurs pays, plusieurs applications, centaines d'utilisateurs via les API de recherche et de tracking.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Volume/jour</th><th>Moyenne</th><th>Pic réaliste</th><th>Capacité MySQL (1 serveur)</th></tr></thead>
+        <tbody>
+          <tr><td>100 000 req</td><td>~1,2 req/s</td><td>~10–50 req/s</td><td><strong>milliers de req/s</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>→ La charge sollicite ~1–2 % de la capacité d'un MySQL indexé. <strong>Le volume n'est pas un argument pour NoSQL</strong> (pertinent plutôt à des millions de req/s, des téra de données ou du multi-région).</p>
+    <p><strong>Forme des données.</strong> Tout est relationnel + accès par lookups indexés et agrégations :</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Usage</th><th>Requête</th><th>Adéquation relationnel</th></tr></thead>
+        <tbody>
+          <tr><td><code>registry_fp</code> par GTIN</td><td>match exact sur index</td><td>&#10003;</td></tr>
+          <tr><td><code>registry_fp</code> par marque / catégorie</td><td>filtre + pagination</td><td>&#10003;</td></tr>
+          <tr><td>Tracking transactions</td><td>par ref / partenaire / commande + stats</td><td>&#10003; (jointures + vue <code>order_tracking_summary</code>)</td></tr>
+          <tr><td><code>partners</code></td><td>annuaire (petite table)</td><td>&#10003;</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Passer en document store (MongoDB) ferait <strong>perdre</strong> : JOINs, transactions ACID, la vue d'agrégation, les <code>GROUP BY</code> et la familiarité de l'équipe — pour <strong>aucun gain</strong> à cette charge.</p>
+
+    <h3>14.2 Les vrais leviers de performance (à activer quand mesuré, pas par anticipation)</h3>
+    <ol>
+      <li><strong>Cache Redis</strong> devant les lectures search/tracking. Les lookups GTIN/marque sont très répétés et cachables → la majorité des hits ne touchent plus la base. <strong>C'est l'accélérateur principal</strong>, pas un changement de moteur.</li>
+      <li><strong>Moteur de recherche</strong> (Meilisearch / Typesense / OpenSearch) <strong>uniquement pour <code>product_index</code></strong> si l'on veut tolérance aux fautes, ranking, recherche multilingue (fr/ar/en) et facettes. Il <strong>complète</strong> MySQL (qui reste la source de vérité), il ne le remplace pas.</li>
+      <li><strong>Hygiène SQL</strong> : index adaptés (<code>gtin</code>, <code>brand</code>, clés transactions), pool de connexions <code>mysql2</code> dimensionné, pagination systématique, archivage/partitionnement des anciennes <code>transactions</code> à terme.</li>
+    </ol>
+
+    <h3>14.3 Architecture de stockage recommandée</h3>
+    <pre><code>Source de vérité : MySQL (codeonline_edi_db)
+   └─ partners · transactions · tracking_api_keys · product_index
++ Redis           (cache des lectures search/tracking)      ← quand la charge le justifie
++ Meilisearch/Typesense (recherche produit avancée, UX)     ← optionnel, si recherche floue/multilingue</code></pre>
+
+    <h3>14.4 Quand reconsidérer NoSQL (déclencheurs futurs)</h3>
+    <ul>
+      <li>Catalogue produits à <strong>attributs très hétérogènes par pays</strong> (schéma qui explose) → store document pour <code>product_index</code> en <strong>hybride</strong> (relations en MySQL, fiches en document).</li>
+      <li><strong>Dizaines de millions</strong> de produits/requêtes ou déploiement <strong>géo-distribué multi-région</strong>.</li>
+      <li>Flux d'<strong>événements massifs</strong> append-only → store time-series dédié.</li>
+    </ul>
+    <div class="callout note">
+      <span class="ic">&#128161;</span>
+      <p><span class="ct">Pas de sur-ingénierie</span>Aucun de ces seuils n'est atteint aujourd'hui : optimiser pour eux maintenant serait de la sur-ingénierie. Le goulot d'étranglement viendra des <strong>requêtes N+1 / index manquants / pool de connexions</strong>, jamais du choix MySQL-vs-NoSQL à ce volume.</p>
+    </div>
+  </section>
+
+  <!-- 15 -->
+  <section id="s15">
+    <h2><span class="h-num">15</span>Roadmap / évolutions</h2>
     <div class="callout road">
       <span class="ic">&#128205;</span>
       <p><span class="ct">Trajectoire produit</span>Axes d'évolution priorisés du PAESN Registry, du Data Registry étendu (GTIN, marques) au passage en production et au durcissement sécurité.</p>
@@ -923,9 +979,9 @@ UNZ+1+&lt;icr&gt;'</code></pre>
     </div>
   </section>
 
-  <!-- 15 -->
-  <section id="s15">
-    <h2><span class="h-num">15</span>Annexes</h2>
+  <!-- 16 -->
+  <section id="s16">
+    <h2><span class="h-num">16</span>Annexes</h2>
 
     <h3>A. Plan des GLN (registre <code>partners</code> réel)</h3>
     <div class="table-scroll">

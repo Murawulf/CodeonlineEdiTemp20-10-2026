@@ -592,7 +592,57 @@ Modèle **immutable-secrets** : le code est déployé par `rsync`, mais le `.env
 
 ---
 
-## 14. Roadmap / évolutions
+## 14. Stratégie de stockage et montée en charge (relationnel vs NoSQL)
+
+### 14.1 Choix retenu : rester en relationnel (MySQL)
+
+Le PAESN Registry **reste sur MySQL** comme source de vérité. NoSQL n'est **pas** justifié par la charge ni par la forme des données.
+
+**Charge cible (estimation).** Plusieurs milliers de requêtes/jour, ≥ 10 serveurs pays, plusieurs applications, centaines d'utilisateurs via les API de recherche et de tracking.
+
+| Volume/jour | Moyenne | Pic réaliste | Capacité MySQL (1 serveur) |
+|---|---|---|---|
+| 100 000 req | ~1,2 req/s | ~10–50 req/s | **milliers de req/s** |
+
+→ La charge sollicite ~1–2 % de la capacité d'un MySQL indexé. **Le volume n'est pas un argument pour NoSQL** (pertinent plutôt à des millions de req/s, des téra de données ou du multi-région).
+
+**Forme des données.** Tout est relationnel + accès par lookups indexés et agrégations :
+
+| Usage | Requête | Adéquation relationnel |
+|---|---|---|
+| `registry_fp` par GTIN | match exact sur index | ✅ |
+| `registry_fp` par marque / catégorie | filtre + pagination | ✅ |
+| Tracking transactions | par ref / partenaire / commande + stats | ✅ (jointures + vue `order_tracking_summary`) |
+| `partners` | annuaire (petite table) | ✅ |
+
+Passer en document store (MongoDB) ferait **perdre** : JOINs, transactions ACID, la vue d'agrégation, les `GROUP BY` et la familiarité de l'équipe — pour **aucun gain** à cette charge.
+
+### 14.2 Les vrais leviers de performance (à activer quand mesuré, pas par anticipation)
+
+1. **Cache Redis** devant les lectures search/tracking. Les lookups GTIN/marque sont très répétés et cachables → la majorité des hits ne touchent plus la base. **C'est l'accélérateur principal**, pas un changement de moteur.
+2. **Moteur de recherche** (Meilisearch / Typesense / OpenSearch) **uniquement pour `product_index`** si l'on veut tolérance aux fautes, ranking, recherche multilingue (fr/ar/en) et facettes. Il **complète** MySQL (qui reste la source de vérité), il ne le remplace pas.
+3. **Hygiène SQL** : index adaptés (`gtin`, `brand`, clés transactions), pool de connexions `mysql2` dimensionné, pagination systématique, archivage/partitionnement des anciennes `transactions` à terme.
+
+### 14.3 Architecture de stockage recommandée
+
+```
+Source de vérité : MySQL (codeonline_edi_db)
+   └─ partners · transactions · tracking_api_keys · product_index
++ Redis           (cache des lectures search/tracking)      ← quand la charge le justifie
++ Meilisearch/Typesense (recherche produit avancée, UX)     ← optionnel, si recherche floue/multilingue
+```
+
+### 14.4 Quand reconsidérer NoSQL (déclencheurs futurs)
+
+- Catalogue produits à **attributs très hétérogènes par pays** (schéma qui explose) → store document pour `product_index` en **hybride** (relations en MySQL, fiches en document).
+- **Dizaines de millions** de produits/requêtes ou déploiement **géo-distribué multi-région**.
+- Flux d'**événements massifs** append-only → store time-series dédié.
+
+Aucun de ces seuils n'est atteint aujourd'hui : optimiser pour eux maintenant serait de la sur-ingénierie. Le goulot d'étranglement viendra des **requêtes N+1 / index manquants / pool de connexions**, jamais du choix MySQL-vs-NoSQL à ce volume.
+
+---
+
+## 15. Roadmap / évolutions
 
 | Axe | Objectif |
 |---|---|
@@ -605,7 +655,7 @@ Modèle **immutable-secrets** : le code est déployé par `rsync`, mais le `.env
 
 ---
 
-## 15. Annexes
+## 16. Annexes
 
 ### A. Plan des GLN (registre `partners` réel)
 

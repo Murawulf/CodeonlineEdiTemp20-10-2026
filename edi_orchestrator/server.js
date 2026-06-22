@@ -5,6 +5,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const dispatchRoutes = require('./routes/dispatch');
 const trackingRoutes = require('./routes/tracking');
+const registryRoutes = require('./routes/registry');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -26,6 +27,7 @@ app.get('/', (req, res) => {
       dashboard:    '/dashboard',
       orchestrator: '/api/orchestrator/*',
       tracking:     '/api/tracking/*  (mobile API — requires X-Tracking-Api-Key)',
+      registry:     '/api/registry/fp*  (product index — requires x-registry-key)',
     }
   });
 });
@@ -35,6 +37,9 @@ app.use('/api/orchestrator', dispatchRoutes);
 
 // Mobile Tracking API
 app.use('/api/tracking', trackingRoutes);
+
+// Registry — product index cross-pays (registry_fp)
+app.use('/api/registry', registryRoutes);
 
 app.listen(PORT, () => {
   console.log(`[Hub] EDI Orchestrator running on port ${PORT}`);
