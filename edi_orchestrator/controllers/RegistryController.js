@@ -145,4 +145,105 @@ async function syncBatch(req, res) {
   return res.status(200).json({ success: true, country_code, received: products.length, upserted, failed });
 }
 
-module.exports = { searchByGtin, syncBatch };
+// Ligne product_index -> carte produit (shape des listes par marque/catégorie).
+function toProductCard(row, lang) {
+  const images = row.images ? String(row.images).split(';').filter(Boolean) : [];
+  return {
+    images,
+    brand:           row.brand || '',
+    subBrand:        row.sub_brand || '',
+    productName:     row.product_name || '',
+    shortName:       row.short_name || '',
+    gtin:            row.gtin || '',
+    countryOfOrigin: row.country_origin || '',
+    companyName:     row.company_name || '',
+    libelleBrique:   row.brick_fr || '',
+    codeBrique:      row.brick_code || '',
+    serveur:         row.country_code || 'hub',
+  };
+}
+
+/**
+ * GET /api/registry/fp/brand-categories?brand=
+ * Marques (LIKE) cross-pays + catégories (briques GPC mappées) de chaque marque.
+ * Shape : [ { brand, categories: [ { name, name_ar, code } ] } ].
+ */
+async function searchBrandCategories(req, res) {
+  const q = (req.query.brand || '').trim();
+  if (!q) return res.status(400).json({ success: false, error: 'Paramètre brand requis.' });
+  const lang = resolveLang(req);
+  try {
+    const [brands] = await db.execute(
+      "SELECT brand FROM product_index WHERE brand LIKE ? AND status = 2 AND brand IS NOT NULL AND brand <> '' GROUP BY brand ORDER BY brand",
+      [`%${q}%`]
+    );
+    if (!brands.length) return res.status(404).json([]);
+
+    const out = [];
+    for (const b of brands) {
+      const [cats] = await db.execute(
+        "SELECT brick_code, brick_fr, brick_en, brick_ar FROM product_index " +
+          "WHERE brand = ? AND status = 2 AND brick_code IS NOT NULL AND brick_fr IS NOT NULL " +
+          "GROUP BY brick_code, brick_fr, brick_en, brick_ar",
+        [b.brand]
+      );
+      const categories = cats.map((c) => ({
+        name:    (lang === 'en' ? c.brick_en : lang === 'ar' ? c.brick_ar : c.brick_fr) || '',
+        name_ar: c.brick_ar || '',
+        code:    c.brick_code,
+      }));
+      out.push({ brand: b.brand, categories });
+    }
+    return res.status(200).json(out);
+  } catch (err) {
+    console.error('[Registry] searchBrandCategories error:', err.message);
+    return res.status(500).json({ success: false, error: 'Erreur serveur.' });
+  }
+}
+
+/**
+ * GET /api/registry/fp/products?brand=&categoryCode=&page=
+ * Produits cross-pays d'une marque (exacte) + catégorie (brick_code), paginés.
+ * Shape : { items: [ carte produit ], total, pageSize }.
+ */
+async function searchProductsByBrandCategory(req, res) {
+  const brand = (req.query.brand || '').trim();
+  const cat = (req.query.categoryCode || '').trim();
+  const page = Math.max(1, parseInt(req.query.page || '1', 10) || 1);
+  const pageSize = 40;
+  if (!brand || !cat) {
+    return res.status(400).json({ success: false, error: 'Paramètres brand et categoryCode requis.' });
+  }
+  const lang = resolveLang(req);
+  try {
+    const [[cnt]] = await db.execute(
+      'SELECT COUNT(*) AS total FROM product_index WHERE brand = ? AND brick_code = ? AND status = 2',
+      [brand, cat]
+    );
+    const total = Number(cnt.total) || 0;
+
+    let rows = [];
+    if (total > 0) {
+      if (total <= pageSize) {
+        [rows] = await db.execute(
+          'SELECT * FROM product_index WHERE brand = ? AND brick_code = ? AND status = 2 ORDER BY product_name DESC',
+          [brand, cat]
+        );
+      } else {
+        const start = pageSize * page - pageSize;
+        [rows] = await db.execute(
+          `SELECT * FROM product_index WHERE brand = ? AND brick_code = ? AND status = 2 ` +
+            `ORDER BY product_name DESC LIMIT ${pageSize} OFFSET ${start}`,
+          [brand, cat]
+        );
+      }
+    }
+    const items = rows.map((r) => toProductCard(r, lang));
+    return res.status(200).json({ items, total: items.length ? total : 0, pageSize });
+  } catch (err) {
+    console.error('[Registry] searchProductsByBrandCategory error:', err.message);
+    return res.status(500).json({ success: false, error: 'Erreur serveur.' });
+  }
+}
+
+module.exports = { searchByGtin, syncBatch, searchBrandCategories, searchProductsByBrandCategory };
