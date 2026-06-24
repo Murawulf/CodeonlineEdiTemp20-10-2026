@@ -32,6 +32,33 @@ function caderAr(code) {
   }
 }
 
+// --- Absolutisation des URLs d'images -------------------------------------
+// Un produit renvoyé en fallback vient d'un AUTRE pays : ses images doivent
+// être des URLs ABSOLUES (vers le serveur du pays source), pas des chemins
+// relatifs (que le mobile résoudrait contre son propre pays = cassé).
+// Base par pays surchargeable via env REGISTRY_IMG_BASE_<code> (ex. _788).
+const IMG_BASE_DEFAULTS = {
+  '788': 'https://fp.codeonline-info.com/images', // Tunisie (observé dans la data)
+  // '384': 'https://...'  // Côte d'Ivoire — à confirmer
+  // '686': 'https://...'  // Sénégal — à confirmer
+};
+function imgBase(countryCode) {
+  return process.env['REGISTRY_IMG_BASE_' + countryCode] || IMG_BASE_DEFAULTS[countryCode] || '';
+}
+function absolutize(img, countryCode) {
+  if (!img) return img;
+  if (/^https?:\/\//i.test(img)) return img;            // déjà absolue → on garde
+  const base = imgBase(countryCode);
+  if (!base) return img;                                 // pas de base connue → on laisse tel quel
+  return base.replace(/\/+$/, '') + '/' + String(img).replace(/^\/+/, '');
+}
+// "a.jpg;b.jpg" -> [url absolue, ...]
+function splitImages(raw, countryCode) {
+  return raw
+    ? String(raw).split(';').map(s => s.trim()).filter(Boolean).map(i => absolutize(i, countryCode))
+    : [];
+}
+
 // x-lang / ?lang -> clé de brique (fr | en | ar), défaut fr.
 function resolveLang(req) {
   const raw = (req.headers['x-lang'] || req.query.lang || '').toLowerCase();
@@ -42,7 +69,7 @@ function resolveLang(req) {
 
 // Ligne product_index -> fiche à la shape mobile.
 function toMobileShape(row, lang) {
-  const images = row.images ? String(row.images).split(';').filter(Boolean) : [];
+  const images = splitImages(row.images, row.country_code);
   const brick =
     lang === 'en' ? row.brick_en :
     lang === 'ar' ? row.brick_ar :
@@ -147,7 +174,7 @@ async function syncBatch(req, res) {
 
 // Ligne product_index -> carte produit (shape des listes par marque/catégorie).
 function toProductCard(row, lang) {
-  const images = row.images ? String(row.images).split(';').filter(Boolean) : [];
+  const images = splitImages(row.images, row.country_code);
   return {
     images,
     brand:           row.brand || '',
