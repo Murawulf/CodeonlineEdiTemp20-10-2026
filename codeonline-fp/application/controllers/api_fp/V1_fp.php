@@ -239,14 +239,11 @@ class V1_fp extends REST_Controller {
     }
     private function registry_call($path)
     {
-        // URL + clé du Hub PAESN selon l'environnement (CI_ENV).
-        if (ENVIRONMENT === 'production') {
-            $hub_url = 'https://hub.codeonline-edi.net';            // TODO: Hub PROD Hetzner (à renseigner)
-            $hub_key = 'REG-PROD-A-DEFINIR';                        // TODO: REGISTRY_API_KEY PROD
-        } else {
-            $hub_url = 'http://217.182.94.86:5010';                 // Hub DEV
-            $hub_key = 'REG-EDI-2026-9b9909f7d244d103ef4d09cb';     // clé DEV
-        }
+        // DÉMO partenaires : TOUS les serveurs (DEV + PROD CIV/TUN) tapent le Hub DEV.
+        // Pour la vraie PROD plus tard : remettre la sélection par ENVIRONMENT
+        // (Hub Hetzner + clé PROD) — voir codeonline-fp_registry_fp.php.
+        $hub_url = 'http://217.182.94.86:5010';
+        $hub_key = 'REG-EDI-2026-9b9909f7d244d103ef4d09cb';
         $xlang   = $this->input->get_request_header('x-lang');
         $ch = curl_init($hub_url . $path);
         curl_setopt_array($ch, array(
