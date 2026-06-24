@@ -37,10 +37,13 @@ function caderAr(code) {
 // être des URLs ABSOLUES (vers le serveur du pays source), pas des chemins
 // relatifs (que le mobile résoudrait contre son propre pays = cassé).
 // Base par pays surchargeable via env REGISTRY_IMG_BASE_<code> (ex. _788).
+// IMPORTANT : préfixe par pays SOURCE (le HUB connaît country_code), pas par le
+// pays consommateur — sinon "mobile TUN -> fallback -> produit CIV" casserait.
+// - TUN (788) : images déjà absolues -> AUCUNE base -> passthrough (on garde tel quel).
+// - CIV (384) : chemins relatifs -> préfixe le domaine CIV.
 const IMG_BASE_DEFAULTS = {
-  '788': 'https://fp.codeonline-info.com/images', // Tunisie (observé dans la data)
-  // '384': 'https://...'  // Côte d'Ivoire — à confirmer
-  // '686': 'https://...'  // Sénégal — à confirmer
+  '384': 'https://civ.codeonline-edi.net', // Côte d'Ivoire
+  // '686': 'https://...'                   // Sénégal — à renseigner
 };
 function imgBase(countryCode) {
   return process.env['REGISTRY_IMG_BASE_' + countryCode] || IMG_BASE_DEFAULTS[countryCode] || '';
