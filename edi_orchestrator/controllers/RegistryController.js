@@ -159,6 +159,9 @@ async function syncBatch(req, res) {
       const row = { ...p, country_code };
       // status défaut 2 si absent
       if (row.status === undefined || row.status === null) row.status = 2;
+      // source_gln NOT NULL : on n'écarte pas un produit dont l'entreprise n'a
+      // pas de GLN -> on le garde trouvable avec un GLN vide.
+      if (row.source_gln === undefined || row.source_gln === null) row.source_gln = '';
       const values = COLS.map((c) => (row[c] === undefined ? null : row[c]));
       try {
         await conn.execute(sql, values);
