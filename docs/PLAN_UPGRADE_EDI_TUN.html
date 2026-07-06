@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLAN — Upgrade EDI TUN prod</title>
+<style>
+body{font-family:'Segoe UI',Arial,sans-serif;max-width:960px;margin:0 auto;padding:30px 24px;color:#1c2733;line-height:1.6;font-size:15px}
+h1{color:#1F4E79;border-bottom:3px solid #1F4E79;padding-bottom:8px}
+h2{color:#1F4E79;margin-top:34px;padding:6px 12px;background:#EDF3F9;border-left:5px solid #2E75B6;border-radius:0 6px 6px 0}
+h3{color:#2E75B6}
+blockquote{background:#F0F7EE;border-left:4px solid #2E9E5B;margin:10px 0;padding:8px 16px;border-radius:0 8px 8px 0}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92rem}
+th{background:#1F4E79;color:#fff;padding:8px 10px;text-align:left}
+td{border:1px solid #D8E1EA;padding:7px 10px}
+tr:nth-child(even) td{background:#F6F9FC}
+code{background:#EEF2F6;padding:2px 6px;border-radius:4px;font-size:.88em}
+pre code{display:block;padding:12px;overflow-x:auto}
+li{margin:5px 0}
+input[type=checkbox]{transform:scale(1.25);margin-right:8px}
+ul li:has(> p input[type=checkbox]),li:first-child{list-style:none}
+strong{color:#1F4E79}
+.foot{color:#5A6B7B;font-size:.8rem;margin-top:30px;border-top:1px solid #D8E1EA;padding-top:10px}
+@media print{body{padding:0}h2{page-break-after:avoid}}
+</style></head><body>
+<h1>PLAN — Upgrade app EDI TUN prod (version CIV) + schéma Entitedb</h1>
+<blockquote>
+<p><strong>But</strong> : remplacer sur le serveur TUN prod (<code>tunp</code>) l'ancienne app EDI (hardcodée <code>Dev_Entitedb</code>) par la <strong>nouvelle version en prod sur CIV</strong>, branchée sur <strong><code>Entitedb</code></strong> via <code>.env</code>, avec le schéma requis — <strong>sans perdre une seule donnée FP existante</strong> et avec rollback possible à tout instant.
+<strong>Critère de succès mesurable</strong> : <code>https://edi.codeonline-info.com</code> sert la nouvelle app (version identique CIV), <code>POST /api/login</code> répond 401/200 (lit <code>Entitedb</code>), l'app FP (<code>https://fp.codeonline-info.com</code>) répond 200 avec les MÊMES counts de données qu'avant (102 fiches, 93 entités, 8 comptes), rollback documenté testé.
+<strong>Exécutant</strong> : IA (Claude Code). Cocher = DoD vérifié sur sortie réelle.</p>
+</blockquote>
+<h2>0. État d'entrée (faits vérifiés le 05/07/2026)</h2>
+<ul>
+<li><strong>tunp</strong> = <code>root@65.109.104.178</code> (alias SSH <code>tunp</code>), Ubuntu 22.04, MariaDB 10.6.23, Node 20.20.2, pm2 root (<code>Edi-Prod</code>:5000 = ANCIENNE app, <code>tasks-app</code>:5009). MySQL root pwd : voir gestionnaire de secrets (connu de la session ; jamais l'écrire dans un fichier).</li>
+<li><strong>civ</strong> = alias SSH <code>civ</code> (user <code>consultant</code>, clé <code>~/private_keyHakim.pem</code>). Nouvelle app EDI PROD : <code>/var/www/Edi-prod</code> (frontend dist à la racine + <code>backend/</code>), backend <code>.env</code> : <code>DB_HOST=127.0.0.1, DB_PORT=3306, DB_USER=admin, DB_NAME=Entitedb</code>, code env-based (<code>ENTITE_MYSQL_CONFIG = dbConfig</code>, server.js:350).</li>
+<li><strong>tunp <code>Entitedb</code></strong> : 74 tables, ANCIEN schéma — données FP vivantes : <code>fiche_produit</code>=102, <code>Entite</code>=93, <code>comptes</code>=8 (l'app fp.codeonline-info.com lit cette base, elle est EN PROD).</li>
+<li><strong>tunp <code>Dev_Entitedb</code></strong> : 82 tables (base de l'ancienne app EDI, restera en place, intouchée).</li>
+<li><strong>Schéma cible</strong> = structure de <code>Entitedb</code> sur CIV (la base que la nouvelle app utilise réellement en prod). Tables/colonnes connues manquantes sur tunp : <code>transactions</code>, <code>partners</code>, <code>notifs</code>, <code>network_directory</code>, <code>audit_ledger</code> ; colonnes <code>valid_order.date_livraison*</code> + 7 autres, <code>fiche_produit.declinaisons</code>, <code>models.is_complete</code> (liste exacte produite en P2.2).</li>
+<li>Vhost tunp <code>edi.conf</code> : DocumentRoot <code>/var/www/Edi-prod</code>, <code>ProxyPass /api → localhost:5000</code>, HTTPS Let's Encrypt OK.</li>
+<li>L'ancien serveur TUN (<code>tunold</code>) n'est PAS concerné par ce plan (lecture interdite non nécessaire, écriture interdite).</li>
+</ul>
+<h3>Règles NON NÉGOCIABLES</h3>
+<ol>
+<li><strong>Aucune donnée supprimée ou modifiée dans <code>Entitedb</code></strong> : uniquement des <code>CREATE TABLE</code> et <code>ALTER TABLE ... ADD</code> (additif pur). JAMAIS de <code>DROP</code>, <code>MODIFY</code>, <code>TRUNCATE</code>, <code>DELETE</code>, <code>UPDATE</code> sur les tables existantes.</li>
+<li><strong>Aucune migration de données</strong> dans ce plan (décision Majd : le dev s'en charge après).</li>
+<li><strong>CIV = lecture seule stricte</strong> (c'est une prod active d'un autre pays).</li>
+<li><strong><code>Dev_Entitedb</code> et l'ancienne app restent intactes sur tunp</strong> (archivées, pas supprimées) tant que Majd n'a pas validé.</li>
+<li><strong>Backup avant chaque mutation</strong> (dump SQL + archive fichiers), vérifié non-vide avant de continuer.</li>
+<li>Chaque phase se termine par son scénario de test ; échec = phase ouverte + tâche corrective, jamais de contournement.</li>
+<li>Aucun secret (mot de passe, clé) écrit dans le repo git ou dans ce plan.</li>
+</ol>
+<h2>Règles d'exécution (contrat de l'exécutant)</h2>
+<ol>
+<li><strong>Cocher = prouvé.</strong> On ne coche qu'après avoir VÉRIFIÉ le DoD sur une sortie réelle (disque, test vert, réponse HTTP). Jamais sur intention.</li>
+<li><strong>Ordre strict.</strong> Vérifs de la tâche vertes AVANT la tâche suivante. Scénario de phase passé AVANT de cocher la phase.</li>
+<li><strong>Échec ≠ contournement.</strong> Test qui échoue → corriger ou documenter le blocage (tâche corrective ajoutée). Ne jamais affaiblir un test.</li>
+<li><strong>Chiffres mesurés, jamais espérés.</strong> Tout chiffre écrit provient d'une sortie réellement lue.</li>
+<li><strong>Mettre à jour CE fichier</strong> à chaque tâche finie (cocher, noter écarts) et committer atomiquement.</li>
+<li><strong>Ne pas halluciner</strong> : donnée manquante = signalée, pas inventée.</li>
+<li><strong>Respecter les règles non négociables</strong> même si elles ralentissent.</li>
+</ol>
+<hr />
+<h2>P1 — Sauvegardes &amp; état de référence 🔴</h2>
+<p><strong>Objectif</strong> : pouvoir tout restaurer à l'identique en &lt; 10 min, et figer les chiffres de référence anti-régression.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.1 — Dumps SQL de référence (tunp)</strong>
+  <em>Description</em> : dumper <code>Entitedb</code> et <code>Dev_Entitedb</code> de tunp vers <code>/root/_backup_upgrade_edi/&lt;YYYYMMDD&gt;/</code>.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur <code>tunp</code> (ssh tunp, root) : <code>D=/root/_backup_upgrade_edi/$(date +%Y%m%d); mkdir -p $D</code> puis, avec le mot de passe MySQL root de tunp (env <code>MYSQL_PWD</code>, ne pas l'écrire sur disque) : <code>mysqldump -uroot --single-transaction --routines --triggers --events --hex-blob --databases Entitedb | gzip &gt; $D/Entitedb.sql.gz</code> et idem pour <code>Dev_Entitedb</code>. Vérifier les deux fichiers &gt; 100 Ko.
+  <em>Tests unitaires</em> : <code>ssh tunp 'ls -la /root/_backup_upgrade_edi/*/ &amp;&amp; zcat /root/_backup_upgrade_edi/*/Entitedb.sql.gz | head -5 | grep -q "MySQL dump" &amp;&amp; echo DUMP_OK'</code> — bloquant avant P1.2.
+  <em>DoD</em> : 2 dumps .gz non vides, en-tête SQL valide.
+  <em>Vérif</em> : commande du test → <code>DUMP_OK</code> + tailles affichées &gt; 100 Ko.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.2 — Archive de l'app EDI actuelle (tunp)</strong>
+  <em>Description</em> : archiver <code>/var/www/Edi-prod</code> (app + backend + SQLite users.db/allgpc.db) AVANT tout remplacement.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur <code>tunp</code> : <code>tar czf /root/_backup_upgrade_edi/$(date +%Y%m%d)/Edi-prod-OLD.tgz -C /var/www Edi-prod</code> (node_modules inclus — c'est le rollback complet). Vérifier la taille (&gt; 50 Mo attendu, l'app fait ~407 Mo).
+  <em>Tests unitaires</em> : <code>ssh tunp 'tar tzf /root/_backup_upgrade_edi/*/Edi-prod-OLD.tgz | head -3 &amp;&amp; du -h /root/_backup_upgrade_edi/*/Edi-prod-OLD.tgz'</code> — listing OK + taille &gt; 50 Mo. Bloquant.
+  <em>DoD</em> : archive lisible contenant <code>Edi-prod/backend/server.js</code>.
+  <em>Vérif</em> : <code>ssh tunp 'tar tzf /root/_backup_upgrade_edi/*/Edi-prod-OLD.tgz | grep -c "backend/server.js"'</code> → ≥ 1.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.3 — Chiffres de référence anti-régression (figés dans ce fichier)</strong>
+  <em>Description</em> : mesurer et NOTER ICI les counts avant intervention.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur <code>tunp</code>, exécuter : <code>mysql -uroot -N -e "SELECT 'fiche_produit',COUNT(*) FROM Entitedb.fiche_produit; SELECT 'Entite',COUNT(*) FROM Entitedb.Entite; SELECT 'comptes',COUNT(*) FROM Entitedb.comptes; SELECT 'tables_Entitedb',COUNT(*) FROM information_schema.tables WHERE table_schema='Entitedb';"</code> et vérifier les statuts HTTP : <code>curl -sk -o /dev/null -w '%{http_code}' https://fp.codeonline-info.com/</code> et idem <code>edi.</code> et <code>codeonline-info.com</code>. Reporter les valeurs mesurées dans le plan (section ci-dessous).
+  <em>Tests unitaires</em> : les 3 curl retournent un code ∈ {200} ; les counts sont non nuls. Bloquant.
+  <em>DoD</em> : tableau ci-dessous rempli avec des valeurs MESURÉES.
+  <em>Vérif</em> : relecture du tableau + cohérence avec l'état d'entrée (102/93/8/74 attendus).</p>
+</blockquote>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Mesure de référence (P1.3)</th>
+<th>Valeur mesurée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entitedb.fiche_produit</td>
+<td><em>(à mesurer)</em></td>
+</tr>
+<tr>
+<td>Entitedb.Entite</td>
+<td><em>(à mesurer)</em></td>
+</tr>
+<tr>
+<td>Entitedb.comptes</td>
+<td><em>(à mesurer)</em></td>
+</tr>
+<tr>
+<td>Tables dans Entitedb</td>
+<td><em>(à mesurer)</em></td>
+</tr>
+<tr>
+<td>HTTP fp / edi / portail</td>
+<td><em>(à mesurer)</em></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><input type="checkbox" disabled> <strong>P1.T — Scénario de test complet P1</strong>
+  1. Restauration à blanc : créer <code>Entitedb_restoretest</code> sur tunp, y importer le dump <code>Entitedb.sql.gz</code> → attendu : import sans erreur, <code>COUNT(*)</code> de <code>fiche_produit</code> = valeur P1.3.
+  2. <code>DROP DATABASE Entitedb_restoretest</code> (base de test uniquement — exception explicite à la règle 1, elle ne touche pas la prod).
+  3. Extraire <code>backend/server.js</code> de l'archive tar vers /tmp et vérifier sa taille &gt; 100 Ko.
+  Critères : restauration prouvée fonctionnelle, archive prouvée exploitable. <strong>Phase cochable seulement si tout passe.</strong></li>
+</ul>
+<hr />
+<h2>P2 — Schéma Entitedb : upgrade additif (référence CIV) 🔴</h2>
+<p><strong>Objectif</strong> : <code>Entitedb</code> (tunp) possède toutes les tables et colonnes que la nouvelle app requiert — sans toucher aux données existantes.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.1 — Dump STRUCTURE de la référence (CIV, lecture seule)</strong>
+  <em>Description</em> : récupérer la structure complète de <code>Entitedb</code> CIV (aucune donnée).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur <code>civ</code> (ssh civ — lecture seule) : lire les creds MySQL dans <code>/var/www/Edi-prod/backend/.env</code> (DB_USER=admin) puis <code>mysqldump -h127.0.0.1 -uadmin -p'&lt;pwd lu du .env&gt;' --no-data --skip-triggers Entitedb | sed 's/utf8mb4_0900_ai_ci/utf8mb4_general_ci/g; s/utf8mb4_0900_bin/utf8mb4_bin/g' &gt; /tmp/entitedb_struct_civ.sql</code>. Rapatrier vers tunp : <code>/root/_upgrade/entitedb_struct_civ.sql</code> (scp via Mac ou direct). Ne RIEN écrire d'autre sur civ, supprimer /tmp/entitedb_struct_civ.sql de civ après transfert.
+  <em>Tests unitaires</em> : <code>ssh tunp 'grep -c "CREATE TABLE" /root/_upgrade/entitedb_struct_civ.sql'</code> → &gt; 60 ; <code>grep -c "INSERT INTO"</code> → 0 (structure pure). Bloquant.
+  <em>DoD</em> : fichier structure sur tunp, &gt; 60 CREATE TABLE, 0 INSERT, collations MariaDB-compatibles.
+  <em>Vérif</em> : commandes des tests + <code>grep -c utf8mb4_0900 …</code> → 0.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.2 — Diff de schéma exhaustif (tables + colonnes)</strong>
+  <em>Description</em> : produire la liste exacte : (a) tables présentes dans la structure CIV absentes de <code>Entitedb</code> tunp ; (b) colonnes manquantes dans les tables communes. Sortie = fichier <code>/root/_upgrade/diff_schema.txt</code>.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur tunp : charger la structure CIV dans une base temporaire <code>Entitedb_ref</code> (<code>mysql -e "CREATE DATABASE Entitedb_ref"</code> puis import du fichier P2.1). Puis via information_schema, générer : tables manquantes (<code>IN Entitedb_ref NOT IN Entitedb</code>) et, pour chaque table commune, colonnes manquantes (avec type exact + DEFAULT + nullabilité lus de Entitedb_ref). Écrire le tout dans /root/_upgrade/diff_schema.txt. Ne PAS encore modifier Entitedb.
+  <em>Tests unitaires</em> : le diff liste au minimum les 5 tables connues (<code>transactions</code>, <code>partners</code>, <code>notifs</code>, <code>network_directory</code>, <code>audit_ledger</code>) et les colonnes connues (<code>valid_order.date_livraison</code>, <code>fiche_produit.declinaisons</code>, <code>models.is_complete</code>) — sinon le diff est faux. Bloquant.
+  <em>DoD</em> : <code>/root/_upgrade/diff_schema.txt</code> exhaustif et cohérent avec les manques déjà identifiés.
+  <em>Vérif</em> : <code>ssh tunp 'grep -cE "transactions|partners|notifs|network_directory|audit_ledger" /root/_upgrade/diff_schema.txt'</code> → ≥ 5.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.3 — Script SQL additif + application</strong>
+  <em>Description</em> : générer <code>/root/_upgrade/upgrade_entitedb.sql</code> contenant UNIQUEMENT <code>CREATE TABLE IF NOT EXISTS</code> (copiés de la structure CIV) et <code>ALTER TABLE ... ADD COLUMN</code> (types exacts CIV, avec <code>DEFAULT NULL</code> ou le default CIV). L'appliquer sur <code>Entitedb</code>.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur tunp : générer le script depuis le diff P2.2 + la structure P2.1. INTERDIT : DROP/MODIFY/CHANGE/TRUNCATE/DELETE/UPDATE. Contrôle automatique avant application : <code>grep -icE "drop |modify |change |truncate |delete |update " upgrade_entitedb.sql</code> DOIT retourner 0. Puis <code>mysql -uroot Entitedb &lt; upgrade_entitedb.sql</code>. Enfin <code>DROP DATABASE Entitedb_ref</code> (base temporaire de référence uniquement).
+  <em>Tests unitaires</em> : (1) le grep de mots interdits → 0 AVANT application ; (2) après application, les 5 tables existent dans Entitedb ; (3) <code>SHOW COLUMNS FROM Entitedb.valid_order LIKE 'date_livraison%'</code> → ≥ 1 ligne ; (4) counts P1.3 INCHANGÉS (fiche_produit=102, Entite=93, comptes=8). Bloquant.
+  <em>DoD</em> : schéma complet, données intactes.
+  <em>Vérif</em> : <code>ssh tunp 'mysql -uroot -N -e "SELECT COUNT(*) FROM Entitedb.fiche_produit; SELECT COUNT(*) FROM Entitedb.transactions;"'</code> → 102 (ou valeur P1.3) et 0.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.T — Scénario de test complet P2</strong>
+  1. Comparer table par table : chaque table de la structure CIV existe dans Entitedb tunp → attendu : 0 manquante.
+  2. Comparer colonne par colonne sur les tables consommées par la nouvelle app (<code>comptes, Entite, fiche_produit, valid_order, invalid_orders, models, profiles, ged_documents, transactions, partners, notifs, network_directory, audit_ledger</code>) → attendu : 0 colonne manquante.
+  3. Re-mesurer les counts P1.3 → attendu : identiques au tableau P1.3.
+  4. <code>curl https://fp.codeonline-info.com/</code> → 200 (l'app FP n'a pas bougé).
+  Critères : 0 manque de schéma, 0 delta de données, fp = 200. <strong>Phase cochable seulement si tout passe.</strong></p>
+</li>
+</ul>
+<hr />
+<h2>P3 — Compte MySQL <code>admin</code> + .env TUN 🔴</h2>
+<p><strong>Objectif</strong> : la nouvelle app aura son user MySQL dédié (fini le root applicatif) et son <code>.env</code> complet.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.1 — User MySQL <code>admin</code>@localhost sur tunp</strong>
+  <em>Description</em> : créer <code>admin</code> avec mot de passe généré (24+ chars), grants sur <code>Entitedb</code> uniquement.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur tunp : générer un mot de passe (<code>openssl rand -hex 16</code>), puis <code>CREATE USER IF NOT EXISTS 'admin'@'localhost' IDENTIFIED BY '&lt;pwd&gt;'; CREATE USER IF NOT EXISTS 'admin'@'127.0.0.1' IDENTIFIED BY '&lt;pwd&gt;'; GRANT ALL PRIVILEGES ON Entitedb.* TO 'admin'@'localhost'; GRANT ALL PRIVILEGES ON Entitedb.* TO 'admin'@'127.0.0.1'; FLUSH PRIVILEGES;</code>. Le mot de passe ne va QUE dans le futur <code>.env</code> (P3.2). PAS de grant sur d'autres bases.
+  <em>Tests unitaires</em> : <code>mysql -uadmin -p'&lt;pwd&gt;' -h127.0.0.1 Entitedb -e "SELECT COUNT(*) FROM comptes;"</code> → 8 ; <code>mysql -uadmin … Dev_Entitedb -e "SELECT 1;"</code> → ACCESS DENIED (preuve du périmètre). Bloquant.
+  <em>DoD</em> : login admin OK sur Entitedb, refusé ailleurs.
+  <em>Vérif</em> : les 2 commandes de test avec sorties attendues.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.2 — .env TUN de la nouvelle app</strong>
+  <em>Description</em> : construire le <code>.env</code> TUN sur le modèle du <code>.env</code> CIV (mêmes clés), adapté : <code>DB_USER=admin</code>, <code>DB_PASSWORD=&lt;P3.1&gt;</code>, <code>DB_NAME=Entitedb</code>, <code>PORT=5000</code>, URLs TUN. <code>chmod 600</code>.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Lire <code>/var/www/Edi-prod/backend/.env</code> sur civ (lecture seule) pour la LISTE DES CLÉS (pas les valeurs secrètes CIV : JWT/SMTP CIV ne doivent PAS être copiés tels quels — générer un JWT_SECRET TUN neuf ; pour SMTP, reprendre les clés en les laissant vides ou valeurs TUN si connues, et NOTER dans le plan que SMTP reste à configurer). Écrire le fichier en staging sur tunp : <code>/root/_upgrade/env_tun</code> (chmod 600). Il sera posé en P4.
+  <em>Tests unitaires</em> : <code>grep -E "^(DB_HOST|DB_PORT|DB_USER|DB_NAME|PORT)=" /root/_upgrade/env_tun | wc -l</code> → 5 ; <code>DB_NAME=Entitedb</code> présent ; aucune valeur CIV secrète copiée. Bloquant.
+  <em>DoD</em> : env_tun complet en staging, 600, secrets neufs.
+  <em>Vérif</em> : <code>ssh tunp 'ls -l /root/_upgrade/env_tun &amp;&amp; grep -c "DB_NAME=Entitedb" /root/_upgrade/env_tun'</code> → <code>-rw-------</code> et 1.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.T — Scénario de test complet P3</strong>
+  1. Connexion MySQL avec les valeurs exactes du fichier env_tun (host/port/user/pwd/db parsés du fichier) → attendu : <code>SELECT COUNT(*) FROM comptes</code> = 8.
+  2. Tentative du même user sur <code>Dev_Entitedb</code> → attendu : refus.
+  Critères : l'app pourra se connecter avec CE fichier, périmètre minimal prouvé. <strong>Phase cochable seulement si tout passe.</strong></p>
+</li>
+</ul>
+<hr />
+<h2>P4 — Déploiement code (CIV → tunp) &amp; bascule 🔴</h2>
+<p><strong>Objectif</strong> : la nouvelle app tourne sur tunp à la place de l'ancienne, rollback prêt.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P4.1 — Copie de l'app CIV vers staging tunp</strong>
+  <em>Description</em> : rapatrier <code>/var/www/Edi-prod</code> de CIV (frontend dist + backend, SANS node_modules ni .env CIV) vers <code>/var/www/Edi-prod.NEW</code> sur tunp.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Transfert civ→tunp. CIV est joignable en lecture par la clé du Mac ; le plus simple : depuis le Mac, <code>rsync -az --exclude node_modules --exclude .env --exclude logs consultant@civ:/var/www/Edi-prod/ tunp:/var/www/Edi-prod.NEW/</code> (ou via tar pipe si rsync inter-hôtes indisponible — passer par un tgz staging sur le Mac). ATTENTION liaison Mac lente constatée : préférer un scp direct serveur→serveur si une clé civ→tunp existe, sinon accepter la durée. Vérifier ensuite la présence de <code>Edi-prod.NEW/backend/server.js</code> et <code>Edi-prod.NEW/index.html</code>.
+  <em>Tests unitaires</em> : <code>ssh tunp 'test -f /var/www/Edi-prod.NEW/backend/server.js &amp;&amp; test -f /var/www/Edi-prod.NEW/index.html &amp;&amp; echo FILES_OK'</code> → FILES_OK ; <code>ssh tunp 'test ! -f /var/www/Edi-prod.NEW/backend/.env &amp;&amp; echo NO_CIV_ENV'</code> → NO_CIV_ENV. Bloquant.
+  <em>DoD</em> : app complète en staging, sans secrets CIV.
+  <em>Vérif</em> : commandes des tests.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P4.2 — Frontend : vérifier l'URL d'API du build</strong>
+  <em>Description</em> : déterminer si le dist CIV appelle l'API en RELATIF (<code>/api/...</code> → réutilisable tel quel) ou en ABSOLU (<code>https://…civ…</code> → rebuild requis).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur tunp : <code>grep -roE "https?://[a-z0-9.-]*codeonline[a-z0-9.-]*" /var/www/Edi-prod.NEW/assets/*.js | sort -u | head</code>. Si AUCUNE URL absolue d'API CIV → OK relatif, continuer. Si URL absolue CIV trouvée → tâche corrective : rebuild Vite depuis le repo local <code>~/Travail/netconsulting/Codeonline-InfoTn</code> avec <code>VITE_API_URL=https://edi.codeonline-info.com</code> (ou équivalent lu dans le code), puis remplacer les assets du staging par le nouveau dist. Documenter le choix dans le plan.
+  <em>Tests unitaires</em> : après résolution, <code>grep -roE "civ[a-z.-]*codeonline" /var/www/Edi-prod.NEW/assets/*.js | wc -l</code> → 0. Bloquant.
+  <em>DoD</em> : le frontend du staging ne pointe vers aucune URL CIV.
+  <em>Vérif</em> : grep ci-dessus → 0.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P4.3 — npm install + .env + smoke test hors trafic (port 5100)</strong>
+  <em>Description</em> : installer les deps, poser le <code>.env</code> TUN, démarrer le backend en STAGING sur un port isolé (5100), smoke test complet, puis l'arrêter.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur tunp : <code>cd /var/www/Edi-prod.NEW/backend &amp;&amp; npm ci --omit=dev || npm install --omit=dev</code>. Poser <code>cp /root/_upgrade/env_tun .env &amp;&amp; chmod 600 .env</code>. Smoke test : <code>PORT=5100 node server.js</code> en arrière-plan (nohup, 30 s max), puis <code>curl -s http://127.0.0.1:5100/api/login -X POST -H 'Content-Type: application/json' -d '{"email":"x@x.x","password":"x"}'</code> → attendu : réponse JSON structurée (401/400, PAS une erreur SQL ni ECONNREFUSED). Vérifier les logs de démarrage (aucun <code>ER_NO_SUCH_TABLE</code>, aucun <code>Access denied</code>). Tuer le process de staging.
+  <em>Tests unitaires</em> : (1) réponse JSON du login staging ; (2) <code>grep -iE "ER_NO_SUCH_TABLE|Access denied|ECONNREFUSED" /tmp/edi_new_smoke.log | wc -l</code> → 0. Bloquant — c'est LE test anti-régression schéma avant bascule.
+  <em>DoD</em> : nouvelle app démarre et parle à <code>Entitedb</code> sans erreur, sans avoir touché au trafic prod.
+  <em>Vérif</em> : log du smoke test archivé <code>/root/_upgrade/smoke_$(date +%H%M).log</code>, 0 erreur.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P4.4 — Bascule pm2 (downtime ~10 s) + rollback prêt</strong>
+  <em>Description</em> : swap atomique : ancienne app → <code>.OLD</code>, staging → <code>/var/www/Edi-prod</code>, restart pm2.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur tunp, séquence exacte : <code>pm2 stop Edi-Prod &amp;&amp; mv /var/www/Edi-prod /var/www/Edi-prod.OLD-$(date +%Y%m%d) &amp;&amp; mv /var/www/Edi-prod.NEW /var/www/Edi-prod &amp;&amp; pm2 delete Edi-Prod &amp;&amp; cd /var/www/Edi-prod/backend &amp;&amp; PORT=5000 pm2 start server.js --name Edi-Prod --update-env &amp;&amp; pm2 save</code>. Si le démarrage échoue (status ≠ online sous 15 s) → ROLLBACK IMMÉDIAT : <code>pm2 delete Edi-Prod; mv /var/www/Edi-prod /var/www/Edi-prod.NEW; mv /var/www/Edi-prod.OLD-* /var/www/Edi-prod; cd /var/www/Edi-prod/backend &amp;&amp; PORT=5000 pm2 start server.js --name Edi-Prod; pm2 save</code> puis documenter l'échec dans le plan (tâche corrective).
+  <em>Tests unitaires</em> : <code>pm2 list</code> → Edi-Prod online, 0 restart en boucle (↺ stable après 60 s) ; <code>ss -tlnp | grep :5000</code> → node. Bloquant.
+  <em>DoD</em> : nouvelle app en ligne sur :5000, pm2 save fait, ancienne app archivée à côté.
+  <em>Vérif</em> : <code>ssh tunp 'pm2 list | grep Edi-Prod &amp;&amp; ls -d /var/www/Edi-prod.OLD-*'</code>.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P4.T — Scénario de test complet P4 (bout en bout, vraies conditions)</strong>
+  1. <code>curl -sk https://edi.codeonline-info.com/</code> → 200 + le HTML contient les assets du NOUVEAU build (comparer un hash d'asset avec CIV).
+  2. <code>curl -sk -X POST https://edi.codeonline-info.com/api/login -H 'Content-Type: application/json' -d '{"email":"majd.hakim@gmail.com","password":"wrong"}'</code> → attendu : <code>{"error":"Invalid credentials"}</code> ou équivalent 401. ⚠️ NOTE : les comptes sont ceux d'<code>Entitedb</code> (8 comptes FP) — si l'email n'existe pas dedans, attendu = même erreur propre (PAS d'erreur SQL). Les comptes EDI seront migrés par le dev ensuite.
+  3. <code>curl -sk https://fp.codeonline-info.com/</code> → 200 ET re-mesure des counts Entitedb = valeurs P1.3 exactes (l'app EDI n'a rien écrit de destructif).
+  4. <code>pm2 logs Edi-Prod --lines 50 --nostream</code> → 0 occurrence de <code>ER_NO_SUCH_TABLE</code> / <code>Access denied</code> / <code>ECONNREFUSED</code>.
+  5. Test rollback à blanc (préparation seulement) : vérifier que <code>/var/www/Edi-prod.OLD-*</code> + dump P1.1 existent → procédure de rollback écrite et actionnable en &lt; 10 min.
+  Critères : 200 partout, login propre, counts intacts, logs propres. <strong>Phase cochable seulement si tout passe.</strong></p>
+</li>
+</ul>
+<hr />
+<h2>HORS PÉRIMÈTRE (décisions Majd du 05/07/2026)</h2>
+<ul>
+<li><strong>Migration des données</strong> (produits, fiches, entités, comptes, rôles depuis Dev_Entitedb/ancienne prod) : <strong>le dev s'en charge</strong> après ce plan. Les tables nouvelles restent vides.</li>
+<li>Suppression de <code>Dev_Entitedb</code>, de l'app <code>.OLD</code> et des backups : uniquement après validation utilisateurs, sur ordre explicite de Majd.</li>
+<li>SMTP (creds Brevo/Gmail invalides — préexistant) : hors plan.</li>
+</ul>
+<h2>Ordre d'exécution</h2>
+<p>P1 → P2 → P3 → P4 (strictement séquentiel ; P2.1 peut se lancer pendant P1.2/P1.3, rien d'autre en parallèle)</p>
+<h2>DoD globale</h2>
+<ul>
+<li><input type="checkbox" disabled> <code>https://edi.codeonline-info.com</code> sert la NOUVELLE app (assets = build CIV/TUN), pm2 online stable.</li>
+<li><input type="checkbox" disabled> Le backend lit <code>Entitedb</code> via l'user <code>admin</code> (plus aucun accès root applicatif, plus aucun lien à <code>Dev_Entitedb</code>).</li>
+<li><input type="checkbox" disabled> Schéma <code>Entitedb</code> = complet vs référence CIV (0 table/colonne manquante sur les tables consommées).</li>
+<li><input type="checkbox" disabled> Counts <code>Entitedb</code> = valeurs P1.3 à l'identique (0 donnée FP perdue) et <code>fp.codeonline-info.com</code> → 200.</li>
+<li><input type="checkbox" disabled> Rollback documenté, testé « à blanc », exécutable &lt; 10 min (archive .OLD + dumps P1).</li>
+<li><input type="checkbox" disabled> Ce fichier coché au réel + committé ; aucun secret dans le repo.</li>
+</ul>
+<div class="foot">Document vivant — le fichier .md fait foi (cocher les cases dans le .md). Généré le 05/07/2026.</div>
+</body></html>
