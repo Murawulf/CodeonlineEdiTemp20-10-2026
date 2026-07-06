@@ -209,5 +209,5 @@ P1 → P2 → P3 → P4 (strictement séquentiel ; P2.1 peut se lancer pendant P
 - Écart 1 (P2.3) : gate anti-destructif affiné (faux positifs `ON UPDATE/ON DELETE` des définitions) — voir note P2.
 - Écart 2 (P4.1) : transfert via Mac abandonné (11 Ko/s) → pull direct civ→tunp via clé SSH temporaire sur consultant@civ, **retirée immédiatement après** (vérifié 0 occurrence). /tmp civ nettoyé.
 - Note cosmétique : fichiers `civ_flag.png`/logos CI-EXPORT présents à la racine (héritage build CIV) — vérifier le rendu visuel TUN ; l'instance backend est `CURRENT_INSTANCE_CODE=tunisie`.
-- SMTP volontairement vide dans le .env (SMTP_USER/PASS) — à configurer quand les creds mail seront renouvelés.
+- SMTP : creds OVH (ssl0.ovh.net:587, assistance@netconsulting-europe.fr) copiés depuis CIV prod le 06/07 sur ordre de Majd — AUTH testée depuis tunp : 235 Authentication successful. App restartée avec.
 - Rollback disponible : `/var/www/Edi-prod.OLD-20260706` + dumps `/root/_backup_upgrade_edi/20260706/`.
