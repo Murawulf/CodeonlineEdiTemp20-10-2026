@@ -211,3 +211,8 @@ P1 → P2 → P3 → P4 (strictement séquentiel ; P2.1 peut se lancer pendant P
 - Note cosmétique : fichiers `civ_flag.png`/logos CI-EXPORT présents à la racine (héritage build CIV) — vérifier le rendu visuel TUN ; l'instance backend est `CURRENT_INSTANCE_CODE=tunisie`.
 - SMTP : creds OVH (ssl0.ovh.net:587, assistance@netconsulting-europe.fr) copiés depuis CIV prod le 06/07 sur ordre de Majd — AUTH testée depuis tunp : 235 Authentication successful. App restartée avec.
 - Rollback disponible : `/var/www/Edi-prod.OLD-20260706` + dumps `/root/_backup_upgrade_edi/20260706/`.
+
+## Post-plan (06/07/2026, soir)
+- **app_parameters peuplée** (28 params copiés de CIV, adaptés : CURRENT_INSTANCE_CODE=tunisia — clé du mapping front, drapeau tunisien Wikimedia —, DEFAULT_CURRENCY=tnd, WEBSOCKET_URL/EDI_URL_TUNISIA → https://edi.codeonline-info.com, hub/orchestrateur = DEV 217.182.94.86:5010 iso-CIV). C'est de la config d'instance, pas des données métier.
+- **Mailer EDI vérifié** : "OVH SMTP is ready to send emails" (l'erreur Brevo au log = résidu pré-bascule, code archive uniquement). /health : mysql + sqlite connected.
+- **tasks-app mail réparé** : Gmail hardcodé mort (typo @mail.com) → utils/email.js patché env-based (backup .bak-20260706), creds OVH via env pm2 (pas de dotenv dans cette app), PLATFORM_URL=https://support.codeonline-info.com → "Email transporter ready".
