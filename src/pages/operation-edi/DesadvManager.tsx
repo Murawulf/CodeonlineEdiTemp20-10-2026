@@ -70,6 +70,8 @@ const statusConfig: Record<string, { color: string; icon: React.ReactNode; label
   RECEIVED: { color: "bg-purple-100 text-purple-700 border-purple-200", icon: <Package size={14} />, label: "Reçu" },
   PROCESSED: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle size={14} />, label: "Traité" },
   ERROR: { color: "bg-red-100 text-red-700 border-red-200", icon: <XCircle size={14} />, label: "Erreur" },
+  ACKNOWLEDGED: { color: "bg-green-100 text-green-800 border-green-300", icon: <CheckCircle size={14} />, label: "Acquitté" },
+  REJECTED: { color: "bg-red-100 text-red-800 border-red-300", icon: <XCircle size={14} />, label: "Rejeté" },
 };
 
 export default function DesadvManager(): JSX.Element {

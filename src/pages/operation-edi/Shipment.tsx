@@ -65,6 +65,7 @@ interface PackedItem {
   gtin: string;
   libelle: string;
   quantity: number;
+  orderedQuantity?: number;
   lineNumber: number;
   batchNumber?: string;
   expiryDate?: string;
@@ -134,6 +135,12 @@ export default function Shipments(): JSX.Element {
   const [isSending, setIsSending] = useState(false);
   const [showSSCCModal, setShowSSCCModal] = useState(false);
   const [lastGeneratedSSCC, setLastGeneratedSSCC] = useState("");
+
+  // Preview EANCOM State (P1.3)
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewContent, setPreviewContent] = useState("");
+  const [desadvNumber, setDesadvNumber] = useState("");
   
   // Label Modal State
   const [labelModalOpen, setLabelModalOpen] = useState(false);
@@ -176,6 +183,8 @@ export default function Shipments(): JSX.Element {
     }));
     setUnpackedItems(items);
     setPackages([]);
+    setDesadvNumber("");
+    setPreviewContent("");
     setTransportDetails({
       ...transportDetails,
       dateDelivery: order.date_reception ? format(new Date(order.date_reception), "yyyy-MM-dd") : "" // Just a guess
@@ -241,6 +250,7 @@ export default function Shipments(): JSX.Element {
         gtin: item.gtin,
         libelle: item.libelle,
         quantity: qtyToPack,
+        orderedQuantity: item.qty,
         lineNumber: lineIndex + 1 // Assuming 1-based index
       });
     }
@@ -272,6 +282,70 @@ export default function Shipments(): JSX.Element {
     setPackages(newPackages);
   };
 
+  const buildDesadvPayload = () => {
+    if (!selectedOrder) return null;
+    const buyerGln = (selectedOrder as any).buyer_gln || (selectedOrder as any).acheteur_gln;
+    if (!buyerGln) {
+      toast({ title: "Erreur", description: "GLN acheteur introuvable sur la commande — impossible de générer le DESADV.", variant: "destructive" });
+      return null;
+    }
+    const sellerGln = (selectedOrder as any).fournisseur_gln || currentGLN;
+    return {
+      desadvNumber: desadvNumber || `DES${Date.now()}`,
+      orderNumber: selectedOrder.num_order,
+      orderId: selectedOrder.id_order,
+      buyer: { gln: buyerGln },
+      seller: { gln: sellerGln },
+      delivery: { gln: selectedOrder.lieu_livraison_gln || buyerGln },
+      dateExpedition: transportDetails.dateExpedition,
+      dateDelivery: transportDetails.dateDelivery,
+      transport: {
+        carrier: transportDetails.carrierName,
+        carrierName: transportDetails.carrierName,
+        vehicle: transportDetails.vehicleId,
+        mode: "30" // Road
+      },
+      packages: packages.map(p => ({
+        sscc: p.sscc,
+        type: p.type,
+        weight: p.weight,
+        trackingNumber: p.trackingNumber || null,
+        items: p.items.map(i => ({
+           lineNumber: i.lineNumber,
+           gtin: i.gtin,
+           description: i.libelle,
+           quantity: i.quantity,
+           orderedQuantity: i.orderedQuantity || null,
+           batchNumber: i.batchNumber || null,
+           expiryDate: i.expiryDate || null,
+        }))
+      }))
+    };
+  };
+
+  const handlePreviewDESADV = async () => {
+    if (!selectedOrder) return;
+    if (packages.length === 0) {
+      toast({ title: "Attention", description: "Aucun colis créé. Veuillez créer au moins un colis.", variant: "destructive" });
+      return;
+    }
+    const payload = buildDesadvPayload();
+    if (!payload) return;
+    setDesadvNumber(payload.desadvNumber); // Fige le numéro entre preview et envoi
+    setIsPreviewing(true);
+    try {
+      const api = createApi(DEFAULT_BACKEND_URL);
+      const res = await api.post("/api/edi/desadv/preview", payload);
+      setPreviewContent(res.data.eancomContent || "");
+      setShowPreview(true);
+    } catch (err: any) {
+      console.error("Error previewing DESADV:", err);
+      toast({ title: "Erreur", description: err.response?.data?.error || "Échec de la génération de l'aperçu EANCOM", variant: "destructive" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
   const handleSendDESADV = async () => {
     if (!selectedOrder) return;
     if (packages.length === 0) {
@@ -279,39 +353,12 @@ export default function Shipments(): JSX.Element {
       return;
     }
 
+    const payload = buildDesadvPayload();
+    if (!payload) return;
+
     setIsSending(true);
     try {
       const api = createApi(DEFAULT_BACKEND_URL);
-      
-      const payload = {
-        desadvNumber: `DES${Date.now()}`, // Auto-generate
-        orderNumber: selectedOrder.num_order,
-        orderId: selectedOrder.id_order,
-        buyer: { gln: "6193608600001" }, // TODO: Fetch real buyer GLN from order (fetch Entite details)
-        seller: { gln: currentGLN },
-        delivery: { gln: selectedOrder.lieu_livraison_gln || "6193608600001" }, // Default to buyer if missing
-        dateExpedition: transportDetails.dateExpedition,
-        dateDelivery: transportDetails.dateDelivery,
-        transport: {
-          carrier: transportDetails.carrierName,
-          carrierName: transportDetails.carrierName,
-          vehicle: transportDetails.vehicleId,
-          mode: "30" // Road
-        },
-        packages: packages.map(p => ({
-          sscc: p.sscc,
-          type: p.type,
-          weight: p.weight,
-          items: p.items.map(i => ({
-             lineNumber: i.lineNumber,
-             gtin: i.gtin,
-             description: i.libelle,
-             quantity: i.quantity,
-             batchNumber: i.batchNumber || null,
-             expiryDate: i.expiryDate || null,
-          }))
-        }))
-      };
 
       console.log("Sending DESADV Payload:", payload);
 
@@ -326,6 +373,9 @@ export default function Shipments(): JSX.Element {
         // Reset or redirect
         setSelectedOrder(null);
         setPackages([]);
+        setShowPreview(false);
+        setPreviewContent("");
+        setDesadvNumber("");
       }
     } catch (err: any) {
       console.error("Error sending DESADV:", err);
@@ -653,25 +703,60 @@ export default function Shipments(): JSX.Element {
               <div className="text-sm text-gray-500">
                 {packages.length} colis • {packages.reduce((acc, p) => acc + (p.items?.length || 0), 0)} lignes
               </div>
-              <Button 
-                size="lg" 
-                className="bg-blue-600 hover:bg-blue-700 gap-2" 
-                onClick={handleSendDESADV}
-                disabled={isSending || packages.length === 0}
-              >
-                {isSending ? (
-                  "Envoi en cours..."
-                ) : (
-                  <>
-                    <Send size={18} /> Générer & Envoyer DESADV
-                  </>
-                )}
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handlePreviewDESADV}
+                  disabled={isPreviewing || isSending || packages.length === 0}
+                >
+                  <Search size={18} /> {isPreviewing ? "Génération..." : "Prévisualiser EANCOM"}
+                </Button>
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 gap-2"
+                  onClick={handleSendDESADV}
+                  disabled={isSending || packages.length === 0}
+                >
+                  {isSending ? (
+                    "Envoi en cours..."
+                  ) : (
+                    <>
+                      <Send size={18} /> Générer & Envoyer DESADV
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
       )}
       
+      {/* Preview EANCOM Modal (P1.3) */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Barcode size={18} /> Aperçu EANCOM — DESADV {desadvNumber}
+            </DialogTitle>
+          </DialogHeader>
+          <pre className="bg-gray-900 text-green-400 text-xs p-4 rounded-lg max-h-[50vh] overflow-auto whitespace-pre-wrap break-all font-mono">
+            {previewContent.split("'").join("'\n")}
+          </pre>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreview(false)}>Fermer</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 gap-2"
+              disabled={isSending}
+              onClick={() => { setShowPreview(false); handleSendDESADV(); }}
+            >
+              <Send size={16} /> {isSending ? "Envoi..." : "Envoyer ce DESADV"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Shipping Label Modal */}
       {selectedPackageForLabel && selectedOrder && (
         <ShippingLabelModal

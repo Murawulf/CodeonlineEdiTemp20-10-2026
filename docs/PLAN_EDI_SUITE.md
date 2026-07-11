@@ -62,7 +62,9 @@
   *DoD* : chaque DESADV reçu génère un APERAK dispatché à l'émetteur.
   *Vérif* : logs `pm2 logs …-prod` montrent `APERAK dispatched` + transaction APERAK sur le hub.
 
-- [ ] **P1.3 — UI web : composer + envoyer un DSADV depuis une commande**
+- [x] **P1.3 — UI web : composer + envoyer un DSADV depuis une commande** ✅ 11/07/2026
+  *Écart* : l'écran existait déjà (`src/pages/operation-edi/Shipment.tsx`, route `/operation-edi/shipments` : sélection commande → colisage SSCC via `/api/utils/sscc` → détails transport → envoi `/api/edi/desadv/send`). Corrections apportées : GLN acheteur réel de la commande (était hardcodé `6193608600001` + TODO), seller = `fournisseur_gln`, delivery = `lieu_livraison_gln`, `orderedQuantity` (QTY+21) et `trackingNumber` transmis. Ajout **preview EANCOM** : route backend `POST /api/edi/desadv/preview` (3 nœuds, `patch_p13.js`) + dialog UI avant envoi. Build vite déployé sur CIV (`assets/index-BDKpDLRU.js`+). Repo source = ce repo (`CodeonlineEdi`).
+  *Vérif* : e2e `test/desadv_ui_e2e.test.js` (payload = forme exacte `buildDesadvPayload()` UI) → preview 200 sans persistance, send 200, `edi_desadv` OUTBOUND + transmission créées. Capture d'écran non réalisable en autonome (pas de credentials app web) — remplacée par vérif du bundle déployé (`grep "Prévisualiser EANCOM"` = 1) + e2e API.
   *Description* : écran React (app `/var/www/Edi-prod` frontend, repo source local `~/Travail/netconsulting/civapk`? NON — le frontend EDI web = build servi ; source = repo Codeonline-EDI). Ajouter un écran « Créer avis d'expédition » à partir d'une commande validée : sélection commande → lignes → colis/SSCC → génération DSADV → bouton Envoyer (appelle `/api/edi/desadv/send`).
   *Prompt exécutant* :
   > Dans le repo source du frontend EDI (React, celui qui build `/var/www/Edi-prod/assets`), ajouter la page « Créer DSADV » sous le menu Opérations : formulaire (commande source, lignes livrées, colis avec SSCC + poids/mesures), preview de l'EANCOM généré, bouton « Envoyer » → `POST /api/edi/desadv/send` avec le body attendu par la route existante. Rebuild + déployer sur le serveur cible.
@@ -70,7 +72,9 @@
   *DoD* : un utilisateur crée et envoie un DSADV depuis l'UI sans passer par l'API à la main.
   *Vérif* : capture d'écran de l'écran + `edi_transmissions` OUTBOUND DESADV après envoi UI.
 
-- [ ] **P1.4 — Suivi statut DSADV côté émetteur (UI + APERAK)**
+- [x] **P1.4 — Suivi statut DSADV côté émetteur (UI + APERAK)** ✅ 11/07/2026
+  *Écart* : le worker (`processInboundAperak`) mettait déjà à jour `edi_desadv.status` (ACKNOWLEDGED/REJECTED) — bug de table corrigé en P1.2b. Ajout (`patch_p14.js`, 3 nœuds) : mise à jour aussi de la transmission OUTBOUND liée dans `edi_transmissions` (via `related_type`/`related_id`). UI : badges `ACKNOWLEDGED`→« Acquitté » / `REJECTED`→« Rejeté » ajoutés à `DesadvManager.tsx` (liste expéditions), déployé sur CIV.
+  *Vérif* : e2e → après cycle réel CIV→TUN→APERAK : `edi_desadv.status=ACKNOWLEDGED` **et** transmission OUTBOUND `ACKNOWLEDGED` (test 9/9 vert, ~60 s de bout en bout).
   *Description* : afficher dans l'app le statut d'un DSADV envoyé (ENVOYÉ → LIVRÉ/ACQUITTÉ via l'APERAK reçu, ou REJETÉ). Consommer l'APERAK entrant pour mettre à jour `edi_transmissions.status`.
   *Prompt exécutant* :
   > Backend : à la réception d'un APERAK (`/api/edi/receive`, messageType APERAK), retrouver la transmission DESADV référencée et passer son statut à ACKNOWLEDGED (313) ou REJECTED (314). Frontend : colonne statut dans la liste des expéditions + badge. Déployer.
