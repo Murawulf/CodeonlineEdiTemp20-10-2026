@@ -93,7 +93,7 @@
 
 ---
 
-## P2 — App Tracking (Flutter, base civapk) — 3 rôles 🔴 (jalon 15%)
+## P2 — App Tracking (Flutter, base civapk) — 3 rôles ✅ TERMINÉ 11/07/2026 (jalon 15%)
 **Objectif** : app mobile Flutter qui consomme l'API tracking du Hub, avec 3 profils (partenaire entreprise, interne Codeonline, transporteur), authentifiée par clé/API du hub.
 
 - [x] **P2.1 — Compléter/sécuriser l'API tracking du Hub (auth + rôles + données livraison)** ✅ 11/07/2026
@@ -146,13 +146,13 @@
   *DoD* : chaque rôle a son expérience ; interne voit les alertes réseau.
   *Vérif* : captures des 3 rôles.
 
-- [ ] **P2.T — Scénario de test complet P2 (émulateur, vraies API hub)**
-  1. Login rôle **partenaire** (clé scoped GLN CIV) → attendu : ne voit que les transactions CIV.
-  2. Login rôle **interne** → attendu : voit les 3 pays + alertes réseau.
-  3. Ouvrir une transaction DESADV (celle de P1) → timeline complète affichée.
-  4. Écran livraisons → l'expédition de P1 apparaît avec son statut.
-  5. Build APK release + install émulateur, pas de crash, HTTPS-only.
-  Critères : 5/5, isolation des données par rôle prouvée, APK installable. Phase cochable seulement si tout passe.
+- [x] **P2.T — Scénario de test complet P2 (émulateur, vraies API hub)** ✅ 11/07/2026 — **5/5** (émulateur Pixel 8, hub prod réel, captures `docs/tests/edi-suite/captures-p2t/`)
+  1. ✅ Partenaire (clé scope CIV) : voit UNIQUEMENT ses 2 transactions (DESADV CIV→TUN + APERAK) — la transaction TUN→SEN est invisible (capture 02).
+  2. ✅ Interne : voit les transactions des 3 pays (dont TUN→SEN) + onglet Réseau avec stats (4 tx, 100 % livraison, par type) et alertes (captures 05-06).
+  3. ✅ Détail DESADV de P1 : timeline complète RECEIVED→FORWARDED→DELIVERED (capture 03).
+  4. ✅ Livraisons : expédition P1 (TESTUI…) affichée « Acquitté », progression 4/4, noms partenaires + réf commande (capture 04).
+  5. ✅ APK release (50,6 Mo, targetSdk 36, HTTPS-only) installé émulateur, aucun crash app. Corrections en cours de test : permission INTERNET manquante du manifest release + réponses non-JSON (404 hub). Rôle transporteur vérifié (capture 07 : Livraisons scopées TUN + onglet Mes transports).
+  Isolation par rôle prouvée visuellement (2 tx partner vs 4 tx internal) + 23/23 tests API P2.1. *NB* : ANR de l'émulateur en fin de session = surcharge machine hôte, pas un crash app (logcat propre côté app).
 
 ---
 
