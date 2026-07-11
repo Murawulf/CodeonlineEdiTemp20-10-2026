@@ -170,7 +170,8 @@
   *DoD* : IFTMIN généré + reparsé sans perte, validé.
   *Vérif* : `node test/iftmin.test.js` → tous verts.
 
-- [ ] **P3.2 — Modèle « Ordre de Transport » (DB + statut)**
+- [x] **P3.2 — Modèle « Ordre de Transport » (DB + statut)** ✅ 11/07/2026
+  Table `edi_transport_orders` créée sur le hub (`codeonline_edi_db_prod`) : ref UNIQUE, order_ref, desadv_ref, carrier_code, country_code, requester_gln, status ENUM(CREATED→SENT_TO_CARRIER→ACCEPTED→IN_TRANSIT→DELIVERED/FAILED/CANCELLED), iftmin_content, tracking_number, carrier_response, error_message + index. `services/TransportOrderModel.js` : CRUD + machine à états stricte (verrou optimiste, transitions illégales → `TransportStateError` 409, idempotence). `test/transport_order.test.js` → **13/13 verts**.
   *Description* : compléter `edi_transport_orders` (colonnes : ref, order_ref, desadv_ref, carrier_id, country_code, status, iftmin_content, tracking_number, created_at, updated_at). Statuts : CREATED → SENT_TO_CARRIER → ACCEPTED → IN_TRANSIT → DELIVERED / FAILED.
   *Prompt exécutant* :
   > Sur le hub (les ordres de transport sont mutualisés) : `ALTER/CREATE edi_transport_orders` (voir colonnes ci-dessus) dans `codeonline_edi_db_prod`. Backup avant. Créer le modèle d'accès (CRUD + transitions de statut).
@@ -178,7 +179,8 @@
   *DoD* : table + CRUD + machine à états opérationnels.
   *Vérif* : `SELECT` structure + test transitions.
 
-- [ ] **P3.3 — Couche adaptateurs transporteurs (interface commune, mutualisée sur le Hub)**
+- [x] **P3.3 — Couche adaptateurs transporteurs (interface commune, mutualisée sur le Hub)** ✅ 11/07/2026
+  `services/carriers/` : `CarrierAdapter.js` (contrat createShipment/getStatus/cancel, statuts normalisés), `registry.js` (résolution `{country_code}:{carrier_code}`, chargement paresseux, cache, erreurs isolées par transporteur), `README.md` (ajout d'un transporteur = 1 fichier + 1 entrée + creds .env — documenté avec exemple complet). `test/carrier_registry.test.js` → résolution ✓, inconnu → `CarrierResolutionError` explicite ✓, isolation (module cassé n'affecte pas les autres) ✓.
   *Description* : sur le hub, créer `services/carriers/` avec une **interface commune** `CarrierAdapter` (méthodes `createShipment(iftmin)`, `getStatus(trackingNumber)`, `cancel()`), un **registry** (résolution par pays + transporteur), et la config credentials par `.env` (jamais commit). Chaque transporteur = 1 fichier adaptateur implémentant l'interface.
   *Prompt exécutant* :
   > Hub `/var/www/Edi-prod/edi_orchestrator/services/carriers/` : `CarrierAdapter.js` (interface/contrat), `registry.js` (map `{country_code, carrier_code} -> adapter`), lecture credentials depuis `.env` (`CARRIER_<CODE>_API_KEY`…). Un adaptateur défaillant ne casse pas les autres (try/catch + statut FAILED). Documenter le contrat pour ajouter un transporteur en < 1 fichier.
@@ -186,7 +188,8 @@
   *DoD* : ajouter un transporteur = créer 1 fichier adaptateur + 1 entrée registry + creds .env.
   *Vérif* : test registry vert + doc `services/carriers/README.md`.
 
-- [ ] **P3.4 — Premier adaptateur transporteur pilote (1 pays)**
+- [x] **P3.4 — Premier adaptateur transporteur pilote (1 pays)** ✅ 11/07/2026 — **MOCK explicite [FM-1]**
+  Credentials/doc API transporteurs toujours indisponibles ([FM-1]) → `services/carriers/civ_mock01.js`, marqué `// MOCK — remplacer dès credentials [FM-1]` en tête de fichier. Respecte intégralement le contrat (createShipment → trackingNumber `MOCK-…` + SENT_TO_CARRIER ; getStatus → progression ACCEPTED→IN_TRANSIT→DELIVERED dans le temps ; cancel). Enregistré pour 384/788/686. Remplacement = 1 fichier + entrées registry. Tests (dans `carrier_registry.test.js`) **16/16 verts**.
   *Description* : implémenter 1 adaptateur réel pour 1 transporteur d'un pays adhérent (via [FM-1] credentials). Mappe IFTMIN → payload API transporteur → crée l'expédition → récupère tracking number + statut. Si credentials indisponibles : adaptateur **mock** documenté (à remplacer).
   *Prompt exécutant* :
   > Implémenter `services/carriers/<pays>_<transporteur>.js` selon la doc API fournie ([FM-1]) : `createShipment(iftmin)` → POST API transporteur → retourne `{trackingNumber, status}`. `getStatus()` → GET statut. Gérer auth (clé/token du .env), erreurs, timeouts. Si pas de credentials : mock renvoyant des statuts simulés, marqué `// MOCK — remplacer dès credentials [FM-1]`.
@@ -194,7 +197,8 @@
   *DoD* : 1 transporteur réel (ou mock explicite) crée une expédition depuis un IFTMIN.
   *Vérif* : appel réel/mock → trackingNumber + statut retournés.
 
-- [ ] **P3.5 — Route Hub « créer ordre de transport » (orchestration complète)**
+- [x] **P3.5 — Route Hub « créer ordre de transport » (orchestration complète)** ✅ 11/07/2026
+  `POST /api/orchestrator/transport/create` (auth JWT réseau, secret partagé nœuds) : valider → `generateIftminEANCOM` (+ re-parse + validation) → insert CREATED → `registry.resolve().createShipment` → SENT_TO_CARRIER + trackingNumber → journal `transactions` (document_type IFTMIN). + `GET /transport` (liste), `GET /transport/:ref`, `POST /transport/:ref/refresh` (poll `getStatus` → transition). Échec transporteur isolé → ordre FAILED + 404/502 propre (jamais de 500 brut). `test/transport_route.test.js` → **14/14 verts**. Dépendance `jsonwebtoken` ajoutée au hub.
   *Description* : `POST /api/orchestrator/transport/create` : reçoit une demande (order_ref/desadv_ref + transporteur choisi) → génère l'IFTMIN → enregistre `edi_transport_orders` → appelle l'adaptateur → stocke trackingNumber + statut → journalise dans `transactions`.
   *Prompt exécutant* :
   > Hub : route `POST /api/orchestrator/transport/create` (auth JWT réseau ou clé). Pipeline : valider → `generateIftminEANCOM` → insert `edi_transport_orders` (CREATED) → `registry.resolve(country, carrier).createShipment` → update (SENT_TO_CARRIER + trackingNumber) → log transaction. Endpoint `GET /transport/:ref` (statut) + `POST /transport/:ref/refresh` (poll adaptateur `getStatus`).
