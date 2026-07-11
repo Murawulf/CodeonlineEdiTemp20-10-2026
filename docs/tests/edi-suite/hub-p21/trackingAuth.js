@@ -28,7 +28,7 @@ async function loadDbKeys() {
   try {
     // role/scope_gln (P2.1) : partner|internal|carrier + GLN de restriction
     const [rows] = await db.execute(
-      "SELECT api_key, app_name, scope, role, scope_gln FROM tracking_api_keys WHERE status = 'ACTIVE'"
+      "SELECT api_key, app_name, scope, role, scope_gln, carrier_code FROM tracking_api_keys WHERE status = 'ACTIVE'"
     );
     _keyCache = rows;
     _keyCacheAt = now;
@@ -77,6 +77,7 @@ async function trackingAuth(req, res, next) {
       scope: match.scope,
       role: match.role || 'partner',
       scope_gln: match.scope_gln || null,
+      carrier_code: match.carrier_code || null, // P3.6 — rôle carrier
     };
     return next();
   }

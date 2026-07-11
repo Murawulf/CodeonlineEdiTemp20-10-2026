@@ -55,6 +55,10 @@ router.get('/transactions/:ref',         (req, res) => controller.getTransaction
 
 router.get('/deliveries',                (req, res) => controller.listDeliveries(req, res));
 
+// P3.6 — ordres de transport (carrier : les siens ; internal : tous)
+router.get('/transports',                (req, res) => controller.listTransports(req, res));
+router.post('/transports/:ref/status',   (req, res) => controller.updateTransportStatus(req, res));
+
 router.get('/stats',                     (req, res) => controller.getStats(req, res));
 
 router.get('/partners',                  internalOnly, (req, res) => controller.listPartners(req, res));

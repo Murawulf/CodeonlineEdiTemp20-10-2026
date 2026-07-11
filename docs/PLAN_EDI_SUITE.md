@@ -156,7 +156,7 @@
 
 ---
 
-## P3 — IFTMIN Ordre de Transport + adaptateurs transporteurs (mutualisés sur le Hub) 🔴 (jalon 30% — volet Transport)
+## P3 — IFTMIN Ordre de Transport + adaptateurs transporteurs (mutualisés sur le Hub) ✅ TERMINÉ 11/07/2026 (jalon 30% — volet Transport ; adaptateur pilote = MOCK [FM-1])
 **Objectif** : générer un IFTMIN valide, le Hub sélectionne le transporteur (par pays/critère), appelle son API via un adaptateur mutualisé, et remonte le statut dans le tracking. Extensible 3→10→20 pays.
 
 **[FM-1]** Credentials + doc API des transporteurs requis pour P3.4/P3.5 (appel réel). Sinon adaptateur mock explicite.
@@ -206,7 +206,8 @@
   *DoD* : un ordre de transport se crée de bout en bout via 1 appel.
   *Vérif* : `curl POST /transport/create` → trackingNumber + ligne DB.
 
-- [ ] **P3.6 — Remontée statut transport → Tracking (P2)**
+- [x] **P3.6 — Remontée statut transport → Tracking (P2)** ✅ 11/07/2026
+  Hub : `GET /api/tracking/deliveries` enrichi du champ `transport` (ref, carrier_code, status, tracking_number — rattachement par réf DSADV ou commande) ; `GET /api/tracking/transports` (carrier → SES ordres via `tracking_api_keys.carrier_code`, internal → tous, partner → 403) ; `POST /api/tracking/transports/:ref/status` (transitions légales uniquement, machine à états). App Tracking : écran « Mes transports » complet (liste + boutons Accepter/En transit/Livré/Échec) + statut transport affiché dans Livraisons. Captures émulateur : `09_carrier_livraison_transport.png` (Transport : DELIVERED · MOCK-… dans Livraisons), `10_carrier_mes_transports.png` (ordre « Livré » + suivi).
   *Description* : le statut transport (`edi_transport_orders.status` + trackingNumber) est exposé par l'API tracking et affiché dans l'app Tracking (écran Livraisons P2.4 + onglet transporteur P2.5).
   *Prompt exécutant* :
   > Hub : inclure les données `edi_transport_orders` dans `GET .../tracking/deliveries` (statut transport + trackingNumber) et créer `GET .../tracking/transports` (rôle carrier : ses ordres ; maj statut via `POST .../transports/:ref/status`). App Tracking : afficher le statut transport dans Livraisons + onglet « Mes transports » (rôle transporteur) avec action maj statut.
@@ -214,13 +215,12 @@
   *DoD* : le statut transport est visible dans l'app Tracking et modifiable par le transporteur.
   *Vérif* : capture écran Livraisons + Mes transports avec statut réel.
 
-- [ ] **P3.T — Scénario de test complet P3 (bout-en-bout)**
-  1. Depuis un DSADV existant (P1), créer un ordre de transport via `POST /transport/create` (transporteur pilote) → attendu : 200, IFTMIN généré, `edi_transport_orders` CREATED→SENT_TO_CARRIER, trackingNumber présent.
-  2. Round-trip IFTMIN : générer → parser → champs cohérents (transporteur, lieux, colis, réf DSADV).
-  3. `getStatus` via adaptateur → statut normalisé (IN_TRANSIT).
-  4. App Tracking (rôle transporteur) → l'ordre apparaît, maj statut → DELIVERED.
-  5. App Tracking (rôle partenaire) → la livraison montre « Livré » + trackingNumber.
-  Critères : 5/5, IFTMIN valide, adaptateur isolé, statut propagé jusqu'à l'app. Phase cochable seulement si tout passe.
+- [x] **P3.T — Scénario de test complet P3 (bout-en-bout)** ✅ 11/07/2026 — **5/5** (`test/p3t_e2e.test.js` sur hub : **21/21 verts** + captures émulateur)
+  1. ✅ Depuis le DSADV de P1 (TESTUI…) : `POST /transport/create` → 200, IFTMIN généré+validé, CREATED→SENT_TO_CARRIER en DB, trackingNumber `MOCK-…`.
+  2. ✅ Round-trip IFTMIN stocké : transporteur MOCK01, lieux enlèvement/livraison, colis SSCC, réf DSADV — tous cohérents après re-parse.
+  3. ✅ `getStatus` adaptateur via `/refresh` → statut normalisé.
+  4. ✅ Rôle transporteur : ordre visible dans `GET /tracking/transports`, maj statut IN_TRANSIT→DELIVERED acceptées, transition illégale (DELIVERED→IN_TRANSIT) refusée 409, partner → 403. UI émulateur : ordre « Livré » dans Mes transports.
+  5. ✅ Rôle partenaire : `deliveries` montre `transport.status=DELIVERED` + trackingNumber. UI émulateur : « Transport : DELIVERED · MOCK-… » sur la livraison.
 
 ---
 
@@ -240,10 +240,18 @@ P1 (DSADV complet) ─► P2 (App Tracking) ─► P3 (IFTMIN + transport)
 | 30% (15 mars) — Transport + DSADV | **P1** (DSADV complet) + **P3** (IFTMIN/transport) | le volet DSADV (P1) sécurise déjà une partie ; P3 complète le « Ordre de Transport » |
 | 15% (31 mars) — App Tracking | **P2** | jalon 15% |
 
-## DoD globale
-- [ ] **DSADV** : composé/envoyé depuis l'UI, reçu+persisté+acquitté (APERAK) cross-pays, statut visible (P1.T vert).
-- [ ] **App Tracking** : APK Flutter, 3 rôles, transactions + livraisons réelles du hub, isolation par rôle prouvée (P2.T vert).
-- [ ] **IFTMIN/Transport** : ordre de transport créé de bout en bout, IFTMIN valide, ≥ 1 adaptateur transporteur (réel ou mock explicite), statut remonté au tracking (P3.T vert).
-- [ ] Aucun régression sur ORDERS/INVOIC/DESADV/dispatch existants (re-test rapide après chaque phase).
-- [ ] Architecture adaptateurs documentée (ajout d'un transporteur = 1 fichier) — prêt pour 10→20 pays.
-- [ ] Ce fichier coché au réel + committé ; aucun secret dans le repo.
+## DoD globale — ✅ COMPLÈTE 11/07/2026
+- [x] **DSADV** : composé/envoyé depuis l'UI (preview EANCOM + GLN réels), reçu+persisté+acquitté (APERAK 313) cross-pays CIV→TUN, statut « Acquitté » visible (P1.T 5/5).
+- [x] **App Tracking** : APK Flutter release (targetSdk 36, HTTPS-only), 3 rôles avec navigation dédiée, transactions + livraisons réelles du hub prod, isolation par rôle prouvée API (23/23) + visuellement (P2.T 5/5, 9 captures).
+- [x] **IFTMIN/Transport** : ordre créé de bout en bout via `POST /transport/create`, IFTMIN D.01B valide (round-trip 25/25), adaptateur pilote **MOCK explicite** ([FM-1] credentials manquants), statut remonté jusqu'à l'app Tracking (P3.T 21/21).
+- [x] Aucune régression : re-test final post-P3 → 7/7 suites vertes (desadv_receive, aperak, desadv_ui_e2e, iftmin sur CIV ; tracking_auth, carrier_registry, transport_order sur hub) + ORDERS via hub prod vérifié (staging TUN + APERAK).
+- [x] Architecture adaptateurs documentée (`services/carriers/README.md`) : ajout d'un transporteur = 1 fichier + 1 entrée registry + creds .env — extensible 10→20 pays.
+- [x] Ce fichier coché au réel + committé ; aucun secret dans le repo (clés API en DB hub uniquement, creds .env serveurs).
+
+## Post-plan — état des serveurs (11/07/2026)
+- **Bascule réseau** : les 3 nœuds pointent désormais sur le hub prod `https://registry.codeonline-edi.net` (ils étaient restés sur l'ancien hub DEV `217.182.94.86:5010`). Rollback : table `app_parameters_bak_p12` sur chaque nœud.
+- **Backups créés** avant chaque modif : `server.js.bak_p12*/p13*/p1t*`, `eancom_parser.js.bak_p12b*/p31*`, `edi_worker.js.bak_p12b*/p14*` (3 nœuds) ; `*.bak_p21*/p35*` (hub) ; tables `*_test_bak_p1`, `tracking_api_keys_bak_p21`.
+- **Tests suites** déployées : `test/` sur chaque nœud + hub (copies archivées dans `docs/tests/edi-suite/`).
+- **Clés tracking de test** (hub, table `tracking_api_keys`) : tracking-app-internal / tracking-app-partner-civ (scope CIV) / tracking-app-carrier-test (MOCK01). La clé legacy « Codeonline Mobile App » passée role=internal (non-régression).
+- **Repos** : frontend EDI = ce repo (build vite déployé sur CIV) ; app mobile = `~/Travail/netconsulting/tracking-app` (git, 3 commits) ; orchestrateur = `~/Travail/netconsulting/edi_orchestrator` (source synchronisée avec le hub, copies dans docs/tests/edi-suite/hub-p3/).
+- **[FM-1] toujours ouvert** : à réception des credentials transporteurs → créer l'adaptateur réel (1 fichier, cf. README carriers), remplacer les entrées MOCK01 du registry.
