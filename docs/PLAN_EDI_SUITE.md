@@ -49,7 +49,12 @@
   *DoD* : un DESADV reçu crée des enregistrements métier dans les 3 tables.
   *Vérif* : `ssh civ 'MYSQL_PWD=… mysql -uadmin Entitedb -e "SELECT COUNT(*) FROM edi_desadv WHERE created_at>NOW()-INTERVAL 5 MINUTE"'` → ≥ 1 après test.
 
-- [ ] **P1.2 — APERAK automatique de retour**
+- [x] **P1.2 — APERAK automatique de retour** ✅ 11/07/2026
+  *Réalisé autrement que prévu* : pas de `generateAperakEANCOM.js` côté nœud — le réseau a déjà le pattern « nœud → `POST /api/orchestrator/ack` → le hub génère + route l'APERAK » (AckController + generateAperakEANCOM sur le hub, déjà utilisés par ORDERS/INVOIC via le worker). Ajouts :
+  1. `server.js` (3 nœuds, patch `patch_p12.js`) : bloc DESADV de `/api/edi/receive` → ACK (313) après persistance, NACK (314) sur échec de validation, via `ediWorker._notifyOrchestratorAck`.
+  2. **3 bugs préexistants corrigés** (`patch_p12b.js`, 3 nœuds) : (a) parser — NAD+MS/MR ne remplissaient pas buyer/supplier → TOUT APERAK entrant était rejeté 400 ; (b) parser — `DOC+131:TYPE` (forme émise par le hub) non parsé → referencedDocumentType null ; (c) worker — APERAK→DESADV mettait à jour la table inexistante `edi_despatch_advices` → `edi_desadv`.
+  3. **Bascule réseau** : les 3 nœuds pointaient encore sur l'ancien hub DEV (`http://217.182.94.86:5010`, routes vers nœuds *-dev*) — jamais migrés malgré PLAN_HUB_PROD. `app_parameters` ORCHESTRATOR_URL/EDI_HUB_URL → `https://registry.codeonline-edi.net` (backup : table `app_parameters_bak_p12` sur chaque nœud ; backups fichiers `*.bak_p12*`).
+  *Tests* : `test/aperak.test.js` sur CIV → **6/6 verts** (DESADV valide → ACK ; invalide → NACK). Chaîne vérifiée : hub prod `transactions` = APERAK DELIVERED ; TUN `edi_transmissions` = APERAK INBOUND PROCESSED (worker).
   *Description* : à la réception d'un DESADV valide, le nœud génère un APERAK (accusé 313) et le renvoie à l'émetteur via le Hub (`/api/orchestrator/dispatch` avec messageType APERAK, receiver = sender du DESADV). En cas d'invalidité, APERAK de rejet (314).
   *Prompt exécutant* :
   > Backend pays : après persistance DESADV (P1.1), appeler un générateur APERAK (créer `generateAperakEANCOM.js` s'il n'existe pas côté nœud — réf : le hub `AckController` sait déjà en produire) avec function code 313 (ACK) ou 314 (NACK) + référence du document reçu. Dispatcher via `POST https://registry.codeonline-edi.net/api/orchestrator/dispatch` (senderGln = receiver du DESADV, receiverGln = sender du DESADV, messageType=APERAK). Logger la transmission APERAK OUTBOUND.
