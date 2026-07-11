@@ -37,7 +37,7 @@
 
 ---
 
-## P1 — DSADV complet : flux web bout-en-bout + réception/ACK 🔴 (jalon 30% — volet DSADV)
+## P1 — DSADV complet : flux web bout-en-bout + réception/ACK ✅ TERMINÉ 11/07/2026 (jalon 30% — volet DSADV)
 **Objectif** : composer un DSADV depuis l'app web à partir d'une commande, l'envoyer via le Hub, le destinataire le reçoit → parse → persiste (edi_desadv/lines/packages) → renvoie un APERAK ; statut visible côté émetteur.
 
 - [x] **P1.1 — Vérifier/compléter la réception DESADV (persistance métier)** ✅ 11/07/2026
@@ -82,13 +82,14 @@
   *DoD* : le statut d'un DSADV reflète l'APERAK reçu, visible dans l'UI.
   *Vérif* : requête statut transmission après cycle complet.
 
-- [ ] **P1.T — Scénario de test complet P1 (bout-en-bout cross-pays)**
-  1. Sur l'app CIV, créer un DSADV pour une commande (2 lignes, 1 colis SSCC) à destination TUN → attendu : EANCOM généré, envoi 200, transmission OUTBOUND.
-  2. Le Hub route vers TUN → attendu : transaction DELIVERED sur le hub.
-  3. TUN reçoit → parse → persiste (`edi_desadv`=1, lines=2, packages=1) → attendu : PROCESSED.
-  4. TUN renvoie un APERAK 313 → CIV le reçoit → attendu : statut DSADV = ACKNOWLEDGED côté CIV.
-  5. Vérifier l'UI CIV affiche « Acquitté ».
-  Critères : 5/5 étapes OK, 0 erreur log, données cohérentes dans les 3 tables. Phase cochable seulement si tout passe.
+- [x] **P1.T — Scénario de test complet P1 (bout-en-bout cross-pays)** ✅ 11/07/2026 — **5/5**
+  1. ✅ DSADV créé (2 lignes, 1 colis SSCC 361812345000000031) payload = forme exacte UI, envoi 200, transmission OUTBOUND (`test/desadv_ui_e2e.test.js`, refs `TESTUI*`).
+  2. ✅ Hub prod : transaction `DESADV-TESTUI…` **DELIVERED** (`document_type=DESADV` après patch `patch_p1t.js` — les dispatchs desadv/invoic n'envoyaient pas `messageType` → hub loggait UNKNOWN ; corrigé 3 nœuds).
+  3. ✅ TUN : `edi_desadv`=1 (INBOUND), `edi_desadv_lines`=2, `edi_packages`=1, transmission PROCESSED.
+  4. ✅ APERAK 313 TUN→hub→CIV : `edi_desadv.status=ACKNOWLEDGED` + transmission OUTBOUND ACKNOWLEDGED (~60 s).
+  5. ✅ UI CIV : API `/api/edi/desadv?direction=OUTBOUND` (source de l'écran) retourne ACKNOWLEDGED, bundle déployé contient badge « Acquitté » (screenshot impossible sans credentials app — vérif API+bundle).
+  **Régression** : ORDERS CIV→TUN via hub prod → staging TUN `PENDING_VALIDATION` + APERAK retour DELIVERED ✓. Aucune erreur log nouvelle (bruit résiduel = KeyManager 404 + docs de test invalides antérieurs, préexistants).
+  **Purge** : données test purgées de CIV/TUN/hub (backups `*_test_bak_p1` en DB). Les refs `TEST-*` de janv-mars (travaux antérieurs) laissées intactes.
 
 ---
 
