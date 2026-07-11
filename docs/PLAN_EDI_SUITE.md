@@ -161,7 +161,8 @@
 
 **[FM-1]** Credentials + doc API des transporteurs requis pour P3.4/P3.5 (appel réel). Sinon adaptateur mock explicite.
 
-- [ ] **P3.1 — Générateur + parser IFTMIN (message EANCOM transport)**
+- [x] **P3.1 — Générateur + parser IFTMIN (message EANCOM transport)** ✅ 11/07/2026
+  `generateIftminEANCOM.js` créé (3 nœuds) : IFTMIN:D:01B:UN:EAN004, BGM+610, DTM 137/200/2, TDT+20, RFF+ON/+DQ (commande+DSADV), NAD+CZ/CN/CA, LOC+9/+7, EQD, GID+FTX+MEA+PCI(SSCC). Parser étendu (`patch_p31.js`, 3 nœuds) : champs `consignor/consignee/carrierParty/placeOfLoading/placeOfDelivery/equipment/desadvReference/goodsItems` + validation IFTMIN dédiée (transporteur, lieu livraison, colis requis). `test/iftmin.test.js` → **25/25 verts** (round-trip sans perte, 3 rejets validation, 3 throws générateur, non-régression DESADV).
   *Description* : créer `generateIftminEANCOM.js` (nœud pays ou hub) produisant un IFTMIN valide (segments UNH+IFTMIN, BGM, DTM, TDT/EQD, NAD parties, GID/PAC marchandise, LOC lieux, RFF réf commande/DSADV). Étendre `eancom_parser.js` pour parser IFTMIN.
   *Prompt exécutant* :
   > Créer `/var/www/Edi-prod/backend/generateIftminEANCOM.js` : fonction `generateIftminEANCOM(data)` → IFTMIN:D:xx:UN. Segments : UNH, BGM+610, DTM, TDT (mode transport), LOC (enlèvement/livraison), NAD (expéditeur/destinataire/transporteur), GID/PAC/MEA (colis), RFF (commande + DSADV liés). Étendre `eancom_parser.js` : `case 'IFTMIN'` + segments LOC/GID/TDT/EQD. Ajouter IFTMIN à `validateParsedEANCOM` (champs requis : transporteur, lieux, colis).
