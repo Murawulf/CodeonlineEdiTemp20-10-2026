@@ -96,7 +96,13 @@
 ## P2 — App Tracking (Flutter, base civapk) — 3 rôles 🔴 (jalon 15%)
 **Objectif** : app mobile Flutter qui consomme l'API tracking du Hub, avec 3 profils (partenaire entreprise, interne Codeonline, transporteur), authentifiée par clé/API du hub.
 
-- [ ] **P2.1 — Compléter/sécuriser l'API tracking du Hub (auth + rôles + données livraison)**
+- [x] **P2.1 — Compléter/sécuriser l'API tracking du Hub (auth + rôles + données livraison)** ✅ 11/07/2026
+  *Réalisé* (hub prod, source locale `~/Travail/netconsulting/edi_orchestrator` synchronisée) :
+  - `tracking_api_keys` + colonnes `role` ENUM(partner/internal/carrier) + `scope_gln` (backup `tracking_api_keys_bak_p21`). 3 clés de test créées (internal / partner CIV / carrier TUN) ; clé legacy « Codeonline Mobile App » passée `internal` (non-régression).
+  - Header auth = `X-Tracking-Api-Key` (existant, pas `x-tracking-key` du plan). Nouveau middleware `trackingScope.js` : partner/carrier → filtre GLN forcé (impossible d'élargir par query), internal → tout ; `/alerts` + `/partners` réservés internal ; endpoints unitaires (`/transactions/:ref`, `history`, `orders/:ref`, timeline) vérifient le scope. Nouvel endpoint `GET /api/tracking/me` (identité/rôle de la clé pour le login mobile).
+  - `GET /api/tracking/deliveries` : vue livraisons par DESADV (statut dérivé IN_TRANSIT→DELIVERED→ACKNOWLEDGED/REJECTED/FAILED, noms partenaires, champ `transport` prêt pour P3.6). `AckController` alimente désormais `transactions.aperak_status` + `order_ref` sur les lignes APERAK.
+  *Vérif* : `test/tracking_auth.test.js` sur hub → **23/23 verts** (401/403, isolation partner vs internal prouvée sur données réelles TUN→SEN, deliveries ACKNOWLEDGED).
+  *NB* : base API = `/api/tracking` (pas `/api/orchestrator/tracking` comme écrit au plan).
   *Description* : sur le hub (`/var/www/Edi-prod/edi_orchestrator`, `TrackingController.js` + `routes/tracking.js`), (a) vérifier l'auth par `tracking_api_keys` (header clé) sur tous les endpoints ; (b) ajouter la notion de **rôle** (partner/internal/carrier) à la clé + filtrage des données par rôle (un partenaire ne voit que ses GLN) ; (c) exposer les données de **livraison** (statut colis/DSADV/transport) en plus des transactions.
   *Prompt exécutant* :
   > Hub (ssh hub-prod, `/var/www/Edi-prod/edi_orchestrator`). Middleware auth : valider `x-tracking-key` contre `tracking_api_keys` (ajouter colonne `role` + `scope_gln` à la table si absent). Endpoints : filtrer `/transactions`, `/orders`, `/partners/:gln/timeline` selon le rôle/scope. Ajouter `GET /api/orchestrator/tracking/deliveries` (statut livraisons depuis `order_tracking_summary` + DESADV/transport). pm2 restart orchestrateur. Backup .env + code.

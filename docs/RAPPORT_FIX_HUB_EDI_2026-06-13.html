@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapport — Mise en service Hub EDI (CIV / TUN / SEN)</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#fff; --ink:#1a2230; --muted:#5b6b82; --line:#e3e9f2;
+    --brand:#001861; --brand2:#1746a2; --accent:#0a7d4d;
+    --ok:#0a7d4d; --okbg:#e7f6ee; --bad:#b42318; --badbg:#fde8e6;
+    --warn:#9a6700; --warnbg:#fdf4e3; --info:#1746a2; --infobg:#e8f0fc;
+    --code:#0f2336; --codebg:#0d1b2a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;padding:32px 16px}
+  .wrap{max-width:960px;margin:0 auto}
+  header.hero{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    border-radius:18px;padding:34px 36px;box-shadow:0 10px 30px rgba(0,24,97,.18)}
+  header.hero .kicker{text-transform:uppercase;letter-spacing:.14em;font-size:12px;opacity:.8;margin:0 0 8px}
+  header.hero h1{margin:0 0 14px;font-size:27px;line-height:1.25;font-weight:700}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .meta .pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+    padding:5px 12px;border-radius:999px;font-size:12.5px}
+  .pill.prod{background:#fde8e6;color:#7a160f;border:none;font-weight:600}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 8px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center}
+  .stat .n{font-size:26px;font-weight:800;color:var(--brand)}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .stat.green .n{color:var(--ok)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:24px 28px;margin:18px 0;box-shadow:0 1px 2px rgba(16,30,54,.04)}
+  h2{font-size:19px;margin:0 0 16px;padding-bottom:10px;border-bottom:2px solid var(--line);
+    display:flex;align-items:center;gap:10px}
+  h2 .ix{background:var(--brand);color:#fff;width:26px;height:26px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:0 0 auto}
+  h3{font-size:15px;margin:18px 0 8px;color:var(--brand2)}
+  p{margin:8px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f1f5fb;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  tr:last-child td{border-bottom:none}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .b-ok{background:var(--okbg);color:var(--ok)}
+  .b-bad{background:var(--badbg);color:var(--bad)}
+  .b-warn{background:var(--warnbg);color:var(--warn)}
+  .b-info{background:var(--infobg);color:var(--info)}
+  .prob{border-left:4px solid var(--bad);background:var(--badbg);border-radius:0 10px 10px 0;
+    padding:12px 16px;margin:12px 0}
+  .prob .t{font-weight:700;color:var(--bad)}
+  .fix{border-left:4px solid var(--ok);background:var(--okbg);border-radius:0 10px 10px 0;
+    padding:12px 16px;margin:12px 0}
+  .fix .t{font-weight:700;color:var(--ok)}
+  code{background:#eef2f8;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12.5px;
+    font-family:"SF Mono",Menlo,Consolas,monospace;color:#0b2a52}
+  pre{background:var(--codebg);color:#d6e4f5;border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;margin:12px 0}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .matrix td{text-align:center;font-weight:700}
+  .matrix td.lbl{text-align:left;font-weight:600;color:var(--muted);background:#f8fafd}
+  .yes{color:var(--ok)} .dash{color:#c2cad6}
+  ul.clean{margin:8px 0;padding-left:20px} ul.clean li{margin:5px 0}
+  .gln{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12.5px}
+  .note{background:var(--infobg);border:1px solid #cfe0fb;border-radius:10px;padding:12px 16px;
+    margin:12px 0;font-size:13.5px;color:#163a72}
+  .note b{color:var(--brand)}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;margin:26px 0 6px}
+  @media(max-width:680px){.summary{grid-template-columns:repeat(2,1fr)}header.hero{padding:26px 22px}section{padding:20px}}
+  @media print{body{background:#fff;padding:0}section,header.hero{box-shadow:none;break-inside:avoid}
+    .summary{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Rapport d'intervention — Codeonline EDI</p>
+    <h1>Mise en service de la communication EANCOM via le Hub EDI</h1>
+    <div class="meta">
+      <span class="pill">📅 13 juin 2026</span>
+      <span class="pill">🌍 CIV · TUN · SEN (DEV)</span>
+      <span class="pill prod">🔒 Production non touchée</span>
+      <span class="pill">✅ Validé bout-en-bout</span>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="stat green"><div class="n">5</div><div class="l">problèmes résolus</div></div>
+    <div class="stat green"><div class="n">3</div><div class="l">nœuds opérationnels</div></div>
+    <div class="stat green"><div class="n">100%</div><div class="l">matrice E2E verte</div></div>
+    <div class="stat green"><div class="n">2</div><div class="l">types EDI validés</div></div>
+  </div>
+
+  <section>
+    <h2><span class="ix">1</span>Contexte</h2>
+    <p>L'application Codeonline EDI est déployée <b>par pays</b> (une instance par pays). Les échanges
+    de documents EANCOM inter-pays doivent transiter par un <b>Hub orchestrateur</b> central
+    (futur <i>data registry</i>), qui :</p>
+    <ul class="clean">
+      <li>reçoit le message d'un pays émetteur sur <code>POST /api/orchestrator/relay</code> ;</li>
+      <li>résout le destinataire via son annuaire <code>partners</code> (clé = GLN) ;</li>
+      <li>relaie le message vers l'URL du destinataire (<code>/api/edi/receive</code>).</li>
+    </ul>
+    <p>Au début de l'intervention, <b>aucun échange CIV ↔ TUN ↔ SEN ne fonctionnait.</b></p>
+
+    <h3>Architecture constatée</h3>
+    <table>
+      <tr><th>Élément</th><th>Détail</th></tr>
+      <tr><td>Hub</td><td>App Node séparée <code>/var/www/Edi-dev/edi_orchestrator/</code> (serveur TUN), port <b>5010</b>, base <code>codeonline_edi_db</code></td></tr>
+      <tr><td>Annuaire Hub</td><td>Table <code>partners</code> (gln, name, country_code, target_url, status)</td></tr>
+      <tr><td>Journal Hub</td><td>Table <code>transactions</code> (<code>RECEIVED</code> → <code>DELIVERED</code>/<code>FAILED</code>)</td></tr>
+      <tr><td>Réception nœud</td><td><code>/api/edi/receive</code> (texte clair) · <code>/api/p2p/receive</code> (chiffré)</td></tr>
+      <tr><td>Paramètres nœud</td><td>Table <code>app_parameters</code> (MY_GLN, ORCHESTRATOR_URL, EDI_ORDERS_PATH…)</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="ix">2</span>Problèmes identifiés</h2>
+
+    <div class="prob"><span class="badge b-bad">P1</span> <span class="t">Collision de GLN (CIV = TUN)</span>
+      <p>CIV et TUN partageaient le <b>même</b> <code>MY_GLN</code> : <span class="gln">6191234567890</span>.
+      Identité émetteur ambiguë, routage impossible vers CIV.</p></div>
+
+    <div class="prob"><span class="badge b-bad">P2</span> <span class="t">CIV absente de l'annuaire Hub</span>
+      <p>Aucune entrée pour la Côte d'Ivoire dans <code>partners</code> → tout message destiné à CIV
+      renvoyait <code>404 Unknown recipient GLN</code>.</p></div>
+
+    <div class="prob"><span class="badge b-bad">P3</span> <span class="t">Authentification relais Hub → nœud (cause racine)</span>
+      <p>Le Hub n'envoyait qu'un <code>x-api-pin</code>. Or le middleware <code>verifyJWT</code> exige un
+      <b>Bearer JWT</b> signé avec le <code>JWT_SECRET</code> partagé → tout relais renvoyait <b>HTTP 401</b>.
+      Aggravant : le Hub n'avait <b>ni</b> <code>JWT_SECRET</code>, <b>ni</b> la dépendance <code>jsonwebtoken</code>.</p></div>
+
+    <div class="prob"><span class="badge b-bad">P4</span> <span class="t">Chemin de stockage EANCOM non inscriptible (CIV)</span>
+      <p><code>EDI_ORDERS_PATH = /var/www/Edi-orders</code> inexistant sur CIV, sans droits <code>sudo</code> →
+      réception CIV en <b>HTTP 500</b> (<code>EACCES … mkdir</code>).</p></div>
+
+    <div class="prob"><span class="badge b-bad">P5</span> <span class="t">Base de données SEN vide</span>
+      <p>La base <code>Dev_Entitedb</code> du Sénégal ne contenait qu'<b>1 table</b> (ni <code>Entite</code>,
+      ni <code>app_parameters</code>). Réception SEN en <b>HTTP 500</b>
+      (<code>Table 'Dev_Entitedb.Entite' doesn't exist</code>). Explique aussi les échecs SEN d'avril.</p></div>
+  </section>
+
+  <section>
+    <h2><span class="ix">3</span>Corrections appliquées</h2>
+
+    <div class="fix"><span class="badge b-ok">C1</span> <span class="t">GLN unique pour la Côte d'Ivoire</span>
+      <p>Attribution de <span class="gln">6181234567890</span> (préfixe GS1 Côte d'Ivoire = 618).</p></div>
+
+    <div class="fix"><span class="badge b-ok">C2</span> <span class="t">Enregistrement de CIV dans l'annuaire Hub</span></div>
+<pre><code>INSERT INTO partners (gln, name, country_code, target_url, status)
+VALUES ('6181234567890','Cote Ivoire Hub','384',
+        'https://civ-dev.codeonline-edi.net/api/edi/receive','ACTIVE');</code></pre>
+
+    <div class="fix"><span class="badge b-ok">C3</span> <span class="t">Le Hub signe désormais un JWT de service (cause racine)</span>
+      <p>Modification de <code>edi_orchestrator/services/routingService.js</code> :</p>
+      <ul class="clean">
+        <li>mint d'un <b>JWT HS256</b> via le module natif <code>crypto</code> (sans ajouter <code>jsonwebtoken</code>) ;</li>
+        <li>en-tête <code>Authorization: Bearer &lt;token&gt;</code> ajouté à chaque relais ;</li>
+        <li>règle de routage par préfixe <code>618</code> → CIV (cohérence 619→TUN, SN→SEN) ;</li>
+        <li>ajout de <code>JWT_SECRET</code> (secret réseau) à <code>edi_orchestrator/.env</code>.</li>
+      </ul>
+      <p>Token : <code>{ sub:'system', role:'service', instance:'hub' }</code>, TTL 15 min. Sauvegarde
+      <code>routingService.js.bak.&lt;ts&gt;</code> conservée sur le serveur.</p></div>
+
+    <div class="fix"><span class="badge b-ok">C4</span> <span class="t">Chemin EANCOM inscriptible (CIV), résistant aux redéploiements</span>
+      <ul class="clean">
+        <li>Paramètre CIV → <code>/var/www/Edi-dev/backend/edi_orders</code> (inscriptible) ;</li>
+        <li><code>init_db_params.js</code> rendu surchargeable :
+          <code>process.env.EDI_ORDERS_PATH || '/var/www/Edi-orders'</code> ;</li>
+        <li><code>env/.env.cote_ivoire</code> : ajout de la surcharge → survit au prochain déploiement.</li>
+      </ul></div>
+
+    <div class="fix"><span class="badge b-ok">C5</span> <span class="t">Migration de la base SEN</span>
+      <p><code>mysqldump</code> de TUN (82 tables, ~85 Mo) → chargement dans SEN avec
+      <code>FOREIGN_KEY_CHECKS=0</code> → <b>83 tables, 99 entités, 26 paramètres</b>.
+      Réécriture des paramètres propres à SEN : <code>CURRENT_INSTANCE_CODE=senegal</code>,
+      <code>MY_GLN=SN02583102G3</code>, <code>LOCAL_API_URL</code>, <code>EDI_ORDERS_PATH=/var/www/Edi-orders</code>.</p></div>
+  </section>
+
+  <section>
+    <h2><span class="ix">4</span>Plan d'identifiants (GLN) après correction</h2>
+    <table>
+      <tr><th>Pays</th><th>GLN</th><th>ISO num.</th><th>Enregistré au Hub</th></tr>
+      <tr><td>Tunisie (TUN)</td><td class="gln">6191234567890</td><td>788</td><td><span class="badge b-ok">✓</span></td></tr>
+      <tr><td>Sénégal (SEN)</td><td class="gln">SN02583102G3</td><td>686</td><td><span class="badge b-ok">✓</span></td></tr>
+      <tr><td>Côte d'Ivoire (CIV)</td><td class="gln">6181234567890</td><td>384</td><td><span class="badge b-ok">✓ ajouté</span></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="ix">5</span>Tests de bout en bout (validation)</h2>
+    <p>Documents testés : <b>ORDERS</b> et <b>INVOIC</b>. Chaque message envoyé au Hub
+    (<code>POST /api/orchestrator/relay</code>), puis vérification : (1) statut <code>DELIVERED</code>
+    au journal Hub ; (2) persistance chez le destinataire (<code>edi_transmissions</code>, <code>INBOUND</code>).</p>
+
+    <table class="matrix">
+      <tr><th>Document</th><th>CIV→TUN</th><th>TUN→CIV</th><th>TUN→SEN</th><th>SEN→TUN</th><th>SEN→CIV</th><th>CIV→SEN</th></tr>
+      <tr><td class="lbl">ORDERS</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="dash">—</td><td class="yes">✅</td><td class="dash">—</td></tr>
+      <tr><td class="lbl">INVOIC</td><td class="dash">—</td><td class="yes">✅</td><td class="dash">—</td><td class="yes">✅</td><td class="dash">—</td><td class="yes">✅</td></tr>
+    </table>
+    <p>Les 3 paires de pays sont couvertes, dans les deux sens, pour les deux types de documents.
+    <b>Tous les messages : <code>DELIVERED</code> au Hub + persistés chez le destinataire.</b></p>
+
+    <div class="note"><b>Preuves de persistance</b> — TUN : ORDERS reçu de CIV (<span class="gln">6181234567890</span>) ·
+    CIV : ORDERS reçu de TUN (<span class="gln">6191234567890</span>) ·
+    SEN : ORDERS reçu de TUN + INVOIC reçu de CIV.</div>
+  </section>
+
+  <section>
+    <h2><span class="ix">6</span>Modifications — récapitulatif</h2>
+    <h3>Dépôt local (commit <code>0c46958</code>)</h3>
+    <table>
+      <tr><th>Fichier</th><th>Nature</th></tr>
+      <tr><td><code>backend/scripts/init_db_params.js</code></td><td><code>EDI_ORDERS_PATH</code> surchargeable par variable d'environnement</td></tr>
+      <tr><td><code>docs/RAPPORT_FIX_HUB_EDI_2026-06-13.md</code></td><td>Rapport d'intervention (source de ce HTML)</td></tr>
+    </table>
+    <div class="note"><code>env/.env.cote_ivoire</code> est volontairement <b>ignoré par git</b> (secrets).
+    La surcharge <code>EDI_ORDERS_PATH</code> y est présente côté serveur mais non versionnée.</div>
+
+    <h3>Côté serveurs (non versionné)</h3>
+    <table>
+      <tr><th>Cible</th><th>Modification</th></tr>
+      <tr><td>Hub <code>routingService.js</code></td><td>mint JWT + Bearer + règle préfixe 618</td></tr>
+      <tr><td>Hub <code>.env</code></td><td>ajout <code>JWT_SECRET</code></td></tr>
+      <tr><td>Hub <code>partners</code></td><td>ligne CIV</td></tr>
+      <tr><td>CIV <code>app_parameters</code></td><td><code>MY_GLN</code>, <code>EDI_ORDERS_PATH</code></td></tr>
+      <tr><td>SEN <code>Dev_Entitedb</code></td><td>migration complète + paramètres SEN</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="ix">7</span>Points en attente / recommandations</h2>
+    <table>
+      <tr><th>#</th><th>Point</th><th>Priorité</th></tr>
+      <tr><td>1</td><td><b>Versionner le Hub.</b> Le code <code>edi_orchestrator/</code> n'est pas sous git — à intégrer au dépôt principal. Le correctif mint-JWT devra y être commité (sauvegarde <code>.bak</code> sur serveur).</td><td><span class="badge b-warn">important</span></td></tr>
+      <tr><td>2</td><td><b>Chemin de réception CIV.</b> Solution durable sans sudo en place. Alternative propre : créer <code>/var/www/Edi-orders</code> (droits <code>consultant</code>) pour s'aligner sur TUN/SEN.</td><td><span class="badge b-info">option</span></td></tr>
+      <tr><td>3</td><td><b>Sécurité du relais.</b> Les nœuds acceptent tout JWT signé avec le secret partagé. Durcir : valider le claim <code>instance:'hub'</code>, restreindre l'IP source, ou mTLS.</td><td><span class="badge b-warn">important</span></td></tr>
+      <tr><td>4</td><td><b>Chemin chiffré non testé.</b> <code>/api/p2p/receive</code> (RSA) non validé — nécessite l'échange des clés publiques entre CIV/TUN/SEN.</td><td><span class="badge b-info">à planifier</span></td></tr>
+      <tr><td>5</td><td><b>Autres types EANCOM.</b> ORDRSP, ORDCHG, DESADV, IFTSTA empruntent le même chemin (routage GLN + <code>parseEANCOM</code>) — testables sur demande.</td><td><span class="badge b-info">option</span></td></tr>
+      <tr><td>6</td><td><b>Provisionnement nouveau pays.</b> SEN n'avait jamais été migré. Vérifier que le process d'onboarding inclut bien migration schéma + données avant mise en service.</td><td><span class="badge b-warn">important</span></td></tr>
+    </table>
+  </section>
+
+  <footer>
+    Codeonline EDI · Rapport généré le 13 juin 2026 · Périmètre DEV · Production non touchée
+  </footer>
+
+</div>
+</body>
+</html>

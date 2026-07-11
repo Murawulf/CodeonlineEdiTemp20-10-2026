@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migration Serveurs TUN — Présentation Direction</title>
+<style>
+  :root{
+    --bleu:#1F4E79; --bleu2:#2E75B6; --vert:#2E9E5B; --rouge:#C0392B; --orange:#E67E22;
+    --fond:#0d1b2a; --carte:#13263c; --texte:#EAF2FA; --gris:#8FA6BC;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;font-family:'Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--texte);overflow:hidden}
+  .deck{height:100%;position:relative}
+  .slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    padding:4vh 6vw;opacity:0;pointer-events:none;transform:translateX(60px);transition:opacity .55s ease,transform .55s ease}
+  .slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
+  .slide.prev{transform:translateX(-60px)}
+  h1{font-size:2.6rem;color:#fff;text-align:center;line-height:1.2}
+  h2{font-size:1.9rem;color:#fff;margin-bottom:3vh;text-align:center}
+  h2 .tag{display:inline-block;background:var(--bleu2);border-radius:20px;font-size:.9rem;padding:4px 14px;vertical-align:middle;margin-left:12px}
+  .sub{color:var(--gris);font-size:1.05rem;margin-top:1.5vh;text-align:center}
+  .badge-ok{display:inline-block;background:var(--vert);color:#fff;border-radius:24px;padding:8px 22px;font-weight:700;margin-top:3vh;
+    animation:pop .6s cubic-bezier(.2,1.4,.4,1) .3s both}
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:2vw;width:100%;max-width:1100px}
+  .kpi{background:var(--carte);border:1px solid #24466b;border-radius:14px;padding:3vh 1.5vw;text-align:center;
+    opacity:0;transform:translateY(24px);transition:all .5s ease}
+  .slide.active .kpi{opacity:1;transform:none}
+  .slide.active .kpi:nth-child(1){transition-delay:.1s}.slide.active .kpi:nth-child(2){transition-delay:.25s}
+  .slide.active .kpi:nth-child(3){transition-delay:.4s}.slide.active .kpi:nth-child(4){transition-delay:.55s}
+  .kpi .num{font-size:2.8rem;font-weight:800;color:#fff}
+  .kpi .num.vert{color:var(--vert)}.kpi .num.bleu{color:#6FB1E8}
+  .kpi .lab{color:var(--gris);font-size:.95rem;margin-top:8px;line-height:1.35}
+  /* tableaux */
+  table{border-collapse:collapse;width:100%;max-width:1150px;font-size:.92rem;background:var(--carte);border-radius:12px;overflow:hidden}
+  th{background:var(--bleu);color:#fff;padding:10px 12px;text-align:left;font-size:.88rem}
+  td{padding:9px 12px;border-top:1px solid #1e3a58;color:var(--texte)}
+  tr{opacity:0;transform:translateY(10px);transition:all .4s ease}
+  .slide.active tr{opacity:1;transform:none}
+  .slide.active tbody tr:nth-child(1){transition-delay:.08s}.slide.active tbody tr:nth-child(2){transition-delay:.16s}
+  .slide.active tbody tr:nth-child(3){transition-delay:.24s}.slide.active tbody tr:nth-child(4){transition-delay:.32s}
+  .slide.active tbody tr:nth-child(5){transition-delay:.4s}.slide.active tbody tr:nth-child(6){transition-delay:.48s}
+  .slide.active tbody tr:nth-child(7){transition-delay:.56s}
+  .pill{border-radius:12px;padding:2px 10px;font-size:.8rem;font-weight:700;white-space:nowrap}
+  .p-ok{background:rgba(46,158,91,.2);color:#5AD68C}.p-warn{background:rgba(230,126,34,.18);color:#F0A45C}
+  .p-bad{background:rgba(192,57,43,.2);color:#F08A7E}
+  /* SVG schémas */
+  .schema{width:100%;max-width:1150px}
+  .svgbox{background:var(--carte);border:1px solid #24466b;border-radius:14px;padding:1vh 1vw}
+  .flux{stroke-dasharray:8 6;animation:dashmove 1.2s linear infinite}
+  @keyframes dashmove{to{stroke-dashoffset:-28}}
+  .draw{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 1.4s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .pulse{animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .float{animation:floaty 3.4s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  /* migration animée */
+  .paquet{animation:voyage 3.2s ease-in-out infinite}
+  @keyframes voyage{0%{transform:translateX(0);opacity:0}12%{opacity:1}82%{opacity:1}96%{transform:translateX(430px);opacity:0}100%{transform:translateX(430px);opacity:0}}
+  .paquet2{animation:voyage 3.2s ease-in-out .9s infinite}
+  .paquet3{animation:voyage 3.2s ease-in-out 1.8s infinite}
+  /* nav */
+  .nav{position:fixed;bottom:22px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:10}
+  .dot{width:11px;height:11px;border-radius:50%;background:#33506e;cursor:pointer;transition:all .25s}
+  .dot.on{background:#6FB1E8;transform:scale(1.35)}
+  .arrows{position:fixed;bottom:14px;right:26px;z-index:10;display:flex;gap:8px}
+  .arrows button{background:var(--carte);border:1px solid #33506e;color:#fff;font-size:1.15rem;border-radius:8px;
+    width:42px;height:42px;cursor:pointer;transition:background .2s}
+  .arrows button:hover{background:var(--bleu2)}
+  .pgnum{position:fixed;bottom:26px;left:26px;color:var(--gris);font-size:.85rem;z-index:10}
+  .hint{position:fixed;top:18px;right:26px;color:#51708f;font-size:.8rem;z-index:10}
+  .legend{display:flex;gap:22px;justify-content:center;margin-top:1.6vh;color:var(--gris);font-size:.85rem}
+  .legend span::before{content:'';display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .lg-http::before{background:var(--rouge)}.lg-https::before{background:var(--vert)}.lg-db::before{background:#B27ED9}.lg-node::before{background:var(--orange)}
+  ul.points{max-width:900px;font-size:1.08rem;line-height:2.1}
+  ul.points li{list-style:none;padding-left:34px;position:relative;opacity:0;transform:translateX(-16px);transition:all .45s ease}
+  .slide.active ul.points li{opacity:1;transform:none}
+  .slide.active ul.points li:nth-child(1){transition-delay:.1s}.slide.active ul.points li:nth-child(2){transition-delay:.22s}
+  .slide.active ul.points li:nth-child(3){transition-delay:.34s}.slide.active ul.points li:nth-child(4){transition-delay:.46s}
+  .slide.active ul.points li:nth-child(5){transition-delay:.58s}.slide.active ul.points li:nth-child(6){transition-delay:.7s}
+  ul.points li::before{position:absolute;left:0;font-weight:700}
+  ul.points li.ok::before{content:'✓';color:var(--vert)}
+  ul.points li.warn::before{content:'!';color:var(--orange)}
+  ul.points li.next::before{content:'→';color:#6FB1E8}
+  .foot{color:#51708f;font-size:.8rem;margin-top:4vh}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+<!-- ============ SLIDE 1 : Titre ============ -->
+<section class="slide active">
+  <svg width="120" height="120" viewBox="0 0 120 120" class="float" style="margin-bottom:3vh">
+    <circle cx="60" cy="60" r="52" fill="none" stroke="#2E75B6" stroke-width="3" class="draw"/>
+    <path d="M38 62 l16 16 l30 -36" fill="none" stroke="#2E9E5B" stroke-width="7" stroke-linecap="round" class="draw" style="animation-delay:.5s"/>
+  </svg>
+  <h1>Migration &amp; Cartographie<br>Serveurs Tunisie</h1>
+  <p class="sub">Ancienne infrastructure OVH → Nouveau serveur de production Hetzner<br>Audit technique complet des applications et bases de données</p>
+  <div class="badge-ok">✓ Migration réussie — 04 juillet 2026</div>
+  <p class="foot">Codeonline — Document de synthèse Direction</p>
+</section>
+
+<!-- ============ SLIDE 2 : Chiffres clés ============ -->
+<section class="slide">
+  <h2>Chiffres clés de la migration</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="num vert">7/7</div><div class="lab">sites de production<br>migrés et opérationnels</div></div>
+    <div class="kpi"><div class="num vert">100%</div><div class="lab">des domaines désormais<br>sécurisés en HTTPS<br>(avant : 0%)</div></div>
+    <div class="kpi"><div class="num bleu">8</div><div class="lab">bases de données migrées<br>(~315 Mo, 283 tables)</div></div>
+    <div class="kpi"><div class="num bleu">0</div><div class="lab">modification sur l'ancien<br>serveur — retour arrière<br>possible à tout moment</div></div>
+  </div>
+  <p class="sub" style="margin-top:4vh">Migration réalisée à données constantes, vérifiée site par site (tests applicatifs et connexions bases incluses).</p>
+</section>
+
+<!-- ============ SLIDE 3 : AVANT ============ -->
+<section class="slide">
+  <h2>AVANT <span class="tag">Serveur OVH — 217.182.94.86</span></h2>
+  <div class="schema svgbox">
+  <svg viewBox="0 0 1100 430" width="100%">
+    <!-- cadre serveur -->
+    <rect x="20" y="18" width="1060" height="394" rx="16" fill="none" stroke="#C0392B" stroke-width="2" class="draw"/>
+    <text x="46" y="48" fill="#F08A7E" font-size="17" font-weight="bold">UN SEUL SERVEUR : production + développement mélangés — AUCUN HTTPS</text>
+    <!-- zone prod -->
+    <rect x="46" y="70" width="500" height="320" rx="10" fill="#1a3450" stroke="#33506e"/>
+    <text x="66" y="98" fill="#fff" font-size="15" font-weight="bold">PRODUCTION (HTTP ⚠)</text>
+    <g font-size="12.5" fill="#EAF2FA">
+      <rect x="66" y="112" width="220" height="34" rx="6" fill="#22456b"/><text x="76" y="134">🌐 codeonline-info.com</text>
+      <rect x="66" y="152" width="220" height="34" rx="6" fill="#22456b"/><text x="76" y="174">🌐 fp — fiches produits</text>
+      <rect x="66" y="192" width="220" height="34" rx="6" fill="#22456b"/><text x="76" y="214">🌐 edi — EDI PROD (Node :5000)</text>
+      <rect x="66" y="232" width="220" height="34" rx="6" fill="#22456b"/><text x="76" y="254">🌐 support — Tasks (Node :5009)</text>
+      <rect x="66" y="272" width="220" height="34" rx="6" fill="#22456b"/><text x="76" y="294">🌐 darwin</text>
+      <rect x="66" y="312" width="220" height="34" rx="6" fill="#22456b"/><text x="76" y="334">🌐 apu &nbsp;•&nbsp; com</text>
+    </g>
+    <g font-size="12" fill="#D9B8F0">
+      <rect x="310" y="112" width="215" height="30" rx="6" fill="#2c2144"/><text x="320" y="132">🗄 codeonlinedb (166 Mo)</text>
+      <rect x="310" y="148" width="215" height="30" rx="6" fill="#2c2144"/><text x="320" y="168">🗄 Dev_Entitedb = base EDI PROD !</text>
+      <rect x="310" y="184" width="215" height="30" rx="6" fill="#2c2144"/><text x="320" y="204">🗄 Entitedb • codeonlinedb_FP</text>
+      <rect x="310" y="220" width="215" height="30" rx="6" fill="#2c2144"/><text x="320" y="240">🗄 darwindb • darwin_light</text>
+      <rect x="310" y="256" width="215" height="30" rx="6" fill="#2c2144"/><text x="320" y="276">🗄 codeonline_apu • project_m</text>
+      <rect x="310" y="292" width="215" height="30" rx="6" fill="#2c2144"/><text x="320" y="312">🗄 ProdEntiteDb (obsolète)</text>
+    </g>
+    <!-- zone dev -->
+    <rect x="576" y="70" width="486" height="320" rx="10" fill="#3a2430" stroke="#7a4050"/>
+    <text x="596" y="98" fill="#F0A45C" font-size="15" font-weight="bold">DÉVELOPPEMENT (sur le même serveur ⚠)</text>
+    <g font-size="12.5" fill="#EAF2FA">
+      <rect x="596" y="112" width="430" height="36" rx="6" fill="#4a2f3d"/><text x="606" y="135">🧪 edi-dev — EDI TUN DEV (Node :5001) — 18 Go</text>
+      <rect x="596" y="156" width="430" height="36" rx="6" fill="#4a2f3d"/><text x="606" y="179">🧪 Orchestrateur EDI DEV — Hub (Node :5010)</text>
+      <rect x="596" y="200" width="430" height="36" rx="6" fill="#4a2f3d"/><text x="606" y="223">🗄 codeonline_edi_db • EdiHub</text>
+      <rect x="596" y="244" width="430" height="36" rx="6" fill="#4a2f3d"/><text x="606" y="267">📁 vectorys (214 Mo) • Edi-orders • résidus divers</text>
+    </g>
+    <text x="596" y="330" fill="#F08A7E" font-size="13" class="pulse">⚠ Risque : une erreur de dev peut impacter la production</text>
+    <text x="596" y="356" fill="#F08A7E" font-size="13" class="pulse">⚠ Vhost edi mal câblé (pointait le backend DEV :5001)</text>
+  </svg>
+  </div>
+  <div class="legend"><span class="lg-http">Trafic HTTP non chiffré</span><span class="lg-db">Bases de données</span><span class="lg-node">Backends Node.js</span></div>
+</section>
+
+<!-- ============ SLIDE 4 : Migration animée ============ -->
+<section class="slide">
+  <h2>La migration <span class="tag">04 juillet 2026</span></h2>
+  <div class="schema svgbox">
+  <svg viewBox="0 0 1100 400" width="100%">
+    <!-- ancien -->
+    <rect x="40" y="60" width="280" height="290" rx="14" fill="#1a3450" stroke="#C0392B" stroke-width="2"/>
+    <text x="80" y="95" fill="#fff" font-size="16" font-weight="bold">ANCIEN — OVH</text>
+    <text x="80" y="118" fill="#8FA6BC" font-size="12">217.182.94.86 • HTTP</text>
+    <text x="66" y="155" fill="#EAF2FA" font-size="13">7 applications web</text>
+    <text x="66" y="180" fill="#D9B8F0" font-size="13">8 bases MySQL (~315 Mo)</text>
+    <text x="66" y="205" fill="#F0A45C" font-size="13">2 backends Node.js</text>
+    <text x="66" y="230" fill="#EAF2FA" font-size="13">Fichiers apps (1,6 Go)</text>
+    <text x="66" y="286" fill="#5AD68C" font-size="12.5">✓ Non modifié (lecture seule)</text>
+    <text x="66" y="308" fill="#5AD68C" font-size="12.5">✓ Retour arrière possible</text>
+    <!-- nouveau -->
+    <rect x="780" y="60" width="280" height="290" rx="14" fill="#16324f" stroke="#2E9E5B" stroke-width="2.5"/>
+    <text x="820" y="95" fill="#fff" font-size="16" font-weight="bold">NOUVEAU — Hetzner</text>
+    <text x="820" y="118" fill="#8FA6BC" font-size="12">65.109.104.178 • HTTPS 🔒</text>
+    <text x="806" y="155" fill="#EAF2FA" font-size="13">7 sites en production</text>
+    <text x="806" y="180" fill="#D9B8F0" font-size="13">8 bases MariaDB</text>
+    <text x="806" y="205" fill="#F0A45C" font-size="13">2 backends Node.js (pm2)</text>
+    <text x="806" y="230" fill="#5AD68C" font-size="13">Certificats auto-renouvelés</text>
+    <text x="806" y="286" fill="#5AD68C" font-size="12.5">✓ Prod isolée du dev</text>
+    <text x="806" y="308" fill="#5AD68C" font-size="12.5">✓ Redémarrage auto (boot)</text>
+    <!-- tuyau -->
+    <line x1="330" y1="205" x2="770" y2="205" stroke="#2E75B6" stroke-width="3" class="flux"/>
+    <text x="470" y="185" fill="#6FB1E8" font-size="13">Transfert direct datacenter → datacenter (SSH)</text>
+    <!-- paquets animés -->
+    <g class="paquet"><rect x="340" y="222" width="98" height="30" rx="7" fill="#B27ED9"/><text x="352" y="242" fill="#0d1b2a" font-size="12" font-weight="bold">🗄 Bases SQL</text></g>
+    <g class="paquet2"><rect x="340" y="260" width="98" height="30" rx="7" fill="#E67E22"/><text x="352" y="280" fill="#0d1b2a" font-size="12" font-weight="bold">⚙ Backends</text></g>
+    <g class="paquet3"><rect x="340" y="298" width="98" height="30" rx="7" fill="#6FB1E8"/><text x="352" y="318" fill="#0d1b2a" font-size="12" font-weight="bold">📁 Fichiers</text></g>
+    <!-- conversion -->
+    <rect x="470" y="222" width="180" height="106" rx="10" fill="none" stroke="#33506e" stroke-dasharray="5 4"/>
+    <text x="486" y="248" fill="#8FA6BC" font-size="12">Conversion à la volée :</text>
+    <text x="486" y="270" fill="#8FA6BC" font-size="12">MySQL 8 → MariaDB 10.6</text>
+    <text x="486" y="292" fill="#8FA6BC" font-size="12">(collations utf8mb4)</text>
+    <text x="486" y="314" fill="#8FA6BC" font-size="12">+ corrections vhosts/ports</text>
+  </svg>
+  </div>
+  <p class="sub">Chaque étape vérifiée : intégrité des tables, tests HTTP par site, test de connexion applicative aux bases.</p>
+</section>
+
+<!-- ============ SLIDE 5 : APRÈS ============ -->
+<section class="slide">
+  <h2>APRÈS <span class="tag" style="background:var(--vert)">Serveur Hetzner — 65.109.104.178</span></h2>
+  <div class="schema svgbox">
+  <svg viewBox="0 0 1100 430" width="100%">
+    <rect x="20" y="18" width="1060" height="394" rx="16" fill="none" stroke="#2E9E5B" stroke-width="2.5" class="draw"/>
+    <text x="46" y="48" fill="#5AD68C" font-size="17" font-weight="bold">🔒 PRODUCTION ISOLÉE — 100% HTTPS (Let's Encrypt, renouvellement automatique)</text>
+    <!-- internet -->
+    <circle cx="120" cy="230" r="46" fill="#22456b" class="float"/>
+    <text x="88" y="226" fill="#fff" font-size="13" font-weight="bold">Internet</text>
+    <text x="86" y="246" fill="#8FA6BC" font-size="11">utilisateurs</text>
+    <!-- apache -->
+    <rect x="240" y="180" width="150" height="100" rx="10" fill="#1F4E79"/>
+    <text x="262" y="222" fill="#fff" font-size="14" font-weight="bold">Apache</text>
+    <text x="262" y="244" fill="#9CC3E8" font-size="11.5">TLS + reverse-proxy</text>
+    <line x1="170" y1="230" x2="236" y2="230" stroke="#2E9E5B" stroke-width="3" class="flux"/>
+    <text x="176" y="216" fill="#5AD68C" font-size="12">HTTPS</text>
+    <!-- sites php -->
+    <g font-size="12.5" fill="#EAF2FA">
+      <rect x="450" y="60" width="240" height="32" rx="6" fill="#22456b"/><text x="462" y="81">codeonline-info.com → PHP CI3</text>
+      <rect x="450" y="100" width="240" height="32" rx="6" fill="#22456b"/><text x="462" y="121">fp → PHP CI3 (app mobile)</text>
+      <rect x="450" y="140" width="240" height="32" rx="6" fill="#22456b"/><text x="462" y="161">darwin → PHP CI3</text>
+      <rect x="450" y="180" width="240" height="32" rx="6" fill="#22456b"/><text x="462" y="201">apu • com → PHP (à livrer)</text>
+      <rect x="450" y="232" width="240" height="36" rx="6" fill="#48371f" stroke="#E67E22"/><text x="462" y="255">edi → React + Node :5000</text>
+      <rect x="450" y="276" width="240" height="36" rx="6" fill="#48371f" stroke="#E67E22"/><text x="462" y="299">support → React + Node :5009</text>
+    </g>
+    <line x1="392" y1="230" x2="446" y2="230" stroke="#6FB1E8" stroke-width="2.5" class="flux"/>
+    <!-- bases -->
+    <g font-size="12" fill="#D9B8F0">
+      <rect x="790" y="60" width="250" height="30" rx="6" fill="#2c2144"/><text x="802" y="80">codeonlinedb + codeonlinedb_FP</text>
+      <rect x="790" y="98" width="250" height="30" rx="6" fill="#2c2144"/><text x="802" y="118">Entitedb</text>
+      <rect x="790" y="136" width="250" height="30" rx="6" fill="#2c2144"/><text x="802" y="156">darwindb + darwin_light</text>
+      <rect x="790" y="174" width="250" height="30" rx="6" fill="#2c2144"/><text x="802" y="194">codeonline_apu • project_m</text>
+      <rect x="790" y="236" width="250" height="30" rx="6" fill="#2c2144" stroke="#B27ED9"/><text x="802" y="256">Dev_Entitedb (base EDI prod)</text>
+      <rect x="790" y="280" width="250" height="30" rx="6" fill="#2c2144"/><text x="802" y="300">SQLite : users.db, codeonline.db</text>
+    </g>
+    <line x1="694" y1="120" x2="786" y2="110" stroke="#B27ED9" stroke-width="2" class="flux"/>
+    <line x1="694" y1="250" x2="786" y2="251" stroke="#B27ED9" stroke-width="2" class="flux"/>
+    <text x="450" y="360" fill="#5AD68C" font-size="13">✓ pm2 : services relancés automatiquement au démarrage du serveur</text>
+    <text x="450" y="384" fill="#5AD68C" font-size="13">✓ MariaDB locale (127.0.0.1) — non exposée sur Internet</text>
+  </svg>
+  </div>
+  <div class="legend"><span class="lg-https">Trafic chiffré HTTPS</span><span class="lg-db">Bases de données</span><span class="lg-node">Backends Node.js</span></div>
+</section>
+
+<!-- ============ SLIDE 6 : État par site ============ -->
+<section class="slide">
+  <h2>État de chaque site après migration</h2>
+  <table>
+    <thead><tr><th>Site</th><th>Application</th><th>Base(s)</th><th>HTTPS</th><th>Statut</th></tr></thead>
+    <tbody>
+      <tr><td>codeonline-info.com</td><td>Portail Codeonline (PHP)</td><td>codeonlinedb + FP</td><td><span class="pill p-ok">🔒 Oui</span></td><td><span class="pill p-ok">✓ En ligne</span></td></tr>
+      <tr><td>edi.codeonline-info.com</td><td>EDI Tunisie PROD (React + Node)</td><td>Dev_Entitedb</td><td><span class="pill p-ok">🔒 Oui</span></td><td><span class="pill p-ok">✓ En ligne — login vérifié</span></td></tr>
+      <tr><td>support.codeonline-info.com</td><td>Support / Formation (React + Node)</td><td>SQLite</td><td><span class="pill p-ok">🔒 Oui</span></td><td><span class="pill p-ok">✓ En ligne</span></td></tr>
+      <tr><td>fp.codeonline-info.com</td><td>Fiches produits — app mobile (PHP)</td><td>Entitedb</td><td><span class="pill p-ok">🔒 Oui</span></td><td><span class="pill p-ok">✓ En ligne</span></td></tr>
+      <tr><td>darwin.codeonline-info.com</td><td>Darwin (PHP)</td><td>darwindb</td><td><span class="pill p-ok">🔒 Oui*</span></td><td><span class="pill p-ok">✓ En ligne</span></td></tr>
+      <tr><td>apu.codeonline-info.com</td><td>APU</td><td>codeonline_apu</td><td><span class="pill p-ok">🔒 Oui</span></td><td><span class="pill p-warn">Base migrée — app à livrer</span></td></tr>
+      <tr><td>com.codeonline-info.com</td><td>Project M</td><td>project_m</td><td><span class="pill p-ok">🔒 Oui</span></td><td><span class="pill p-warn">Base migrée — app à livrer</span></td></tr>
+    </tbody>
+  </table>
+  <p class="sub">* darwin : HTTPS disponible, HTTP conservé volontairement (contrainte technique CORS de l'application).</p>
+</section>
+
+<!-- ============ SLIDE 7 : Sécurité ============ -->
+<section class="slide">
+  <h2>Gains sécurité &amp; fiabilité</h2>
+  <ul class="points">
+    <li class="ok"><b>Chiffrement HTTPS sur 100% des domaines</b> — auparavant, tous les échanges (mots de passe compris) circulaient en clair.</li>
+    <li class="ok"><b>Renouvellement automatique des certificats</b> — aucun risque d'expiration silencieuse.</li>
+    <li class="ok"><b>Production isolée du développement</b> — une erreur de dev ne peut plus toucher la prod.</li>
+    <li class="ok"><b>Reprise automatique après redémarrage</b> — services relancés sans intervention humaine.</li>
+    <li class="warn"><b>À traiter : accès phpMyAdmin public</b> — recommandation : restriction par IP ou mot de passe serveur.</li>
+    <li class="warn"><b>À traiter : envoi d'e-mails en panne</b> (identifiants SMTP expirés) — problème antérieur à la migration.</li>
+  </ul>
+</section>
+
+<!-- ============ SLIDE 8 : Prochaines étapes ============ -->
+<section class="slide">
+  <h2>Prochaines étapes</h2>
+  <ul class="points">
+    <li class="next"><b>Validation utilisateurs</b> des applications migrées (connexions réelles, parcours métier).</li>
+    <li class="next"><b>Livraison des applications APU et COM</b> (bases prêtes, dossiers en attente — équipe dev).</li>
+    <li class="next"><b>Renouvellement des identifiants e-mail</b> (Brevo / Gmail) pour rétablir les notifications.</li>
+    <li class="next"><b>Sécurisation phpMyAdmin</b> (restriction IP ou authentification renforcée).</li>
+    <li class="next"><b>Décommissionnement de l'ancienne production OVH</b> après période d'observation — le dev et l'orchestrateur DEV y restent.</li>
+  </ul>
+  <div class="badge-ok" style="margin-top:5vh">Infrastructure de production TUN : opérationnelle et sécurisée</div>
+  <p class="foot">Audit et migration réalisés le 04/07/2026 — données vérifiées serveur par serveur</p>
+</section>
+
+</div>
+
+<div class="pgnum" id="pg">1 / 8</div>
+<div class="hint">← → naviguer • clic sur les points</div>
+<div class="nav" id="dots"></div>
+<div class="arrows">
+  <button id="prev">←</button>
+  <button id="next">→</button>
+</div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const dots=document.getElementById('dots');
+let cur=0;
+slides.forEach((s,i)=>{const d=document.createElement('div');d.className='dot'+(i===0?' on':'');d.onclick=()=>go(i);dots.appendChild(d);});
+function go(n){
+  if(n<0||n>=slides.length)return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add(n>cur?'prev':'');
+  setTimeout(()=>slides.forEach(s=>s.classList.remove('prev')),600);
+  cur=n;
+  slides[cur].classList.add('active');
+  document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('on',i===cur));
+  document.getElementById('pg').textContent=(cur+1)+' / '+slides.length;
+  // relancer les animations SVG "draw" de la slide courante
+  slides[cur].querySelectorAll('.draw').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+}
+document.getElementById('next').onclick=()=>go(cur+1);
+document.getElementById('prev').onclick=()=>go(cur-1);
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(cur+1);
+  if(e.key==='ArrowLeft'||e.key==='PageUp')go(cur-1);
+  if(e.key==='Home')go(0); if(e.key==='End')go(slides.length-1);
+});
+let tx=null;
+addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;if(dx<-50)go(cur+1);if(dx>50)go(cur-1);tx=null;});
+</script>
+</body>
+</html>
