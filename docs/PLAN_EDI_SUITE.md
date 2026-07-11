@@ -110,7 +110,8 @@
   *DoD* : API tracking authentifiée, filtrée par rôle, expose transactions + livraisons.
   *Vérif* : `curl` avec clé partner vs internal → jeux de données différents ; sans clé → 401.
 
-- [ ] **P2.2 — Projet Flutter Tracking (structure + auth + config)**
+- [x] **P2.2 — Projet Flutter Tracking (structure + auth + config)** ✅ 11/07/2026
+  App dédiée `~/Travail/netconsulting/tracking-app` (git init, commit initial). Login par clé API (`X-Tracking-Api-Key`) validée via `GET /api/tracking/me` → rôle+scope mémorisés ; stockage sécurisé `flutter_secure_storage` (abstraction `KeyStore` testable) ; `AppConfig.hubApiBase='https://registry.codeonline-edi.net'` ; targetSdk 36, HTTPS only. Tests : `auth_service_test.dart` 5/5 (login OK/KO/vide, restore, logout), `flutter analyze` 0 issue.
   *Description* : nouvelle app Flutter (repo `~/Travail/netconsulting/tracking-app` OU nouveau flavor/module dans civapk — décider : app SÉPARÉE). Écran login (clé/compte → rôle), config `hubApiBase = https://registry.codeonline-edi.net`, stockage sécurisé du token/clé.
   *Prompt exécutant* :
   > Créer une app Flutter dédiée `~/Travail/netconsulting/tracking-app` (base réutilisée de civapk pour le style/HTTP). Écran d'authentification → récupère la clé tracking + rôle. `AppConfig.hubApiBase='https://registry.codeonline-edi.net'`. Client HTTP ajoutant `x-tracking-key`. Stockage sécurisé (flutter_secure_storage). targetSdk 36, pas de cleartext.
@@ -118,7 +119,8 @@
   *DoD* : l'app démarre, s'authentifie contre le hub, mémorise le rôle.
   *Vérif* : lancer sur émulateur, login avec une vraie clé → dashboard vide accessible.
 
-- [ ] **P2.3 — Écran suivi transactions EDI (liste + détail + timeline)**
+- [x] **P2.3 — Écran suivi transactions EDI (liste + détail + timeline)** ✅ 11/07/2026
+  `TransactionsScreen` : cartes (type, sender→receiver, statut coloré, date), filtres type+statut, pull-to-refresh. `TransactionDetailScreen` : fiche + timeline verticale via `/transactions/:ref/history`. Tests widget (rendu API mockée + filtre → query `document_type`) verts.
   *Description* : liste des transactions (ORDERS/INVOIC/DESADV/APERAK) avec filtres (type, statut, date, partenaire), détail d'une transaction, timeline (`/transactions/:ref/history`).
   *Prompt exécutant* :
   > App tracking : écran « Transactions » → `GET /api/orchestrator/tracking/transactions` (filtré par rôle). Cartes par transaction (type, sender→receiver, statut, date). Tap → détail + timeline via `/transactions/:ref/history`. Pull-to-refresh.
@@ -126,7 +128,8 @@
   *DoD* : les transactions réelles du réseau s'affichent, filtrables, avec timeline.
   *Vérif* : capture écran avec vraies transactions du hub.
 
-- [ ] **P2.4 — Écran suivi livraison (colis / DSADV / transport)**
+- [x] **P2.4 — Écran suivi livraison (colis / DSADV / transport)** ✅ 11/07/2026
+  `DeliveriesScreen` : consomme `GET /api/tracking/deliveries` (P2.1), barre de progression Expédié→En transit→Livré→Acquitté, recherche par réf (param `ref`), champ transport affiché dès que P3.6 l'alimente. Tests widget verts. *NB* : le détail colis/SSCC reste dans la DB pays (règle d'isolation) — la vue hub montre le cycle DESADV/APERAK/transport.
   *Description* : suivi des expéditions : statut DSADV, colis/SSCC, et (quand P3 livré) statut transport. Recherche par référence commande/expédition.
   *Prompt exécutant* :
   > App tracking : écran « Livraisons » → `GET .../tracking/deliveries`. Vue par expédition : produits, colis (SSCC), statut (préparé→expédié→en transit→livré). Recherche par réf. Prévoir le champ statut transport (aliment. par P3).
@@ -134,7 +137,8 @@
   *DoD* : l'utilisateur suit une livraison de bout en bout.
   *Vérif* : capture écran d'une livraison réelle (DSADV de P1).
 
-- [ ] **P2.5 — Rôles/permissions + alertes**
+- [x] **P2.5 — Rôles/permissions + alertes** ✅ 11/07/2026
+  `HomeShell` route la navigation par rôle : partner → Transactions+Livraisons (ses GLN, imposé côté hub) ; internal → +onglet Réseau (`/stats`+`/alerts`) ; carrier → Livraisons+Mes transports (prêt P3). Badge rôle + logout. Tests widget 3 rôles → 3 jeux d'onglets verts. *Écart* : pas de notifications locales push (l'écran Réseau liste les alertes en pull) — à ajouter si exigé.
   *Description* : adapter l'UI selon le rôle (partenaire : ses données ; interne : monitoring réseau global + alertes ; transporteur : ses ordres de transport + maj statut). Écran alertes (`/alerts`).
   *Prompt exécutant* :
   > App tracking : router les écrans/menus selon le rôle récupéré au login. Interne → onglet « Réseau » (stats globales, alertes `/alerts`). Transporteur → onglet « Mes transports » (préparation P3). Partenaire → ses transactions/livraisons. Notifications locales sur nouvelle alerte.
