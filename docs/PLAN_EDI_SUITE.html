@@ -1,0 +1,302 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLAN — Suite EDI Codeonline</title><style>
+body{font-family:'Segoe UI',Arial,sans-serif;max-width:1000px;margin:0 auto;padding:30px 24px;color:#1c2733;line-height:1.6;font-size:15px}
+h1{color:#1F4E79;border-bottom:3px solid #1F4E79;padding-bottom:8px}
+h2{color:#1F4E79;margin-top:34px;padding:6px 12px;background:#EDF3F9;border-left:5px solid #2E75B6;border-radius:0 6px 6px 0}
+h3{color:#2E75B6} blockquote{background:#F0F7EE;border-left:4px solid #2E9E5B;margin:10px 0;padding:8px 16px;border-radius:0 8px 8px 0}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92rem} th{background:#1F4E79;color:#fff;padding:8px 10px;text-align:left}
+td{border:1px solid #D8E1EA;padding:7px 10px} tr:nth-child(even) td{background:#F6F9FC}
+code{background:#EEF2F6;padding:2px 6px;border-radius:4px;font-size:.88em} pre code{display:block;padding:12px;overflow-x:auto}
+li{margin:5px 0} input[type=checkbox]{transform:scale(1.25);margin-right:8px} strong{color:#1F4E79}
+.foot{color:#5A6B7B;font-size:.8rem;margin-top:30px;border-top:1px solid #D8E1EA;padding-top:10px}
+@media print{body{padding:0}h2{page-break-after:avoid}}</style></head><body>
+<h1>PLAN — Suite EDI Codeonline : DSADV complet · App Tracking · IFTMIN Ordre de Transport</h1>
+<blockquote>
+<p><strong>But</strong> : livrer les 3 chantiers EDI restants du contrat, mappés aux jalons de paiement. Critère de succès mesurable : (1) un DSADV composé et envoyé depuis l'app web est reçu, parsé, stocké et acquitté (APERAK) par le destinataire cross-pays ; (2) une app mobile Flutter de tracking affiche en direct les transactions + livraisons via l'API du Hub, avec 3 rôles ; (3) un ordre de transport génère un IFTMIN valide, le Hub sélectionne le transporteur et appelle son API via un adaptateur mutualisé, le statut revient dans le tracking.
+<strong>Exécutant</strong> : IA (Claude Code) ou dev. Cocher = DoD vérifié sur sortie réelle.</p>
+</blockquote>
+<h2>0. État d'entrée (faits vérifiés le 11/07/2026)</h2>
+<ul>
+<li><strong>Réseau EDI PROD</strong> : hub <code>registry.codeonline-edi.net</code> (orchestrateur <code>/var/www/Edi-prod/edi_orchestrator</code>, port 5010, DB <code>codeonline_edi_db_prod</code>). 3 pays live : CIV (<code>civ.codeonline-edi.net</code>, GLN 6181234567890), TUN (<code>edi.codeonline-info.com</code>, GLN 6191234567890), SEN (<code>sen.codeonline-edi.net</code>, GLN SN02583102G3). Table <code>partners</code> (routing par GLN), forward JWT réseau, table <code>transactions</code> (idempotence par <code>transaction_ref</code>).</li>
+<li><strong>Backend pays</strong> (réf = CIV <code>/var/www/Edi-prod/backend</code>, version identique TUN/SEN) : Node/Express, DB <code>Entitedb</code> (user <code>admin</code>). Générateurs EANCOM : <code>generateOrderEANCOM_enhanced.js</code> (ORDERS), <code>generateInvoicEANCOM.js</code> (INVOIC), <code>generateDesadvEANCOM.js</code> (DESADV), <code>generateOrderResponseEANCOM.js</code> (ORDRSP), <code>generateOrderChangeEANCOM.js</code> (ORDCHG). Parser <code>eancom_parser.js</code> (ORDERS/ORDRSP/ORDCHG/INVOIC/DESADV/APERAK) + <code>validateParsedEANCOM()</code>.</li>
+<li><strong>DSADV existant</strong> : générateur hiérarchique complet (segments UNH/BGM/DTM/RFF/NAD/CPS/PAC/PCI/GIN/LIN/QTY/MEA/PIA/IMD/TDT/UNT — colis + SSCC + transport). Parser gère CPS/PAC/PCI/GIN/MEA/PIA/TDT. Tables <code>edi_desadv</code>, <code>edi_desadv_lines</code>, <code>edi_packages</code>. Routes <code>/api/edi/desadv</code>, <code>/:id/lines</code>, <code>/:id/packages</code>, <code>/send</code>. <strong>Manque</strong> : UI web de composition/envoi, réception→persistance auto, APERAK de retour, suivi.</li>
+<li><strong>Réception EDI</strong> : <code>POST /api/edi/receive</code> (parse + <code>createEdiTransmission</code> → <code>edi_transmissions</code>). Écrit les fichiers reçus dans <code>/var/www/Edi-orders/received/&lt;TYPE&gt;/</code> (doit exister + writable par le process). Hub <code>AckController</code> (<code>/api/orchestrator/ack</code>) gère APERAK.</li>
+<li><strong>Tracking (hub)</strong> : <code>TrackingController.js</code> + <code>routes/tracking.js</code> — endpoints GET <code>/health</code>, <code>/document-types</code>, <code>/transactions</code>, <code>/transactions/:ref</code>, <code>/transactions/:ref/history</code>, <code>/stats</code>, <code>/partners</code>, <code>/partners/:gln/timeline</code>, <code>/alerts</code>, <code>/orders</code>. Tables <code>tracking_api_keys</code> (1 clé), <code>order_tracking_summary</code> (vide). <strong>Pas d'app mobile</strong> de tracking.</li>
+<li><strong>App mobile</strong> : <code>~/Travail/netconsulting/civapk</code> (Flutter 3.44.1). Flavors <code>cotedivoire</code>/<code>tunisie</code>/<code>senegal</code>, <code>AppConfig.apiBase</code> par pays, entrypoints <code>lib/main_&lt;pays&gt;.dart</code>, build via <code>rebuild_apks.sh</code>. Signature = clé debug.</li>
+<li><strong>IFTMIN / Ordre de transport</strong> : AUCUN message EANCOM dédié (pas d'<code>IFTMIN</code> dans le code). Le transport existe comme <strong>champs de l'ORDER</strong> (<code>orders.mode_transport</code>, <code>moyen_transport</code>, <code>transporteur_gln</code>, <code>frais_transport</code>) + table <code>edi_transport_orders</code> (vide). Aucun adaptateur transporteur.</li>
+<li><strong>Accès</strong> : SSH alias <code>civ</code> (consultant, sudo mdp), <code>tunp</code>/<code>senp</code>/<code>hub-prod</code> (root, clé). MySQL creds dans les <code>.env</code> de chaque serveur.</li>
+</ul>
+<h3>Règles NON NÉGOCIABLES</h3>
+<ol>
+<li><strong>Ne jamais casser l'existant en prod</strong> : ORDERS/INVOIC/DESADV et le dispatch cross-pays tournent en production — toute modif est additive ou testée hors trafic avant bascule, avec rollback.</li>
+<li><strong>Isolation par pays</strong> : chaque nœud garde sa DB <code>Entitedb</code> ; le hub ne stocke pas les données métier pays (il route + trace).</li>
+<li><strong>Secrets</strong> (creds transporteurs, clés API, JWT) dans <code>.env</code> git-ignored / coffre, jamais commités, jamais en clair dans le repo ou ce plan.</li>
+<li><strong>Adaptateurs transporteurs</strong> : credentials par transporteur chiffrés/en <code>.env</code> ; un adaptateur qui échoue ne casse pas les autres (isolation des connecteurs).</li>
+<li><strong>Backup avant toute mutation DB/fichier de prod</strong> ; vérifié non-vide avant de continuer.</li>
+<li><strong>Tests en conditions réelles</strong> (vrais serveurs, vraies API), pas de mock pour valider une phase — sauf l'adaptateur transporteur pilote si l'API réelle n'est pas encore fournie (alors mock EXPLICITEMENT signalé + remplacé dès credentials reçus).</li>
+<li>Chaque phase finit par son scénario de test ; échec = phase ouverte + tâche corrective, jamais de contournement.</li>
+</ol>
+<h2>Règles d'exécution (contrat de l'exécutant)</h2>
+<ol>
+<li><strong>Cocher = prouvé</strong> (sortie réelle : disque, test vert, réponse HTTP). Jamais sur intention.</li>
+<li><strong>Ordre strict</strong> : tests unitaires verts avant la tâche suivante ; scénario de phase passé avant de cocher la phase.</li>
+<li><strong>Échec ≠ contournement</strong> : corriger ou documenter le blocage (tâche corrective ajoutée). Ne jamais affaiblir un test.</li>
+<li><strong>Chiffres mesurés, jamais espérés</strong>.</li>
+<li><strong>Mettre à jour CE fichier</strong> à chaque tâche finie (cocher, noter écarts) + committer atomiquement.</li>
+<li><strong>Ne pas halluciner</strong> : donnée manquante = signalée, pas inventée.</li>
+<li><strong>Respecter les règles non négociables</strong> même si ça ralentit.</li>
+</ol>
+<h3>Force majeure (seule dépendance humaine externe)</h3>
+<ul>
+<li><strong>[FM-1] Credentials + doc API des transporteurs</strong> (par pays) — nécessaires pour P3.4/P3.5 (appel réel). Fournis par Majd/les transporteurs. Tant qu'indisponibles : P3 se développe contre un <strong>adaptateur mock</strong> documenté, remplacé dès réception.</li>
+</ul>
+<hr />
+<h2>P1 — DSADV complet : flux web bout-en-bout + réception/ACK 🔴 (jalon 30% — volet DSADV)</h2>
+<p><strong>Objectif</strong> : composer un DSADV depuis l'app web à partir d'une commande, l'envoyer via le Hub, le destinataire le reçoit → parse → persiste (edi_desadv/lines/packages) → renvoie un APERAK ; statut visible côté émetteur.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.1 — Vérifier/compléter la réception DESADV (persistance métier)</strong>
+  <em>Description</em> : sur le backend pays (réf <code>/var/www/Edi-prod/backend/server.js</code>, route <code>POST /api/edi/receive</code>), s'assurer qu'un DESADV entrant, après parse, est persisté dans <code>edi_desadv</code> + <code>edi_desadv_lines</code> + <code>edi_packages</code> (pas seulement <code>edi_transmissions</code>). Ajouter le mapping parser→tables s'il manque.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur le serveur <code>civ</code> (ssh civ), fichier <code>/var/www/Edi-prod/backend/server.js</code>, route <code>POST /api/edi/receive</code>. Après <code>parseEANCOM</code> + <code>validateParsedEANCOM</code>, si <code>messageType==='DESADV'</code>, insérer l'entête dans <code>edi_desadv</code>, les lignes dans <code>edi_desadv_lines</code>, les colis dans <code>edi_packages</code> (voir schémas via <code>SHOW COLUMNS</code>). Backup server.js avant modif. Ne toucher qu'au bloc DESADV. Redémarrer pm2 <code>codeonline-edi-cote-ivoire-prod</code>. Utiliser les creds DB du <code>.env</code> (<code>Entitedb</code>/<code>admin</code>).
+  <em>Tests unitaires</em> : <code>test/desadv_receive.test.js</code> — poster un DESADV valide (généré par <code>generateDesadvEANCOM</code>) sur <code>/api/edi/receive</code>, vérifier 1 ligne <code>edi_desadv</code>, N lignes <code>edi_desadv_lines</code>, M <code>edi_packages</code>. Cas limite : DESADV sans colis (0 package) accepté. Bloquant avant P1.2.
+  <em>DoD</em> : un DESADV reçu crée des enregistrements métier dans les 3 tables.
+  <em>Vérif</em> : <code>ssh civ 'MYSQL_PWD=… mysql -uadmin Entitedb -e "SELECT COUNT(*) FROM edi_desadv WHERE created_at&gt;NOW()-INTERVAL 5 MINUTE"'</code> → ≥ 1 après test.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.2 — APERAK automatique de retour</strong>
+  <em>Description</em> : à la réception d'un DESADV valide, le nœud génère un APERAK (accusé 313) et le renvoie à l'émetteur via le Hub (<code>/api/orchestrator/dispatch</code> avec messageType APERAK, receiver = sender du DESADV). En cas d'invalidité, APERAK de rejet (314).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Backend pays : après persistance DESADV (P1.1), appeler un générateur APERAK (créer <code>generateAperakEANCOM.js</code> s'il n'existe pas côté nœud — réf : le hub <code>AckController</code> sait déjà en produire) avec function code 313 (ACK) ou 314 (NACK) + référence du document reçu. Dispatcher via <code>POST https://registry.codeonline-edi.net/api/orchestrator/dispatch</code> (senderGln = receiver du DESADV, receiverGln = sender du DESADV, messageType=APERAK). Logger la transmission APERAK OUTBOUND.
+  <em>Tests unitaires</em> : <code>test/aperak.test.js</code> — DESADV valide → APERAK 313 émis ; DESADV invalide → APERAK 314. Vérifier le dispatch (mock hub ou vrai). Bloquant avant P1.3.
+  <em>DoD</em> : chaque DESADV reçu génère un APERAK dispatché à l'émetteur.
+  <em>Vérif</em> : logs <code>pm2 logs …-prod</code> montrent <code>APERAK dispatched</code> + transaction APERAK sur le hub.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.3 — UI web : composer + envoyer un DSADV depuis une commande</strong>
+  <em>Description</em> : écran React (app <code>/var/www/Edi-prod</code> frontend, repo source local <code>~/Travail/netconsulting/civapk</code>? NON — le frontend EDI web = build servi ; source = repo Codeonline-EDI). Ajouter un écran « Créer avis d'expédition » à partir d'une commande validée : sélection commande → lignes → colis/SSCC → génération DSADV → bouton Envoyer (appelle <code>/api/edi/desadv/send</code>).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Dans le repo source du frontend EDI (React, celui qui build <code>/var/www/Edi-prod/assets</code>), ajouter la page « Créer DSADV » sous le menu Opérations : formulaire (commande source, lignes livrées, colis avec SSCC + poids/mesures), preview de l'EANCOM généré, bouton « Envoyer » → <code>POST /api/edi/desadv/send</code> avec le body attendu par la route existante. Rebuild + déployer sur le serveur cible.
+  <em>Tests unitaires</em> : test composant (formulaire → payload correct) + e2e : remplir → envoyer → transmission OUTBOUND créée. Bloquant avant P1.4.
+  <em>DoD</em> : un utilisateur crée et envoie un DSADV depuis l'UI sans passer par l'API à la main.
+  <em>Vérif</em> : capture d'écran de l'écran + <code>edi_transmissions</code> OUTBOUND DESADV après envoi UI.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.4 — Suivi statut DSADV côté émetteur (UI + APERAK)</strong>
+  <em>Description</em> : afficher dans l'app le statut d'un DSADV envoyé (ENVOYÉ → LIVRÉ/ACQUITTÉ via l'APERAK reçu, ou REJETÉ). Consommer l'APERAK entrant pour mettre à jour <code>edi_transmissions.status</code>.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Backend : à la réception d'un APERAK (<code>/api/edi/receive</code>, messageType APERAK), retrouver la transmission DESADV référencée et passer son statut à ACKNOWLEDGED (313) ou REJECTED (314). Frontend : colonne statut dans la liste des expéditions + badge. Déployer.
+  <em>Tests unitaires</em> : APERAK 313 → statut ACKNOWLEDGED ; 314 → REJECTED. Bloquant avant P1.T.
+  <em>DoD</em> : le statut d'un DSADV reflète l'APERAK reçu, visible dans l'UI.
+  <em>Vérif</em> : requête statut transmission après cycle complet.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P1.T — Scénario de test complet P1 (bout-en-bout cross-pays)</strong>
+  1. Sur l'app CIV, créer un DSADV pour une commande (2 lignes, 1 colis SSCC) à destination TUN → attendu : EANCOM généré, envoi 200, transmission OUTBOUND.
+  2. Le Hub route vers TUN → attendu : transaction DELIVERED sur le hub.
+  3. TUN reçoit → parse → persiste (<code>edi_desadv</code>=1, lines=2, packages=1) → attendu : PROCESSED.
+  4. TUN renvoie un APERAK 313 → CIV le reçoit → attendu : statut DSADV = ACKNOWLEDGED côté CIV.
+  5. Vérifier l'UI CIV affiche « Acquitté ».
+  Critères : 5/5 étapes OK, 0 erreur log, données cohérentes dans les 3 tables. Phase cochable seulement si tout passe.</p>
+</li>
+</ul>
+<hr />
+<h2>P2 — App Tracking (Flutter, base civapk) — 3 rôles 🔴 (jalon 15%)</h2>
+<p><strong>Objectif</strong> : app mobile Flutter qui consomme l'API tracking du Hub, avec 3 profils (partenaire entreprise, interne Codeonline, transporteur), authentifiée par clé/API du hub.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.1 — Compléter/sécuriser l'API tracking du Hub (auth + rôles + données livraison)</strong>
+  <em>Description</em> : sur le hub (<code>/var/www/Edi-prod/edi_orchestrator</code>, <code>TrackingController.js</code> + <code>routes/tracking.js</code>), (a) vérifier l'auth par <code>tracking_api_keys</code> (header clé) sur tous les endpoints ; (b) ajouter la notion de <strong>rôle</strong> (partner/internal/carrier) à la clé + filtrage des données par rôle (un partenaire ne voit que ses GLN) ; (c) exposer les données de <strong>livraison</strong> (statut colis/DSADV/transport) en plus des transactions.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Hub (ssh hub-prod, <code>/var/www/Edi-prod/edi_orchestrator</code>). Middleware auth : valider <code>x-tracking-key</code> contre <code>tracking_api_keys</code> (ajouter colonne <code>role</code> + <code>scope_gln</code> à la table si absent). Endpoints : filtrer <code>/transactions</code>, <code>/orders</code>, <code>/partners/:gln/timeline</code> selon le rôle/scope. Ajouter <code>GET /api/orchestrator/tracking/deliveries</code> (statut livraisons depuis <code>order_tracking_summary</code> + DESADV/transport). pm2 restart orchestrateur. Backup .env + code.
+  <em>Tests unitaires</em> : <code>test/tracking_auth.test.js</code> — clé partner ne voit que ses GLN ; clé internal voit tout ; clé absente → 401. Bloquant avant P2.2.
+  <em>DoD</em> : API tracking authentifiée, filtrée par rôle, expose transactions + livraisons.
+  <em>Vérif</em> : <code>curl</code> avec clé partner vs internal → jeux de données différents ; sans clé → 401.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.2 — Projet Flutter Tracking (structure + auth + config)</strong>
+  <em>Description</em> : nouvelle app Flutter (repo <code>~/Travail/netconsulting/tracking-app</code> OU nouveau flavor/module dans civapk — décider : app SÉPARÉE). Écran login (clé/compte → rôle), config <code>hubApiBase = https://registry.codeonline-edi.net</code>, stockage sécurisé du token/clé.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Créer une app Flutter dédiée <code>~/Travail/netconsulting/tracking-app</code> (base réutilisée de civapk pour le style/HTTP). Écran d'authentification → récupère la clé tracking + rôle. <code>AppConfig.hubApiBase='https://registry.codeonline-edi.net'</code>. Client HTTP ajoutant <code>x-tracking-key</code>. Stockage sécurisé (flutter_secure_storage). targetSdk 36, pas de cleartext.
+  <em>Tests unitaires</em> : login OK → token stocké ; login KO → message. <code>flutter analyze</code> 0 erreur. Bloquant avant P2.3.
+  <em>DoD</em> : l'app démarre, s'authentifie contre le hub, mémorise le rôle.
+  <em>Vérif</em> : lancer sur émulateur, login avec une vraie clé → dashboard vide accessible.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.3 — Écran suivi transactions EDI (liste + détail + timeline)</strong>
+  <em>Description</em> : liste des transactions (ORDERS/INVOIC/DESADV/APERAK) avec filtres (type, statut, date, partenaire), détail d'une transaction, timeline (<code>/transactions/:ref/history</code>).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>App tracking : écran « Transactions » → <code>GET /api/orchestrator/tracking/transactions</code> (filtré par rôle). Cartes par transaction (type, sender→receiver, statut, date). Tap → détail + timeline via <code>/transactions/:ref/history</code>. Pull-to-refresh.
+  <em>Tests unitaires</em> : rendu liste depuis réponse API mockée ; filtre par type. Bloquant avant P2.4.
+  <em>DoD</em> : les transactions réelles du réseau s'affichent, filtrables, avec timeline.
+  <em>Vérif</em> : capture écran avec vraies transactions du hub.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.4 — Écran suivi livraison (colis / DSADV / transport)</strong>
+  <em>Description</em> : suivi des expéditions : statut DSADV, colis/SSCC, et (quand P3 livré) statut transport. Recherche par référence commande/expédition.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>App tracking : écran « Livraisons » → <code>GET .../tracking/deliveries</code>. Vue par expédition : produits, colis (SSCC), statut (préparé→expédié→en transit→livré). Recherche par réf. Prévoir le champ statut transport (aliment. par P3).
+  <em>Tests unitaires</em> : rendu depuis API ; recherche par réf. Bloquant avant P2.5.
+  <em>DoD</em> : l'utilisateur suit une livraison de bout en bout.
+  <em>Vérif</em> : capture écran d'une livraison réelle (DSADV de P1).</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.5 — Rôles/permissions + alertes</strong>
+  <em>Description</em> : adapter l'UI selon le rôle (partenaire : ses données ; interne : monitoring réseau global + alertes ; transporteur : ses ordres de transport + maj statut). Écran alertes (<code>/alerts</code>).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>App tracking : router les écrans/menus selon le rôle récupéré au login. Interne → onglet « Réseau » (stats globales, alertes <code>/alerts</code>). Transporteur → onglet « Mes transports » (préparation P3). Partenaire → ses transactions/livraisons. Notifications locales sur nouvelle alerte.
+  <em>Tests unitaires</em> : 3 rôles → 3 jeux d'écrans/menus. Bloquant avant P2.T.
+  <em>DoD</em> : chaque rôle a son expérience ; interne voit les alertes réseau.
+  <em>Vérif</em> : captures des 3 rôles.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P2.T — Scénario de test complet P2 (émulateur, vraies API hub)</strong>
+  1. Login rôle <strong>partenaire</strong> (clé scoped GLN CIV) → attendu : ne voit que les transactions CIV.
+  2. Login rôle <strong>interne</strong> → attendu : voit les 3 pays + alertes réseau.
+  3. Ouvrir une transaction DESADV (celle de P1) → timeline complète affichée.
+  4. Écran livraisons → l'expédition de P1 apparaît avec son statut.
+  5. Build APK release + install émulateur, pas de crash, HTTPS-only.
+  Critères : 5/5, isolation des données par rôle prouvée, APK installable. Phase cochable seulement si tout passe.</p>
+</li>
+</ul>
+<hr />
+<h2>P3 — IFTMIN Ordre de Transport + adaptateurs transporteurs (mutualisés sur le Hub) 🔴 (jalon 30% — volet Transport)</h2>
+<p><strong>Objectif</strong> : générer un IFTMIN valide, le Hub sélectionne le transporteur (par pays/critère), appelle son API via un adaptateur mutualisé, et remonte le statut dans le tracking. Extensible 3→10→20 pays.</p>
+<p><strong>[FM-1]</strong> Credentials + doc API des transporteurs requis pour P3.4/P3.5 (appel réel). Sinon adaptateur mock explicite.</p>
+<ul>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.1 — Générateur + parser IFTMIN (message EANCOM transport)</strong>
+  <em>Description</em> : créer <code>generateIftminEANCOM.js</code> (nœud pays ou hub) produisant un IFTMIN valide (segments UNH+IFTMIN, BGM, DTM, TDT/EQD, NAD parties, GID/PAC marchandise, LOC lieux, RFF réf commande/DSADV). Étendre <code>eancom_parser.js</code> pour parser IFTMIN.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Créer <code>/var/www/Edi-prod/backend/generateIftminEANCOM.js</code> : fonction <code>generateIftminEANCOM(data)</code> → IFTMIN:D:xx:UN. Segments : UNH, BGM+610, DTM, TDT (mode transport), LOC (enlèvement/livraison), NAD (expéditeur/destinataire/transporteur), GID/PAC/MEA (colis), RFF (commande + DSADV liés). Étendre <code>eancom_parser.js</code> : <code>case 'IFTMIN'</code> + segments LOC/GID/TDT/EQD. Ajouter IFTMIN à <code>validateParsedEANCOM</code> (champs requis : transporteur, lieux, colis).
+  <em>Tests unitaires</em> : <code>test/iftmin.test.js</code> — générer puis parser un IFTMIN → round-trip cohérent ; validation rejette IFTMIN sans lieu de livraison. Bloquant avant P3.2.
+  <em>DoD</em> : IFTMIN généré + reparsé sans perte, validé.
+  <em>Vérif</em> : <code>node test/iftmin.test.js</code> → tous verts.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.2 — Modèle « Ordre de Transport » (DB + statut)</strong>
+  <em>Description</em> : compléter <code>edi_transport_orders</code> (colonnes : ref, order_ref, desadv_ref, carrier_id, country_code, status, iftmin_content, tracking_number, created_at, updated_at). Statuts : CREATED → SENT_TO_CARRIER → ACCEPTED → IN_TRANSIT → DELIVERED / FAILED.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur le hub (les ordres de transport sont mutualisés) : <code>ALTER/CREATE edi_transport_orders</code> (voir colonnes ci-dessus) dans <code>codeonline_edi_db_prod</code>. Backup avant. Créer le modèle d'accès (CRUD + transitions de statut).
+  <em>Tests unitaires</em> : insert + transitions de statut valides ; transition illégale rejetée. Bloquant avant P3.3.
+  <em>DoD</em> : table + CRUD + machine à états opérationnels.
+  <em>Vérif</em> : <code>SELECT</code> structure + test transitions.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.3 — Couche adaptateurs transporteurs (interface commune, mutualisée sur le Hub)</strong>
+  <em>Description</em> : sur le hub, créer <code>services/carriers/</code> avec une <strong>interface commune</strong> <code>CarrierAdapter</code> (méthodes <code>createShipment(iftmin)</code>, <code>getStatus(trackingNumber)</code>, <code>cancel()</code>), un <strong>registry</strong> (résolution par pays + transporteur), et la config credentials par <code>.env</code> (jamais commit). Chaque transporteur = 1 fichier adaptateur implémentant l'interface.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Hub <code>/var/www/Edi-prod/edi_orchestrator/services/carriers/</code> : <code>CarrierAdapter.js</code> (interface/contrat), <code>registry.js</code> (map <code>{country_code, carrier_code} -&gt; adapter</code>), lecture credentials depuis <code>.env</code> (<code>CARRIER_&lt;CODE&gt;_API_KEY</code>…). Un adaptateur défaillant ne casse pas les autres (try/catch + statut FAILED). Documenter le contrat pour ajouter un transporteur en &lt; 1 fichier.
+  <em>Tests unitaires</em> : <code>test/carrier_registry.test.js</code> — résolution par pays+code ; adaptateur inconnu → erreur claire ; isolation (1 adapter throw → les autres OK). Bloquant avant P3.4.
+  <em>DoD</em> : ajouter un transporteur = créer 1 fichier adaptateur + 1 entrée registry + creds .env.
+  <em>Vérif</em> : test registry vert + doc <code>services/carriers/README.md</code>.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.4 — Premier adaptateur transporteur pilote (1 pays)</strong>
+  <em>Description</em> : implémenter 1 adaptateur réel pour 1 transporteur d'un pays adhérent (via [FM-1] credentials). Mappe IFTMIN → payload API transporteur → crée l'expédition → récupère tracking number + statut. Si credentials indisponibles : adaptateur <strong>mock</strong> documenté (à remplacer).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Implémenter <code>services/carriers/&lt;pays&gt;_&lt;transporteur&gt;.js</code> selon la doc API fournie ([FM-1]) : <code>createShipment(iftmin)</code> → POST API transporteur → retourne <code>{trackingNumber, status}</code>. <code>getStatus()</code> → GET statut. Gérer auth (clé/token du .env), erreurs, timeouts. Si pas de credentials : mock renvoyant des statuts simulés, marqué <code>// MOCK — remplacer dès credentials [FM-1]</code>.
+  <em>Tests unitaires</em> : createShipment → trackingNumber non vide ; getStatus → statut normalisé. Bloquant avant P3.5.
+  <em>DoD</em> : 1 transporteur réel (ou mock explicite) crée une expédition depuis un IFTMIN.
+  <em>Vérif</em> : appel réel/mock → trackingNumber + statut retournés.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.5 — Route Hub « créer ordre de transport » (orchestration complète)</strong>
+  <em>Description</em> : <code>POST /api/orchestrator/transport/create</code> : reçoit une demande (order_ref/desadv_ref + transporteur choisi) → génère l'IFTMIN → enregistre <code>edi_transport_orders</code> → appelle l'adaptateur → stocke trackingNumber + statut → journalise dans <code>transactions</code>.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Hub : route <code>POST /api/orchestrator/transport/create</code> (auth JWT réseau ou clé). Pipeline : valider → <code>generateIftminEANCOM</code> → insert <code>edi_transport_orders</code> (CREATED) → <code>registry.resolve(country, carrier).createShipment</code> → update (SENT_TO_CARRIER + trackingNumber) → log transaction. Endpoint <code>GET /transport/:ref</code> (statut) + <code>POST /transport/:ref/refresh</code> (poll adaptateur <code>getStatus</code>).
+  <em>Tests unitaires</em> : create → 200 + trackingNumber + edi_transport_orders SENT_TO_CARRIER ; carrier down → status FAILED + 502 propre. Bloquant avant P3.6.
+  <em>DoD</em> : un ordre de transport se crée de bout en bout via 1 appel.
+  <em>Vérif</em> : <code>curl POST /transport/create</code> → trackingNumber + ligne DB.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.6 — Remontée statut transport → Tracking (P2)</strong>
+  <em>Description</em> : le statut transport (<code>edi_transport_orders.status</code> + trackingNumber) est exposé par l'API tracking et affiché dans l'app Tracking (écran Livraisons P2.4 + onglet transporteur P2.5).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Hub : inclure les données <code>edi_transport_orders</code> dans <code>GET .../tracking/deliveries</code> (statut transport + trackingNumber) et créer <code>GET .../tracking/transports</code> (rôle carrier : ses ordres ; maj statut via <code>POST .../transports/:ref/status</code>). App Tracking : afficher le statut transport dans Livraisons + onglet « Mes transports » (rôle transporteur) avec action maj statut.
+  <em>Tests unitaires</em> : deliveries inclut le statut transport ; carrier met à jour un statut → reflété. Bloquant avant P3.T.
+  <em>DoD</em> : le statut transport est visible dans l'app Tracking et modifiable par le transporteur.
+  <em>Vérif</em> : capture écran Livraisons + Mes transports avec statut réel.</p>
+</blockquote>
+</li>
+<li>
+<p><input type="checkbox" disabled> <strong>P3.T — Scénario de test complet P3 (bout-en-bout)</strong>
+  1. Depuis un DSADV existant (P1), créer un ordre de transport via <code>POST /transport/create</code> (transporteur pilote) → attendu : 200, IFTMIN généré, <code>edi_transport_orders</code> CREATED→SENT_TO_CARRIER, trackingNumber présent.
+  2. Round-trip IFTMIN : générer → parser → champs cohérents (transporteur, lieux, colis, réf DSADV).
+  3. <code>getStatus</code> via adaptateur → statut normalisé (IN_TRANSIT).
+  4. App Tracking (rôle transporteur) → l'ordre apparaît, maj statut → DELIVERED.
+  5. App Tracking (rôle partenaire) → la livraison montre « Livré » + trackingNumber.
+  Critères : 5/5, IFTMIN valide, adaptateur isolé, statut propagé jusqu'à l'app. Phase cochable seulement si tout passe.</p>
+</li>
+</ul>
+<hr />
+<h2>Ordre d'exécution</h2>
+<pre><code>P1 (DSADV complet) ─► P2 (App Tracking) ─► P3 (IFTMIN + transport)
+                          │                     │
+                          └──────── P3.6 alimente P2.4/P2.5 ◄──┘
+</code></pre>
+<ul>
+<li><strong>Séquentiel</strong> comme demandé : P1 → P2 → P3.</li>
+<li>Parallélisable : P3.1/P3.2 (IFTMIN + modèle) peuvent démarrer pendant P2 (indépendants de l'UI tracking). P3.6 dépend de P2.4/P2.5.</li>
+<li>[FM-1] (credentials transporteurs) requis seulement à P3.4 — le reste de P3 avance sans.</li>
+</ul>
+<h2>Mapping jalons de paiement</h2>
+<table>
+<thead>
+<tr>
+<th>Jalon contrat</th>
+<th>Couvert par</th>
+<th>Débloque</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>30% (15 mars) — Transport + DSADV</td>
+<td><strong>P1</strong> (DSADV complet) + <strong>P3</strong> (IFTMIN/transport)</td>
+<td>le volet DSADV (P1) sécurise déjà une partie ; P3 complète le « Ordre de Transport »</td>
+</tr>
+<tr>
+<td>15% (31 mars) — App Tracking</td>
+<td><strong>P2</strong></td>
+<td>jalon 15%</td>
+</tr>
+</tbody>
+</table>
+<h2>DoD globale</h2>
+<ul>
+<li><input type="checkbox" disabled> <strong>DSADV</strong> : composé/envoyé depuis l'UI, reçu+persisté+acquitté (APERAK) cross-pays, statut visible (P1.T vert).</li>
+<li><input type="checkbox" disabled> <strong>App Tracking</strong> : APK Flutter, 3 rôles, transactions + livraisons réelles du hub, isolation par rôle prouvée (P2.T vert).</li>
+<li><input type="checkbox" disabled> <strong>IFTMIN/Transport</strong> : ordre de transport créé de bout en bout, IFTMIN valide, ≥ 1 adaptateur transporteur (réel ou mock explicite), statut remonté au tracking (P3.T vert).</li>
+<li><input type="checkbox" disabled> Aucun régression sur ORDERS/INVOIC/DESADV/dispatch existants (re-test rapide après chaque phase).</li>
+<li><input type="checkbox" disabled> Architecture adaptateurs documentée (ajout d'un transporteur = 1 fichier) — prêt pour 10→20 pays.</li>
+<li><input type="checkbox" disabled> Ce fichier coché au réel + committé ; aucun secret dans le repo.</li>
+</ul><div class="foot">Document vivant — le .md fait foi (cocher dedans). Généré 11/07/2026.</div></body></html>

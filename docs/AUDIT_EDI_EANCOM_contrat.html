@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit livraison EDI EANCOM — Codeonline</title>
+<style>
+  :root{--bleu:#1F4E79;--bleu2:#2E75B6;--vert:#1E7A46;--vertbg:#EAF6EE;--orange:#B85C00;--orangebg:#FFF4E5;--gris:#5A6B7B;--ligne:#D8E1EA}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#1c2733;background:#F4F7FA;font-size:15px;line-height:1.55;padding:22px}
+  .wrap{max-width:1050px;margin:0 auto}
+  header{background:var(--bleu);color:#fff;border-radius:12px;padding:22px 28px;margin-bottom:18px}
+  header h1{font-size:1.5rem}
+  header .sub{color:#bcd4ec;margin-top:6px;font-size:.95rem}
+  .card{background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:18px 22px;margin-bottom:16px;box-shadow:0 1px 6px rgba(20,40,70,.05)}
+  h2{font-size:1.15rem;color:var(--bleu);margin-bottom:12px;border-left:4px solid var(--bleu2);padding-left:10px}
+  table{border-collapse:collapse;width:100%;font-size:.92rem}
+  th{background:#EDF3F9;color:var(--bleu);text-align:left;padding:9px 11px;border:1px solid var(--ligne)}
+  td{padding:9px 11px;border:1px solid var(--ligne);vertical-align:top}
+  .done{background:var(--vertbg)}.part{background:var(--orangebg)}
+  .pill{border-radius:20px;padding:2px 10px;font-size:.8rem;font-weight:700;white-space:nowrap;display:inline-block}
+  .p-done{background:var(--vert);color:#fff}.p-part{background:var(--orange);color:#fff}.p-todo{background:#B02A22;color:#fff}
+  .b{font-weight:700}.vert{color:var(--vert)}.orange{color:var(--orange)}
+  .kpis{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .kpi{flex:1;min-width:150px;background:#fff;border:1px solid var(--ligne);border-radius:12px;padding:14px;text-align:center}
+  .kpi .n{font-size:1.7rem;font-weight:800;color:var(--bleu)}
+  .kpi .l{font-size:.8rem;color:var(--gris);margin-top:4px}
+  ul{margin:6px 0 6px 20px}li{margin:4px 0}
+  .foot{color:var(--gris);font-size:.8rem;text-align:center;margin-top:12px}
+  .note{background:#F0F5FB;border-left:4px solid var(--bleu2);padding:10px 14px;border-radius:0 8px 8px 0;margin:8px 0;font-size:.92rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Audit livraison — Documents EDI EANCOM Codeonline</h1>
+  <div class="sub">État réel du code (générateurs, parser, routes, tests en prod) vs jalons de paiement du contrat · 11/07/2026</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="n vert">75%</div><div class="l">jalons livrés (démarrage + ORDER + INVOIC + DSADV)</div></div>
+  <div class="kpi"><div class="n orange">30%</div><div class="l">jalon 15 mars : DSADV fait, « Ordre de Transport » à cadrer</div></div>
+  <div class="kpi"><div class="n orange">15%</div><div class="l">jalon 31 mars : backend tracking fait, app mobile à vérifier</div></div>
+  <div class="kpi"><div class="n vert">3</div><div class="l">messages bonus livrés (ORDRSP, ORDCHG, APERAK)</div></div>
+</div>
+
+<div class="card">
+<h2>1. Jalons du contrat — état de livraison</h2>
+<table>
+  <tr><th>Échéance</th><th>%</th><th>Livrable</th><th>Statut</th><th>Preuve / détail</th></tr>
+  <tr class="done"><td>Janvier 2026</td><td>20%</td><td>Démarrage des travaux</td><td><span class="pill p-done">LIVRÉ</span></td><td>Architecture PAESN Registry (hub étoile), refonte app CodeonlineEDI, infra multi-pays</td></tr>
+  <tr class="done"><td>10 fév 2026</td><td>20%</td><td><b>ORDER</b> (ORDERS)</td><td><span class="pill p-done">LIVRÉ</span></td><td>Générateur + parser + routes ; <b>testé en prod cross-pays</b> (CIV↔TUN, reçu & traité)</td></tr>
+  <tr class="done"><td>20 fév 2026</td><td>15%</td><td><b>INVOIC</b> (facture)</td><td><span class="pill p-done">LIVRÉ</span></td><td>Générateur + parser + routes (/api/edi/invoices/send) ; <b>testé en prod</b> (CIV→TUN PROCESSED)</td></tr>
+  <tr class="part"><td>15 mars 2026</td><td>30%</td><td><b>Ordre de Transport + DSADV</b></td><td><span class="pill p-part">PARTIEL</span></td><td><b>DSADV = LIVRÉ</b> (générateur + parser + routes /api/edi/desadv/send + lines/packages ; testé prod TUN→SEN PROCESSED).<br><b>Ordre de Transport</b> : pas de message EANCOM IFTMIN dédié ; le transport est <b>embarqué dans l'ORDER</b> (champs mode_transport, moyen_transport, transporteur_gln + segments transport dans le générateur). → <b>à cadrer avec le client</b> (voir §3)</td></tr>
+  <tr class="part"><td>31 mars 2026</td><td>15%</td><td><b>Application Tracking</b></td><td><span class="pill p-part">PARTIEL</span></td><td><b>Backend tracking = LIVRÉ</b> : API de suivi sur le hub (transactions, historique par message, timeline par partenaire, alertes, stats) + clés API tracking.<br><b>App mobile de tracking dédiée</b> : non trouvée dans les repos → à livrer/vérifier (voir §3)</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>2. Détail technique par message EDI</h2>
+<table>
+  <tr><th>Message</th><th>Type EDIFACT</th><th>Générateur</th><th>Parser</th><th>Routes API</th><th>Testé prod</th></tr>
+  <tr class="done"><td>Commande</td><td>ORDERS</td><td>✅ generateOrderEANCOM_enhanced</td><td>✅</td><td>✅ receive + dispatch</td><td>✅ CIV↔TUN</td></tr>
+  <tr class="done"><td>Facture</td><td>INVOIC</td><td>✅ generateInvoicEANCOM</td><td>✅</td><td>✅ /invoices/send</td><td>✅ CIV→TUN</td></tr>
+  <tr class="done"><td>Avis d'expédition</td><td>DESADV</td><td>✅ generateDesadvEANCOM</td><td>✅</td><td>✅ /desadv/send + lines/packages</td><td>✅ TUN→SEN</td></tr>
+  <tr class="done"><td>Réponse commande <span class="pill p-done" style="font-size:.7rem">BONUS</span></td><td>ORDRSP</td><td>✅ generateOrderResponseEANCOM</td><td>✅</td><td>✅</td><td>—</td></tr>
+  <tr class="done"><td>Modif. commande <span class="pill p-done" style="font-size:.7rem">BONUS</span></td><td>ORDCHG</td><td>✅ generateOrderChangeEANCOM</td><td>✅</td><td>✅</td><td>—</td></tr>
+  <tr class="done"><td>Accusé/rejet <span class="pill p-done" style="font-size:.7rem">BONUS</span></td><td>APERAK</td><td>✅ (hub AckController)</td><td>✅</td><td>✅ /ack</td><td>—</td></tr>
+  <tr class="part"><td>Ordre de transport</td><td>IFTMIN <span class="orange">(non impl.)</span></td><td>❌ pas de message dédié</td><td>❌</td><td>transport = champs de l'ORDER</td><td>—</td></tr>
+</table>
+<div class="note">Le <b>hub PAESN Registry</b> (rôle premier : communication & dispatch inter-pays) est opérationnel en prod sur <b>3 pays</b> (CIV, TUN, SEN) : routing par GLN, forward sécurisé JWT, transactions loggées, idempotence. Test ultime EDI cross-pays réussi (ORDERS/INVOIC/DESADV acheminés & traités).</div>
+</div>
+
+<div class="card">
+<h2>3. Ce qui reste à faire / à clarifier</h2>
+<table>
+  <tr><th>Point</th><th>Constat</th><th>Action</th></tr>
+  <tr class="part"><td><b>Ordre de Transport (jalon 30%)</b></td><td>Pas de message EANCOM IFTMIN autonome. Le transport existe comme <b>données de l'ORDER</b> (mode/moyen/transporteur GLN) + table edi_transport_orders (vide).</td><td><b>Cadrer avec le client</b> : (a) le transport dans l'ORDER suffit-il pour valider le jalon ? ou (b) faut-il un message <b>IFTMIN</b> séparé (ordre de transport dédié au transporteur) ? Si (b) → développer générateur + parser + route IFTMIN.</td></tr>
+  <tr class="part"><td><b>Application Tracking (jalon 15%)</b></td><td>Le <b>backend</b> de tracking est livré (API hub : suivi transactions, timeline, alertes). L'<b>app mobile</b> de tracking dédiée n'est pas dans les repos.</td><td>Confirmer le périmètre : est-ce (a) l'API de suivi (livrée) ou (b) une app mobile de tracking à part entière ? Si (b) → à développer/livrer.</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>4. Synthèse paiements</h2>
+<table>
+  <tr><th>Jalon</th><th>%</th><th>Facturable maintenant ?</th></tr>
+  <tr class="done"><td>Démarrage</td><td>20%</td><td class="vert b">✅ Oui</td></tr>
+  <tr class="done"><td>ORDER (10 fév)</td><td>20%</td><td class="vert b">✅ Oui — livré + testé prod</td></tr>
+  <tr class="done"><td>INVOIC (20 fév)</td><td>15%</td><td class="vert b">✅ Oui — livré + testé prod</td></tr>
+  <tr class="part"><td>Transport + DSADV (15 mars)</td><td>30%</td><td class="orange b">◑ DSADV oui ; Transport à cadrer</td></tr>
+  <tr class="part"><td>App Tracking (31 mars)</td><td>15%</td><td class="orange b">◑ Backend oui ; app mobile à confirmer</td></tr>
+  <tr style="background:#EDF3F9"><td class="b">TOTAL sécurisé (livré)</td><td class="b">≥ 55%</td><td class="b">+ le DSADV du jalon 30% ⇒ ~70% défendable</td></tr>
+</table>
+</div>
+
+<div class="foot">Audit basé sur l'inspection réelle du code (serveur CIV = dernière version) + tests en production. Généré le 11/07/2026 — Netconsulting / Codeonline EDI.</div>
+</div>
+</body>
+</html>
