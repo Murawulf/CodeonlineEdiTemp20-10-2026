@@ -40,7 +40,8 @@
 ## P1 — DSADV complet : flux web bout-en-bout + réception/ACK 🔴 (jalon 30% — volet DSADV)
 **Objectif** : composer un DSADV depuis l'app web à partir d'une commande, l'envoyer via le Hub, le destinataire le reçoit → parse → persiste (edi_desadv/lines/packages) → renvoie un APERAK ; statut visible côté émetteur.
 
-- [ ] **P1.1 — Vérifier/compléter la réception DESADV (persistance métier)**
+- [x] **P1.1 — Vérifier/compléter la réception DESADV (persistance métier)** ✅ 11/07/2026
+  *Écart constaté* : le bloc de persistance DESADV existait déjà dans `server.js` (INSERT `edi_desadv` + `edi_packages` + `edi_desadv_lines`, lignes ~5848-5940) — aucune modif code nécessaire. Route protégée par JWT réseau (`verifyJWT`, secret partagé) : le test utilise `services/serviceAuth.js`. Test déployé : `/var/www/Edi-prod/backend/test/desadv_receive.test.js` → **15/15 verts** (cas 2 lignes/1 colis SSCC + cas 0 colis + transmissions PROCESSED). Bloc identique vérifié présent sur TUN (`/var/www/Edi-prod`) et SEN (`/var/www/Edi-Prod`). Données test en DB prod : refs `TESTDES*`/`TESTDESNP*` (à purger fin P1).
   *Description* : sur le backend pays (réf `/var/www/Edi-prod/backend/server.js`, route `POST /api/edi/receive`), s'assurer qu'un DESADV entrant, après parse, est persisté dans `edi_desadv` + `edi_desadv_lines` + `edi_packages` (pas seulement `edi_transmissions`). Ajouter le mapping parser→tables s'il manque.
   *Prompt exécutant* :
   > Sur le serveur `civ` (ssh civ), fichier `/var/www/Edi-prod/backend/server.js`, route `POST /api/edi/receive`. Après `parseEANCOM` + `validateParsedEANCOM`, si `messageType==='DESADV'`, insérer l'entête dans `edi_desadv`, les lignes dans `edi_desadv_lines`, les colis dans `edi_packages` (voir schémas via `SHOW COLUMNS`). Backup server.js avant modif. Ne toucher qu'au bloc DESADV. Redémarrer pm2 `codeonline-edi-cote-ivoire-prod`. Utiliser les creds DB du `.env` (`Entitedb`/`admin`).
