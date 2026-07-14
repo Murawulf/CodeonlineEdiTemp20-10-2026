@@ -1,0 +1,292 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payloads EANCOM prêts à envoyer — EDI cross-pays</title>
+<style>
+:root{--bleu:#1F4E79;--code:#0d1b2a;--codetx:#e6edf3;--ligne:#d8e1ea;--gris:#5a6b7b}
+*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;color:#1c2733;background:#f4f7fa;margin:0;padding:22px;font-size:14px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto}
+header{background:var(--bleu);color:#fff;border-radius:12px;padding:20px 26px;margin-bottom:16px}
+header h1{font-size:1.4rem;margin:0}header .s{color:#bcd4ec;font-size:.9rem;margin-top:6px}
+a{color:#2E75B6;text-decoration:none}a:hover{text-decoration:underline}
+.toc{background:#fff;border:1px solid var(--ligne);border-radius:10px;padding:12px 18px;margin-bottom:16px}
+.toc a{display:inline-block;margin:3px 12px 3px 0;font-weight:600}
+.card{background:#fff;border:1px solid var(--ligne);border-radius:10px;padding:14px 18px;margin-bottom:14px}
+.sec-h{color:#fff;border-radius:8px;padding:8px 14px;font-weight:700;margin:22px 0 10px}
+.step{border:1px solid var(--ligne);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.step-h{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#eef3f9;border-bottom:1px solid var(--ligne)}
+.badge{background:var(--bleu);color:#fff;border-radius:6px;padding:2px 9px;font-size:.78rem;font-weight:700}
+.badge.ack{background:#1E7A46}.badge.nack{background:#B02A22}
+.dir{font-weight:700}.ref{color:var(--gris);font-family:monospace;font-size:.85rem}
+.note{color:var(--gris);font-size:.82rem;font-style:italic;margin-left:auto}
+.step-b{padding:12px 14px}
+.lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--gris);font-weight:700;margin:8px 0 4px}
+pre{background:var(--code);color:var(--codetx);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:'SF Mono',Consolas,monospace;font-size:.8rem;margin:0;white-space:pre}
+.cp{float:right;background:#2E75B6;color:#fff;border:0;border-radius:6px;padding:3px 10px;font-size:.72rem;cursor:pointer;font-weight:700}
+.cp:hover{background:#1F4E79}.cp.ok{background:#1E7A46}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:760px){.row2{grid-template-columns:1fr}}
+.warn{background:#FFF4E5;border-left:4px solid #B85C00;padding:10px 14px;border-radius:0 8px 8px 0;margin:10px 0;font-size:.86rem}
+.foot{color:var(--gris);font-size:.78rem;text-align:center;margin:14px 0}
+code.inl{background:#eef3f9;padding:1px 6px;border-radius:4px;font-size:.85rem}
+</style></head><body><div class="wrap">
+<header><h1>Payloads EANCOM prêts à envoyer — EDI cross-pays (TUN · CIV · SEN)</h1>
+<div class="s">Chaque étape = message EANCOM réel + commande <code>curl</code> vers le hub. Copie-colle direct (heredoc gère les <code>'</code>). GLN &amp; GTIN réels. 14/07/2026</div></header>
+<div style="background:#EAF6EE;border:1px solid #1E7A46;border-left:5px solid #1E7A46;border-radius:10px;padding:12px 18px;margin-bottom:14px;color:#155a34">
+<b>✅ VALIDÉ le 14/07/2026</b> — 18 messages envoyés via le hub, <b>100% PROCESSED</b> sur CIV/TUN/SEN (0 ERROR). Les 6 sens cross-pays confirmés dans les 2 directions ; APERAK→ORDERS OK (fix <code style="background:#d7ede0;padding:1px 5px;border-radius:4px">order_number → document_number</code>) ; NACK OK. Données de test <b>nettoyées</b> (hub + 3 récepteurs = 0). <i>ORDCHG non inclus : non supporté INBOUND (à implémenter).</i></div>
+<div class="card"><b>Endpoint hub (dispatch, sans auth) :</b> <a href="https://registry.codeonline-edi.net/api/orchestrator/dispatch" target="_blank">https://registry.codeonline-edi.net/api/orchestrator/dispatch</a><br>
+Le hub route par <code class="inl">receiverGln</code> (table <code class="inl">partners</code>), déduplique par <code class="inl">transactionRef</code>, forwarde avec son JWT réseau. Réponse <code class="inl">success:true</code> + status attendu côté récepteur.<br>
+<b>Dashboards (vérif visuelle) :</b> <a href="https://civ.codeonline-edi.net/login" target="_blank">CIV</a> · <a href="https://edi.codeonline-info.com/login" target="_blank">TUN</a> · <a href="https://sen.codeonline-edi.net/login" target="_blank">SEN</a> — compte test <code class="inl">test.&lt;pays&gt;@codeonline-info.com</code> / <code class="inl">Codeonline2026!</code></div>
+<div class="warn"><b>Ordre d'envoi :</b> respecter la séquence (ORDERS avant son ACK/INVOIC…). Les APERAK→ORDERS (1.6, 4.2) valident le fix <code class="inl">order_number → document_number</code>. <b>ORDCHG non inclus</b> : le worker inbound ne le gère pas encore (default → ERROR) — à implémenter.</div>
+<div class="toc"><b>Scénarios :</b> <a href="#sec0">SCÉNARIO 1 — CIV achète à TUN</a><a href="#sec1">SCÉNARIO 2 — TUN achète à SEN</a><a href="#sec2">SCÉNARIO 3 — SEN achète à CIV</a><a href="#sec3">SCÉNARIO 4 — Rejet / NACK (CIV→SEN)</a></div><div id="sec0" class="sec-h" style="background:#2E75B6">SCÉNARIO 1 — CIV achète à TUN</div><div class="step"><div class="step-h"><span class="badge ">ORDERS</span><span class="dir">🇨🇮 CIV → 🇹🇳 TUN</span><span class="ref">ORD-CIV-TUN-001</span><span class="note">Table Ronde dm 40cm ×100</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;6191234567890&quot;, &quot;messageType&quot;: &quot;ORDERS&quot;, &quot;transactionRef&quot;: &quot;ORD-CIV-TUN-001&quot;, &quot;filename&quot;: &quot;ORDERS-ORD-CIV-TUN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+6191234567890:14+260714:1200+ORD-CIV-TUN-001&#x27;UNH+1+ORDERS:D:96A:UN:EAN010&#x27;BGM+220+ORD-CIV-TUN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+BY+6181234567890::9&#x27;NAD+SU+6191234567890::9&#x27;LIN+1++6190000000001:EN&#x27;QTY+21:100&#x27;MOA+79:5000&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+ORD-CIV-TUN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+6191234567890:14+260714:1200+ORD-CIV-TUN-001
+UNH+1+ORDERS:D:96A:UN:EAN010
+BGM+220+ORD-CIV-TUN-001+9
+DTM+137:20260714:102
+NAD+BY+6181234567890::9
+NAD+SU+6191234567890::9
+LIN+1++6190000000001:EN
+QTY+21:100
+MOA+79:5000
+UNS+S
+UNT+10+1
+UNZ+1+ORD-CIV-TUN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">ORDRSP</span><span class="dir">🇹🇳 TUN → 🇨🇮 CIV</span><span class="ref">RSP-TUN-CIV-001</span><span class="note">réponse à ORD-CIV-TUN-001</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6191234567890&quot;, &quot;receiverGln&quot;: &quot;6181234567890&quot;, &quot;messageType&quot;: &quot;ORDRSP&quot;, &quot;transactionRef&quot;: &quot;RSP-TUN-CIV-001&quot;, &quot;filename&quot;: &quot;ORDRSP-RSP-TUN-CIV-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6191234567890:14+6181234567890:14+260714:1200+RSP-TUN-CIV-001&#x27;UNH+1+ORDRSP:D:96A:UN:EAN010&#x27;BGM+231+RSP-TUN-CIV-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+6191234567890::9&#x27;NAD+BY+6181234567890::9&#x27;UNS+S&#x27;UNT+7+1&#x27;UNZ+1+RSP-TUN-CIV-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6191234567890:14+6181234567890:14+260714:1200+RSP-TUN-CIV-001
+UNH+1+ORDRSP:D:96A:UN:EAN010
+BGM+231+RSP-TUN-CIV-001+9
+DTM+137:20260714:102
+NAD+SU+6191234567890::9
+NAD+BY+6181234567890::9
+UNS+S
+UNT+7+1
+UNZ+1+RSP-TUN-CIV-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">DESADV</span><span class="dir">🇹🇳 TUN → 🇨🇮 CIV</span><span class="ref">DES-TUN-CIV-001</span><span class="note">avis d&#x27;expédition</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6191234567890&quot;, &quot;receiverGln&quot;: &quot;6181234567890&quot;, &quot;messageType&quot;: &quot;DESADV&quot;, &quot;transactionRef&quot;: &quot;DES-TUN-CIV-001&quot;, &quot;filename&quot;: &quot;DESADV-DES-TUN-CIV-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6191234567890:14+6181234567890:14+260714:1200+DES-TUN-CIV-001&#x27;UNH+1+DESADV:D:96A:UN:EAN010&#x27;BGM+351+DES-TUN-CIV-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+6191234567890::9&#x27;NAD+BY+6181234567890::9&#x27;LIN+1++6190000000001:EN&#x27;QTY+21:100&#x27;UNS+S&#x27;UNT+9+1&#x27;UNZ+1+DES-TUN-CIV-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6191234567890:14+6181234567890:14+260714:1200+DES-TUN-CIV-001
+UNH+1+DESADV:D:96A:UN:EAN010
+BGM+351+DES-TUN-CIV-001+9
+DTM+137:20260714:102
+NAD+SU+6191234567890::9
+NAD+BY+6181234567890::9
+LIN+1++6190000000001:EN
+QTY+21:100
+UNS+S
+UNT+9+1
+UNZ+1+DES-TUN-CIV-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">INVOIC</span><span class="dir">🇹🇳 TUN → 🇨🇮 CIV</span><span class="ref">INV-TUN-CIV-001</span><span class="note">facture TTC</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6191234567890&quot;, &quot;receiverGln&quot;: &quot;6181234567890&quot;, &quot;messageType&quot;: &quot;INVOIC&quot;, &quot;transactionRef&quot;: &quot;INV-TUN-CIV-001&quot;, &quot;filename&quot;: &quot;INVOIC-INV-TUN-CIV-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6191234567890:14+6181234567890:14+260714:1200+INV-TUN-CIV-001&#x27;UNH+1+INVOIC:D:96A:UN:EAN010&#x27;BGM+380+INV-TUN-CIV-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+6191234567890::9&#x27;NAD+BY+6181234567890::9&#x27;LIN+1++6190000000001:EN&#x27;QTY+21:100&#x27;MOA+79:5900&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+INV-TUN-CIV-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6191234567890:14+6181234567890:14+260714:1200+INV-TUN-CIV-001
+UNH+1+INVOIC:D:96A:UN:EAN010
+BGM+380+INV-TUN-CIV-001+9
+DTM+137:20260714:102
+NAD+SU+6191234567890::9
+NAD+BY+6181234567890::9
+LIN+1++6190000000001:EN
+QTY+21:100
+MOA+79:5900
+UNS+S
+UNT+10+1
+UNZ+1+INV-TUN-CIV-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ack">APERAK ACK</span><span class="dir">🇨🇮 CIV → 🇹🇳 TUN</span><span class="ref">ACK-CIV-TUN-001</span><span class="note">ACK facture</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;6191234567890&quot;, &quot;messageType&quot;: &quot;APERAK&quot;, &quot;transactionRef&quot;: &quot;ACK-CIV-TUN-001&quot;, &quot;filename&quot;: &quot;APERAK-ACK-CIV-TUN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+6191234567890:14+260714:1200+ACK-CIV-TUN-001&#x27;UNH+1+APERAK:D:96A:UN:EAN002&#x27;BGM+313+ACK-CIV-TUN-001+9&#x27;DTM+137:20260714:102&#x27;RFF+ACE:INV-TUN-CIV-001&#x27;DOC+131+INVOIC&#x27;NAD+MS+6181234567890::9&#x27;NAD+MR+6191234567890::9&#x27;UNT+8+1&#x27;UNZ+1+ACK-CIV-TUN-001&#x27;&quot;, &quot;orderRef&quot;: &quot;INV-TUN-CIV-001&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+6191234567890:14+260714:1200+ACK-CIV-TUN-001
+UNH+1+APERAK:D:96A:UN:EAN002
+BGM+313+ACK-CIV-TUN-001+9
+DTM+137:20260714:102
+RFF+ACE:INV-TUN-CIV-001
+DOC+131+INVOIC
+NAD+MS+6181234567890::9
+NAD+MR+6191234567890::9
+UNT+8+1
+UNZ+1+ACK-CIV-TUN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ack">APERAK ACK</span><span class="dir">🇨🇮 CIV → 🇹🇳 TUN</span><span class="ref">ACK-CIV-TUN-002</span><span class="note">⚠️ ACK→ORDERS = teste le fix order_number/document_number</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;6191234567890&quot;, &quot;messageType&quot;: &quot;APERAK&quot;, &quot;transactionRef&quot;: &quot;ACK-CIV-TUN-002&quot;, &quot;filename&quot;: &quot;APERAK-ACK-CIV-TUN-002.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+6191234567890:14+260714:1200+ACK-CIV-TUN-002&#x27;UNH+1+APERAK:D:96A:UN:EAN002&#x27;BGM+313+ACK-CIV-TUN-002+9&#x27;DTM+137:20260714:102&#x27;RFF+ACE:ORD-CIV-TUN-001&#x27;DOC+131+ORDERS&#x27;NAD+MS+6181234567890::9&#x27;NAD+MR+6191234567890::9&#x27;UNT+8+1&#x27;UNZ+1+ACK-CIV-TUN-002&#x27;&quot;, &quot;orderRef&quot;: &quot;ORD-CIV-TUN-001&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+6191234567890:14+260714:1200+ACK-CIV-TUN-002
+UNH+1+APERAK:D:96A:UN:EAN002
+BGM+313+ACK-CIV-TUN-002+9
+DTM+137:20260714:102
+RFF+ACE:ORD-CIV-TUN-001
+DOC+131+ORDERS
+NAD+MS+6181234567890::9
+NAD+MR+6191234567890::9
+UNT+8+1
+UNZ+1+ACK-CIV-TUN-002</pre></div></div></div></div><div id="sec1" class="sec-h" style="background:#1E7A46">SCÉNARIO 2 — TUN achète à SEN</div><div class="step"><div class="step-h"><span class="badge ">ORDERS</span><span class="dir">🇹🇳 TUN → 🇸🇳 SEN</span><span class="ref">ORD-TUN-SEN-001</span><span class="note">Spaghetti SENICO 500g ×50</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6191234567890&quot;, &quot;receiverGln&quot;: &quot;SN02583102G3&quot;, &quot;messageType&quot;: &quot;ORDERS&quot;, &quot;transactionRef&quot;: &quot;ORD-TUN-SEN-001&quot;, &quot;filename&quot;: &quot;ORDERS-ORD-TUN-SEN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6191234567890:14+SN02583102G3:14+260714:1200+ORD-TUN-SEN-001&#x27;UNH+1+ORDERS:D:96A:UN:EAN010&#x27;BGM+220+ORD-TUN-SEN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+BY+6191234567890::9&#x27;NAD+SU+SN02583102G3::9&#x27;LIN+1++6194000000011:EN&#x27;QTY+21:50&#x27;MOA+79:2500&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+ORD-TUN-SEN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6191234567890:14+SN02583102G3:14+260714:1200+ORD-TUN-SEN-001
+UNH+1+ORDERS:D:96A:UN:EAN010
+BGM+220+ORD-TUN-SEN-001+9
+DTM+137:20260714:102
+NAD+BY+6191234567890::9
+NAD+SU+SN02583102G3::9
+LIN+1++6194000000011:EN
+QTY+21:50
+MOA+79:2500
+UNS+S
+UNT+10+1
+UNZ+1+ORD-TUN-SEN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">ORDRSP</span><span class="dir">🇸🇳 SEN → 🇹🇳 TUN</span><span class="ref">RSP-SEN-TUN-001</span><span class="note">réponse à ORD-TUN-SEN-001</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;SN02583102G3&quot;, &quot;receiverGln&quot;: &quot;6191234567890&quot;, &quot;messageType&quot;: &quot;ORDRSP&quot;, &quot;transactionRef&quot;: &quot;RSP-SEN-TUN-001&quot;, &quot;filename&quot;: &quot;ORDRSP-RSP-SEN-TUN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+SN02583102G3:14+6191234567890:14+260714:1200+RSP-SEN-TUN-001&#x27;UNH+1+ORDRSP:D:96A:UN:EAN010&#x27;BGM+231+RSP-SEN-TUN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+SN02583102G3::9&#x27;NAD+BY+6191234567890::9&#x27;UNS+S&#x27;UNT+7+1&#x27;UNZ+1+RSP-SEN-TUN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+SN02583102G3:14+6191234567890:14+260714:1200+RSP-SEN-TUN-001
+UNH+1+ORDRSP:D:96A:UN:EAN010
+BGM+231+RSP-SEN-TUN-001+9
+DTM+137:20260714:102
+NAD+SU+SN02583102G3::9
+NAD+BY+6191234567890::9
+UNS+S
+UNT+7+1
+UNZ+1+RSP-SEN-TUN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">DESADV</span><span class="dir">🇸🇳 SEN → 🇹🇳 TUN</span><span class="ref">DES-SEN-TUN-001</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;SN02583102G3&quot;, &quot;receiverGln&quot;: &quot;6191234567890&quot;, &quot;messageType&quot;: &quot;DESADV&quot;, &quot;transactionRef&quot;: &quot;DES-SEN-TUN-001&quot;, &quot;filename&quot;: &quot;DESADV-DES-SEN-TUN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+SN02583102G3:14+6191234567890:14+260714:1200+DES-SEN-TUN-001&#x27;UNH+1+DESADV:D:96A:UN:EAN010&#x27;BGM+351+DES-SEN-TUN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+SN02583102G3::9&#x27;NAD+BY+6191234567890::9&#x27;LIN+1++6194000000011:EN&#x27;QTY+21:50&#x27;UNS+S&#x27;UNT+9+1&#x27;UNZ+1+DES-SEN-TUN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+SN02583102G3:14+6191234567890:14+260714:1200+DES-SEN-TUN-001
+UNH+1+DESADV:D:96A:UN:EAN010
+BGM+351+DES-SEN-TUN-001+9
+DTM+137:20260714:102
+NAD+SU+SN02583102G3::9
+NAD+BY+6191234567890::9
+LIN+1++6194000000011:EN
+QTY+21:50
+UNS+S
+UNT+9+1
+UNZ+1+DES-SEN-TUN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">INVOIC</span><span class="dir">🇸🇳 SEN → 🇹🇳 TUN</span><span class="ref">INV-SEN-TUN-001</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;SN02583102G3&quot;, &quot;receiverGln&quot;: &quot;6191234567890&quot;, &quot;messageType&quot;: &quot;INVOIC&quot;, &quot;transactionRef&quot;: &quot;INV-SEN-TUN-001&quot;, &quot;filename&quot;: &quot;INVOIC-INV-SEN-TUN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+SN02583102G3:14+6191234567890:14+260714:1200+INV-SEN-TUN-001&#x27;UNH+1+INVOIC:D:96A:UN:EAN010&#x27;BGM+380+INV-SEN-TUN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+SN02583102G3::9&#x27;NAD+BY+6191234567890::9&#x27;LIN+1++6194000000011:EN&#x27;QTY+21:50&#x27;MOA+79:2950&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+INV-SEN-TUN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+SN02583102G3:14+6191234567890:14+260714:1200+INV-SEN-TUN-001
+UNH+1+INVOIC:D:96A:UN:EAN010
+BGM+380+INV-SEN-TUN-001+9
+DTM+137:20260714:102
+NAD+SU+SN02583102G3::9
+NAD+BY+6191234567890::9
+LIN+1++6194000000011:EN
+QTY+21:50
+MOA+79:2950
+UNS+S
+UNT+10+1
+UNZ+1+INV-SEN-TUN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ack">APERAK ACK</span><span class="dir">🇹🇳 TUN → 🇸🇳 SEN</span><span class="ref">ACK-TUN-SEN-001</span><span class="note">ACK facture</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6191234567890&quot;, &quot;receiverGln&quot;: &quot;SN02583102G3&quot;, &quot;messageType&quot;: &quot;APERAK&quot;, &quot;transactionRef&quot;: &quot;ACK-TUN-SEN-001&quot;, &quot;filename&quot;: &quot;APERAK-ACK-TUN-SEN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6191234567890:14+SN02583102G3:14+260714:1200+ACK-TUN-SEN-001&#x27;UNH+1+APERAK:D:96A:UN:EAN002&#x27;BGM+313+ACK-TUN-SEN-001+9&#x27;DTM+137:20260714:102&#x27;RFF+ACE:INV-SEN-TUN-001&#x27;DOC+131+INVOIC&#x27;NAD+MS+6191234567890::9&#x27;NAD+MR+SN02583102G3::9&#x27;UNT+8+1&#x27;UNZ+1+ACK-TUN-SEN-001&#x27;&quot;, &quot;orderRef&quot;: &quot;INV-SEN-TUN-001&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6191234567890:14+SN02583102G3:14+260714:1200+ACK-TUN-SEN-001
+UNH+1+APERAK:D:96A:UN:EAN002
+BGM+313+ACK-TUN-SEN-001+9
+DTM+137:20260714:102
+RFF+ACE:INV-SEN-TUN-001
+DOC+131+INVOIC
+NAD+MS+6191234567890::9
+NAD+MR+SN02583102G3::9
+UNT+8+1
+UNZ+1+ACK-TUN-SEN-001</pre></div></div></div></div><div id="sec2" class="sec-h" style="background:#B85C00">SCÉNARIO 3 — SEN achète à CIV</div><div class="step"><div class="step-h"><span class="badge ">ORDERS</span><span class="dir">🇸🇳 SEN → 🇨🇮 CIV</span><span class="ref">ORD-SEN-CIV-001</span><span class="note">Flag Lager Beer 33cl ×200</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;SN02583102G3&quot;, &quot;receiverGln&quot;: &quot;6181234567890&quot;, &quot;messageType&quot;: &quot;ORDERS&quot;, &quot;transactionRef&quot;: &quot;ORD-SEN-CIV-001&quot;, &quot;filename&quot;: &quot;ORDERS-ORD-SEN-CIV-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+SN02583102G3:14+6181234567890:14+260714:1200+ORD-SEN-CIV-001&#x27;UNH+1+ORDERS:D:96A:UN:EAN010&#x27;BGM+220+ORD-SEN-CIV-001+9&#x27;DTM+137:20260714:102&#x27;NAD+BY+SN02583102G3::9&#x27;NAD+SU+6181234567890::9&#x27;LIN+1++6183000000001:EN&#x27;QTY+21:200&#x27;MOA+79:10000&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+ORD-SEN-CIV-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+SN02583102G3:14+6181234567890:14+260714:1200+ORD-SEN-CIV-001
+UNH+1+ORDERS:D:96A:UN:EAN010
+BGM+220+ORD-SEN-CIV-001+9
+DTM+137:20260714:102
+NAD+BY+SN02583102G3::9
+NAD+SU+6181234567890::9
+LIN+1++6183000000001:EN
+QTY+21:200
+MOA+79:10000
+UNS+S
+UNT+10+1
+UNZ+1+ORD-SEN-CIV-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">ORDRSP</span><span class="dir">🇨🇮 CIV → 🇸🇳 SEN</span><span class="ref">RSP-CIV-SEN-001</span><span class="note">réponse à ORD-SEN-CIV-001</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;SN02583102G3&quot;, &quot;messageType&quot;: &quot;ORDRSP&quot;, &quot;transactionRef&quot;: &quot;RSP-CIV-SEN-001&quot;, &quot;filename&quot;: &quot;ORDRSP-RSP-CIV-SEN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+RSP-CIV-SEN-001&#x27;UNH+1+ORDRSP:D:96A:UN:EAN010&#x27;BGM+231+RSP-CIV-SEN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+6181234567890::9&#x27;NAD+BY+SN02583102G3::9&#x27;UNS+S&#x27;UNT+7+1&#x27;UNZ+1+RSP-CIV-SEN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+RSP-CIV-SEN-001
+UNH+1+ORDRSP:D:96A:UN:EAN010
+BGM+231+RSP-CIV-SEN-001+9
+DTM+137:20260714:102
+NAD+SU+6181234567890::9
+NAD+BY+SN02583102G3::9
+UNS+S
+UNT+7+1
+UNZ+1+RSP-CIV-SEN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">DESADV</span><span class="dir">🇨🇮 CIV → 🇸🇳 SEN</span><span class="ref">DES-CIV-SEN-001</span><span class="note">qté révisée 150</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;SN02583102G3&quot;, &quot;messageType&quot;: &quot;DESADV&quot;, &quot;transactionRef&quot;: &quot;DES-CIV-SEN-001&quot;, &quot;filename&quot;: &quot;DESADV-DES-CIV-SEN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+DES-CIV-SEN-001&#x27;UNH+1+DESADV:D:96A:UN:EAN010&#x27;BGM+351+DES-CIV-SEN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+6181234567890::9&#x27;NAD+BY+SN02583102G3::9&#x27;LIN+1++6183000000001:EN&#x27;QTY+21:150&#x27;UNS+S&#x27;UNT+9+1&#x27;UNZ+1+DES-CIV-SEN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+DES-CIV-SEN-001
+UNH+1+DESADV:D:96A:UN:EAN010
+BGM+351+DES-CIV-SEN-001+9
+DTM+137:20260714:102
+NAD+SU+6181234567890::9
+NAD+BY+SN02583102G3::9
+LIN+1++6183000000001:EN
+QTY+21:150
+UNS+S
+UNT+9+1
+UNZ+1+DES-CIV-SEN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ">INVOIC</span><span class="dir">🇨🇮 CIV → 🇸🇳 SEN</span><span class="ref">INV-CIV-SEN-001</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;SN02583102G3&quot;, &quot;messageType&quot;: &quot;INVOIC&quot;, &quot;transactionRef&quot;: &quot;INV-CIV-SEN-001&quot;, &quot;filename&quot;: &quot;INVOIC-INV-CIV-SEN-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+INV-CIV-SEN-001&#x27;UNH+1+INVOIC:D:96A:UN:EAN010&#x27;BGM+380+INV-CIV-SEN-001+9&#x27;DTM+137:20260714:102&#x27;NAD+SU+6181234567890::9&#x27;NAD+BY+SN02583102G3::9&#x27;LIN+1++6183000000001:EN&#x27;QTY+21:150&#x27;MOA+79:8850&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+INV-CIV-SEN-001&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+INV-CIV-SEN-001
+UNH+1+INVOIC:D:96A:UN:EAN010
+BGM+380+INV-CIV-SEN-001+9
+DTM+137:20260714:102
+NAD+SU+6181234567890::9
+NAD+BY+SN02583102G3::9
+LIN+1++6183000000001:EN
+QTY+21:150
+MOA+79:8850
+UNS+S
+UNT+10+1
+UNZ+1+INV-CIV-SEN-001</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge ack">APERAK ACK</span><span class="dir">🇸🇳 SEN → 🇨🇮 CIV</span><span class="ref">ACK-SEN-CIV-001</span><span class="note">ACK facture</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;SN02583102G3&quot;, &quot;receiverGln&quot;: &quot;6181234567890&quot;, &quot;messageType&quot;: &quot;APERAK&quot;, &quot;transactionRef&quot;: &quot;ACK-SEN-CIV-001&quot;, &quot;filename&quot;: &quot;APERAK-ACK-SEN-CIV-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+SN02583102G3:14+6181234567890:14+260714:1200+ACK-SEN-CIV-001&#x27;UNH+1+APERAK:D:96A:UN:EAN002&#x27;BGM+313+ACK-SEN-CIV-001+9&#x27;DTM+137:20260714:102&#x27;RFF+ACE:INV-CIV-SEN-001&#x27;DOC+131+INVOIC&#x27;NAD+MS+SN02583102G3::9&#x27;NAD+MR+6181234567890::9&#x27;UNT+8+1&#x27;UNZ+1+ACK-SEN-CIV-001&#x27;&quot;, &quot;orderRef&quot;: &quot;INV-CIV-SEN-001&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+SN02583102G3:14+6181234567890:14+260714:1200+ACK-SEN-CIV-001
+UNH+1+APERAK:D:96A:UN:EAN002
+BGM+313+ACK-SEN-CIV-001+9
+DTM+137:20260714:102
+RFF+ACE:INV-CIV-SEN-001
+DOC+131+INVOIC
+NAD+MS+SN02583102G3::9
+NAD+MR+6181234567890::9
+UNT+8+1
+UNZ+1+ACK-SEN-CIV-001</pre></div></div></div></div><div id="sec3" class="sec-h" style="background:#B02A22">SCÉNARIO 4 — Rejet / NACK (CIV→SEN)</div><div class="step"><div class="step-h"><span class="badge ">ORDERS</span><span class="dir">🇨🇮 CIV → 🇸🇳 SEN</span><span class="ref">ORD-CIV-SEN-ERR</span><span class="note">Biscuits SENICO ×10</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;6181234567890&quot;, &quot;receiverGln&quot;: &quot;SN02583102G3&quot;, &quot;messageType&quot;: &quot;ORDERS&quot;, &quot;transactionRef&quot;: &quot;ORD-CIV-SEN-ERR&quot;, &quot;filename&quot;: &quot;ORDERS-ORD-CIV-SEN-ERR.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+ORD-CIV-SEN-ERR&#x27;UNH+1+ORDERS:D:96A:UN:EAN010&#x27;BGM+220+ORD-CIV-SEN-ERR+9&#x27;DTM+137:20260714:102&#x27;NAD+BY+6181234567890::9&#x27;NAD+SU+SN02583102G3::9&#x27;LIN+1++6194000000012:EN&#x27;QTY+21:10&#x27;MOA+79:500&#x27;UNS+S&#x27;UNT+10+1&#x27;UNZ+1+ORD-CIV-SEN-ERR&#x27;&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+6181234567890:14+SN02583102G3:14+260714:1200+ORD-CIV-SEN-ERR
+UNH+1+ORDERS:D:96A:UN:EAN010
+BGM+220+ORD-CIV-SEN-ERR+9
+DTM+137:20260714:102
+NAD+BY+6181234567890::9
+NAD+SU+SN02583102G3::9
+LIN+1++6194000000012:EN
+QTY+21:10
+MOA+79:500
+UNS+S
+UNT+10+1
+UNZ+1+ORD-CIV-SEN-ERR</pre></div></div></div></div><div class="step"><div class="step-h"><span class="badge nack">APERAK NACK</span><span class="dir">🇸🇳 SEN → 🇨🇮 CIV</span><span class="ref">NACK-SEN-CIV-001</span><span class="note">rejet commande → status REJECTED</span></div><div class="step-b"><div class="row2"><div><div class="lbl">Commande API (copier-coller)</div><pre><button class="cp" onclick="cp(this)">copier</button>curl -sk -X POST &quot;https://registry.codeonline-edi.net/api/orchestrator/dispatch&quot; \
+  -H &quot;Content-Type: application/json&quot; -d @- &lt;&lt;&#x27;JSON&#x27;
+{&quot;senderGln&quot;: &quot;SN02583102G3&quot;, &quot;receiverGln&quot;: &quot;6181234567890&quot;, &quot;messageType&quot;: &quot;APERAK&quot;, &quot;transactionRef&quot;: &quot;NACK-SEN-CIV-001&quot;, &quot;filename&quot;: &quot;APERAK-NACK-SEN-CIV-001.edi&quot;, &quot;eancomContent&quot;: &quot;UNB+UNOC:3+SN02583102G3:14+6181234567890:14+260714:1200+NACK-SEN-CIV-001&#x27;UNH+1+APERAK:D:96A:UN:EAN002&#x27;BGM+314+NACK-SEN-CIV-001+9&#x27;DTM+137:20260714:102&#x27;RFF+ACE:ORD-CIV-SEN-ERR&#x27;DOC+131+ORDERS&#x27;NAD+MS+SN02583102G3::9&#x27;NAD+MR+6181234567890::9&#x27;ERC+41&#x27;UNT+9+1&#x27;UNZ+1+NACK-SEN-CIV-001&#x27;&quot;, &quot;orderRef&quot;: &quot;ORD-CIV-SEN-ERR&quot;}
+JSON</pre></div><div><div class="lbl">EANCOM décodé (1 segment / ligne)</div><pre>UNB+UNOC:3+SN02583102G3:14+6181234567890:14+260714:1200+NACK-SEN-CIV-001
+UNH+1+APERAK:D:96A:UN:EAN002
+BGM+314+NACK-SEN-CIV-001+9
+DTM+137:20260714:102
+RFF+ACE:ORD-CIV-SEN-ERR
+DOC+131+ORDERS
+NAD+MS+SN02583102G3::9
+NAD+MR+6181234567890::9
+ERC+41
+UNT+9+1
+UNZ+1+NACK-SEN-CIV-001</pre></div></div></div></div><div class="sec-h" style="background:#1F4E79">VÉRIFICATION &amp; NETTOYAGE</div>
+<div class="card"><div class="lbl">Vérifier côté hub (transactions loggées)</div>
+<pre><button class="cp" onclick="cp(this)">copier</button>ssh hub-prod 'mysql -uroot codeonline_edi_db_prod -e "SELECT transaction_ref,message_type,sender_gln,receiver_gln,status,delivered_at FROM transactions ORDER BY id DESC LIMIT 20;"'</pre>
+<div class="lbl">Vérifier côté récepteur (transmission INBOUND → PROCESSED)</div>
+<pre><button class="cp" onclick="cp(this)">copier</button># TUN
+ssh tunp 'MYSQL_PWD=8_FnMhJ9ubkTXS mysql -uroot Entitedb -e "SELECT id,document_type,direction,status,LEFT(error_message,40) FROM edi_transmissions WHERE direction=\"INBOUND\" ORDER BY id DESC LIMIT 10;"'
+# SEN
+ssh senp 'MYSQL_PWD=Riswasac?Dmx7a mysql -uroot Entitedb -e "SELECT id,document_type,direction,status,LEFT(error_message,40) FROM edi_transmissions WHERE direction=\"INBOUND\" ORDER BY id DESC LIMIT 10;"'
+# CIV (mdp admin dans backend/.env)
+ssh civ 'PW=$(grep ^DB_PASSWORD= /var/www/Edi-prod/backend/.env|cut -d= -f2-|tr -d \"); MYSQL_PWD=$PW mysql -uadmin Entitedb -e "SELECT id,document_type,direction,status FROM edi_transmissions WHERE direction=\"INBOUND\" ORDER BY id DESC LIMIT 10;"'</pre>
+<div class="warn"><b>Nettoyage après tests</b> — les réf de test ont des préfixes distinctifs (ORD-/RSP-/DES-/INV-/ACK-/NACK-). Vérifier avant de supprimer.</div>
+<div class="lbl">Supprimer les données de test (hub + récepteurs)</div>
+<pre><button class="cp" onclick="cp(this)">copier</button># HUB : purge des transactions de test
+ssh hub-prod 'mysql -uroot codeonline_edi_db_prod -e "DELETE FROM transactions WHERE transaction_ref REGEXP \"^(ORD|RSP|DES|INV|ACK|NACK|CHG)-.*(TUN|CIV|SEN|ERR)\";"'
+# Sur CHAQUE récepteur : supprimer les transmissions INBOUND de test + lignes métier créées
+# (adapter par pays ; ex TUN)
+ssh tunp 'MYSQL_PWD=8_FnMhJ9ubkTXS mysql -uroot Entitedb -e "DELETE FROM edi_transmissions WHERE filename REGEXP \"(ORD|RSP|DES|INV|ACK|NACK)-.*(TUN|CIV|SEN|ERR)\";"'</pre>
+</div>
+<div class="foot">Généré 14/07/2026 · Netconsulting / Codeonline EDI · PAESN Registry. Payloads = EANCOM D:96A, GLN routage hub réels, GTIN réels fiche_produit.</div>
+<script>
+function cp(btn){const pre=btn.parentNode;const t=pre.innerText.replace(/^copier\n?/, '');navigator.clipboard.writeText(t).then(()=>{btn.textContent='copié ✓';btn.classList.add('ok');setTimeout(()=>{btn.textContent='copier';btn.classList.remove('ok');},1400);});}
+</script>
+</div></body></html>
