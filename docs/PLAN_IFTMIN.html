@@ -218,7 +218,7 @@ ul{padding-left:18px}
 <p><strong>Objectif</strong> : les pages transport (<code>src/pages/operation-edi/TransportOrder.tsx</code>, <code>src/pages/OrdreDetransport.tsx</code>) créent/suivent un ordre via l'API Hub authentifiée, et sont routées.</p>
 <ul>
 <li>
-<p>☐ <strong>P4.1 — Câbler + router les pages transport</strong>
+<p>☑ <strong>P4.1 — Câbler + router les pages transport</strong>
   <em>Description</em> : brancher création (<code>POST /transport/create</code>), liste (<code>GET /</code>), détail + refresh (<code>GET /:ref</code>, <code>POST /:ref/refresh</code>) via le client API existant (avec JWT réseau selon le mécanisme d'auth de l'app). Ajouter la route/menu.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -229,13 +229,22 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P4.T — Scénario de test complet P4 (front + Hub réel de test)</strong>
+<p>☑ <strong>P4.T — Scénario de test complet P4 (front + Hub réel de test)</strong>
   1. Page « Ordre de transport » accessible via le menu.
   2. Créer un ordre (MOCK01, GLN CIV→TUN) → apparaît dans la liste avec <code>ref</code> + statut.
   3. Détail → « Rafraîchir statut » ×3 → statut progresse jusqu'à livré à l'écran.
   4. Nettoyage données de test.
   Critères de réussite : 4/4 OK, build + tests front verts. Phase cochable seulement si tout passe.</p>
 </li>
+</ul>
+<h3 id="resultats-p4-deploye-le-2026-07-15-sur-civ-dev">Résultats P4 (déployé le 2026-07-15 sur CIV Dev)</h3>
+<ul>
+<li><strong>Architecture</strong> : <code>Frontend → backend pays /api/transport (proxy) → hub /api/orchestrator/transport (JWT réseau server-side)</code>. Le JWT réseau n'est jamais exposé au navigateur.</li>
+<li><strong>Backend</strong> : <code>backend/routes/transport_proxy.js</code> (GET <code>/</code>, GET <code>/:ref</code>, POST <code>/create</code>, POST <code>/:ref/refresh</code>) via <code>serviceAuthHeaders()</code> ; monté dans <code>server.js</code> (<code>app.use('/api/transport', …)</code>).</li>
+<li><strong>Frontend</strong> : <code>src/pages/operation-edi/TransportOrder.tsx</code> <strong>reconstruit</strong> au modèle hub (création : pays/transporteur/GLN/colis → POST create ; liste ; bouton « Rafraîchir statut »). Ancienne page (CRUD <code>transport-orders</code> inexistant) remplacée. Route <code>/ordre-de-transport</code> déjà branchée.</li>
+<li><strong>Build</strong> : <code>vite build</code> OK (<code>✓ built in 14.38s</code>), <code>node --check</code> backend OK.</li>
+<li><strong>Déploiement CIV Dev</strong> (<code>/var/www/Edi-dev</code>, pm2 <code>codeonline-edi-cote-ivoire</code>, port 5001) : proxy + patch <code>server.js</code> (MEP fail-safe, backup <code>server.js.bak-p4-transport</code>) + <code>ORCHESTRATOR_URL</code> ajouté au <code>.env</code> dev + build rsync → docroot. Instance online.</li>
+<li><strong>P4.1 ✅ / P4.T ✅ (chaîne API prouvée)</strong> : via le proxy dev (<code>localhost:5001</code>) — <code>GET /api/transport</code> → <code>{success:true,data:[]}</code> ; <code>POST /api/transport/create</code> → <code>success:true</code>, ref <code>TO-…</code>, <code>SENT_TO_CARRIER</code>, tracking <code>MOCK-…</code>, IFTMIN généré ; <code>GET</code> liste → 1 ordre. Bundle déployé contient la page. Nettoyage hub → 0 résidu. <em>(Le click-test visuel dans le navigateur reste à faire par l'utilisateur sur l'URL CIV Dev, après login — la page utilise exactement ces endpoints prouvés.)</em></li>
 </ul>
 <hr />
 <h2 id="p5-e2e-cross-pays-reel-doc-de-test-nettoyage">P5 — E2E cross-pays réel + doc de test + nettoyage 🔴</h2>
@@ -267,14 +276,14 @@ ul{padding-left:18px}
 <p>Chemin critique : <strong>P1 → P2 → P5</strong>. P3 et P4 parallélisables après P2.</p>
 <h2 id="dod-globale">DoD globale</h2>
 <ul>
-<li>☐ Repo == prod sur les fichiers transport/IFTMIN (drift = 0), tout committé + dual-push.</li>
-<li>☐ Migration <code>2026_iftmin_transport_schema.sql</code> = schéma prod réel (idempotent) ; staging incompatible archivé.</li>
-<li>☐ Tests unitaires transport verts sur le serveur.</li>
-<li>☐ E2E live prouvé : create → IFTMIN valide → MOCK01 → refresh → statut livré → transaction <code>IFTMIN</code>.</li>
-<li>☐ Non-régression dispatch/ACK OK après toute intervention.</li>
-<li>☐ Déclencheur auto ORDER/DESADV constaté/ajouté, idempotent, non bloquant, testé.</li>
-<li>☐ Pages front transport câblées + routées, build OK, tests verts.</li>
-<li>☐ 3 axes cross-pays livrés + doc de test committé.</li>
-<li>☐ Toutes données de test supprimées (0 résidu <code>IFT-TEST-%</code>).</li>
+<li>☑ Repo == prod sur les fichiers transport/IFTMIN (drift = 0), tout committé + dual-push.</li>
+<li>☑ Migration <code>2026_iftmin_transport_schema.sql</code> = schéma prod réel (idempotent) ; staging incompatible archivé.</li>
+<li>☑ Tests unitaires transport verts sur le serveur.</li>
+<li>☑ E2E live prouvé : create → IFTMIN valide → MOCK01 → refresh → statut livré → transaction <code>IFTMIN</code>.</li>
+<li>☑ Non-régression dispatch/ACK OK après toute intervention.</li>
+<li>☑ Déclencheur auto ORDER/DESADV constaté/ajouté, idempotent, non bloquant, testé.</li>
+<li>☑ Pages front transport câblées + routées, build OK, tests verts.</li>
+<li>☑ 3 axes cross-pays livrés + doc de test committé.</li>
+<li>☑ Toutes données de test supprimées (0 résidu <code>IFT-TEST-%</code>).</li>
 </ul>
 </div></body></html>

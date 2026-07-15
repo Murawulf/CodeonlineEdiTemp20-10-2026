@@ -13502,6 +13502,8 @@ async function startServer() {
     try {
       const initOrchestratorRoutes = require('./routes/orchestrator_routes');
       app.use('/api/orchestrator', initOrchestratorRoutes(entiteDB));
+      // P4 — Proxy transport IFTMIN vers le hub (frontend -> /api/transport -> hub)
+      app.use('/api/transport', require('./routes/transport_proxy')());
       console.log('[Orchestrator] âœ… Routes initialized at /api/orchestrator');
     } catch (orchErr) {
       console.error('[Orchestrator] âš ï¸ Failed to initialize routes:', orchErr.message);
