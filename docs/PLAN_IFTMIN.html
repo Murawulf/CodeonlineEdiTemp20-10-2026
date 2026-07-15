@@ -119,7 +119,7 @@ ul{padding-left:18px}
 <p><strong>Objectif</strong> : prouver que l'IFTMIN prod fonctionne de bout en bout (jamais exécuté à ce jour), avec un JWT réseau, sans rien casser, données de test nettoyées.</p>
 <ul>
 <li>
-<p>☐ <strong>P2.1 — Obtenir un JWT réseau valide (côté serveur)</strong>
+<p>☑ <strong>P2.1 — Obtenir un JWT réseau valide (côté serveur)</strong>
   <em>Description</em> : générer un token JWT de service signé avec le <code>JWT_SECRET</code> réseau du hub (lu depuis <code>.env</code> du hub, JAMAIS écrit dans le doc/repo), avec le claim attendu par <code>routes/transport.js</code>.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -141,7 +141,7 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P2.3 — E2E live sur hub-prod (create → refresh → DELIVERED)</strong>
+<p>☑ <strong>P2.3 — E2E live sur hub-prod (create → refresh → DELIVERED)</strong>
   <em>Description</em> : exercer réellement le flux via l'API authentifiée, prouver la génération IFTMIN + l'adaptateur MOCK01 + la progression de statut + la persistance + le log transaction, puis nettoyer.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -162,6 +162,26 @@ ul{padding-left:18px}
 </li>
 </ul>
 <p><strong>GATE (force majeure)</strong> : aucun (JWT miné côté serveur depuis le secret existant).</p>
+<h3 id="resultats-p2-verifie-le-2026-07-15-hub-prod">Résultats P2 (vérifié le 2026-07-15, hub-prod)</h3>
+<ul>
+<li><strong>P2.1 ✅</strong> : 401 sans token → <strong>200</strong> avec token JWT (signé JWT_SECRET réseau, PORT 5010).</li>
+<li><strong>P2.2 : 3/4 verts</strong> — <code>carrier_registry</code> ✅, <code>transport_order</code> ✅, <code>transport_route</code> ✅. <strong><code>p3t_e2e</code> ❌ (3 assertions)</strong> : le flux transport lui-même est 100 % vert (create → IFTMIN → MOCK01 → SENT_TO_CARRIER → refresh → tracking carrier → IN_TRANSIT → DELIVERED → transition illégale refusée), mais 3 assertions échouent car le test <strong>dépend d'un DESADV pré-existant</strong> dans <code>transactions</code> (absent après nettoyage). Ce n'est <strong>pas un bug code</strong> mais une dépendance de fixture → tâche corrective <strong>P2.4</strong>.</li>
+<li><strong>P2.3 ✅</strong> : E2E live prouvé — <code>create</code> (country_code <strong>numérique</strong> <code>384</code>) → <code>success:true</code>, IFTMIN valide (460 car.), <code>tracking MOCK-…</code>, <code>SENT_TO_CARRIER</code> → <code>refresh</code> → <code>ACCEPTED</code> → transaction <code>IFTMIN</code> loguée. Nettoyé (0/0). <strong>Contrat API constaté : <code>country_code</code> numérique (384/788/686), <code>goods[]</code> requis.</strong></li>
+<li>
+<p><strong>P2.T ✅ (cœur)</strong> : JWT 200 ✅, E2E ✅, <strong>non-régression dispatch</strong> (ORDERS→TUN <code>success:true</code>) ✅, nettoyage 0 résidu (hub + TUN) ✅. Seul le point 2 reste sur <code>p3t_e2e</code> (→ P2.4).</p>
+</li>
+<li>
+<p>☐ <strong>P2.4 — Rendre <code>p3t_e2e.test.js</code> autonome (corrective)</strong>
+  <em>Description</em> : le test référence un DESADV pré-existant dans <code>transactions</code> ; sans lui, 3 assertions échouent. Le rendre autonome : seed un DESADV de test au setup (ou construire l'ordre sans dépendre d'un DESADV existant), puis nettoyer.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Dans <code>edi_orchestrator/test/p3t_e2e.test.js</code>, supprime la dépendance à un DESADV pré-existant : au <code>before</code>, insère un DESADV de test (<code>transactions</code> ou table métier selon le besoin du test) avec une réf <code>IFT-TEST-DESADV-…</code>, utilise-le, puis supprime-le au <code>after</code>. Objectif : <code>node --test test/p3t_e2e.test.js</code> → 0 échec en base propre. Déployer en MEP fail-safe + dual-push.
+  <em>Tests unitaires</em> : <code>node --test test/p3t_e2e.test.js</code> sur base propre → <code># fail 0</code>. Bloquant avant de cocher P2.
+  <em>DoD</em> : p3t_e2e vert de façon autonome, 0 résidu après.
+  <em>Vérif</em> : <code>node --test test/p3t_e2e.test.js</code> → <code># fail 0</code> ; <code>SELECT COUNT(*) … IFT-TEST-%</code> = 0.</p>
+</blockquote>
+</li>
+</ul>
 <hr />
 <h2 id="p3-declencheur-auto-iftmin-depuis-orderdesadv">P3 — Déclencheur auto IFTMIN depuis ORDER/DESADV 🟠</h2>
 <p><strong>Objectif</strong> : à la réception/création d'un ORDER (ou DESADV) portant des données transport (<code>carrier_code</code> + parties/lieux), un ordre de transport IFTMIN est créé automatiquement, idempotent, sans bloquer le flux.</p>
