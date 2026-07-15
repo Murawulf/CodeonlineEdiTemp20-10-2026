@@ -27,302 +27,227 @@ li{list-style:none}
 li:before{content:"";}
 ul{padding-left:18px}
 </style></head><body><div class="wrap">
-<h1 id="plan-iftmin-ordre-de-transport-hub-paesn">PLAN — IFTMIN / Ordre de transport (Hub PAESN)</h1>
+<h1 id="plan-iftmin-ordre-de-transport-reconcilier-verifier-completer">PLAN — IFTMIN / Ordre de transport : RÉCONCILIER → VÉRIFIER → COMPLÉTER</h1>
 <blockquote>
-<p><strong>But</strong> : livrer le message EANCOM <strong>IFTMIN</strong> (ordre de transport) de bout en bout sur le Hub PAESN — génération, validation, persistance, orchestration vers un <strong>adaptateur transporteur (simulé)</strong> avec suivi de statut, déclenchement auto depuis un ORDER/DESADV, et UI. <strong>Critère de succès mesurable</strong> : un <code>POST /api/orchestrator/transport/create</code> produit un IFTMIN D.01B valide, crée une ligne <code>edi_transport_orders</code> en statut <code>CREATED</code>, appelle l'adaptateur simulé, transitionne le statut (<code>CREATED→CONFIRMED→IN_TRANSIT→DELIVERED</code> via <code>refresh</code>), logue une transaction <code>IFTMIN</code>, et l'UI affiche l'ordre + son suivi — le tout prouvé par un scénario E2E vert sur hub-prod, données de test ensuite nettoyées.
-<strong>Exécutant</strong> : Moi (Claude Code) ou équivalent. <strong>Cocher = DoD vérifié sur sortie réelle</strong> (test vert, réponse HTTP, ligne DB).</p>
+<p><strong>Contexte corrigé (2026-07-15)</strong> : le backend IFTMIN/transport est <strong>déjà construit et déployé en prod</strong> sur le hub PAESN (par <strong>Majd + Claude</strong>, 2026-07-11 ; <strong>aucun travail côté DEV</strong> sur l'EDI EANCOM). Il n'a <strong>jamais été exécuté</strong> (0 ordre, 0 transaction) et <strong>n'est pas dans le repo git</strong> (drift). Ce plan ne « construit » donc PAS l'IFTMIN : il <strong>réconcilie le repo avec la prod, valide le déployé en réel, puis complète les manques</strong>.</p>
+<p><strong>But</strong> : (1) supprimer le drift git (le code transport prod est versionné et le repo == prod), (2) prouver l'IFTMIN de bout en bout en réel sur le hub (create → IFTMIN valide → adaptateur simulé MOCK01 → progression de statut → <code>edi_transport_orders</code> + transaction <code>IFTMIN</code>), (3) compléter déclencheur auto + frontend + E2E cross-pays. <strong>Critère de succès mesurable</strong> : <code>git diff</code> repo↔prod vide sur les fichiers transport ; scénario E2E live vert (statut final <code>DELIVERED</code>) ; données de test nettoyées.
+<strong>Exécutant</strong> : Moi (Claude Code) ou équivalent. <strong>Cocher = DoD vérifié sur sortie réelle</strong>.</p>
 </blockquote>
 <h2 id="0-etat-dentree-faits-verifies-le-2026-07-15">0. État d'entrée (faits vérifiés le 2026-07-15)</h2>
-<p><strong>Repo local</strong> : <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn</code> (git). <code>main = 4e9e716</code>. Dual-push actif : <code>git push origin main</code> → GitHub (<code>Murawulf/CodeonlineEdi</code>) <strong>et</strong> Gitea (<code>git.iroconsult.com/majd/CodeonlineEdi</code>).</p>
-<p><strong>Code P3 déjà scaffoldé mais ISOLÉ dans <code>docs/tests/edi-suite/</code> (non intégré au live)</strong> :
-- <code>docs/tests/edi-suite/generateIftminEANCOM.js</code> — générateur IFTMIN <strong>D.01B</strong> complet (<code>UNB/UNH+IFTMIN/BGM+610/DTM/TDT+20/RFF+ON,DQ/NAD+CZ,CN,CA/LOC+9,7/EQD/GID+PAC/MEA/UNT/UNZ</code>). Signature : <code>generateIftminEANCOM(data)</code> où <code>data = { iftminNumber, orderNumber?, desadvNumber?, consignor:{gln,name}, consignee:{gln,name}, carrier:{code,name}, mode?, pickup:{gln|address,date?}, delivery:{gln|address,date?}, equipment?:{type,id}, packages?:[{...}], freeText? }</code>.
-- <code>docs/tests/edi-suite/hub-p3/TransportController.js</code> — <code>create</code> / <code>listOrders</code> / <code>get</code> / <code>refresh</code>. <code>create</code> : valide body → génère IFTMIN → insère <code>edi_transport_orders</code> (CREATED) → <code>resolve(country_code, carrier_code)</code> depuis <code>../services/carriers/registry</code> → <code>adapter.createShipment(parsed, iftmin)</code> → statut <code>DELIVERED|FAILED</code> → <code>logTransaction(...,'IFTMIN',...)</code>.
-- <code>docs/tests/edi-suite/hub-p3/transport.js</code> — routes : <code>POST /create</code>, <code>GET /</code>, <code>GET /:ref</code>, <code>POST /:ref/refresh</code>.
-- <code>docs/tests/edi-suite/hub-p3/TransportOrderModel.js</code> — accès DB <code>edi_transport_orders</code>.
-- <code>docs/tests/edi-suite/hub-p3/CarrierAdapter.js</code> — <strong>classe de base</strong> d'adaptateur (interface <code>createShipment</code>, <code>getStatus</code>).
-- Tests : <code>docs/tests/edi-suite/{iftmin.test.js, transport_order.test.js, transport_route.test.js, carrier_registry.test.js}</code>.
-- Migrations : <code>sql/migrations/create_transport_tables.sql</code> (crée <code>edi_transport_orders</code>{id, id_order, id_shipment, vehicule, status PENDING|CONFIRMED|IN_TRANSIT|DELIVERED|CANCELLED} + <code>edi_tracking</code>{id, id_shipment, ...}) et <code>sql/migrations/update_existing_transport_tables.sql</code>.
-- Frontend : <code>src/pages/OrdreDetransport.tsx</code>, <code>src/pages/operation-edi/TransportOrder.tsx</code> (non routées / non câblées à l'API).</p>
-<p><strong>Hub live (cible)</strong> :
-- SSH : alias <strong><code>hub-prod</code></strong> (65.109.125.164, root). pm2 : <strong><code>codeonline-edi-orchestrator-prod</code></strong>. cwd : <strong><code>/var/www/Edi-prod/edi_orchestrator</code></strong>. Runtime Node (fork).
-- DB Hub : <strong>MySQL <code>codeonline_edi_db_prod</code></strong> (accès <code>mysql -uroot codeonline_edi_db_prod</code> en socket-auth sur hub-prod, sans mot de passe). Tables existantes : <code>partners</code>(gln,name,country_code,target_url,api_key,status), <code>transactions</code>(transaction_ref,sender_gln,receiver_gln,document_type,status,transport_mode,payload_size,order_ref,created_at,delivered_at,aperak_status).
-- Endpoint dispatch existant : <code>POST https://registry.codeonline-edi.net/api/orchestrator/dispatch</code> (sans auth appelant). GLN routage : CIV <code>6181234567890</code> (384), TUN <code>6191234567890</code> (788), SEN <code>SN02583102G3</code> (686).
-- <code>edi_orchestrator/routes/</code> live contient DÉJÀ un <code>transport.js</code> + <code>controllers/{HubController,TrackingController,AckController}.js</code> + <code>services/routingService.js</code>. <strong>Il N'Y A PAS de <code>controllers/TransportController.js</code> ni <code>services/carriers/</code> en live</strong> → à intégrer/réconcilier avec le <code>routes/transport.js</code> déjà présent.</p>
-<p><strong>Écarts d'intégration connus (à traiter, ne pas ignorer)</strong> :
-1. <strong>Schéma</strong> : <code>TransportController</code> (staged) attend des colonnes <code>ref</code>, <code>iftmin_number</code>, <code>carrier_code</code>, <code>country_code</code>, <code>status</code>(CREATED…), <code>carrier_response</code>, <code>id_shipment</code>, <code>updated_at</code> sur <code>edi_transport_orders</code>. La migration <code>create_transport_tables.sql</code> crée un schéma DIFFÉRENT (id_order, id_shipment, vehicule, status PENDING…). → <strong>réconcilier</strong> (P1) avant tout branchement, sinon crash type « Unknown column ».
-2. <strong>Registry/adaptateurs</strong> : <code>TransportController</code> requiert <code>../services/carriers/registry</code> (<code>resolve(country,carrier)</code>) qui <strong>n'existe pas encore</strong> ; seule la base <code>CarrierAdapter.js</code> est scaffoldée. → à créer (P3).
-3. <strong>Route live vs staged</strong> : <code>routes/transport.js</code> live ≠ <code>hub-p3/transport.js</code> staged → réconcilier (P4).</p>
+<p><strong>Prod hub (cible de vérification)</strong> :
+- SSH alias <strong><code>hub-prod</code></strong> = <strong>65.109.125.164</strong> (+ IPv6 <code>2a01:4f9:3051:1952::2</code>), hostname Ubuntu-jammy.
+- pm2 : <strong><code>codeonline-edi-orchestrator-prod</code></strong> (online). cwd : <strong><code>/var/www/Edi-prod/edi_orchestrator</code></strong>.
+- Domaine : <strong>registry.codeonline-edi.net → 65.109.125.164</strong>. DB : MySQL <strong><code>codeonline_edi_db_prod</code></strong> (<code>mysql -uroot codeonline_edi_db_prod</code> en socket-auth, sans mot de passe).</p>
+<p><strong>IFTMIN/transport DÉJÀ DÉPLOYÉ en prod (2026-07-11), fichiers live sous <code>/var/www/Edi-prod/edi_orchestrator</code></strong> :
+- <code>services/generateIftminEANCOM.js</code> — générateur IFTMIN D.01B.
+- <code>services/eancom_parser.js</code> — parser hub.
+- <code>controllers/TransportController.js</code> — <code>create</code> / <code>listOrders</code> / <code>get</code> / <code>refresh</code>.
+- <code>routes/transport.js</code> — monté dans <code>server.js</code> : <code>app.use('/api/orchestrator/transport', transportRoutes)</code>. <strong>Protégé JWT</strong> (<code>require('jsonwebtoken')</code>) → <code>401</code> sans token.
+- <code>services/carriers/registry.js</code> — <code>resolve(country,carrier)</code> ; <code>ADAPTERS = { '384:MOCK01', '788:MOCK01', '686:MOCK01' } → './civ_mock01.js'</code> (le mock sert les 3 pays [FM-1]) ; <code>listCarriers</code>, <code>CarrierResolutionError</code>.
+- <code>services/carriers/civ_mock01.js</code> — <strong>adaptateur SIMULÉ</strong> <code>MOCK01 « Transporteur Pilote (MOCK) »</code> : <code>createShipment → trackingNumber "MOCK-&lt;ts&gt;-&lt;rand&gt;", status SENT_TO_CARRIER</code> ; <code>getStatus → progression déterministe</code> ; <code>cancel</code>. Aucune API réelle (env <code>CARRIER_MOCK01_*</code> non requis).
+- <code>services/carriers/CarrierAdapter.js</code> (base) + <code>services/carriers/README.md</code>.
+- Tests présents sur le serveur : <code>test/{p3t_e2e,transport_order,carrier_registry,transport_route}.test.js</code>.
+- DB : table <strong><code>edi_transport_orders</code></strong> (colonnes : <code>id, ref, order_ref, desadv_ref, carrier_code, country_code, requester_gln, status, iftmin_content, tracking_number, carrier_response, error_message, created_at, updated_at</code>). <strong><code>0</code> ligne.</strong> <code>transactions</code> document_type <code>IFTMIN</code> : <strong><code>0</code>.</strong>
+- Endpoints live : <code>GET/POST /api/orchestrator/transport/*</code> → <strong>401</strong> (JWT requis) — jamais exercés avec un token.</p>
+<p><strong>Repo local</strong> : <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn</code> (git, <code>main</code> dual-push GitHub <code>Murawulf/CodeonlineEdi</code> + Gitea <code>git.iroconsult.com/majd/CodeonlineEdi</code>).
+- Le repo <strong>n'a PAS</strong> le code transport prod dans <code>edi_orchestrator/</code> (pas de <code>controllers/TransportController.js</code>, pas de <code>services/carriers/</code>, pas de <code>routes/transport.js</code>).
+- Le repo contient une <strong>vieille copie staging INCOMPATIBLE</strong> dans <code>docs/tests/edi-suite/</code> (schéma <code>edi_transport_orders</code> différent : <code>id_order/id_shipment/vehicule/status</code>). → source de confusion, à remplacer par le réel.</p>
 <h3 id="regles-non-negociables">Règles NON NÉGOCIABLES</h3>
 <ol>
-<li><strong>Adaptateur SIMULÉ uniquement</strong> : aucun appel réseau vers une vraie API transporteur, aucun credential transporteur réel. Le simulateur transitionne les statuts de façon déterministe.</li>
-<li><strong>MEP hub-prod fail-safe</strong> : sur hub-prod, toute modif = <code>cp</code> backup → <code>node --check</code> sur COPIE temp → promotion seulement si valide → <code>pm2 restart codeonline-edi-orchestrator-prod</code> → vérif santé. Jamais de fichier non validé en live. (Leçon SEN : ne pas utiliser <code>node --check &amp;&amp; echo</code> sous <code>set -e</code>.)</li>
-<li><strong>Aucun secret</strong> en clair dans le repo/plan/commits (JWT_SECRET réseau, api_key partenaires). <code>.env</code> git-ignoré.</li>
-<li><strong>Nettoyage</strong> : toute donnée de test créée pendant un scénario est supprimée à la fin de la phase (par préfixe de réf distinctif <code>IFT-TEST-…</code>).</li>
-<li><strong>Chiffres mesurés, jamais espérés</strong> (sortie réelle lue).</li>
+<li><strong>Ne pas casser l'IFTMIN prod qui marche.</strong> La réconciliation git est majoritairement en LECTURE (prod → repo). Toute modif prod ultérieure = MEP fail-safe (backup → <code>node --check</code> copie temp → promotion → <code>pm2 restart</code> → vérif ; jamais <code>node --check &amp;&amp; echo</code> sous <code>set -e</code>).</li>
+<li><strong>Adaptateur SIMULÉ uniquement</strong> (MOCK01). Aucun appel vers une vraie API transporteur, aucun credential réel.</li>
+<li><strong>Le repo doit refléter la prod</strong> — plus de drift : après P1, le code transport live est versionné.</li>
+<li><strong>Aucun secret</strong> dans le repo/plan/commits (JWT_SECRET réseau, api_key). Les tokens de test sont minés côté serveur, jamais écrits dans le doc, révoqués/éphémères.</li>
+<li><strong>Nettoyage</strong> : toute donnée de test (réf <code>IFT-TEST-…</code>) supprimée en fin de phase.</li>
+<li><strong>Chiffres mesurés, jamais espérés.</strong></li>
 <li><strong>Dual-push</strong> : chaque commit <code>git push origin main</code> (→ GitHub + Gitea). 1 tâche = 1 commit.</li>
-<li><strong>Ne pas casser l'existant hub</strong> (dispatch/ACK/tracking doivent rester verts après chaque déploiement).</li>
 </ol>
 <h2 id="regles-dexecution-pour-lia-executante">Règles d'exécution (pour l'IA exécutante)</h2>
 <ol>
-<li><strong>Cocher = prouvé</strong> sur sortie réelle (disque, test vert, HTTP). Jamais sur intention.</li>
-<li><strong>Ordre strict</strong> : tests unitaires de la tâche verts AVANT la tâche suivante ; scénario de phase <code>Pn.T</code> vert AVANT de cocher la phase.</li>
-<li><strong>Échec ≠ contournement</strong> : un test échoue → corriger ou ajouter une tâche corrective <code>Pn.m+1</code>. Jamais affaiblir/supprimer un test.</li>
-<li><strong>Chiffres mesurés</strong> uniquement.</li>
-<li><strong>Mettre à jour ce fichier</strong> à chaque tâche finie (cocher <code>[x]</code>, noter écarts) + commit atomique (dual-push).</li>
-<li><strong>Ne pas halluciner</strong> une donnée manquante — la signaler.</li>
-<li><strong>Respecter les règles non négociables</strong> ci-dessus même si ça ralentit.</li>
+<li><strong>Cocher = prouvé</strong> sur sortie réelle. 2. <strong>Ordre strict</strong> (tests tâche verts avant tâche suivante ; <code>Pn.T</code> vert avant de cocher la phase). 3. <strong>Échec ≠ contournement</strong> (corriger ou ajouter une tâche corrective ; ne jamais affaiblir un test). 4. <strong>Chiffres mesurés.</strong> 5. <strong>Mettre à jour ce fichier</strong> + commit atomique dual-push. 6. <strong>Ne pas halluciner</strong> une donnée manquante. 7. <strong>Respecter les règles non négociables.</strong></li>
 </ol>
 <hr />
-<h2 id="p1-schema-db-transport-reconciliation-migrations">P1 — Schéma DB transport (réconciliation + migrations) 🔴</h2>
-<p><strong>Objectif</strong> : disposer sur <code>codeonline_edi_db_prod</code> (et en local de test) d'un schéma <code>edi_transport_orders</code> + <code>edi_tracking</code> compatible avec <code>TransportController</code>, sans casser l'existant.</p>
+<h2 id="p1-reconcilier-git-prod-supprimer-le-drift">P1 — Réconcilier git ↔ prod (supprimer le drift) 🔴</h2>
+<p><strong>Objectif</strong> : le code transport/IFTMIN déployé en prod est <strong>rapatrié et versionné</strong> dans le repo ; le repo == prod sur ces fichiers ; la vieille copie staging incompatible est retirée.</p>
 <ul>
 <li>
-<p>☐ <strong>P1.1 — Figer le schéma cible <code>edi_transport_orders</code></strong>
-  <em>Description</em> : définir le DDL final réconcilié couvrant les colonnes attendues par le contrôleur : <code>id</code> (PK auto), <code>ref</code> (VARCHAR unique), <code>iftmin_number</code> (VARCHAR), <code>id_order</code> (INT null), <code>desadv_ref</code> (VARCHAR null), <code>country_code</code> (VARCHAR), <code>carrier_code</code> (VARCHAR), <code>carrier_name</code> (VARCHAR null), <code>consignor_gln</code>/<code>consignee_gln</code> (VARCHAR), <code>id_shipment</code> (VARCHAR null), <code>vehicule</code> (VARCHAR null), <code>status</code> (VARCHAR default 'CREATED' — valeurs CREATED|CONFIRMED|IN_TRANSIT|DELIVERED|FAILED|CANCELLED), <code>carrier_response</code> (TEXT null), <code>iftmin_content</code> (MEDIUMTEXT null), <code>created_at</code>/<code>updated_at</code> (TIMESTAMP). Écrire <code>sql/migrations/2026_iftmin_transport_schema.sql</code> (idempotent : <code>CREATE TABLE IF NOT EXISTS</code> + <code>ALTER TABLE … ADD COLUMN IF NOT EXISTS</code> pour réconcilier une table existante).
+<p>☐ <strong>P1.1 — Inventaire + diff prod ↔ repo</strong>
+  <em>Description</em> : lister exhaustivement les fichiers transport/IFTMIN live (<code>edi_orchestrator/{services,controllers,routes,models,test}</code> + <code>services/carriers/</code>) et leur absence/écart dans le repo. Produire <code>docs/RECONCILE_IFTMIN.md</code> (liste fichiers, tailles, mtime, présent-repo oui/non).
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Dans le repo <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn</code>, lis <code>sql/migrations/create_transport_tables.sql</code>, <code>sql/migrations/update_existing_transport_tables.sql</code> et <code>docs/tests/edi-suite/hub-p3/{TransportController.js,TransportOrderModel.js}</code> pour relever TOUTES les colonnes de <code>edi_transport_orders</code> réellement lues/écrites par le code. Produis <code>sql/migrations/2026_iftmin_transport_schema.sql</code> : DDL idempotent (CREATE TABLE IF NOT EXISTS + ALTER ADD COLUMN IF NOT EXISTS) créant <code>edi_transport_orders</code> avec au minimum les colonnes listées dans la tâche P1.1, et <code>edi_tracking</code>(id, id_shipment/transport_ref, status, event_label, event_time, raw). Ne supprime aucune colonne existante. Ajoute un commentaire d'en-tête.
-  <em>Tests unitaires</em> : <code>sql/migrations/verify_iftmin_schema.sql</code> (SELECT sur <code>information_schema.columns</code> prouvant présence de chaque colonne cible). Bloquant avant P1.2.
-  <em>DoD</em> : fichier <code>2026_iftmin_transport_schema.sql</code> présent ; exécuté sur une DB MySQL de test → 0 erreur.
-  <em>Vérif</em> : <code>mysql &lt;db_test&gt; &lt; sql/migrations/2026_iftmin_transport_schema.sql &amp;&amp; mysql &lt;db_test&gt; &lt; sql/migrations/verify_iftmin_schema.sql</code> → toutes colonnes = présentes.</p>
+<p>Sur <code>hub-prod</code>, liste tous les fichiers .js liés à transport/IFTMIN/carriers sous <code>/var/www/Edi-prod/edi_orchestrator</code> (hors node_modules) : <code>grep -rl "IFTMIN\|Transport\|carriers\|generateIftmin" --include=*.js</code>. Pour chacun, compare avec le même chemin dans <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/edi_orchestrator/</code>. Écris <code>docs/RECONCILE_IFTMIN.md</code> : tableau (fichier | taille prod | présent repo ? | identique ?). Ne modifie encore rien.
+  <em>Tests unitaires</em> : n/a (tâche d'inventaire) — la sortie est la preuve.
+  <em>DoD</em> : <code>docs/RECONCILE_IFTMIN.md</code> liste ≥ les 6 fichiers clés (generateIftminEANCOM, eancom_parser, TransportController, routes/transport, carriers/registry, carriers/civ_mock01) avec statut repo.
+  <em>Vérif</em> : <code>grep -c "IFTMIN\|Transport\|carriers" docs/RECONCILE_IFTMIN.md</code> &gt; 0 ; inventaire cohérent avec l'État d'entrée.</p>
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P1.2 — Appliquer la migration sur une DB MySQL locale de test</strong>
-  <em>Description</em> : créer une base de test <code>codeonline_edi_test</code> (MySQL local ou conteneur), y appliquer la migration + un extrait de <code>partners</code>/<code>transactions</code> compatibles, servant d'environnement de test pour P2–P5.
+<p>☐ <strong>P1.2 — Rapatrier le code transport prod → repo</strong>
+  <em>Description</em> : copier depuis <code>hub-prod</code> vers le repo (<code>edi_orchestrator/…</code> aux mêmes chemins) les fichiers transport/IFTMIN + tests. <strong>Exclure tout secret</strong> (<code>.env</code>, clés). Vérifier qu'aucun <code>.env</code>/secret n'est copié.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Monte une base MySQL locale <code>codeonline_edi_test</code> (MySQL/MariaDB local ou <code>docker run mariadb</code>). Applique <code>sql/migrations/2026_iftmin_transport_schema.sql</code>. Crée les tables minimales <code>partners</code> et <code>transactions</code> (mêmes colonnes que hub-prod, cf. État d'entrée §0) pour que <code>TransportController.logTransaction</code> fonctionne. Documente la chaîne de connexion de test dans <code>docs/tests/edi-suite/README_TEST_DB.md</code> (SANS mot de passe réel : variable d'env <code>TEST_DB_URL</code>).
-  <em>Tests unitaires</em> : script <code>node docs/tests/edi-suite/_check_test_db.js</code> qui se connecte via <code>TEST_DB_URL</code> et <code>SELECT 1 FROM edi_transport_orders LIMIT 0</code>. Bloquant avant P2.
-  <em>DoD</em> : <code>codeonline_edi_test</code> accessible, <code>edi_transport_orders</code> + <code>edi_tracking</code> + <code>partners</code> + <code>transactions</code> présentes.
-  <em>Vérif</em> : <code>node docs/tests/edi-suite/_check_test_db.js</code> → <code>DB OK</code>.</p>
+<p><code>rsync</code> (ou scp) depuis <code>hub-prod:/var/www/Edi-prod/edi_orchestrator/</code> vers <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/edi_orchestrator/</code> UNIQUEMENT ces chemins : <code>services/generateIftminEANCOM.js</code>, <code>services/eancom_parser.js</code>, <code>services/carriers/</code> (tout le dossier), <code>controllers/TransportController.js</code>, <code>routes/transport.js</code>, <code>models/</code> (si utilisé par le contrôleur), <code>test/{p3t_e2e,transport_order,carrier_registry,transport_route}.test.js</code>, et le patch de <code>server.js</code> (montage de la route). NE COPIE PAS <code>.env*</code>, <code>node_modules</code>, clés. Après copie, <code>git status</code> + <code>grep -rInE "JWT_SECRET|password|api_key" edi_orchestrator/services edi_orchestrator/controllers</code> → 0 secret en dur.
+  <em>Tests unitaires</em> : <code>cd edi_orchestrator &amp;&amp; node --check controllers/TransportController.js routes/transport.js services/generateIftminEANCOM.js services/carriers/*.js</code> → 0 erreur syntaxe. Bloquant avant P1.3.
+  <em>DoD</em> : fichiers transport présents dans le repo, <code>node --check</code> OK, 0 secret introduit.
+  <em>Vérif</em> : <code>git status --short edi_orchestrator | wc -l</code> &gt; 0 ; <code>node --check</code> chaîne OK ; grep secrets = 0.</p>
+</blockquote>
+</li>
+<li>
+<p>☐ <strong>P1.3 — Migration du schéma réel + retrait du staging obsolète</strong>
+  <em>Description</em> : dumper le DDL réel de <code>edi_transport_orders</code> + <code>edi_tracking</code> (prod) → <code>sql/migrations/2026_iftmin_transport_schema.sql</code> (idempotent). Retirer/annoter la copie staging incompatible <code>docs/tests/edi-suite/hub-p3/</code> + migrations obsolètes (ou les déplacer sous <code>docs/tests/edi-suite/_ARCHIVE/</code> avec un README expliquant que la référence = <code>edi_orchestrator/</code>).
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Sur <code>hub-prod</code> : <code>mysqldump --no-data codeonline_edi_db_prod edi_transport_orders edi_tracking</code> → récupère le DDL. Écris <code>sql/migrations/2026_iftmin_transport_schema.sql</code> (CREATE TABLE IF NOT EXISTS reproduisant le schéma prod réel : <code>edi_transport_orders</code> avec <code>ref, order_ref, desadv_ref, carrier_code, country_code, requester_gln, status, iftmin_content, tracking_number, carrier_response, error_message, created_at, updated_at</code>). Déplace <code>docs/tests/edi-suite/hub-p3/</code>, <code>docs/tests/edi-suite/generateIftminEANCOM.js</code> et les migrations transport obsolètes vers <code>docs/tests/edi-suite/_ARCHIVE/</code> avec un <code>README.md</code> : « Référence = edi_orchestrator/ (code prod). Ces fichiers sont l'ancien staging, schéma incompatible, conservés pour historique. »
+  <em>Tests unitaires</em> : <code>mysql &lt;db_test&gt; &lt; sql/migrations/2026_iftmin_transport_schema.sql</code> (base jetable) → 0 erreur ; ré-exécution → 0 erreur (idempotent). Bloquant avant P1.T.
+  <em>DoD</em> : migration reflétant le schéma prod réel ; staging incompatible archivé (plus à la racine des refs).
+  <em>Vérif</em> : <code>grep -c "tracking_number\|iftmin_content\|requester_gln" sql/migrations/2026_iftmin_transport_schema.sql</code> = 3 ; <code>ls docs/tests/edi-suite/_ARCHIVE/</code> non vide.</p>
 </blockquote>
 </li>
 <li>
 <p>☐ <strong>P1.T — Scénario de test complet P1</strong>
-  1. Exécuter <code>2026_iftmin_transport_schema.sql</code> sur <code>codeonline_edi_test</code> → attendu : 0 erreur, ré-exécution idempotente (2ᵉ passage : 0 erreur, 0 changement destructeur).
-  2. <code>verify_iftmin_schema.sql</code> → attendu : chaque colonne cible listée présente.
-  3. <code>INSERT</code> d'une ligne <code>edi_transport_orders</code> de test avec toutes les colonnes du contrôleur → attendu : succès, <code>status</code> défaut <code>CREATED</code>. Puis <code>DELETE</code> la ligne.
-  Critères de réussite : 3/3 étapes OK, schéma idempotent. Phase cochable seulement si tout passe.</p>
+  1. <code>docs/RECONCILE_IFTMIN.md</code> généré et cohérent → attendu : les 6 fichiers clés listés.
+  2. Fichiers transport rapatriés + <code>node --check</code> chaîne → attendu : 0 erreur, 0 secret introduit.
+  3. Pour chaque fichier clé : <code>diff &lt;(ssh hub-prod cat &lt;chemin_prod&gt;) &lt;chemin_repo&gt;</code> → attendu : <strong>identique</strong> (drift = 0).
+  4. Migration schéma idempotente OK sur base jetable.
+  5. Commit + <code>git push origin main</code> → attendu : <strong>GitHub == Gitea == local</strong> (SHA identiques).
+  Critères de réussite : 5/5 OK, diff repo↔prod vide. Phase cochable seulement si tout passe.</p>
 </li>
 </ul>
+<p><strong>GATE (force majeure)</strong> : aucun. Réconciliation = lecture prod + écriture repo.</p>
 <hr />
-<h2 id="p2-generateur-validateur-iftmin-hub">P2 — Générateur + validateur IFTMIN (Hub) 🔴</h2>
-<p><strong>Objectif</strong> : le Hub sait générer un IFTMIN D.01B valide et le valider structurellement, en lib réutilisable, testée.</p>
+<h2 id="p2-verifier-liftmin-deploye-en-reel-e2e-live-tests-serveur">P2 — Vérifier l'IFTMIN déployé en réel (E2E live + tests serveur) 🔴</h2>
+<p><strong>Objectif</strong> : prouver que l'IFTMIN prod fonctionne de bout en bout (jamais exécuté à ce jour), avec un JWT réseau, sans rien casser, données de test nettoyées.</p>
 <ul>
 <li>
-<p>☐ <strong>P2.1 — Intégrer le générateur IFTMIN dans le Hub</strong>
-  <em>Description</em> : copier <code>docs/tests/edi-suite/generateIftminEANCOM.js</code> → <code>edi_orchestrator/services/generateIftminEANCOM.js</code> (chemin requis par le contrôleur). Vérifier l'échappement EANCOM (<code>?</code> devant <code>+ : ' ?</code>), les segments obligatoires, et exposer <code>module.exports = { generateIftminEANCOM }</code>.
+<p>☐ <strong>P2.1 — Obtenir un JWT réseau valide (côté serveur)</strong>
+  <em>Description</em> : générer un token JWT de service signé avec le <code>JWT_SECRET</code> réseau du hub (lu depuis <code>.env</code> du hub, JAMAIS écrit dans le doc/repo), avec le claim attendu par <code>routes/transport.js</code>.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Copie <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/docs/tests/edi-suite/generateIftminEANCOM.js</code> vers <code>edi_orchestrator/services/generateIftminEANCOM.js</code>. Assure <code>module.exports = { generateIftminEANCOM }</code>. Ne change PAS la logique de segments (BGM+610, TDT+20, RFF+ON/DQ, NAD+CZ/CN/CA, LOC+9/7). Ajoute une validation d'entrée : si <code>data.consignor.gln</code>, <code>data.consignee.gln</code>, <code>data.carrier.code</code> ou <code>data.iftminNumber</code> manquent → throw <code>Error('IFTMIN: champ requis manquant: &lt;nom&gt;')</code>.
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/iftmin_generate.test.js</code> (adapter <code>docs/tests/edi-suite/iftmin.test.js</code>) — cas : IFTMIN complet contient <code>UNH…IFTMIN:D:01B</code>, <code>BGM+610</code>, <code>NAD+CZ</code>, <code>NAD+CN</code>, <code>NAD+CA</code>, <code>LOC+7</code> ; champ requis manquant → throw. Bloquant avant P2.2.
-  <em>DoD</em> : générateur en place, <code>node -e "require('./edi_orchestrator/services/generateIftminEANCOM')"</code> OK, tests verts.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; node --test test/iftmin_generate.test.js</code> → tests passés (0 échec).</p>
+<p>Sur <code>hub-prod</code>, lis le nom exact du secret + le claim attendu dans <code>edi_orchestrator/routes/transport.js</code> (middleware jwt). Mine un token côté serveur en Node : <code>node -e "console.log(require('jsonwebtoken').sign(&lt;claim minimal attendu&gt;, process.env.JWT_SECRET))"</code> en chargeant le <code>.env</code> du hub. Capture le token dans une variable shell locale au serveur (ne PAS l'afficher en clair dans un log persistant ; l'utiliser directement dans les curl de P2.2). Le token est éphémère.
+  <em>Tests unitaires</em> : <code>curl -H "Authorization: Bearer $TOKEN" .../transport/</code> → HTTP <strong>200</strong> (au lieu de 401). Bloquant avant P2.2.
+  <em>DoD</em> : un appel authentifié passe (200), l'auth JWT est maîtrisée.
+  <em>Vérif</em> : <code>GET /api/orchestrator/transport/</code> avec le token → 200.</p>
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P2.2 — Validateur structurel IFTMIN</strong>
-  <em>Description</em> : créer <code>edi_orchestrator/services/validateIftmin.js</code> : <code>validateIftmin(eancomString) → { valid:boolean, errors:[] }</code> vérifiant présence des segments obligatoires + cohérence GLN (14 car. ou format SEN). Utilisé par <code>TransportController.create</code> avant persistance.
+<p>☐ <strong>P2.2 — Faire tourner les tests unitaires déployés sur le serveur</strong>
+  <em>Description</em> : exécuter <code>test/{transport_order,carrier_registry,transport_route,p3t_e2e}.test.js</code> sur <code>hub-prod</code> (contre la vraie DB ou une base de test) et lire le résultat réel.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Crée <code>edi_orchestrator/services/validateIftmin.js</code> exportant <code>validateIftmin(str)</code>. Découpe par <code>'</code> (gérer l'échappement <code>?'</code>). Retourne <code>{valid, errors}</code> : erreur si absence de <code>UNH</code> contenant <code>IFTMIN</code>, de <code>BGM+610</code>, de <code>NAD+CZ</code>, <code>NAD+CN</code>, <code>NAD+CA</code>, ou de <code>LOC+7</code>. Aucune dépendance externe.
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/iftmin_validate.test.js</code> — IFTMIN généré par P2.1 → <code>valid:true, errors:[]</code> ; IFTMIN amputé du <code>NAD+CA</code> → <code>valid:false</code> avec erreur explicite. Bloquant avant P3.
-  <em>DoD</em> : validateur en place, tests verts.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; node --test test/iftmin_validate.test.js</code> → 0 échec.</p>
+<p>Sur <code>hub-prod</code>, dans <code>/var/www/Edi-prod/edi_orchestrator</code>, exécute <code>node --test test/carrier_registry.test.js test/transport_order.test.js test/transport_route.test.js test/p3t_e2e.test.js</code> (adapter la commande au runner présent). Note le nombre de tests passés/échoués. Si des tests écrivent en DB, s'assurer qu'ils utilisent une base/réf de test et nettoient.
+  <em>Tests unitaires</em> : la sortie <code>node --test</code> elle-même — attendu : 0 échec (sinon tâche corrective P2.x).
+  <em>DoD</em> : suite de tests transport verte sur le serveur (chiffres lus).
+  <em>Vérif</em> : sortie <code># fail 0</code> (ou équivalent) pour les 4 fichiers.</p>
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P2.T — Scénario de test complet P2</strong>
-  1. Générer un IFTMIN réaliste (consignor CIV <code>6181234567890</code>, consignee TUN <code>6191234567890</code>, carrier <code>SIMU</code>, orderNumber <code>ORD-TEST-1</code>) → attendu : chaîne EANCOM non vide, terminée par <code>UNZ</code>.
-  2. Passer cette chaîne à <code>validateIftmin</code> → attendu : <code>{valid:true, errors:[]}</code>.
-  3. Muter la chaîne (retirer <code>NAD+CA</code>) → <code>validateIftmin</code> → attendu : <code>valid:false</code>, erreur mentionnant <code>NAD+CA</code>/transporteur.
-  Critères de réussite : 3/3 OK, tous les tests unitaires P2 verts. Phase cochable seulement si tout passe.</p>
+<p>☐ <strong>P2.3 — E2E live sur hub-prod (create → refresh → DELIVERED)</strong>
+  <em>Description</em> : exercer réellement le flux via l'API authentifiée, prouver la génération IFTMIN + l'adaptateur MOCK01 + la progression de statut + la persistance + le log transaction, puis nettoyer.
+  <em>Prompt exécutant</em> :</p>
+<blockquote>
+<p>Avec le JWT (P2.1), <code>POST https://registry.codeonline-edi.net/api/orchestrator/transport/create</code> body <code>{"country_code":"CI","carrier_code":"MOCK01","order_ref":"IFT-TEST-CIV-TUN-001","consignor":{"gln":"6181234567890","name":"CIV"},"consignee":{"gln":"6191234567890","name":"TUN"},"pickup":{"gln":"6181234567890"},"delivery":{"gln":"6191234567890"}}</code>. Récupère <code>ref</code>. <code>GET /transport/&lt;ref&gt;</code>. <code>POST /transport/&lt;ref&gt;/refresh</code> 3 fois. Vérifie en DB : ligne <code>edi_transport_orders</code> (ref, iftmin_content non nul, tracking_number <code>MOCK-…</code>, status progresse jusqu'à un état final livré), transaction <code>IFTMIN</code> loguée. Puis NETTOIE : <code>DELETE FROM edi_transport_orders WHERE ref='&lt;ref&gt;' OR order_ref LIKE 'IFT-TEST-%'</code>, <code>DELETE FROM edi_tracking WHERE …</code>, <code>DELETE FROM transactions WHERE transaction_ref LIKE 'IFT-TEST-%'</code>. Vérifie reste = 0.
+  <em>Tests unitaires</em> : assertions sur les réponses HTTP (200 + success) et l'état DB (statut final = livré). Bloquant avant P2.T.
+  <em>DoD</em> : flux complet prouvé en réel, statut final « livré », 0 résidu après nettoyage.
+  <em>Vérif</em> : logs + <code>SELECT status FROM edi_transport_orders</code> (avant nettoyage) = état livré ; après nettoyage <code>COUNT(*) WHERE ref LIKE 'IFT-TEST-%'</code> = 0.</p>
+</blockquote>
+</li>
+<li>
+<p>☐ <strong>P2.T — Scénario de test complet P2 + non-régression</strong>
+  1. JWT obtenu, <code>GET /transport/</code> → 200.
+  2. Tests unitaires transport serveur → 0 échec.
+  3. E2E create/get/refresh → IFTMIN valide, MOCK01, statut final livré, transaction <code>IFTMIN</code> loguée.
+  4. <strong>Non-régression</strong> : 1 <code>POST /dispatch</code> ORDERS + 1 APERAK→ORDERS (comme scénarios existants) → toujours <code>PROCESSED</code>/<code>ACKNOWLEDGED</code>.
+  5. Nettoyage → 0 résidu <code>IFT-TEST-%</code>.
+  Critères de réussite : 5/5 OK. Phase cochable seulement si tout passe.</p>
 </li>
 </ul>
+<p><strong>GATE (force majeure)</strong> : aucun (JWT miné côté serveur depuis le secret existant).</p>
 <hr />
-<h2 id="p3-registry-adaptateur-transporteur-simule">P3 — Registry + adaptateur transporteur SIMULÉ 🔴</h2>
-<p><strong>Objectif</strong> : <code>resolve(country_code, carrier_code)</code> renvoie un adaptateur conforme à l'interface <code>CarrierAdapter</code>, avec un adaptateur <strong>simulé</strong> déterministe (aucun appel réseau réel).</p>
+<h2 id="p3-declencheur-auto-iftmin-depuis-orderdesadv">P3 — Déclencheur auto IFTMIN depuis ORDER/DESADV 🟠</h2>
+<p><strong>Objectif</strong> : à la réception/création d'un ORDER (ou DESADV) portant des données transport (<code>carrier_code</code> + parties/lieux), un ordre de transport IFTMIN est créé automatiquement, idempotent, sans bloquer le flux.</p>
 <ul>
 <li>
-<p>☐ <strong>P3.1 — Classe de base CarrierAdapter</strong>
-  <em>Description</em> : intégrer <code>docs/tests/edi-suite/hub-p3/CarrierAdapter.js</code> → <code>edi_orchestrator/services/carriers/CarrierAdapter.js</code>. Interface : <code>code</code>, <code>name</code>, <code>async createShipment(parsedIftmin, rawIftmin) → {shipmentId, status, raw}</code>, <code>async getStatus(shipmentId) → {status, events:[], raw}</code>.
+<p>☐ <strong>P3.1 — Vérifier si un déclencheur auto existe déjà, sinon l'ajouter</strong>
+  <em>Description</em> : d'abord constater l'existant (le déploiement du 11/07 en contient-il un ?). Sinon, ajouter un hook non bloquant appelant la logique <code>TransportController.create</code> en mode auto, idempotent par <code>order_ref</code>.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Copie <code>docs/tests/edi-suite/hub-p3/CarrierAdapter.js</code> vers <code>edi_orchestrator/services/carriers/CarrierAdapter.js</code>. Garantis l'interface : constructeur <code>{code,name}</code> ; méthodes <code>createShipment</code> et <code>getStatus</code> qui lèvent <code>Error('not implemented')</code> par défaut (classe abstraite).
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/carrier_adapter.test.js</code> — instancier la base, appeler <code>createShipment</code> → throw <code>not implemented</code>. Bloquant avant P3.2.
-  <em>DoD</em> : fichier en place, test vert.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; node --test test/carrier_adapter.test.js</code> → 0 échec.</p>
-</blockquote>
-</li>
-<li>
-<p>☐ <strong>P3.2 — Adaptateur simulé (SimulatedCarrierAdapter)</strong>
-  <em>Description</em> : créer <code>edi_orchestrator/services/carriers/SimulatedCarrierAdapter.js</code> étendant <code>CarrierAdapter</code>, code <code>SIMU</code>. <code>createShipment</code> : génère un <code>shipmentId</code> déterministe (<code>SIM-&lt;hash court de iftminNumber&gt;</code>), retourne <code>status:'CONFIRMED'</code>. <code>getStatus(shipmentId)</code> : machine à états déterministe basée sur le nombre d'appels/temps simulé passé en paramètre → <code>CONFIRMED → IN_TRANSIT → DELIVERED</code> (transition à chaque <code>refresh</code>). Aucun <code>Date.now()</code>/réseau : état persisté via la ligne DB (<code>edi_transport_orders.status</code>), la transition est « statut suivant dans l'ordre ».
-  <em>Prompt exécutant</em> :</p>
-<blockquote>
-<p>Crée <code>edi_orchestrator/services/carriers/SimulatedCarrierAdapter.js</code> (classe étendant <code>./CarrierAdapter</code>, <code>code='SIMU'</code>, <code>name='Transporteur Simulé'</code>). <code>createShipment(parsed, raw)</code> : retourne <code>{shipmentId:'SIM-'+&lt;8 hex dérivés de parsed.iftminNumber ou raw&gt;, status:'CONFIRMED', raw:{simulated:true}}</code>. <code>getStatus(shipmentId, currentStatus)</code> : retourne le statut SUIVANT dans l'ordre <code>CONFIRMED→IN_TRANSIT→DELIVERED</code> (si déjà <code>DELIVERED</code>, reste <code>DELIVERED</code>), avec <code>events:[{status, label}]</code>. Déterminisme total, aucune I/O réseau, aucun <code>Date.now()</code>/<code>Math.random()</code>.
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/carrier_simu.test.js</code> — <code>createShipment</code> renvoie shipmentId stable pour un même IFTMIN ; <code>getStatus</code> progresse CONFIRMED→IN_TRANSIT→DELIVERED puis se stabilise. Bloquant avant P3.3.
-  <em>DoD</em> : adaptateur simulé déterministe, tests verts.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; node --test test/carrier_simu.test.js</code> → 0 échec.</p>
-</blockquote>
-</li>
-<li>
-<p>☐ <strong>P3.3 — Registry des transporteurs</strong>
-  <em>Description</em> : créer <code>edi_orchestrator/services/carriers/registry.js</code> exportant <code>resolve(countryCode, carrierCode)</code> + <code>CarrierResolutionError</code>. Table de résolution : <code>{ '*': { SIMU: SimulatedCarrierAdapter } }</code> (fallback tous pays → SIMU) extensible par pays. <code>resolve</code> lève <code>CarrierResolutionError</code> si (pays,transporteur) inconnu.
-  <em>Prompt exécutant</em> :</p>
-<blockquote>
-<p>Crée <code>edi_orchestrator/services/carriers/registry.js</code> : <code>class CarrierResolutionError extends Error{}</code> ; <code>const REGISTRY = { '*': { SIMU: () =&gt; new (require('./SimulatedCarrierAdapter'))() } }</code> ; <code>function resolve(country, carrier){ const c=(carrier||'').toUpperCase(); const byCountry = REGISTRY[country] || REGISTRY['*']; const f = (byCountry &amp;&amp; byCountry[c]) || REGISTRY['*'][c]; if(!f) throw new CarrierResolutionError('Carrier inconnu: '+country+'/'+carrier); return f(); }</code> ; <code>module.exports={resolve,CarrierResolutionError}</code>.
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/carrier_registry.test.js</code> (adapter le staged) — <code>resolve('CI','SIMU')</code> renvoie un adaptateur <code>code==='SIMU'</code> ; <code>resolve('CI','FEDEX')</code> → throw <code>CarrierResolutionError</code>. Bloquant avant P4.
-  <em>DoD</em> : registry en place, tests verts.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; node --test test/carrier_registry.test.js</code> → 0 échec.</p>
+<p>Cherche dans <code>edi_orchestrator</code> un déclenchement auto de transport depuis un ORDER/DESADV (grep <code>carrier_code</code>, <code>maybeCreateTransport</code>, appel interne à <code>create</code> depuis <code>HubController</code>). Si présent : documente-le + teste-le. Sinon : crée <code>edi_orchestrator/services/autoTransport.js</code> <code>maybeCreateTransport(payload)</code> (si <code>carrier_code</code> présent ET aucun <code>edi_transport_orders</code> pour cet <code>order_ref</code> → crée), branché après persistance ORDER/DESADV, try/catch non bloquant. Déploiement en MEP fail-safe.
+  <em>Tests unitaires</em> : <code>edi_orchestrator/test/auto_transport.test.js</code> — ORDER avec <code>carrier_code</code> → 1 transport ; rejeu → toujours 1 (idempotent) ; sans <code>carrier_code</code> → 0. Bloquant avant P3.T.
+  <em>DoD</em> : comportement auto constaté/ajouté, idempotent, non bloquant, tests verts.
+  <em>Vérif</em> : <code>node --test test/auto_transport.test.js</code> → 0 échec.</p>
 </blockquote>
 </li>
 <li>
 <p>☐ <strong>P3.T — Scénario de test complet P3</strong>
-  1. <code>resolve('*','SIMU').createShipment(&lt;parsed IFTMIN de P2&gt;, &lt;raw&gt;)</code> → attendu : <code>{shipmentId:/^SIM-/, status:'CONFIRMED'}</code>.
-  2. <code>getStatus(shipmentId,'CONFIRMED')</code> → <code>IN_TRANSIT</code> ; ré-appel avec <code>'IN_TRANSIT'</code> → <code>DELIVERED</code> ; ré-appel avec <code>'DELIVERED'</code> → <code>DELIVERED</code>.
-  3. <code>resolve('CI','TRANSPORTEUR_INEXISTANT')</code> → attendu : throw <code>CarrierResolutionError</code>.
-  Critères de réussite : 3/3 OK, tests P3 verts. Phase cochable seulement si tout passe.</p>
+  1. Injecter (flux Hub) un ORDER de test <code>carrier_code:MOCK01</code> + parties/lieux → attendu : 1 <code>edi_transport_orders</code> auto, IFTMIN valide.
+  2. Rejouer → toujours 1 (idempotent).
+  3. ORDER sans <code>carrier_code</code> → 0 transport, ORDER traité normalement.
+  4. Nettoyage → 0 résidu.
+  Critères de réussite : 4/4 OK. Phase cochable seulement si tout passe.</p>
 </li>
 </ul>
 <hr />
-<h2 id="p4-transportcontroller-routes-live-hub">P4 — TransportController + routes live (Hub) 🔴</h2>
-<p><strong>Objectif</strong> : les endpoints <code>/api/orchestrator/transport/{create,,:ref,:ref/refresh}</code> fonctionnent contre <code>codeonline_edi_test</code>, en réutilisant générateur (P2) + registry (P3) + schéma (P1).</p>
+<h2 id="p4-frontend-ordre-de-transport">P4 — Frontend Ordre de transport 🟠</h2>
+<p><strong>Objectif</strong> : les pages transport (<code>src/pages/operation-edi/TransportOrder.tsx</code>, <code>src/pages/OrdreDetransport.tsx</code>) créent/suivent un ordre via l'API Hub authentifiée, et sont routées.</p>
 <ul>
 <li>
-<p>☐ <strong>P4.1 — Intégrer TransportOrderModel + TransportController</strong>
-  <em>Description</em> : copier <code>hub-p3/TransportOrderModel.js</code> → <code>edi_orchestrator/models/TransportOrderModel.js</code> et <code>hub-p3/TransportController.js</code> → <code>edi_orchestrator/controllers/TransportController.js</code>. Aligner les <code>require</code> (générateur P2.1, validateur P2.2, registry P3.3, model). Câbler <code>create</code> : validate body → generate → validateIftmin → INSERT <code>edi_transport_orders</code> (CREATED) → resolve → <code>createShipment</code> → UPDATE (id_shipment, status, carrier_response) → logTransaction. <code>refresh</code> : lit statut courant → <code>adapter.getStatus</code> → UPDATE statut + INSERT <code>edi_tracking</code>.
+<p>☐ <strong>P4.1 — Câbler + router les pages transport</strong>
+  <em>Description</em> : brancher création (<code>POST /transport/create</code>), liste (<code>GET /</code>), détail + refresh (<code>GET /:ref</code>, <code>POST /:ref/refresh</code>) via le client API existant (avec JWT réseau selon le mécanisme d'auth de l'app). Ajouter la route/menu.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Copie <code>docs/tests/edi-suite/hub-p3/TransportOrderModel.js</code> → <code>edi_orchestrator/models/TransportOrderModel.js</code> et <code>hub-p3/TransportController.js</code> → <code>edi_orchestrator/controllers/TransportController.js</code>. Corrige tous les <code>require</code> relatifs pour pointer vers <code>../services/generateIftminEANCOM</code>, <code>../services/validateIftmin</code>, <code>../services/carriers/registry</code>, <code>../models/TransportOrderModel</code>. Aligne les colonnes SQL sur le schéma P1 (<code>ref, iftmin_number, country_code, carrier_code, consignor_gln, consignee_gln, id_shipment, status, carrier_response, iftmin_content, updated_at</code>). Assure que <code>refresh</code> fait progresser le statut via <code>adapter.getStatus(shipmentId, currentStatus)</code> et insère une ligne <code>edi_tracking</code>.
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/transport_order.test.js</code> (adapter staged) contre <code>codeonline_edi_test</code> — création → ligne CREATED puis statut post-createShipment ; get → renvoie l'ordre ; refresh → statut avance + ligne <code>edi_tracking</code> ajoutée. Bloquant avant P4.2.
-  <em>DoD</em> : contrôleur + model intégrés, <code>node --check</code> OK, tests verts contre la DB de test.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; TEST_DB_URL=... node --test test/transport_order.test.js</code> → 0 échec.</p>
+<p>Dans <code>src/</code>, câble <code>pages/operation-edi/TransportOrder.tsx</code> (formulaire création → POST create) et <code>pages/OrdreDetransport.tsx</code> (liste + détail + bouton refresh). Base URL orchestrator + auth selon la config existante de l'app. Ajoute l'entrée de route/menu « Opérations/EDI ». Réutilise client HTTP + style existants.
+  <em>Tests unitaires</em> : <code>src/pages/operation-edi/__tests__/TransportOrder.test.tsx</code> — submit → client appelé avec bon payload (client mocké) ; liste rend une réponse mockée. Bloquant avant P4.T.
+  <em>DoD</em> : pages câblées + routées ; <code>npm run build</code> OK ; tests de rendu verts.
+  <em>Vérif</em> : <code>npm run build</code> → OK ; <code>npm test -- TransportOrder</code> → 0 échec.</p>
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P4.2 — Monter la route transport dans le serveur Hub</strong>
-  <em>Description</em> : réconcilier <code>routes/transport.js</code> : router Express (<code>POST /create</code>, <code>GET /</code>, <code>GET /:ref</code>, <code>POST /:ref/refresh</code>) branché sur <code>TransportController</code> ; monter sous <code>/api/orchestrator/transport</code> dans <code>edi_orchestrator/server.js</code> (à côté de <code>dispatch</code>, <code>tracking</code>).
-  <em>Prompt exécutant</em> :</p>
-<blockquote>
-<p>Aligne <code>edi_orchestrator/routes/transport.js</code> sur les 4 routes de <code>docs/tests/edi-suite/hub-p3/transport.js</code>, en <code>require('../controllers/TransportController')</code>. Dans <code>edi_orchestrator/server.js</code>, vérifie/ajoute <code>app.use('/api/orchestrator/transport', require('./routes/transport'))</code>. Ne touche pas aux autres montages (dispatch, ack, tracking, registry).
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/transport_route.test.js</code> (adapter staged, supertest ou http local) — <code>POST /api/orchestrator/transport/create</code> avec body minimal valide → HTTP 200 + <code>success:true</code> + <code>ref</code> ; <code>GET /:ref</code> → l'ordre ; <code>POST /:ref/refresh</code> → statut avancé ; <code>POST /create</code> sans <code>carrier_code</code> → HTTP 400. Bloquant avant P4.T.
-  <em>DoD</em> : route montée, serveur démarre (<code>node --check server.js</code> OK), tests route verts.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; node --check server.js &amp;&amp; TEST_DB_URL=... node --test test/transport_route.test.js</code> → 0 échec.</p>
-</blockquote>
-</li>
-<li>
-<p>☐ <strong>P4.T — Scénario de test complet P4 (contre codeonline_edi_test)</strong>
-  1. Démarrer le Hub en local pointant <code>codeonline_edi_test</code>. <code>POST /api/orchestrator/transport/create</code> <code>{country_code:'CI', carrier_code:'SIMU', consignor:{gln:'6181234567890'}, consignee:{gln:'6191234567890'}, order_ref:'ORD-TEST-1', pickup:{gln:'6181234567890'}, delivery:{gln:'6191234567890'}}</code> → attendu : HTTP 200, <code>success:true</code>, <code>ref</code> retourné, ligne <code>edi_transport_orders</code> créée avec <code>iftmin_number</code> non nul, <code>status</code> ∈ {CREATED,CONFIRMED}, transaction <code>IFTMIN</code> loguée.
-  2. <code>GET /api/orchestrator/transport/&lt;ref&gt;</code> → attendu : l'ordre + <code>iftmin_content</code> présent + validé.
-  3. <code>POST /api/orchestrator/transport/&lt;ref&gt;/refresh</code> x3 → attendu : statut progresse <code>…→IN_TRANSIT→DELIVERED</code>, 1 ligne <code>edi_tracking</code> par refresh.
-  4. <code>POST /create</code> sans <code>carrier_code</code> → attendu : HTTP 400, <code>success:false</code>.
-  5. <code>DELETE</code> des lignes de test (<code>ref LIKE 'IFT-TEST-%'</code> ou l'IFTMIN généré).
-  Critères de réussite : 5/5 OK, tous les tests P4 verts. Phase cochable seulement si tout passe.</p>
-</li>
-</ul>
-<hr />
-<h2 id="p5-declencheur-auto-iftmin-depuis-orderdesadv">P5 — Déclencheur auto IFTMIN depuis ORDER/DESADV 🟠</h2>
-<p><strong>Objectif</strong> : à la création/réception d'un ORDER (ou DESADV) portant des données transport, un IFTMIN est généré automatiquement via <code>TransportController.create</code>.</p>
-<ul>
-<li>
-<p>☐ <strong>P5.1 — Hook de génération auto</strong>
-  <em>Description</em> : ajouter dans le flux ORDER/DESADV du Hub un déclencheur : si le message porte <code>carrier_code</code> + parties/lieux, appeler en interne <code>TransportController.create</code> (mode auto, <code>source:'AUTO'</code>). Idempotent (pas de doublon si un transport existe déjà pour cet <code>order_ref</code>).
-  <em>Prompt exécutant</em> :</p>
-<blockquote>
-<p>Identifie dans <code>edi_orchestrator</code> le point où un ORDER/DESADV est traité (HubController.relayMessage ou un post-traitement). Ajoute un module <code>edi_orchestrator/services/autoTransport.js</code> : <code>maybeCreateTransport({order_ref, desadv_ref, country_code, carrier_code, consignor, consignee, pickup, delivery})</code> qui, si <code>carrier_code</code> présent ET aucun <code>edi_transport_orders</code> pour cet <code>order_ref</code>, appelle la logique de <code>TransportController.create</code>. Branche l'appel après persistance de l'ORDER/DESADV. Ne bloque pas le flux principal en cas d'échec transport (try/catch + log).
-  <em>Tests unitaires</em> : <code>edi_orchestrator/test/auto_transport.test.js</code> — ORDER avec <code>carrier_code</code> → 1 <code>edi_transport_orders</code> créé ; même ORDER rejoué → toujours 1 (idempotent) ; ORDER sans <code>carrier_code</code> → 0. Bloquant avant P5.T.
-  <em>DoD</em> : hook en place, non bloquant, idempotent, tests verts.
-  <em>Vérif</em> : <code>cd edi_orchestrator &amp;&amp; TEST_DB_URL=... node --test test/auto_transport.test.js</code> → 0 échec.</p>
-</blockquote>
-</li>
-<li>
-<p>☐ <strong>P5.T — Scénario de test complet P5</strong>
-  1. Injecter un ORDER de test (via le flux Hub) portant <code>carrier_code:'SIMU'</code> + parties/lieux → attendu : 1 ligne <code>edi_transport_orders</code> auto (<code>source AUTO</code>), statut CONFIRMED, IFTMIN valide.
-  2. Rejouer le même ORDER → attendu : toujours 1 ligne (pas de doublon).
-  3. Injecter un ORDER sans <code>carrier_code</code> → attendu : 0 transport auto, flux ORDER inchangé (ORDER toujours traité normalement).
-  4. Nettoyer les données de test.
-  Critères de réussite : 4/4 OK, tests P5 verts. Phase cochable seulement si tout passe.</p>
-</li>
-</ul>
-<hr />
-<h2 id="p6-frontend-ordre-de-transport">P6 — Frontend Ordre de transport 🟠</h2>
-<p><strong>Objectif</strong> : les pages <code>TransportOrder.tsx</code> / <code>OrdreDetransport.tsx</code> créent et suivent un ordre de transport via l'API Hub, et sont routées dans l'app.</p>
-<ul>
-<li>
-<p>☐ <strong>P6.1 — Câbler les pages transport à l'API</strong>
-  <em>Description</em> : brancher <code>src/pages/operation-edi/TransportOrder.tsx</code> (création : formulaire → <code>POST /api/orchestrator/transport/create</code>) et <code>src/pages/OrdreDetransport.tsx</code> (liste + détail + bouton refresh → <code>GET /</code> et <code>POST /:ref/refresh</code>). Ajouter la route dans le routeur de l'app (menu « Opérations/EDI »). Utiliser le client API existant du projet.
-  <em>Prompt exécutant</em> :</p>
-<blockquote>
-<p>Dans <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/src</code>, câble <code>pages/operation-edi/TransportOrder.tsx</code> et <code>pages/OrdreDetransport.tsx</code> à l'API Hub transport (base URL = orchestrator, cf. config existante). Formulaire de création (pays, transporteur=SIMU, consignor/consignee GLN, order_ref, lieux) → POST create. Liste des ordres → GET <code>/</code>. Détail → GET <code>/:ref</code> + bouton « Rafraîchir statut » → POST <code>/:ref/refresh</code>. Ajoute l'entrée de route/menu. Réutilise le client HTTP et le style existants (ne pas réinventer).
-  <em>Tests unitaires</em> : test de rendu (<code>src/pages/operation-edi/__tests__/TransportOrder.test.tsx</code>) — le formulaire submit appelle le client avec le bon payload (client mocké) ; la liste affiche les ordres d'une réponse mockée. Bloquant avant P6.T.
-  <em>DoD</em> : pages câblées + routées ; <code>npm run build</code> (ou équivalent) réussit ; tests de rendu verts.
-  <em>Vérif</em> : <code>cd /Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn &amp;&amp; npm run build</code> → build OK ; <code>npm test -- TransportOrder</code> → 0 échec.</p>
-</blockquote>
-</li>
-<li>
-<p>☐ <strong>P6.T — Scénario de test complet P6 (contre Hub local + codeonline_edi_test)</strong>
-  1. Lancer le front (dev) pointant le Hub local. Ouvrir la page « Ordre de transport » → attendu : formulaire affiché, route accessible depuis le menu.
-  2. Créer un ordre (carrier SIMU, GLN CIV→TUN) → attendu : succès, l'ordre apparaît dans la liste avec un <code>ref</code> + statut.
-  3. Ouvrir le détail → « Rafraîchir statut » 2-3× → attendu : le statut progresse jusqu'à DELIVERED à l'écran.
-  4. Nettoyer les données de test.
+<p>☐ <strong>P4.T — Scénario de test complet P4 (front + Hub réel de test)</strong>
+  1. Page « Ordre de transport » accessible via le menu.
+  2. Créer un ordre (MOCK01, GLN CIV→TUN) → apparaît dans la liste avec <code>ref</code> + statut.
+  3. Détail → « Rafraîchir statut » ×3 → statut progresse jusqu'à livré à l'écran.
+  4. Nettoyage données de test.
   Critères de réussite : 4/4 OK, build + tests front verts. Phase cochable seulement si tout passe.</p>
 </li>
 </ul>
 <hr />
-<h2 id="p7-deploiement-hub-prod-fail-safe-e2e-cross-pays-nettoyage">P7 — Déploiement hub-prod (fail-safe) + E2E cross-pays + nettoyage 🔴</h2>
-<p><strong>Objectif</strong> : IFTMIN opérationnel sur hub-prod sans casser l'existant, prouvé par un E2E réel, données de test nettoyées.</p>
+<h2 id="p5-e2e-cross-pays-reel-doc-de-test-nettoyage">P5 — E2E cross-pays réel + doc de test + nettoyage 🔴</h2>
+<p><strong>Objectif</strong> : prouver l'IFTMIN sur les 3 axes pays et livrer un doc de test (comme les scénarios EDI existants), données nettoyées.</p>
 <ul>
 <li>
-<p>☐ <strong>P7.1 — Migration schéma sur hub-prod</strong>
-  <em>Description</em> : appliquer <code>2026_iftmin_transport_schema.sql</code> sur <code>codeonline_edi_db_prod</code> (idempotent), après backup logique des tables transport existantes.
+<p>☐ <strong>P5.1 — Scénarios transport cross-pays + doc</strong>
+  <em>Description</em> : dérouler create/refresh pour CIV→TUN, TUN→SEN, SEN→CIV (transporteur MOCK01), consigner dans <code>docs/tests/SCENARIOS_TRANSPORT_cross_pays.(md|html)</code> (statut, tracking, résultat).
   <em>Prompt exécutant</em> :</p>
 <blockquote>
-<p>Sur <code>hub-prod</code> : <code>mysqldump codeonline_edi_db_prod edi_transport_orders edi_tracking &gt; /root/backup_transport_$(date +%s).sql</code> (si les tables existent). Applique <code>2026_iftmin_transport_schema.sql</code>. Vérifie via <code>information_schema.columns</code> que toutes les colonnes cibles existent. Ne touche à AUCUNE autre table.
-  <em>Tests unitaires</em> : requête de vérif colonnes (P1.1) exécutée sur <code>codeonline_edi_db_prod</code> → toutes présentes. Bloquant avant P7.2.
-  <em>DoD</em> : schéma transport à jour sur hub-prod, backup présent.
-  <em>Vérif</em> : <code>ssh hub-prod 'mysql codeonline_edi_db_prod &lt; verify_iftmin_schema.sql'</code> → colonnes présentes ; backup listé.</p>
+<p>Avec JWT, crée 3 ordres de transport de test (CIV→TUN, TUN→SEN, SEN→CIV, carrier MOCK01, réfs <code>IFT-TEST-…</code>), rafraîchis chacun jusqu'à l'état livré, capture les résultats (ref, tracking_number, statut final, transaction IFTMIN). Génère <code>docs/tests/SCENARIOS_TRANSPORT_cross_pays.md</code> + <code>.html</code> (tableau : axe pays | ref | tracking | statut final | ✅/❌). Puis NETTOIE tous les <code>IFT-TEST-%</code> (edi_transport_orders, edi_tracking, transactions). Vérifie reste = 0 partout.
+  <em>Tests unitaires</em> : les 3 scénarios eux-mêmes (assertions statut final livré). Bloquant avant P5.T.
+  <em>DoD</em> : doc de test produit ; 3/3 axes livrés ; 0 résidu après nettoyage.
+  <em>Vérif</em> : <code>SELECT COUNT(*) … WHERE ref LIKE 'IFT-TEST-%'</code> = 0 ; doc présent + committé.</p>
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P7.2 — Déploiement code Hub (fail-safe)</strong>
-  <em>Description</em> : déployer sur <code>/var/www/Edi-prod/edi_orchestrator</code> les fichiers P2–P5 (générateur, validateur, carriers/, model, controller, route, autoTransport) via la procédure fail-safe (copie temp → <code>node --check</code> de chaque fichier + <code>node --check server.js</code> → promotion → <code>pm2 restart</code>).
-  <em>Prompt exécutant</em> :</p>
-<blockquote>
-<p>Déploie sur <code>hub-prod:/var/www/Edi-prod/edi_orchestrator</code> : <code>services/generateIftminEANCOM.js</code>, <code>services/validateIftmin.js</code>, <code>services/carriers/*.js</code>, <code>models/TransportOrderModel.js</code>, <code>controllers/TransportController.js</code>, <code>routes/transport.js</code>, <code>services/autoTransport.js</code>, et le patch <code>server.js</code>. Procédure OBLIGATOIRE fail-safe : rsync vers un dossier temp → <code>node --check</code> sur CHAQUE .js + <code>node --check</code> sur une copie temp de <code>server.js</code> patché → si tout valide, <code>cp</code> backups horodatés des fichiers live puis promotion → <code>pm2 restart codeonline-edi-orchestrator-prod</code> → attendre 5s. NE PAS utiliser <code>node --check &amp;&amp; echo</code> sous <code>set -e</code> (utiliser <code>if ! node --check ...; then exit 1; fi</code>).
-  <em>Tests unitaires</em> : après restart — <code>curl -s hub health</code> (endpoint santé existant) → 200 ; <code>POST /api/orchestrator/dispatch</code> d'un ORDERS témoin (non-IFTMIN) → <code>success:true</code> (non-régression). Bloquant avant P7.T.
-  <em>DoD</em> : orchestrateur <code>online</code> post-restart, dispatch existant OK, route transport répond.
-  <em>Vérif</em> : <code>ssh hub-prod 'pm2 list | grep orchestrator'</code> → online ; <code>curl … /api/orchestrator/transport/</code> → 200 (liste, éventuellement vide).</p>
-</blockquote>
-</li>
-<li>
-<p>☐ <strong>P7.T — Scénario E2E complet sur hub-prod (données de test)</strong>
-  1. <code>POST https://registry.codeonline-edi.net/api/orchestrator/transport/create</code> <code>{country_code:'CI', carrier_code:'SIMU', consignor:{gln:'6181234567890',name:'CIV'}, consignee:{gln:'6191234567890',name:'TUN'}, order_ref:'IFT-TEST-CIV-TUN-001', pickup:{gln:'6181234567890'}, delivery:{gln:'6191234567890'}}</code> → attendu : HTTP 200, <code>success:true</code>, <code>ref</code>, IFTMIN valide, ligne <code>edi_transport_orders</code> CREATED/CONFIRMED, transaction <code>IFTMIN</code> loguée.
-  2. <code>GET …/transport/&lt;ref&gt;</code> → attendu : ordre + IFTMIN + statut.
-  3. <code>POST …/transport/&lt;ref&gt;/refresh</code> ×3 → attendu : statut progresse jusqu'à <code>DELIVERED</code>, lignes <code>edi_tracking</code> ajoutées.
-  4. Vérifier non-régression : envoyer 1 ORDERS + 1 APERAK→ORDERS via dispatch (comme les scénarios existants) → attendu : toujours <code>PROCESSED</code>/<code>ACKNOWLEDGED</code>, aucune erreur.
-  5. <strong>Nettoyage</strong> : <code>DELETE FROM edi_transport_orders WHERE ref LIKE 'IFT-TEST-%' OR order_ref LIKE 'IFT-TEST-%'</code> ; <code>DELETE FROM edi_tracking WHERE …</code> ; <code>DELETE FROM transactions WHERE transaction_ref LIKE 'IFT-TEST-%'</code>. Vérifier reste = 0.
-  Critères de réussite : étapes 1-4 OK (statut final DELIVERED, non-régression verte), étape 5 → 0 résidu. Phase cochable seulement si tout passe.</p>
+<p>☐ <strong>P5.T — Scénario de test complet P5</strong>
+  1. 3 axes pays → chacun statut final livré + transaction <code>IFTMIN</code> loguée.
+  2. Doc <code>SCENARIOS_TRANSPORT_cross_pays.(md|html)</code> généré + committé (dual-push).
+  3. Nettoyage → <code>0</code> résidu sur les 3 tables (hub).
+  Critères de réussite : 3/3 axes OK, doc committé, 0 résidu. Phase cochable seulement si tout passe.</p>
 </li>
 </ul>
 <hr />
 <h2 id="ordre-dexecution">Ordre d'exécution</h2>
-<pre><code>P1 → P2 → P3 → P4 → P5 → P6 → P7
-              (P2 ∥ P3 partiellement : P3 ne dépend que de P1 ; P4 dépend de P1+P2+P3)
-              (P6 dépend de P4 ; peut se faire ∥ P5)
+<pre><code>P1 (reconcile, URGENT) → P2 (verify live) → P3 (auto) ∥ P4 (front) → P5 (E2E cross-pays + doc)
 </code></pre>
-<p>Chemin critique : <strong>P1 → P2 → P4 → P7</strong>. P3 en parallèle de P2. P5 et P6 après P4. P7 (prod) en dernier.</p>
+<p>Chemin critique : <strong>P1 → P2 → P5</strong>. P3 et P4 parallélisables après P2.</p>
 <h2 id="dod-globale">DoD globale</h2>
 <ul>
-<li>☐ <code>edi_transport_orders</code> + <code>edi_tracking</code> au schéma cible sur <code>codeonline_edi_test</code> ET <code>codeonline_edi_db_prod</code> (idempotent).</li>
-<li>☐ Générateur IFTMIN D.01B + validateur intégrés au Hub, tests verts.</li>
-<li>☐ Registry + adaptateur simulé déterministe, tests verts.</li>
-<li>☐ Endpoints <code>/api/orchestrator/transport/{create,,:ref,:ref/refresh}</code> fonctionnels (200/400 attendus), tests route verts.</li>
-<li>☐ Déclencheur auto IFTMIN depuis ORDER/DESADV, idempotent, non bloquant, tests verts.</li>
-<li>☐ Pages front Ordre de transport câblées + routées, build OK, tests de rendu verts.</li>
-<li>☐ Déployé sur hub-prod en fail-safe, dispatch/ACK/tracking existants non régressés.</li>
-<li>☐ Scénario E2E hub-prod vert : create → IFTMIN valide → simulé → refresh → DELIVERED, transaction <code>IFTMIN</code> loguée.</li>
-<li>☐ Données de test supprimées (0 résidu <code>IFT-TEST-%</code>).</li>
-<li>☐ Tous les commits poussés sur GitHub <strong>et</strong> Gitea (dual-push).</li>
+<li>☐ Repo == prod sur les fichiers transport/IFTMIN (drift = 0), tout committé + dual-push.</li>
+<li>☐ Migration <code>2026_iftmin_transport_schema.sql</code> = schéma prod réel (idempotent) ; staging incompatible archivé.</li>
+<li>☐ Tests unitaires transport verts sur le serveur.</li>
+<li>☐ E2E live prouvé : create → IFTMIN valide → MOCK01 → refresh → statut livré → transaction <code>IFTMIN</code>.</li>
+<li>☐ Non-régression dispatch/ACK OK après toute intervention.</li>
+<li>☐ Déclencheur auto ORDER/DESADV constaté/ajouté, idempotent, non bloquant, testé.</li>
+<li>☐ Pages front transport câblées + routées, build OK, tests verts.</li>
+<li>☐ 3 axes cross-pays livrés + doc de test committé.</li>
+<li>☐ Toutes données de test supprimées (0 résidu <code>IFT-TEST-%</code>).</li>
 </ul>
 </div></body></html>
