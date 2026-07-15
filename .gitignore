@@ -60,3 +60,8 @@ deploy_configs/*.conf
 *.pem
 backend/config/keys/
 backend/temp_keys/
+
+# Gros dumps DB (hors versionnement)
+sql/backend/Dev_Entitedb.sql
+Bdd/Dev_Entitedb.sql.bak
+*.sql.bak
