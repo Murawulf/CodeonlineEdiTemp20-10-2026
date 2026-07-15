@@ -187,7 +187,7 @@ ul{padding-left:18px}
 <p><strong>Objectif</strong> : à la réception/création d'un ORDER (ou DESADV) portant des données transport (<code>carrier_code</code> + parties/lieux), un ordre de transport IFTMIN est créé automatiquement, idempotent, sans bloquer le flux.</p>
 <ul>
 <li>
-<p>☐ <strong>P3.1 — Vérifier si un déclencheur auto existe déjà, sinon l'ajouter</strong>
+<p>☑ <strong>P3.1 — Vérifier si un déclencheur auto existe déjà, sinon l'ajouter</strong>
   <em>Description</em> : d'abord constater l'existant (le déploiement du 11/07 en contient-il un ?). Sinon, ajouter un hook non bloquant appelant la logique <code>TransportController.create</code> en mode auto, idempotent par <code>order_ref</code>.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -198,13 +198,20 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P3.T — Scénario de test complet P3</strong>
+<p>☑ <strong>P3.T — Scénario de test complet P3</strong>
   1. Injecter (flux Hub) un ORDER de test <code>carrier_code:MOCK01</code> + parties/lieux → attendu : 1 <code>edi_transport_orders</code> auto, IFTMIN valide.
   2. Rejouer → toujours 1 (idempotent).
   3. ORDER sans <code>carrier_code</code> → 0 transport, ORDER traité normalement.
   4. Nettoyage → 0 résidu.
   Critères de réussite : 4/4 OK. Phase cochable seulement si tout passe.</p>
 </li>
+</ul>
+<h3 id="resultats-p3-verifie-le-2026-07-15-hub-prod">Résultats P3 (vérifié le 2026-07-15, hub-prod)</h3>
+<ul>
+<li><strong>Choix</strong> : déclencheur sur <strong>DESADV</strong> portant un transporteur (TDT/NAD+CA) → transport auto ; mapping transporteur présent → <strong>MOCK01</strong> ; idempotent par desadv_ref/order_ref ; <strong>non bloquant</strong> (fire-and-forget après la réponse dispatch, zéro impact latence).</li>
+<li><strong>Implémentation</strong> : <code>services/autoTransport.js</code> (<code>maybeCreateTransport</code>) + hook dans <code>HubController.relayMessage</code> (déployé en MEP fail-safe, backup <code>HubController.js.bak-p3-20260715</code>).</li>
+<li><strong>P3.1 ✅</strong> : test unitaire <code>auto_transport.test.js</code> → création si transporteur ✅, idempotent (rejeu → <code>skipped: exists</code>) ✅, sans transporteur → <code>skipped: no-carrier</code> ✅, exactement 1 transport ✅ (<code># pass 1 # fail 0</code>).</li>
+<li><strong>P3.T ✅ (E2E réel)</strong> : <code>POST /dispatch</code> d'un DESADV CIV→TUN avec <code>NAD+CA</code>/<code>TDT</code> → <strong>transport auto-créé</strong> (<code>created:true</code>, <code>MOCK01</code>, <code>SENT_TO_CARRIER</code>, tracking <code>MOCK-…</code>, <code>desadv_ref</code> lié). <strong>Non-régression</strong> : dispatch ORDERS valide → <code>success:true</code>. Nettoyage hub + TUN → 0 résidu.</li>
 </ul>
 <hr />
 <h2 id="p4-frontend-ordre-de-transport">P4 — Frontend Ordre de transport 🟠</h2>

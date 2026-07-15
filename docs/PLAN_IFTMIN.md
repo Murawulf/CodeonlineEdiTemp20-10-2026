@@ -137,7 +137,7 @@
 ## P3 — Déclencheur auto IFTMIN depuis ORDER/DESADV 🟠
 **Objectif** : à la réception/création d'un ORDER (ou DESADV) portant des données transport (`carrier_code` + parties/lieux), un ordre de transport IFTMIN est créé automatiquement, idempotent, sans bloquer le flux.
 
-- [ ] **P3.1 — Vérifier si un déclencheur auto existe déjà, sinon l'ajouter**
+- [x] **P3.1 — Vérifier si un déclencheur auto existe déjà, sinon l'ajouter**
   *Description* : d'abord constater l'existant (le déploiement du 11/07 en contient-il un ?). Sinon, ajouter un hook non bloquant appelant la logique `TransportController.create` en mode auto, idempotent par `order_ref`.
   *Prompt exécutant* :
   > Cherche dans `edi_orchestrator` un déclenchement auto de transport depuis un ORDER/DESADV (grep `carrier_code`, `maybeCreateTransport`, appel interne à `create` depuis `HubController`). Si présent : documente-le + teste-le. Sinon : crée `edi_orchestrator/services/autoTransport.js` `maybeCreateTransport(payload)` (si `carrier_code` présent ET aucun `edi_transport_orders` pour cet `order_ref` → crée), branché après persistance ORDER/DESADV, try/catch non bloquant. Déploiement en MEP fail-safe.
@@ -145,12 +145,18 @@
   *DoD* : comportement auto constaté/ajouté, idempotent, non bloquant, tests verts.
   *Vérif* : `node --test test/auto_transport.test.js` → 0 échec.
 
-- [ ] **P3.T — Scénario de test complet P3**
+- [x] **P3.T — Scénario de test complet P3**
   1. Injecter (flux Hub) un ORDER de test `carrier_code:MOCK01` + parties/lieux → attendu : 1 `edi_transport_orders` auto, IFTMIN valide.
   2. Rejouer → toujours 1 (idempotent).
   3. ORDER sans `carrier_code` → 0 transport, ORDER traité normalement.
   4. Nettoyage → 0 résidu.
   Critères de réussite : 4/4 OK. Phase cochable seulement si tout passe.
+
+### Résultats P3 (vérifié le 2026-07-15, hub-prod)
+- **Choix** : déclencheur sur **DESADV** portant un transporteur (TDT/NAD+CA) → transport auto ; mapping transporteur présent → **MOCK01** ; idempotent par desadv_ref/order_ref ; **non bloquant** (fire-and-forget après la réponse dispatch, zéro impact latence).
+- **Implémentation** : `services/autoTransport.js` (`maybeCreateTransport`) + hook dans `HubController.relayMessage` (déployé en MEP fail-safe, backup `HubController.js.bak-p3-20260715`).
+- **P3.1 ✅** : test unitaire `auto_transport.test.js` → création si transporteur ✅, idempotent (rejeu → `skipped: exists`) ✅, sans transporteur → `skipped: no-carrier` ✅, exactement 1 transport ✅ (`# pass 1 # fail 0`).
+- **P3.T ✅ (E2E réel)** : `POST /dispatch` d'un DESADV CIV→TUN avec `NAD+CA`/`TDT` → **transport auto-créé** (`created:true`, `MOCK01`, `SENT_TO_CARRIER`, tracking `MOCK-…`, `desadv_ref` lié). **Non-régression** : dispatch ORDERS valide → `success:true`. Nettoyage hub + TUN → 0 résidu.
 
 ---
 

@@ -102,6 +102,27 @@ class HubController {
         route: route.name
       });
 
+      // P3 — déclencheur auto IFTMIN : un DESADV portant un transporteur → ordre de transport.
+      // Fire-and-forget APRÈS la réponse : zéro impact latence, totalement non bloquant.
+      if (safeMessageType === 'DESADV' && eancomContent) {
+        (async () => {
+          try {
+            const { parseEANCOM } = require('../services/eancom_parser');
+            const { maybeCreateTransport } = require('../services/autoTransport');
+            const parsed = parseEANCOM(eancomContent);
+            const [pc] = await db.execute('SELECT country_code FROM partners WHERE gln = ? LIMIT 1', [safeSenderGln]);
+            const countryCode = (pc[0] && pc[0].country_code) || null;
+            const r = await maybeCreateTransport(
+              { parsed, senderGln: safeSenderGln, receiverGln: safeReceiverGln, orderRef: orderRef || null, desadvRef: transactionRef, countryCode },
+              db
+            );
+            console.log(`[Hub] auto-transport (${transactionRef}): ${JSON.stringify(r)}`);
+          } catch (e) {
+            console.warn(`[Hub] auto-transport non bloquant échoué (${transactionRef}): ${e.message}`);
+          }
+        })();
+      }
+
     } catch (error) {
       console.error(`[Hub] Dispatch Failed:`, error.message);
       await this._updateStatus(transactionRef, 'FAILED', error.message);
