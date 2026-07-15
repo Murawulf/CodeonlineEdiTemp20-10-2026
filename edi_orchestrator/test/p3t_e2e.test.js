@@ -36,6 +36,19 @@ async function main() {
   const K_CAR = keys.find((k) => k.app_name === 'tracking-app-carrier-test')?.api_key;
   const K_CIV = keys.find((k) => k.app_name === 'tracking-app-partner-civ')?.api_key;
 
+  // P2.4 — fixture DESADV autonome : le test ne dépend plus d'un DESADV pré-existant.
+  // receiver_gln = 6181234567890 (CIV) → visible par la clé partner-civ (scope_gln CIV).
+  const FIX_TS = Date.now();
+  const FIX_DESADV_REF = `DESADV-IFTTESTFIX-${FIX_TS}`;
+  const FIX_ORDER_REF = `ORD-IFTTESTFIX-${FIX_TS}`;
+  await db.execute(
+    `INSERT INTO transactions (transaction_ref, sender_gln, receiver_gln, document_type, status, order_ref, payload_size, created_at, delivered_at)
+     VALUES (?, '6191234567890', '6181234567890', 'DESADV', 'DELIVERED', ?, 0, NOW(), NOW())`,
+    [FIX_DESADV_REF, FIX_ORDER_REF]
+  );
+  let ref = null;
+  try {
+
   // DESADV existant (dernier DESADV du réseau, cycle P1/P2)
   const [desadvTx] = await db.execute(
     "SELECT transaction_ref, order_ref FROM transactions WHERE document_type='DESADV' ORDER BY id DESC LIMIT 1"
@@ -63,7 +76,7 @@ async function main() {
   check('200 + success', r.status === 200 && r.body.success === true, JSON.stringify(r.body).slice(0, 200));
   check('trackingNumber présent', !!r.body.trackingNumber, r.body.trackingNumber);
   check('SENT_TO_CARRIER', r.body.status === 'SENT_TO_CARRIER', r.body.status);
-  const ref = r.body.ref;
+  ref = r.body.ref;
 
   const [row] = await db.execute('SELECT * FROM edi_transport_orders WHERE ref = ?', [ref]);
   check('CREATED→SENT_TO_CARRIER en DB', row.length === 1 && row[0].status === 'SENT_TO_CARRIER', row[0]?.status);
@@ -113,6 +126,15 @@ async function main() {
     check('transport rattaché', !!dRow.transport, JSON.stringify(dRow).slice(0, 200));
     check('statut transport DELIVERED', dRow.transport?.status === 'DELIVERED', dRow.transport?.status);
     check('trackingNumber exposé', !!dRow.transport?.tracking_number, JSON.stringify(dRow.transport));
+  }
+
+  } finally {
+    // P2.4 — nettoyage fixture DESADV + ordre de transport créé (test autonome, 0 résidu)
+    await db.execute('DELETE FROM transactions WHERE transaction_ref = ?', [FIX_DESADV_REF]);
+    if (ref) {
+      await db.execute('DELETE FROM edi_transport_orders WHERE ref = ?', [ref]);
+      await db.execute('DELETE FROM transactions WHERE transaction_ref = ?', [ref]);
+    }
   }
 
   console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} ÉCHEC(S)`);

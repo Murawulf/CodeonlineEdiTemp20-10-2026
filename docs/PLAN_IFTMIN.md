@@ -92,7 +92,7 @@
   *DoD* : un appel authentifié passe (200), l'auth JWT est maîtrisée.
   *Vérif* : `GET /api/orchestrator/transport/` avec le token → 200.
 
-- [ ] **P2.2 — Faire tourner les tests unitaires déployés sur le serveur**
+- [x] **P2.2 — Faire tourner les tests unitaires déployés sur le serveur**
   *Description* : exécuter `test/{transport_order,carrier_registry,transport_route,p3t_e2e}.test.js` sur `hub-prod` (contre la vraie DB ou une base de test) et lire le résultat réel.
   *Prompt exécutant* :
   > Sur `hub-prod`, dans `/var/www/Edi-prod/edi_orchestrator`, exécute `node --test test/carrier_registry.test.js test/transport_order.test.js test/transport_route.test.js test/p3t_e2e.test.js` (adapter la commande au runner présent). Note le nombre de tests passés/échoués. Si des tests écrivent en DB, s'assurer qu'ils utilisent une base/réf de test et nettoient.
@@ -108,7 +108,7 @@
   *DoD* : flux complet prouvé en réel, statut final « livré », 0 résidu après nettoyage.
   *Vérif* : logs + `SELECT status FROM edi_transport_orders` (avant nettoyage) = état livré ; après nettoyage `COUNT(*) WHERE ref LIKE 'IFT-TEST-%'` = 0.
 
-- [ ] **P2.T — Scénario de test complet P2 + non-régression**
+- [x] **P2.T — Scénario de test complet P2 + non-régression**
   1. JWT obtenu, `GET /transport/` → 200.
   2. Tests unitaires transport serveur → 0 échec.
   3. E2E create/get/refresh → IFTMIN valide, MOCK01, statut final livré, transaction `IFTMIN` loguée.
@@ -120,11 +120,11 @@
 
 ### Résultats P2 (vérifié le 2026-07-15, hub-prod)
 - **P2.1 ✅** : 401 sans token → **200** avec token JWT (signé JWT_SECRET réseau, PORT 5010).
-- **P2.2 : 3/4 verts** — `carrier_registry` ✅, `transport_order` ✅, `transport_route` ✅. **`p3t_e2e` ❌ (3 assertions)** : le flux transport lui-même est 100 % vert (create → IFTMIN → MOCK01 → SENT_TO_CARRIER → refresh → tracking carrier → IN_TRANSIT → DELIVERED → transition illégale refusée), mais 3 assertions échouent car le test **dépend d'un DESADV pré-existant** dans `transactions` (absent après nettoyage). Ce n'est **pas un bug code** mais une dépendance de fixture → tâche corrective **P2.4**.
+- **P2.2 : 4/4 verts** — `carrier_registry` ✅, `transport_order` ✅, `transport_route` ✅, `p3t_e2e` ✅ (après **P2.4**). Initialement `p3t_e2e` échouait sur 3 assertions par **dépendance à un DESADV pré-existant** (absent après nettoyage) — pas un bug code, une dépendance de fixture. **P2.4 l'a rendu autonome** (seed d'un DESADV de fixture + nettoyage en `finally`) → `# pass 1 # fail 0`, 0 résidu.
 - **P2.3 ✅** : E2E live prouvé — `create` (country_code **numérique** `384`) → `success:true`, IFTMIN valide (460 car.), `tracking MOCK-…`, `SENT_TO_CARRIER` → `refresh` → `ACCEPTED` → transaction `IFTMIN` loguée. Nettoyé (0/0). **Contrat API constaté : `country_code` numérique (384/788/686), `goods[]` requis.**
 - **P2.T ✅ (cœur)** : JWT 200 ✅, E2E ✅, **non-régression dispatch** (ORDERS→TUN `success:true`) ✅, nettoyage 0 résidu (hub + TUN) ✅. Seul le point 2 reste sur `p3t_e2e` (→ P2.4).
 
-- [ ] **P2.4 — Rendre `p3t_e2e.test.js` autonome (corrective)**
+- [x] **P2.4 — Rendre `p3t_e2e.test.js` autonome (corrective)**
   *Description* : le test référence un DESADV pré-existant dans `transactions` ; sans lui, 3 assertions échouent. Le rendre autonome : seed un DESADV de test au setup (ou construire l'ordre sans dépendre d'un DESADV existant), puis nettoyer.
   *Prompt exécutant* :
   > Dans `edi_orchestrator/test/p3t_e2e.test.js`, supprime la dépendance à un DESADV pré-existant : au `before`, insère un DESADV de test (`transactions` ou table métier selon le besoin du test) avec une réf `IFT-TEST-DESADV-…`, utilise-le, puis supprime-le au `after`. Objectif : `node --test test/p3t_e2e.test.js` → 0 échec en base propre. Déployer en MEP fail-safe + dual-push.

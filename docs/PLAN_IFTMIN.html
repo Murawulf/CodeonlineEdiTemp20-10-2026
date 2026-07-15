@@ -130,7 +130,7 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P2.2 — Faire tourner les tests unitaires déployés sur le serveur</strong>
+<p>☑ <strong>P2.2 — Faire tourner les tests unitaires déployés sur le serveur</strong>
   <em>Description</em> : exécuter <code>test/{transport_order,carrier_registry,transport_route,p3t_e2e}.test.js</code> sur <code>hub-prod</code> (contre la vraie DB ou une base de test) et lire le résultat réel.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -152,7 +152,7 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P2.T — Scénario de test complet P2 + non-régression</strong>
+<p>☑ <strong>P2.T — Scénario de test complet P2 + non-régression</strong>
   1. JWT obtenu, <code>GET /transport/</code> → 200.
   2. Tests unitaires transport serveur → 0 échec.
   3. E2E create/get/refresh → IFTMIN valide, MOCK01, statut final livré, transaction <code>IFTMIN</code> loguée.
@@ -165,13 +165,13 @@ ul{padding-left:18px}
 <h3 id="resultats-p2-verifie-le-2026-07-15-hub-prod">Résultats P2 (vérifié le 2026-07-15, hub-prod)</h3>
 <ul>
 <li><strong>P2.1 ✅</strong> : 401 sans token → <strong>200</strong> avec token JWT (signé JWT_SECRET réseau, PORT 5010).</li>
-<li><strong>P2.2 : 3/4 verts</strong> — <code>carrier_registry</code> ✅, <code>transport_order</code> ✅, <code>transport_route</code> ✅. <strong><code>p3t_e2e</code> ❌ (3 assertions)</strong> : le flux transport lui-même est 100 % vert (create → IFTMIN → MOCK01 → SENT_TO_CARRIER → refresh → tracking carrier → IN_TRANSIT → DELIVERED → transition illégale refusée), mais 3 assertions échouent car le test <strong>dépend d'un DESADV pré-existant</strong> dans <code>transactions</code> (absent après nettoyage). Ce n'est <strong>pas un bug code</strong> mais une dépendance de fixture → tâche corrective <strong>P2.4</strong>.</li>
+<li><strong>P2.2 : 4/4 verts</strong> — <code>carrier_registry</code> ✅, <code>transport_order</code> ✅, <code>transport_route</code> ✅, <code>p3t_e2e</code> ✅ (après <strong>P2.4</strong>). Initialement <code>p3t_e2e</code> échouait sur 3 assertions par <strong>dépendance à un DESADV pré-existant</strong> (absent après nettoyage) — pas un bug code, une dépendance de fixture. <strong>P2.4 l'a rendu autonome</strong> (seed d'un DESADV de fixture + nettoyage en <code>finally</code>) → <code># pass 1 # fail 0</code>, 0 résidu.</li>
 <li><strong>P2.3 ✅</strong> : E2E live prouvé — <code>create</code> (country_code <strong>numérique</strong> <code>384</code>) → <code>success:true</code>, IFTMIN valide (460 car.), <code>tracking MOCK-…</code>, <code>SENT_TO_CARRIER</code> → <code>refresh</code> → <code>ACCEPTED</code> → transaction <code>IFTMIN</code> loguée. Nettoyé (0/0). <strong>Contrat API constaté : <code>country_code</code> numérique (384/788/686), <code>goods[]</code> requis.</strong></li>
 <li>
 <p><strong>P2.T ✅ (cœur)</strong> : JWT 200 ✅, E2E ✅, <strong>non-régression dispatch</strong> (ORDERS→TUN <code>success:true</code>) ✅, nettoyage 0 résidu (hub + TUN) ✅. Seul le point 2 reste sur <code>p3t_e2e</code> (→ P2.4).</p>
 </li>
 <li>
-<p>☐ <strong>P2.4 — Rendre <code>p3t_e2e.test.js</code> autonome (corrective)</strong>
+<p>☑ <strong>P2.4 — Rendre <code>p3t_e2e.test.js</code> autonome (corrective)</strong>
   <em>Description</em> : le test référence un DESADV pré-existant dans <code>transactions</code> ; sans lui, 3 assertions échouent. Le rendre autonome : seed un DESADV de test au setup (ou construire l'ordre sans dépendre d'un DESADV existant), puis nettoyer.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
