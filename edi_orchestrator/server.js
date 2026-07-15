@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const dispatchRoutes = require('./routes/dispatch');
 const trackingRoutes = require('./routes/tracking');
 const registryRoutes = require('./routes/registry');
+const transportRoutes = require('./routes/transport'); // P3.5 — ordres de transport IFTMIN
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -33,6 +34,8 @@ app.get('/', (req, res) => {
 });
 
 // Routes
+// P3.5 — Ordres de transport IFTMIN (monté AVANT dispatchRoutes : préfixe plus spécifique)
+app.use('/api/orchestrator/transport', transportRoutes);
 app.use('/api/orchestrator', dispatchRoutes);
 
 // Mobile Tracking API

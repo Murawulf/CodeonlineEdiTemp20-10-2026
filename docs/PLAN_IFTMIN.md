@@ -45,7 +45,7 @@
 ## P1 — Réconcilier git ↔ prod (supprimer le drift) 🔴
 **Objectif** : le code transport/IFTMIN déployé en prod est **rapatrié et versionné** dans le repo ; le repo == prod sur ces fichiers ; la vieille copie staging incompatible est retirée.
 
-- [ ] **P1.1 — Inventaire + diff prod ↔ repo**
+- [x] **P1.1 — Inventaire + diff prod ↔ repo**
   *Description* : lister exhaustivement les fichiers transport/IFTMIN live (`edi_orchestrator/{services,controllers,routes,models,test}` + `services/carriers/`) et leur absence/écart dans le repo. Produire `docs/RECONCILE_IFTMIN.md` (liste fichiers, tailles, mtime, présent-repo oui/non).
   *Prompt exécutant* :
   > Sur `hub-prod`, liste tous les fichiers .js liés à transport/IFTMIN/carriers sous `/var/www/Edi-prod/edi_orchestrator` (hors node_modules) : `grep -rl "IFTMIN\|Transport\|carriers\|generateIftmin" --include=*.js`. Pour chacun, compare avec le même chemin dans `/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/edi_orchestrator/`. Écris `docs/RECONCILE_IFTMIN.md` : tableau (fichier | taille prod | présent repo ? | identique ?). Ne modifie encore rien.
@@ -53,7 +53,7 @@
   *DoD* : `docs/RECONCILE_IFTMIN.md` liste ≥ les 6 fichiers clés (generateIftminEANCOM, eancom_parser, TransportController, routes/transport, carriers/registry, carriers/civ_mock01) avec statut repo.
   *Vérif* : `grep -c "IFTMIN\|Transport\|carriers" docs/RECONCILE_IFTMIN.md` > 0 ; inventaire cohérent avec l'État d'entrée.
 
-- [ ] **P1.2 — Rapatrier le code transport prod → repo**
+- [x] **P1.2 — Rapatrier le code transport prod → repo**
   *Description* : copier depuis `hub-prod` vers le repo (`edi_orchestrator/…` aux mêmes chemins) les fichiers transport/IFTMIN + tests. **Exclure tout secret** (`.env`, clés). Vérifier qu'aucun `.env`/secret n'est copié.
   *Prompt exécutant* :
   > `rsync` (ou scp) depuis `hub-prod:/var/www/Edi-prod/edi_orchestrator/` vers `/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/edi_orchestrator/` UNIQUEMENT ces chemins : `services/generateIftminEANCOM.js`, `services/eancom_parser.js`, `services/carriers/` (tout le dossier), `controllers/TransportController.js`, `routes/transport.js`, `models/` (si utilisé par le contrôleur), `test/{p3t_e2e,transport_order,carrier_registry,transport_route}.test.js`, et le patch de `server.js` (montage de la route). NE COPIE PAS `.env*`, `node_modules`, clés. Après copie, `git status` + `grep -rInE "JWT_SECRET|password|api_key" edi_orchestrator/services edi_orchestrator/controllers` → 0 secret en dur.
@@ -61,7 +61,7 @@
   *DoD* : fichiers transport présents dans le repo, `node --check` OK, 0 secret introduit.
   *Vérif* : `git status --short edi_orchestrator | wc -l` > 0 ; `node --check` chaîne OK ; grep secrets = 0.
 
-- [ ] **P1.3 — Migration du schéma réel + retrait du staging obsolète**
+- [x] **P1.3 — Migration du schéma réel + retrait du staging obsolète**
   *Description* : dumper le DDL réel de `edi_transport_orders` + `edi_tracking` (prod) → `sql/migrations/2026_iftmin_transport_schema.sql` (idempotent). Retirer/annoter la copie staging incompatible `docs/tests/edi-suite/hub-p3/` + migrations obsolètes (ou les déplacer sous `docs/tests/edi-suite/_ARCHIVE/` avec un README expliquant que la référence = `edi_orchestrator/`).
   *Prompt exécutant* :
   > Sur `hub-prod` : `mysqldump --no-data codeonline_edi_db_prod edi_transport_orders edi_tracking` → récupère le DDL. Écris `sql/migrations/2026_iftmin_transport_schema.sql` (CREATE TABLE IF NOT EXISTS reproduisant le schéma prod réel : `edi_transport_orders` avec `ref, order_ref, desadv_ref, carrier_code, country_code, requester_gln, status, iftmin_content, tracking_number, carrier_response, error_message, created_at, updated_at`). Déplace `docs/tests/edi-suite/hub-p3/`, `docs/tests/edi-suite/generateIftminEANCOM.js` et les migrations transport obsolètes vers `docs/tests/edi-suite/_ARCHIVE/` avec un `README.md` : « Référence = edi_orchestrator/ (code prod). Ces fichiers sont l'ancien staging, schéma incompatible, conservés pour historique. »
@@ -69,7 +69,7 @@
   *DoD* : migration reflétant le schéma prod réel ; staging incompatible archivé (plus à la racine des refs).
   *Vérif* : `grep -c "tracking_number\|iftmin_content\|requester_gln" sql/migrations/2026_iftmin_transport_schema.sql` = 3 ; `ls docs/tests/edi-suite/_ARCHIVE/` non vide.
 
-- [ ] **P1.T — Scénario de test complet P1**
+- [x] **P1.T — Scénario de test complet P1**
   1. `docs/RECONCILE_IFTMIN.md` généré et cohérent → attendu : les 6 fichiers clés listés.
   2. Fichiers transport rapatriés + `node --check` chaîne → attendu : 0 erreur, 0 secret introduit.
   3. Pour chaque fichier clé : `diff <(ssh hub-prod cat <chemin_prod>) <chemin_repo>` → attendu : **identique** (drift = 0).

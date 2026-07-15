@@ -71,7 +71,7 @@ ul{padding-left:18px}
 <p><strong>Objectif</strong> : le code transport/IFTMIN déployé en prod est <strong>rapatrié et versionné</strong> dans le repo ; le repo == prod sur ces fichiers ; la vieille copie staging incompatible est retirée.</p>
 <ul>
 <li>
-<p>☐ <strong>P1.1 — Inventaire + diff prod ↔ repo</strong>
+<p>☑ <strong>P1.1 — Inventaire + diff prod ↔ repo</strong>
   <em>Description</em> : lister exhaustivement les fichiers transport/IFTMIN live (<code>edi_orchestrator/{services,controllers,routes,models,test}</code> + <code>services/carriers/</code>) et leur absence/écart dans le repo. Produire <code>docs/RECONCILE_IFTMIN.md</code> (liste fichiers, tailles, mtime, présent-repo oui/non).
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -82,7 +82,7 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P1.2 — Rapatrier le code transport prod → repo</strong>
+<p>☑ <strong>P1.2 — Rapatrier le code transport prod → repo</strong>
   <em>Description</em> : copier depuis <code>hub-prod</code> vers le repo (<code>edi_orchestrator/…</code> aux mêmes chemins) les fichiers transport/IFTMIN + tests. <strong>Exclure tout secret</strong> (<code>.env</code>, clés). Vérifier qu'aucun <code>.env</code>/secret n'est copié.
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -93,7 +93,7 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P1.3 — Migration du schéma réel + retrait du staging obsolète</strong>
+<p>☑ <strong>P1.3 — Migration du schéma réel + retrait du staging obsolète</strong>
   <em>Description</em> : dumper le DDL réel de <code>edi_transport_orders</code> + <code>edi_tracking</code> (prod) → <code>sql/migrations/2026_iftmin_transport_schema.sql</code> (idempotent). Retirer/annoter la copie staging incompatible <code>docs/tests/edi-suite/hub-p3/</code> + migrations obsolètes (ou les déplacer sous <code>docs/tests/edi-suite/_ARCHIVE/</code> avec un README expliquant que la référence = <code>edi_orchestrator/</code>).
   <em>Prompt exécutant</em> :</p>
 <blockquote>
@@ -104,7 +104,7 @@ ul{padding-left:18px}
 </blockquote>
 </li>
 <li>
-<p>☐ <strong>P1.T — Scénario de test complet P1</strong>
+<p>☑ <strong>P1.T — Scénario de test complet P1</strong>
   1. <code>docs/RECONCILE_IFTMIN.md</code> généré et cohérent → attendu : les 6 fichiers clés listés.
   2. Fichiers transport rapatriés + <code>node --check</code> chaîne → attendu : 0 erreur, 0 secret introduit.
   3. Pour chaque fichier clé : <code>diff &lt;(ssh hub-prod cat &lt;chemin_prod&gt;) &lt;chemin_repo&gt;</code> → attendu : <strong>identique</strong> (drift = 0).
