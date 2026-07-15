@@ -55,3 +55,8 @@ deploy_configs/*.conf
 
 # Backups serveur (legacy)
 *_BACKUP_BEFORE_*
+
+# Clés privées / certificats (jamais committer)
+*.pem
+backend/config/keys/
+backend/temp_keys/
