@@ -183,7 +183,7 @@
 ## P5 — E2E cross-pays réel + doc de test + nettoyage 🔴
 **Objectif** : prouver l'IFTMIN sur les 3 axes pays et livrer un doc de test (comme les scénarios EDI existants), données nettoyées.
 
-- [ ] **P5.1 — Scénarios transport cross-pays + doc**
+- [x] **P5.1 — Scénarios transport cross-pays + doc**
   *Description* : dérouler create/refresh pour CIV→TUN, TUN→SEN, SEN→CIV (transporteur MOCK01), consigner dans `docs/tests/SCENARIOS_TRANSPORT_cross_pays.(md|html)` (statut, tracking, résultat).
   *Prompt exécutant* :
   > Avec JWT, crée 3 ordres de transport de test (CIV→TUN, TUN→SEN, SEN→CIV, carrier MOCK01, réfs `IFT-TEST-…`), rafraîchis chacun jusqu'à l'état livré, capture les résultats (ref, tracking_number, statut final, transaction IFTMIN). Génère `docs/tests/SCENARIOS_TRANSPORT_cross_pays.md` + `.html` (tableau : axe pays | ref | tracking | statut final | ✅/❌). Puis NETTOIE tous les `IFT-TEST-%` (edi_transport_orders, edi_tracking, transactions). Vérifie reste = 0 partout.
@@ -191,7 +191,7 @@
   *DoD* : doc de test produit ; 3/3 axes livrés ; 0 résidu après nettoyage.
   *Vérif* : `SELECT COUNT(*) … WHERE ref LIKE 'IFT-TEST-%'` = 0 ; doc présent + committé.
 
-- [ ] **P5.T — Scénario de test complet P5**
+- [x] **P5.T — Scénario de test complet P5**
   1. 3 axes pays → chacun statut final livré + transaction `IFTMIN` loguée.
   2. Doc `SCENARIOS_TRANSPORT_cross_pays.(md|html)` généré + committé (dual-push).
   3. Nettoyage → `0` résidu sur les 3 tables (hub).

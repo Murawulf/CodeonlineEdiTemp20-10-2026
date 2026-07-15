@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang=fr><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Scénarios Transport IFTMIN cross-pays</title><style>body{font-family:Segoe UI,Arial,sans-serif;max-width:960px;margin:24px auto;padding:0 20px;color:#1c2733;line-height:1.6}h1{color:#1F4E79;border-bottom:3px solid #1F4E79;padding-bottom:8px}table{border-collapse:collapse;width:100%;margin:14px 0}th{background:#edf3f9;color:#1F4E79;padding:9px;border:1px solid #d8e1ea;text-align:left}td{padding:9px;border:1px solid #d8e1ea}code{background:#eef3f9;padding:1px 5px;border-radius:4px}pre{background:#0d1b2a;color:#e6edf3;padding:14px;border-radius:8px;overflow-x:auto}pre code{background:none;color:inherit}blockquote{background:#eef3f9;border-left:4px solid #2E75B6;padding:8px 14px;border-radius:0 8px 8px 0}</style></head><body><h1>Scénarios de test — Transport IFTMIN cross-pays (validés)</h1>
+<blockquote>
+<p><strong>E2E réel</strong> sur le hub PAESN (<code>registry.codeonline-edi.net</code>, 65.109.125.164). Ordre de transport IFTMIN via l'adaptateur transporteur <strong>simulé MOCK01</strong>. GLN hub réels (CIV 6181234567890 / TUN 6191234567890 / SEN SN02583102G3). <strong>Validé le 2026-07-15.</strong> Données de test nettoyées après (0 résidu).</p>
+</blockquote>
+<h2>Résultats — 3 axes pays</h2>
+<table>
+<thead>
+<tr>
+<th>Axe</th>
+<th><code>country_code</code></th>
+<th>Création</th>
+<th>IFTMIN généré</th>
+<th>Transporteur</th>
+<th>Tracking</th>
+<th>Statut (après refresh)</th>
+<th>Transaction <code>IFTMIN</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🇨🇮 CIV → 🇹🇳 TUN</td>
+<td><code>384</code></td>
+<td>✅ <code>success:true</code></td>
+<td>✅ 439 car.</td>
+<td>MOCK01</td>
+<td><code>MOCK-…</code></td>
+<td><code>ACCEPTED</code></td>
+<td>✅ loguée</td>
+</tr>
+<tr>
+<td>🇹🇳 TUN → 🇸🇳 SEN</td>
+<td><code>788</code></td>
+<td>✅ <code>success:true</code></td>
+<td>✅ 436 car.</td>
+<td>MOCK01</td>
+<td><code>MOCK-…</code></td>
+<td>✅ loguée</td>
+<td></td>
+</tr>
+<tr>
+<td>🇸🇳 SEN → 🇨🇮 CIV</td>
+<td><code>686</code></td>
+<td>✅ <code>success:true</code></td>
+<td>✅ 436 car.</td>
+<td>MOCK01</td>
+<td><code>MOCK-…</code></td>
+<td>✅ loguée</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>3/3 axes OK.</strong> Chaque axe : <code>POST /transport/create</code> → IFTMIN D.01B valide généré → adaptateur MOCK01 → <code>tracking_number</code> assigné → ligne <code>edi_transport_orders</code> + transaction <code>IFTMIN</code> loguée.</p>
+<h2>Note sur le statut</h2>
+<p>L'adaptateur simulé <strong>MOCK01</strong> fait progresser le statut <strong>dans le temps</strong> : <code>SENT_TO_CARRIER → ACCEPTED → IN_TRANSIT → DELIVERED</code>. Un <code>refresh</code> immédiat atteint <code>ACCEPTED</code> ; le <strong>cycle complet jusqu'à <code>DELIVERED</code></strong> est prouvé par le test <code>p3t_e2e</code> (via l'API tracking rôle transporteur : <code>IN_TRANSIT</code> puis <code>DELIVERED</code>, transition illégale refusée).</p>
+<h2>Reproduire un axe</h2>
+<pre><code># 1. Miner un JWT réseau (côté hub, JWT_SECRET) ; 2. créer :
+POST https://registry.codeonline-edi.net/api/orchestrator/transport/create
+Authorization: Bearer &lt;jwt&gt;
+{
+  &quot;country_code&quot;: &quot;384&quot;,              # NUMÉRIQUE (384 CIV / 788 TUN / 686 SEN)
+  &quot;carrier_code&quot;: &quot;MOCK01&quot;,
+  &quot;order_ref&quot;: &quot;…&quot;, &quot;desadv_ref&quot;: &quot;…&quot;,
+  &quot;consignor&quot;: {&quot;gln&quot;: &quot;6181234567890&quot;}, &quot;consignee&quot;: {&quot;gln&quot;: &quot;6191234567890&quot;},
+  &quot;pickup&quot;: {&quot;gln&quot;: &quot;6181234567890&quot;}, &quot;delivery&quot;: {&quot;gln&quot;: &quot;6191234567890&quot;},
+  &quot;goods&quot;: [{&quot;packageCount&quot;: 5, &quot;packageType&quot;: &quot;CT&quot;, &quot;description&quot;: &quot;…&quot;}]   # requis
+}
+# 3. GET /transport/&lt;ref&gt;  ·  4. POST /transport/&lt;ref&gt;/refresh
+</code></pre>
+<p>Déclenchement <strong>auto</strong> possible : un DESADV portant un transporteur (segment <code>NAD+CA</code>/<code>TDT</code>) qui transite par le hub crée l'ordre de transport automatiquement (cf. <code>services/autoTransport.js</code>).</p>
+<h2>Nettoyage</h2>
+<p>Toutes les données de test (<code>IFT-TEST-…</code>) supprimées : <code>edi_transport_orders</code> + <code>transactions</code> (hub) = <strong>0 résidu</strong>.</p></body></html>
