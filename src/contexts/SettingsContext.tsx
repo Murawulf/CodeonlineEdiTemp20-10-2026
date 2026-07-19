@@ -234,7 +234,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       id = instanceCode;
     } else {
       const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
-      if (/senegal|\.sn(\b|$)/i.test(hostname)) id = 'senegal';
+      if (/senegal|^sen\.|\.sn(\b|$)/i.test(hostname)) id = 'senegal';
       else if (/civ|cote.ivoire|codeonline-edi\.net.*civ/i.test(hostname)) id = 'cote_ivoire';
       else id = 'tunisia';
     }

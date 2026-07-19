@@ -4,10 +4,11 @@ import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { useLocalApiUrl } from "@/contexts/SettingsContext";
+import { useLocalApiUrl, useSettings } from "@/contexts/SettingsContext";
 
 const Login: React.FC = () => {
   const API_BASE_URL = useLocalApiUrl();
+  const { getCurrentCountryInfo } = useSettings();
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -131,9 +132,9 @@ const Login: React.FC = () => {
           </div>
 
           <img
-            src="https://flagcdn.com/w80/ci.png"
+            src={getCurrentCountryInfo().flagUrl}
             className="h-6 rounded-sm"
-            alt="Côte d'Ivoire"
+            alt={`${getCurrentCountryInfo().name} Flag`}
           />
         </div>
       </header>
