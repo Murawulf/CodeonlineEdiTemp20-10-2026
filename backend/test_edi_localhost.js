@@ -23,7 +23,7 @@ const CONFIG = {
     host: '217.182.94.86',
     port: 3306,
     user: 'Consultant',
-    password: 'A4b6xb1s*',
+    password: process.env.DB_PASSWORD_CONSULTANT,
     database: 'Dev_Entitedb'
   }
 };

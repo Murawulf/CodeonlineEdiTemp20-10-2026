@@ -6,7 +6,7 @@ async function checkLocalApiUrl() {
     host: '91.134.35.126',
     port: 3306,
     user: 'consultant_seg',
-    password: '49BD&4vyrK6=PT!',
+    password: process.env.DB_PASSWORD_SEG,
     database: 'Dev_Entitedb',
     connectTimeout: 10000,
   };

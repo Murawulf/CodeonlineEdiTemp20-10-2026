@@ -6,7 +6,7 @@ const sourceConfig = {
   host: '217.182.94.86',
   port: 3306,
   user: 'Consultant',
-  password: 'A4b6xb1s*',
+  password: process.env.DB_PASSWORD_CONSULTANT,
   database: 'Dev_Entitedb',
   connectTimeout: 10000,
 };
@@ -15,7 +15,7 @@ const targetConfig = {
   host: '91.134.35.126',
   port: 3306,
   user: 'consultant_seg',
-  password: '49BD&4vyrK6=PT!',
+  password: process.env.DB_PASSWORD_SEG,
   database: 'Dev_Entitedb',
   connectTimeout: 10000,
 };

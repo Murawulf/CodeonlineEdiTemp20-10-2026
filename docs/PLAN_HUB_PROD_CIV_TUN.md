@@ -208,7 +208,7 @@
 - [ ] **P3S.1 — Backup SEN PROD (sécurité, même si vierge)**
   *Description* : sauvegarder l'état actuel SEN PROD (code `/var/www/Edi-prod`, DB `Entitedb`, `.env` s'il existe) avant déploiement.
   *Prompt exécutant* :
-  > `ssh Consultant@91.134.35.126` : `cp -r /var/www/Edi-prod/backend /var/www/Edi-prod/_BACKUPS/backend_$(date +%s) 2>/dev/null` ; `MYSQL_PWD='A4b6xb1s*' mysqldump -u admin Entitedb > /var/www/Edi-prod/_BACKUPS/Entitedb_$(date +%s).sql 2>/dev/null || true` ; `cp /var/www/Edi-prod/backend/.env /var/www/Edi-prod/_BACKUPS/env_$(date +%s) 2>/dev/null || true`. Identifier et documenter le **listener orphelin port 5000** (`ss -ltnp | grep :5000`) ; décider de l'arrêter proprement avant le déploiement PM2.
+  > `ssh Consultant@91.134.35.126` : `cp -r /var/www/Edi-prod/backend /var/www/Edi-prod/_BACKUPS/backend_$(date +%s) 2>/dev/null` ; `MYSQL_PWD='<DB_PASSWORD_CONSULTANT>' mysqldump -u admin Entitedb > /var/www/Edi-prod/_BACKUPS/Entitedb_$(date +%s).sql 2>/dev/null || true` ; `cp /var/www/Edi-prod/backend/.env /var/www/Edi-prod/_BACKUPS/env_$(date +%s) 2>/dev/null || true`. Identifier et documenter le **listener orphelin port 5000** (`ss -ltnp | grep :5000`) ; décider de l'arrêter proprement avant le déploiement PM2.
   *Tests unitaires* : dossier `_BACKUPS` créé. Bloquant avant P3S.2.
   *DoD* : backups SEN PROD présents ; listener 5000 orphelin identifié.
   *Vérif* : `ssh Consultant@91.134.35.126 "ls /var/www/Edi-prod/_BACKUPS | tail -3"` → entrées récentes.
@@ -216,10 +216,10 @@
 - [ ] **P3S.2 — Peupler la DB SEN PROD `Entitedb`**
   *Description* : migrer le schéma + données vers `Entitedb` SEN (vierge), comme fait en DEV. Source = un nœud de référence (TUN PROD une fois aligné, ou DEV selon politique données PROD).
   *Prompt exécutant* :
-  > Dump source (préférer un nœud PROD déjà aligné, ex. CIV PROD `Entitedb` ou TUN PROD) : `ssh <src> "MYSQL_PWD=… mysqldump --single-transaction --no-tablespaces --routines <src_db>"` > `/tmp/seed_prod.sql`. Charger dans SEN `Entitedb` avec FK off : `( echo "SET FOREIGN_KEY_CHECKS=0;"; cat /tmp/seed_prod.sql ) | ssh Consultant@91.134.35.126 "MYSQL_PWD='A4b6xb1s*' mysql -u admin Entitedb"`. Vérifier `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='Entitedb'` ≈ 82+. **ATTENTION données PROD** : valider avec l'opérateur quelle source de données est légitime pour SEN PROD (ne pas copier des données d'un autre pays sans accord).
+  > Dump source (préférer un nœud PROD déjà aligné, ex. CIV PROD `Entitedb` ou TUN PROD) : `ssh <src> "MYSQL_PWD=… mysqldump --single-transaction --no-tablespaces --routines <src_db>"` > `/tmp/seed_prod.sql`. Charger dans SEN `Entitedb` avec FK off : `( echo "SET FOREIGN_KEY_CHECKS=0;"; cat /tmp/seed_prod.sql ) | ssh Consultant@91.134.35.126 "MYSQL_PWD='<DB_PASSWORD_CONSULTANT>' mysql -u admin Entitedb"`. Vérifier `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='Entitedb'` ≈ 82+. **ATTENTION données PROD** : valider avec l'opérateur quelle source de données est légitime pour SEN PROD (ne pas copier des données d'un autre pays sans accord).
   *Tests unitaires* : table count SEN `Entitedb` ≥ 80 ; tables `Entite` et `app_parameters` présentes. Bloquant avant P3S.3.
   *DoD* : SEN `Entitedb` peuplée avec le schéma complet.
-  *Vérif* : `ssh Consultant@91.134.35.126 "MYSQL_PWD='A4b6xb1s*' mysql -u admin -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"Entitedb\"'"` → ≥ 80.
+  *Vérif* : `ssh Consultant@91.134.35.126 "MYSQL_PWD='<DB_PASSWORD_CONSULTANT>' mysql -u admin -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"Entitedb\"'"` → ≥ 80.
 
   **GATE humain** : valider la source de données légitime pour SEN PROD avant P3S.2.
 
