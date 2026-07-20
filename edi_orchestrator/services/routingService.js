@@ -77,14 +77,14 @@ async function resolveRoute(gln) {
       };
     } else if (gln.startsWith('619')) {
       return {
-        url: 'https://edi-dev.codeonline-info.com/api/edi/receive',
+        url: 'https://edi.codeonline-info.com/api/edi/receive',
         country: '788',
         name: 'Tunisia Gateway',
         source: 'PREFIX_RULE'
       };
     } else if (gln.startsWith('618')) {
       return {
-        url: 'https://civ-dev.codeonline-edi.net/api/edi/receive',
+        url: 'https://civ.codeonline-edi.net/api/edi/receive',
         country: '384',
         name: 'Cote Ivoire Gateway',
         source: 'PREFIX_RULE'

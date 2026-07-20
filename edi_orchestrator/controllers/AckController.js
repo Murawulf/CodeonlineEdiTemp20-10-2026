@@ -125,16 +125,36 @@ class AckController {
       await this._logAckEvent(transmission_id, original_ref, status, 'APERAK_SENT', null);
 
       // Also insert a new transaction record for this APERAK
+      // (order_ref = original_ref pour relier l'APERAK au document acquitté)
       try {
         await db.execute(
-          `INSERT INTO transactions 
-           (transaction_ref, sender_gln, receiver_gln, document_type, status, payload_size, transport_mode, created_at, delivered_at)
-           VALUES (?, ?, ?, 'APERAK', 'DELIVERED', ?, 'ORCHESTRATOR', NOW(), NOW())`,
-          [transactionRef, sender_gln, receiver_gln, aperakContent.length]
+          `INSERT INTO transactions
+           (transaction_ref, sender_gln, receiver_gln, document_type, status, payload_size, transport_mode, order_ref, created_at, delivered_at)
+           VALUES (?, ?, ?, 'APERAK', 'DELIVERED', ?, 'ORCHESTRATOR', ?, NOW(), NOW())`,
+          [transactionRef, sender_gln, receiver_gln, aperakContent.length, original_ref || null]
         );
       } catch (dbErr) {
         // Non-blocking — the APERAK was already dispatched
         console.warn(`[Hub/ACK] Could not insert APERAK transaction log: ${dbErr.message}`);
+      }
+
+      // P2.1 — refléter l'ACK/NACK sur la transaction du document original
+      // (colonne aperak_status, consommée par l'API tracking /deliveries)
+      try {
+        await db.execute(
+          `UPDATE transactions SET aperak_status = ?
+           WHERE document_type = ?
+             AND (transaction_ref = ? OR transaction_ref LIKE ? OR order_ref = ?)`,
+          [
+            status === 'NACK' ? 'NACK' : 'ACK',
+            original_type || 'INVOIC',
+            original_ref,
+            `${original_type || 'DOC'}-${original_ref}-%`,
+            original_ref,
+          ]
+        );
+      } catch (dbErr) {
+        console.warn(`[Hub/ACK] Could not update aperak_status on original tx: ${dbErr.message}`);
       }
 
       // ─── Step 5: Respond to the node ──────────────────────────────────────

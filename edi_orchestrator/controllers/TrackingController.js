@@ -173,6 +173,11 @@ class TrackingController {
         return res.status(404).json({ success: false, error: 'Transaction not found' });
       }
 
+      // P2.1 — scope : un partenaire ne voit que ses propres transactions
+      if (req.scopeGln && rows[0].sender_gln !== req.scopeGln && rows[0].receiver_gln !== req.scopeGln) {
+        return res.status(404).json({ success: false, error: 'Transaction not found' });
+      }
+
       return res.json({ success: true, data: formatTx(rows[0]) });
     } catch (err) {
       console.error('[Tracking] getTransaction error:', err.message);
@@ -338,6 +343,12 @@ class TrackingController {
   async getPartnerTimeline(req, res) {
     try {
       const { gln } = req.params;
+
+      // P2.1 — scope : un partenaire ne consulte que sa propre timeline
+      if (req.scopeGln && gln !== req.scopeGln) {
+        return res.status(403).json({ success: false, error: 'Access restricted to your own GLN timeline' });
+      }
+
       const limit = Math.min(500, Math.max(1, parseInt(req.query.limit || '100', 10)));
 
       // Resolve partner name
@@ -512,6 +523,11 @@ class TrackingController {
         return res.status(404).json({ success: false, error: 'Transaction not found' });
       }
 
+      // P2.1 — scope : un partenaire ne voit que ses propres transactions
+      if (req.scopeGln && !rows.some((r) => r.sender_gln === req.scopeGln || r.receiver_gln === req.scopeGln)) {
+        return res.status(404).json({ success: false, error: 'Transaction not found' });
+      }
+
       // Reconstruct a timeline of status transitions from the row(s)
       const main = rows[0];
       const timeline = [];
@@ -634,10 +650,18 @@ class TrackingController {
       } catch (viewErr) {
         // View doesn't exist yet (migration not run) — fall back to raw query
         console.warn('[Tracking] order_tracking_summary view unavailable, using raw query');
-        const rawWhere = req.query.order_ref
-          ? `WHERE order_ref IS NOT NULL AND order_ref LIKE ?`
-          : `WHERE order_ref IS NOT NULL`;
-        const rawParams = req.query.order_ref ? [`%${req.query.order_ref}%`] : [];
+        const rawConditions = ['order_ref IS NOT NULL'];
+        const rawParams = [];
+        if (req.query.order_ref) {
+          rawConditions.push('order_ref LIKE ?');
+          rawParams.push(`%${req.query.order_ref}%`);
+        }
+        // P2.1 — scope GLN aussi appliqué au fallback brut
+        if (req.query.gln) {
+          rawConditions.push('(sender_gln = ? OR receiver_gln = ?)');
+          rawParams.push(req.query.gln, req.query.gln);
+        }
+        const rawWhere = `WHERE ${rawConditions.join(' AND ')}`;
 
         const [countRows] = await db.execute(
           `SELECT COUNT(DISTINCT order_ref) AS total FROM transactions ${rawWhere}`,
@@ -746,6 +770,11 @@ class TrackingController {
         steps.push(...partialSteps);
       }
 
+      // P2.1 — scope : un partenaire ne suit que les commandes où il apparaît
+      if (req.scopeGln && !steps.some((s) => s.sender_gln === req.scopeGln || s.receiver_gln === req.scopeGln)) {
+        return res.status(404).json({ success: false, error: 'Order not found' });
+      }
+
       // Derive buyer / supplier from the ORDERS step
       const ordersStep = steps.find((s) => s.document_type === 'ORDERS');
       const buyerGln    = ordersStep?.sender_gln   || steps[0].sender_gln;
@@ -821,6 +850,220 @@ class TrackingController {
       });
     } catch (err) {
       console.error('[Tracking] getOrderTracking error:', err.message);
+      return res.status(500).json({ success: false, error: 'Database error' });
+    }
+  }
+
+  /**
+   * GET /api/tracking/deliveries  (P2.1)
+   *
+   * Suivi des livraisons : une entrée par DESADV transitant par le hub,
+   * enrichie de l'acquittement APERAK et (P3.6) du statut transport.
+   *
+   * delivery_status : IN_TRANSIT → DELIVERED → ACKNOWLEDGED | REJECTED | FAILED
+   * Filters: gln (forcé par le scope), ref, status, from, to, page, limit
+   */
+  async listDeliveries(req, res) {
+    try {
+      const { page, limit, offset } = parsePaging(req.query);
+
+      const conditions = ["document_type = 'DESADV'"];
+      const params     = [];
+
+      if (req.query.gln) {
+        conditions.push('(sender_gln = ? OR receiver_gln = ?)');
+        params.push(req.query.gln, req.query.gln);
+      }
+      if (req.query.ref) {
+        conditions.push('(transaction_ref LIKE ? OR order_ref LIKE ?)');
+        params.push(`%${req.query.ref}%`, `%${req.query.ref}%`);
+      }
+      if (req.query.from) {
+        conditions.push('created_at >= ?');
+        params.push(new Date(req.query.from));
+      }
+      if (req.query.to) {
+        conditions.push('created_at <= ?');
+        params.push(new Date(req.query.to));
+      }
+
+      const where = `WHERE ${conditions.join(' AND ')}`;
+
+      const [countRows] = await db.execute(
+        `SELECT COUNT(*) AS total FROM transactions ${where}`,
+        params
+      );
+
+      const [rows] = await db.execute(
+        `SELECT id, transaction_ref, order_ref, sender_gln, receiver_gln,
+                status, aperak_status, transport_mode, payload_size,
+                error_message, created_at, delivered_at, updated_at
+         FROM transactions
+         ${where}
+         ORDER BY created_at DESC
+         LIMIT ${limit} OFFSET ${offset}`,
+        params
+      );
+
+      // Résolution des noms partenaires (petite table — un seul fetch)
+      const [partners] = await db.execute('SELECT gln, name FROM partners');
+      const nameOf = (gln) => partners.find((p) => p.gln === gln)?.name || null;
+
+      // P3.6 — ordres de transport liés (par réf DESADV extraite ou order_ref)
+      let transports = [];
+      try {
+        const [tRows] = await db.execute(
+          `SELECT ref, order_ref, desadv_ref, carrier_code, status, tracking_number
+           FROM edi_transport_orders ORDER BY created_at DESC LIMIT 500`
+        );
+        transports = tRows;
+      } catch { /* table absente : transport reste null */ }
+
+      const deriveStatus = (r) => {
+        if (r.status === 'FAILED') return 'FAILED';
+        if (r.aperak_status === 'NACK') return 'REJECTED';
+        if (r.aperak_status === 'ACK') return 'ACKNOWLEDGED';
+        if (r.status === 'DELIVERED') return 'DELIVERED';
+        return 'IN_TRANSIT';
+      };
+
+      let data = rows.map((r) => {
+        // transaction_ref forme "DESADV-<numéro>-<ts>" → extraire le numéro DESADV
+        const m = /^DESADV-(.+)-\d+$/.exec(r.transaction_ref);
+        const desadvNumber = m ? m[1] : null;
+        // P3.6 — rattacher l'ordre de transport (réf DSADV prioritaire, sinon réf commande)
+        const to = transports.find((t) =>
+          (desadvNumber && t.desadv_ref === desadvNumber) ||
+          (r.order_ref && t.order_ref === r.order_ref)
+        );
+        return {
+          transaction_ref: r.transaction_ref,
+          desadv_number:   desadvNumber,
+          order_ref:       r.order_ref,
+          sender_gln:      r.sender_gln,
+          sender_name:     nameOf(r.sender_gln),
+          receiver_gln:    r.receiver_gln,
+          receiver_name:   nameOf(r.receiver_gln),
+          delivery_status: deriveStatus(r),
+          hub_status:      r.status,
+          aperak_status:   r.aperak_status,
+          transport: to ? { // P3.6 — statut transport temps réel
+            ref:             to.ref,
+            carrier_code:    to.carrier_code,
+            status:          to.status,
+            tracking_number: to.tracking_number,
+          } : null,
+          error:           sanitizeError(r.error_message),
+          created_at:      toISO(r.created_at),
+          delivered_at:    toISO(r.delivered_at),
+          updated_at:      toISO(r.updated_at),
+        };
+      });
+
+      // Filtre optionnel sur le statut dérivé
+      if (req.query.status) {
+        const wanted = req.query.status.toUpperCase();
+        data = data.filter((d) => d.delivery_status === wanted);
+      }
+
+      return res.json({
+        success: true,
+        data,
+        pagination: {
+          total: Number(countRows[0].total),
+          page,
+          limit,
+          pages: Math.ceil(Number(countRows[0].total) / limit),
+        },
+      });
+    } catch (err) {
+      console.error('[Tracking] listDeliveries error:', err.message);
+      return res.status(500).json({ success: false, error: 'Database error' });
+    }
+  }
+
+  /**
+   * GET /api/tracking/transports  (P3.6)
+   *
+   * Ordres de transport : carrier → SES ordres (carrier_code de la clé),
+   * internal → tous. (Partner : accès refusé — il voit le transport via /deliveries.)
+   */
+  async listTransports(req, res) {
+    try {
+      const client = req.trackingClient || {};
+      const role = client.role || 'partner';
+      if (role !== 'internal' && role !== 'carrier') {
+        return res.status(403).json({ success: false, error: 'Reserved for carrier or internal roles' });
+      }
+      if (role === 'carrier' && !client.carrier_code) {
+        return res.status(403).json({ success: false, error: 'API key has no carrier_code configured' });
+      }
+
+      const model = require('../services/TransportOrderModel');
+      const rows = await model.list({
+        carrier_code: role === 'carrier' ? client.carrier_code : req.query.carrier_code,
+        status: req.query.status,
+        limit: Math.min(200, parseInt(req.query.limit || '100', 10)),
+      });
+      return res.json({
+        success: true,
+        data: rows.map((t) => ({
+          ref:             t.ref,
+          order_ref:       t.order_ref,
+          desadv_ref:      t.desadv_ref,
+          carrier_code:    t.carrier_code,
+          country_code:    t.country_code,
+          status:          t.status,
+          tracking_number: t.tracking_number,
+          created_at:      toISO(t.created_at),
+          updated_at:      toISO(t.updated_at),
+        })),
+      });
+    } catch (err) {
+      console.error('[Tracking] listTransports error:', err.message);
+      return res.status(500).json({ success: false, error: 'Database error' });
+    }
+  }
+
+  /**
+   * POST /api/tracking/transports/:ref/status  (P3.6)
+   * Body : { status: 'ACCEPTED'|'IN_TRANSIT'|'DELIVERED'|'FAILED' }
+   *
+   * Le transporteur met à jour le statut de SON ordre (transitions légales
+   * uniquement — machine à états du modèle).
+   */
+  async updateTransportStatus(req, res) {
+    try {
+      const client = req.trackingClient || {};
+      const role = client.role || 'partner';
+      if (role !== 'carrier' && role !== 'internal') {
+        return res.status(403).json({ success: false, error: 'Reserved for carrier or internal roles' });
+      }
+
+      const model = require('../services/TransportOrderModel');
+      const order = await model.getByRef(req.params.ref);
+      if (!order) return res.status(404).json({ success: false, error: 'Transport order not found' });
+      if (role === 'carrier' && order.carrier_code !== client.carrier_code) {
+        return res.status(403).json({ success: false, error: 'This transport order belongs to another carrier' });
+      }
+
+      const newStatus = String(req.body?.status || '').toUpperCase();
+      const allowed = ['ACCEPTED', 'IN_TRANSIT', 'DELIVERED', 'FAILED'];
+      if (!allowed.includes(newStatus)) {
+        return res.status(400).json({ success: false, error: `status must be one of ${allowed.join(', ')}` });
+      }
+
+      try {
+        const updated = await model.transition(req.params.ref, newStatus, {
+          error_message: req.body?.comment || undefined,
+        });
+        return res.json({ success: true, data: { ref: updated.ref, status: updated.status } });
+      } catch (err) {
+        const code = err.statusCode || 500;
+        return res.status(code).json({ success: false, error: err.message });
+      }
+    } catch (err) {
+      console.error('[Tracking] updateTransportStatus error:', err.message);
       return res.status(500).json({ success: false, error: 'Database error' });
     }
   }

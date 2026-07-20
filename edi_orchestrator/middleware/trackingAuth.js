@@ -26,15 +26,25 @@ async function loadDbKeys() {
   if (_keyCache && now - _keyCacheAt < KEY_CACHE_TTL_MS) return _keyCache;
 
   try {
+    // role/scope_gln (P2.1) : partner|internal|carrier + GLN de restriction
     const [rows] = await db.execute(
-      "SELECT api_key, app_name, scope FROM tracking_api_keys WHERE status = 'ACTIVE'"
+      "SELECT api_key, app_name, scope, role, scope_gln, carrier_code FROM tracking_api_keys WHERE status = 'ACTIVE'"
     );
     _keyCache = rows;
     _keyCacheAt = now;
     return rows;
   } catch {
-    // Table may not exist yet — treat as empty list
-    return [];
+    // Table absente ou colonnes role/scope_gln pas encore migrées — fallback legacy
+    try {
+      const [rows] = await db.execute(
+        "SELECT api_key, app_name, scope FROM tracking_api_keys WHERE status = 'ACTIVE'"
+      );
+      _keyCache = rows.map((r) => ({ ...r, role: 'partner', scope_gln: null }));
+      _keyCacheAt = now;
+      return _keyCache;
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -51,10 +61,10 @@ async function trackingAuth(req, res, next) {
     });
   }
 
-  // 1. Master key (env)
+  // 1. Master key (env) — rôle interne, accès réseau complet
   const masterKey = process.env.TRACKING_API_KEY;
   if (masterKey && incomingKey === masterKey) {
-    req.trackingClient = { app_name: 'master', scope: 'full' };
+    req.trackingClient = { app_name: 'master', scope: 'full', role: 'internal', scope_gln: null };
     return next();
   }
 
@@ -62,7 +72,13 @@ async function trackingAuth(req, res, next) {
   const dbKeys = await loadDbKeys();
   const match = dbKeys.find((k) => k.api_key === incomingKey);
   if (match) {
-    req.trackingClient = { app_name: match.app_name, scope: match.scope };
+    req.trackingClient = {
+      app_name: match.app_name,
+      scope: match.scope,
+      role: match.role || 'partner',
+      scope_gln: match.scope_gln || null,
+      carrier_code: match.carrier_code || null, // P3.6 — rôle carrier
+    };
     return next();
   }
 
