@@ -17,7 +17,7 @@ const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.error('âŒ FATAL: JWT_SECRET is required (set it in /var/www/Edi-dev/backend/.env on every node â€” same value across the EDI network).');
+  console.error('❌ FATAL: JWT_SECRET is required (set it in /var/www/Edi-dev/backend/.env on every node — same value across the EDI network).');
   process.exit(1);
 }
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
@@ -25,7 +25,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const safeErrDetails = (err) => (IS_PRODUCTION ? undefined : (err && err.message) || String(err));
 
-// Service token helpers (centralisÃ©s dans services/serviceAuth.js)
+// Service token helpers (centralisés dans services/serviceAuth.js)
 const { getServiceToken, serviceAuthHeaders } = require('./services/serviceAuth');
 
 /**
@@ -211,12 +211,17 @@ const uploadProducts = multer({
   }
 });
 /* --------------------------------------------------------------
-   B)  PRODUCT IMAGES â€“ /var/www/codeonline-fp/images/products
+   B)  PRODUCT IMAGES – /var/www/codeonline-fp/images/products
    -------------------------------------------------------------- */
 const PRODUCTS_DIR = process.env.PRODUCTS_DIR || path.join(__dirname, 'uploads', 'products');
 if (!fs.existsSync(PRODUCTS_DIR)) {
   fs.mkdirSync(PRODUCTS_DIR, { recursive: true });
 }
+
+// Serve product images directly from PRODUCTS_DIR — explicit route so this works
+// no matter where PRODUCTS_DIR actually points (env override or default), instead
+// of relying on it happening to sit inside IMAGES_DIR.
+app.use('/images/products', express.static(PRODUCTS_DIR));
 
 
 
@@ -229,21 +234,41 @@ function safeStringify(obj) {
   }
 }
 
-// ? Target folder for logo uploads
-const logosDir = process.env.LOGOS_DIR || path.join(__dirname, 'uploads', 'logo_entite');
+// ============================================================================
+// ???  IMAGES / LOGO ENTITE — single source of truth for save path AND serve path
+// ----------------------------------------------------------------------------
+// IMPORTANT: logosDir is derived directly from IMAGES_DIR. Do NOT introduce a
+// separate LOGOS_DIR env var — that is what caused logos to save in one folder
+// while the static server looked in another (files "existed" but 404'd).
+// If a stale LOGOS_DIR is still set in your .env it is intentionally ignored.
+// ============================================================================
+const IMAGES_DIR = process.env.IMAGES_DIR || path.join(__dirname, 'uploads');
+const logosDir = path.join(IMAGES_DIR, 'logo_entite');
 
-try {
-  fs.accessSync(logosDir, fs.constants.F_OK);
-  console.log('Logo_entite directory already exists:', logosDir);
-} catch (err) {
-  fs.mkdirSync(logosDir, { recursive: true });
-  console.log('Created logo_entite directory:', logosDir);
+// Ensure every folder in the chain exists (IMAGES_DIR itself + logo_entite subfolder),
+// recreating it automatically on every boot if it's missing — e.g. after a server move.
+function ensureDirSync(dir, label) {
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`? Created ${label} directory:`, dir);
+    } else {
+      console.log(`? ${label} directory already exists:`, dir);
+    }
+  } catch (err) {
+    console.error(`? Failed to create ${label} directory (${dir}):`, err.message);
+    throw err; // fail loudly at boot rather than silently 404'ing logos later
+  }
 }
+ensureDirSync(IMAGES_DIR, 'IMAGES_DIR');
+ensureDirSync(logosDir, 'logo_entite');
 
-// ? Multer storage for company logos
+// ? Multer storage for company logos — always writes into logosDir (= IMAGES_DIR/logo_entite)
 const logoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, logosDir); // Save directly in /var/www/Edi-dev/backend/public/logo_entite
+    // Defensive re-check in case the folder was deleted while the server was running
+    ensureDirSync(logosDir, 'logo_entite');
+    cb(null, logosDir);
   },
   filename: (req, file, cb) => {
     const timestamp = Date.now();
@@ -265,9 +290,10 @@ const uploadLogo = multer({
     }
   },
 });
-// Serve logo_entite folder
-const IMAGES_DIR = process.env.IMAGES_DIR || path.join(__dirname, 'uploads');
-app.use('/images/logo_entite', express.static(path.join(IMAGES_DIR, 'logo_entite')));
+
+// Serve logo_entite folder — points at the EXACT same `logosDir` used for saving above,
+// so there is no way for save-path and serve-path to drift apart again.
+app.use('/images/logo_entite', express.static(logosDir));
 app.use(express.static(IMAGES_DIR));
 app.use('/images', express.static(IMAGES_DIR));
 
@@ -317,7 +343,7 @@ function generatePassword() {
 
 // Environment variables
 const MODELES_DIR = process.env.MODELES_DIR || path.join(__dirname, 'Modeles');
-// *_DB_PATH constants supprimÃ©es : exclusivement MySQL via entitePool (config/database.js)
+// *_DB_PATH constants supprimées : exclusivement MySQL via entitePool (config/database.js)
 
 // Centralized Database Config
 const { pool: entitePool, dbConfig } = require('./config/database');
@@ -528,24 +554,24 @@ app.use('/api', (req, res, next) => {
   return verifyJWT(req, res, next);
 });
 
-// connectDB() supprimÃ© : connexion exclusivement MySQL via entitePool (config/database.js).
+// connectDB() supprimé : connexion exclusivement MySQL via entitePool (config/database.js).
 
 // Initialize databases (entiteDB est l'unique pool MySQL : ex-usersDB/allgpcDB/fieldrulesDB pointent dessus)
 let entiteDB;
 async function initializeDatabases() {
   try {
-    // Connexion unique : pool MySQL (entitePool) + adapter sqlite-like exposÃ© via entiteDB
+    // Connexion unique : pool MySQL (entitePool) + adapter sqlite-like exposé via entiteDB
     try {
       if (entitePool) {
         const connection = await entitePool.getConnection();
         const { dbConfig } = require('./config/database');
-        console.log('âœ… MySQL connection test successful - Connected to remote database at', dbConfig.host);
+        console.log('✅ MySQL connection test successful - Connected to remote database at', dbConfig.host);
         connection.release();
       } else {
         console.warn('Warning: entitePool is not initialized');
       }
     } catch (testErr) {
-      console.error('âŒ MySQL connection test failed:', testErr.message);
+      console.error('❌ MySQL connection test failed:', testErr.message);
     }
 
     if (entitePool) {
@@ -630,7 +656,7 @@ async function initializeDatabases() {
         },
 
         close: async function (cb) {
-          console.log("? MySQL pool close suppressed â€” keeping DB alive");
+          console.log("? MySQL pool close suppressed — keeping DB alive");
           if (cb) return cb(null);
         }
 
@@ -638,9 +664,9 @@ async function initializeDatabases() {
 
     } else {
       // MySQL pool indisponible : pas de fallback SQLite (BDD distante exclusivement)
-      throw new Error('entitePool not initialized â€” MySQL connection required, no SQLite fallback');
+      throw new Error('entitePool not initialized — MySQL connection required, no SQLite fallback');
     }
-    // Tables (comptes, Entite, GPC, users legacy, etc.) sont gÃ©rÃ©es par les
+    // Tables (comptes, Entite, GPC, users legacy, etc.) sont gérées par les
     // migrations SQL (sql/migrations/*.sql) et le dump initial. Plus de
     // CREATE TABLE IF NOT EXISTS au boot.
 
@@ -665,49 +691,54 @@ function getCurrentDate() {
   const year = now.getFullYear();
   return `${month}-${day}-${year}`;
 }
-
-// Nodemailer configuration with Brevo SMTP
+// Nodemailer configuration with OVH SMTP
 // Initialized in initMailer() after configService is ready
 let transporter = null;
 
 // Helper to get from email
 const getFromEmail = () => {
-  return configService.get('FROM_EMAIL') || process.env.FROM_EMAIL || 'netconsultingeurope20@gmail.com';
+  return configService.get('FROM_EMAIL')
+    || process.env.FROM_EMAIL
+    || 'assistance@netconsulting-europe.fr';
 };
 
-// Initialize Mailer function â€” supports both Brevo SMTP and Brevo REST API
 const { createMailTransporter } = require('./services/mailTransporter');
+
 const initMailer = async () => {
-  const smtpUser = configService.get('BREVO_SMTP_USER') || process.env.BREVO_SMTP_USER || '948ac0003@smtp-brevo.com';
-  const mailKey  = configService.get('BREVO_API_KEY')  || process.env.BREVO_API_KEY;
+  const smtpUser = configService.get('SMTP_USER')
+    || process.env.SMTP_USER
+    || 'assistance@netconsulting-europe.fr';
+
+  const smtpPass = configService.get('SMTP_PASS')
+    || process.env.SMTP_PASS;
+
   const fromEmail = getFromEmail();
 
-  if (!mailKey) {
-    console.warn('âš ï¸  BREVO_API_KEY is not set â€” emails will not be sent.');
+  if (!smtpPass) {
+    console.warn('?? SMTP_PASS is not set — emails will not be sent.');
     transporter = null;
     return;
   }
 
   transporter = createMailTransporter({
     user: smtpUser,
-    pass: mailKey,
-    host: 'smtp-relay.brevo.com',
+    pass: smtpPass,
+    host: 'ssl0.ovh.net',
     port: 587,
+    secure: true,
     defaultFrom: fromEmail,
   });
 
   const info = transporter._info || {};
-  console.log(`ðŸ“¨ Mailer backend: ${info.backend} (user=${info.user}, keyLen=${info.keyLen})`);
+  console.log(`?? Mailer backend: ${info.backend || 'smtp'} (user=${smtpUser})`);
 
   try {
     await transporter.verify();
-    console.log(`âœ… Brevo (${info.backend}) is ready to send emails`);
+    console.log('? OVH SMTP is ready to send emails');
   } catch (error) {
-    console.error(`âŒ Critical: Brevo (${info.backend}) cannot authenticate. Check key/user/network.`, error.message);
+    console.error('? OVH SMTP cannot authenticate:', error.message);
   }
 };
-
-
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -1022,7 +1053,7 @@ app.post('/api/update-famille-status', async (req, res) => {
 // ============================================================
 // CLASSES
 // ============================================================
-// ? GET /api/classes â€” Return all or filtered by codeFamille
+// ? GET /api/classes — Return all or filtered by codeFamille
 // ============================================================
 app.get('/api/classes', async (req, res) => {
   const { codeFamille } = req.query;
@@ -1241,7 +1272,7 @@ const rollbackTransaction = async (db) => {
   await runUpdate(db, 'ROLLBACK', []);
 };
 // ==================================================
-// ? PROFILES API â€” MySQL Compatible (Matches Products Style)
+// ? PROFILES API — MySQL Compatible (Matches Products Style)
 // ==================================================
 app.get('/api/profiles/:id', async (req, res) => {
   try {
@@ -1372,7 +1403,7 @@ app.get("/api/profiles", async (req, res) => {
 });
 
 
-// ?? POST /api/profiles â€” Create new profile
+// ?? POST /api/profiles — Create new profile
 app.post("/api/profiles", async (req, res) => {
   let conn;
   try {
@@ -1434,7 +1465,7 @@ app.post("/api/profiles", async (req, res) => {
 });
 
 
-// ?? PUT /api/profiles/:id_profile â€” Update existing profile
+// ?? PUT /api/profiles/:id_profile — Update existing profile
 app.put("/api/profiles/:id_profile", async (req, res) => {
   let conn;
   try {
@@ -1492,7 +1523,7 @@ app.put("/api/profiles/:id_profile", async (req, res) => {
 });
 
 
-// ?? PATCH /api/profiles/:id_profile/suspend â€” Suspend/Unsuspend profile
+// ?? PATCH /api/profiles/:id_profile/suspend — Suspend/Unsuspend profile
 app.patch("/api/profiles/:id_profile/suspend", async (req, res) => {
   try {
     const { id_profile } = req.params;
@@ -1515,7 +1546,7 @@ app.patch("/api/profiles/:id_profile/suspend", async (req, res) => {
 });
 
 
-// ?? DELETE /api/profiles/:id_profile â€” Delete profile and its permissions
+// ?? DELETE /api/profiles/:id_profile — Delete profile and its permissions
 app.delete("/api/profiles/:id_profile", async (req, res) => {
   let conn;
   try {
@@ -2709,7 +2740,14 @@ app.put('/api/companies/:id', uploadLogo.single('logo'), async (req, res) => {
     }
 
     await conn.commit();
-    res.json({ message: 'Company, segments, and sites updated successfully' });
+    res.json({
+      message: 'Company, segments, and sites updated successfully',
+      // Only include `logo` when a new file was actually uploaded — omitting the
+      // key (instead of sending null/undefined) means the frontend's
+      // {...editingCompany, ...response.data} merge keeps the existing logo
+      // untouched when the user didn't change it.
+      ...(logoPath ? { logo: logoPath } : {})
+    });
   } catch (err) {
     await conn.rollback();
     console.error('PUT /api/companies/:id error:', err);
@@ -2733,6 +2771,7 @@ app.patch('/api/companies/:id/field', async (req, res) => {
 
   if (!id) return res.status(400).json({ error: 'Invalid ID' });
   if (!field) return res.status(400).json({ error: 'Field required' });
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(field)) return res.status(400).json({ error: 'Invalid field name' });
 
   try {
     const conn = await mysql.createConnection(dbConfig);
@@ -2779,7 +2818,7 @@ app.delete('/api/companies/:id', async (req, res) => {
       return res.status(404).json({ error: 'Company not found' });
     }
 
-    console.log(`[ENTITE] Company deleted â€“ id_entite=${id}`);
+    console.log(`[ENTITE] Company deleted – id_entite=${id}`);
     res.json({ message: 'Company deleted successfully' });
   } catch (err) {
     console.error('DELETE /api/companies/:id error:', err);
@@ -2861,7 +2900,7 @@ app.get('/api/sites/:id', async (req, res) => {
   }
 });
 
-// POST /api/sites â€” Create new site
+// POST /api/sites — Create new site
 app.post('/api/sites', async (req, res) => {
   try {
     const { id_entite, nom_site, gln, adresse, region, delegation, localite, code_postal, principal } = req.body;
@@ -2884,7 +2923,7 @@ app.post('/api/sites', async (req, res) => {
   }
 });
 
-// PUT /api/sites/:id_site â€” Update site
+// PUT /api/sites/:id_site — Update site
 app.put('/api/sites/:id_site', async (req, res) => {
   try {
     const id_site = Number(req.params.id_site);
@@ -2906,7 +2945,7 @@ app.put('/api/sites/:id_site', async (req, res) => {
   }
 });
 
-// PUT /api/sites/:id_entite/set-primary/:id_site â€” Set primary site
+// PUT /api/sites/:id_entite/set-primary/:id_site — Set primary site
 app.put('/api/sites/:id_entite/set-primary/:id_site', async (req, res) => {
   try {
     const id_entite = Number(req.params.id_entite);
@@ -2923,7 +2962,7 @@ app.put('/api/sites/:id_entite/set-primary/:id_site', async (req, res) => {
   }
 });
 
-// DELETE /api/sites/:id_site â€” Delete site
+// DELETE /api/sites/:id_site — Delete site
 app.delete('/api/sites/:id_site', async (req, res) => {
   try {
     const id_site = Number(req.params.id_site);
@@ -2965,13 +3004,13 @@ app.put('/api/companies/:id/segments', async (req, res) => {
   }
 });
 const typeOptions = [
-  { value: "1", label: "Entreprise privÃ©e produits & services" },
-  { value: "2", label: "Entreprise privÃ©e ingÃ©nierie & services" },
-  { value: "3", label: "Entreprise privÃ©e transport logistique & stockage" },
+  { value: "1", label: "Entreprise privée produits & services" },
+  { value: "2", label: "Entreprise privée ingénierie & services" },
+  { value: "3", label: "Entreprise privée transport logistique & stockage" },
   { value: "4", label: "Entreprise publique transport logistique & stockage" },
   { value: "5", label: "Entreprise publique produits & services" },
-  { value: "6", label: "Entreprise publique ingÃ©nierie & services" },
-  { value: "7", label: "Autre institution publique dâ€™appui Ã  lâ€™exportation" },
+  { value: "6", label: "Entreprise publique ingénierie & services" },
+  { value: "7", label: "Autre institution publique d’appui à l’exportation" },
   { value: "8", label: "Banque" },
   { value: "9", label: "Douane" },
   { value: "10", label: "Assurance" },
@@ -3143,30 +3182,30 @@ app.delete('/api/enquetes/:id', verifyJWT, async (req, res) => {
 // ------------------------------------------------------------------------------
 
 
-// --- 1. UTILITAIRES DE VALIDATION & PRÃ‰CISION ---
+// --- 1. UTILITAIRES DE VALIDATION & PRÉCISION ---
 
 const Validators = {
-  // Liste simplifiÃ©e des devises ISO 4217 courantes
+  // Liste simplifiée des devises ISO 4217 courantes
   ALLOWED_CURRENCIES: new Set(['EUR', 'USD', 'GBP', 'MAD', 'CAD', 'CHF']),
 
   /**
-   * VÃ©rifie si un code devise est valide
+   * Vérifie si un code devise est valide
    */
   isValidCurrency: (code) => {
     return Validators.ALLOWED_CURRENCIES.has(code);
   },
 
   /**
-   * VÃ©rifie la validitÃ© d'un code EAN/GTIN (8, 12, 13, 14 chiffres)
+   * Vérifie la validité d'un code EAN/GTIN (8, 12, 13, 14 chiffres)
    * Utilise l'algorithme du Modulo 10
    */
   isValidGTIN: (gtin) => {
     if (!gtin || !/^\d+$/.test(gtin)) return false;
 
-    // Padder avec des 0 Ã  gauche pour atteindre 14 chiffres (standard GTIN-14)
+    // Padder avec des 0 à gauche pour atteindre 14 chiffres (standard GTIN-14)
     const paddedParams = gtin.padStart(14, '0');
     const digits = paddedParams.split('').map(Number);
-    const checkDigit = digits.pop(); // Le dernier chiffre est la clÃ© de contrÃ´le
+    const checkDigit = digits.pop(); // Le dernier chiffre est la clé de contrôle
 
     // Calcul : (Impair * 3) + (Pair * 1)
     const sum = digits.reduce((acc, digit, index) => {
@@ -3183,18 +3222,18 @@ const Validators = {
 
 const MoneyHelper = {
   /**
-   * Convertit un montant string/float en entier (cents) pour calcul prÃ©cis
+   * Convertit un montant string/float en entier (cents) pour calcul précis
    * Exemple: 12.50 -> 1250
    */
   toCents: (amount) => Math.round(parseFloat(amount) * 100),
 
   /**
-   * Convertit des cents en float prÃ©cis
+   * Convertit des cents en float précis
    */
   fromCents: (cents) => (cents / 100).toFixed(2),
 
   /**
-   * VÃ©rifie si le total calculÃ© correspond au total dÃ©clarÃ© (avec tolÃ©rance 0.01)
+   * Vérifie si le total calculé correspond au total déclaré (avec tolérance 0.01)
    */
   checkConsistency: (calculated, declared) => {
     const diff = Math.abs(calculated - declared);
@@ -3205,16 +3244,16 @@ const MoneyHelper = {
 // Auto-create orders date columns if they don't exist
 async function ensureOrdersColumns() {
   if (!entiteDB) {
-    console.log('âš ï¸  EntiteDB not available, skipping orders columns check');
+    console.log('⚠️  EntiteDB not available, skipping orders columns check');
     return;
   }
 
   try {
     // Orders table columns
     const ordersColumns = [
-      { name: 'date_livraison_demandee', type: 'DATETIME', comment: 'Date de livraison demandÃ©e (DTM+2)' },
-      { name: 'date_livraison_confirmee', type: 'DATETIME', comment: 'Date de livraison confirmÃ©e (DTM+69)' },
-      { name: 'date_livraison_plus_tot', type: 'DATETIME', comment: 'Date de livraison au plus tÃ´t (DTM+64)' },
+      { name: 'date_livraison_demandee', type: 'DATETIME', comment: 'Date de livraison demandée (DTM+2)' },
+      { name: 'date_livraison_confirmee', type: 'DATETIME', comment: 'Date de livraison confirmée (DTM+69)' },
+      { name: 'date_livraison_plus_tot', type: 'DATETIME', comment: 'Date de livraison au plus tôt (DTM+64)' },
       { name: 'date_livraison_plus_tard', type: 'DATETIME', comment: 'Date de livraison au plus tard (DTM+63)' },
       { name: 'lieu_livraison_gln', type: 'VARCHAR(20)', comment: 'GLN du lieu de livraison (NAD+DP)' }
     ];
@@ -3233,19 +3272,19 @@ async function ensureOrdersColumns() {
           await entiteDB.pool.query(
             `ALTER TABLE orders ADD COLUMN ${col.name} ${col.type} NULL COMMENT '${col.comment}'`
           );
-          console.log(`âœ… Column ${col.name} added to orders`);
+          console.log(`✅ Column ${col.name} added to orders`);
         } else {
-          console.log(`âœ“ Column ${col.name} already exists in orders`);
+          console.log(`✓ Column ${col.name} already exists in orders`);
         }
       } catch (err) {
-        console.error(`âŒ Error adding column ${col.name} to orders:`, err.message);
+        console.error(`❌ Error adding column ${col.name} to orders:`, err.message);
       }
     }
 
     // Order_lines table columns for confirmed data
     const orderLinesColumns = [
-      { name: 'confirmed_qty', type: 'INT', comment: 'QuantitÃ© confirmÃ©e par le fournisseur' },
-      { name: 'confirmed_price', type: 'DECIMAL(10,2)', comment: 'Prix confirmÃ© par le fournisseur' },
+      { name: 'confirmed_qty', type: 'INT', comment: 'Quantité confirmée par le fournisseur' },
+      { name: 'confirmed_price', type: 'DECIMAL(10,2)', comment: 'Prix confirmé par le fournisseur' },
       { name: 'line_comment', type: 'TEXT', comment: 'Commentaire du fournisseur sur la ligne' }
     ];
 
@@ -3261,16 +3300,16 @@ async function ensureOrdersColumns() {
           await entiteDB.pool.query(
             `ALTER TABLE order_lines ADD COLUMN ${col.name} ${col.type} NULL COMMENT '${col.comment}'`
           );
-          console.log(`âœ… Column ${col.name} added to order_lines`);
+          console.log(`✅ Column ${col.name} added to order_lines`);
         } else {
-          console.log(`âœ“ Column ${col.name} already exists in order_lines`);
+          console.log(`✓ Column ${col.name} already exists in order_lines`);
         }
       } catch (err) {
-        console.error(`âŒ Error adding column ${col.name} to order_lines:`, err.message);
+        console.error(`❌ Error adding column ${col.name} to order_lines:`, err.message);
       }
     }
   } catch (err) {
-    console.error('âŒ Error ensuring orders columns:', err);
+    console.error('❌ Error ensuring orders columns:', err);
   }
 }
 
@@ -3284,10 +3323,10 @@ const EDI_CONFIG = {
 // --- 2. FONCTIONS PRINCIPALES ---
 
 /**
- * Fonction de DÃ©codage avec Validations
+ * Fonction de Décodage avec Validations
  */
 function decodeInvoiceEANCOM(ediString) {
-  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrÃ©e invalide");
+  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrée invalide");
 
   const segments = ediString.split(EDI_CONFIG.segmentTerminator).map(s => s.trim()).filter(s => s.length > 0);
 
@@ -3302,7 +3341,7 @@ function decodeInvoiceEANCOM(ediString) {
 
   let currentLine = null;
   let section = 'HEADER';
-  let computedTotalLines = 0; // Pour vÃ©rifier la cohÃ©rence
+  let computedTotalLines = 0; // Pour vérifier la cohérence
 
   segments.forEach((segment, index) => {
     const elements = segment.split(EDI_CONFIG.dataElementSeparator);
@@ -3311,7 +3350,7 @@ function decodeInvoiceEANCOM(ediString) {
 
     try {
       switch (tag) {
-        // ... (Segments UNB, BGM, DTM identiques Ã  la version prÃ©cÃ©dente) ...
+        // ... (Segments UNB, BGM, DTM identiques à la version précédente) ...
         case 'UNB':
           invoice.meta.sender = getVal(2);
           invoice.meta.receiver = getVal(3);
@@ -3326,7 +3365,7 @@ function decodeInvoiceEANCOM(ediString) {
         case 'CUX':
           const currency = getVal(1, 1);
           if (!Validators.isValidCurrency(currency)) {
-            throw new Error(`Devise invalide dÃ©tectÃ©e : ${currency}`);
+            throw new Error(`Devise invalide détectée : ${currency}`);
           }
           invoice.header.currency = currency;
           break;
@@ -3336,7 +3375,7 @@ function decodeInvoiceEANCOM(ediString) {
           const gln = getVal(2);
           // Validation simple du GLN (souvent format EAN13)
           if (gln && gln.length === 13 && !Validators.isValidGTIN(gln)) {
-            invoice.validationErrors.push(`GLN invalide pour le rÃ´le ${role}: ${gln}`);
+            invoice.validationErrors.push(`GLN invalide pour le rôle ${role}: ${gln}`);
           }
           if (role === 'BY') invoice.parties.buyer = gln;
           if (role === 'SU') invoice.parties.supplier = gln;
@@ -3346,7 +3385,7 @@ function decodeInvoiceEANCOM(ediString) {
           section = 'DETAIL';
           if (currentLine) {
             invoice.lines.push(currentLine);
-            // Ajout au total calculÃ©
+            // Ajout au total calculé
             if (currentLine.netAmount) computedTotalLines += currentLine.netAmount;
           }
 
@@ -3407,14 +3446,14 @@ function decodeInvoiceEANCOM(ediString) {
 
   // --- VERIFICATIONS FINALES DE COHERENCE ---
 
-  // 1. VÃ©rifier si la somme des lignes correspond au total dÃ©clarÃ©
+  // 1. Vérifier si la somme des lignes correspond au total déclaré
   if (invoice.totals.linesAmount) {
-    // On utilise une tolÃ©rance car l'EDI peut contenir des arrondis
+    // On utilise une tolérance car l'EDI peut contenir des arrondis
     const isValidTotal = MoneyHelper.checkConsistency(computedTotalLines, invoice.totals.linesAmount);
 
     if (!isValidTotal) {
       invoice.validationErrors.push(
-        `IncohÃ©rence Montants : Somme calculÃ©e des lignes (${computedTotalLines.toFixed(2)}) ` +
+        `Incohérence Montants : Somme calculée des lignes (${computedTotalLines.toFixed(2)}) ` +
         `ne correspond pas au MOA+79 (${invoice.totals.linesAmount})`
       );
     }
@@ -3424,17 +3463,17 @@ function decodeInvoiceEANCOM(ediString) {
 }
 
 /**
- * Fonction de GÃ©nÃ©ration avec Validation prÃ©ventive
+ * Fonction de Génération avec Validation préventive
  */
 function generateInvoiceEANCOM(data) {
-  // 1. Validation prÃ©ventive des donnÃ©es critiques
+  // 1. Validation préventive des données critiques
   if (!Validators.isValidCurrency(data.header.currency)) {
-    throw new Error(`Impossible de gÃ©nÃ©rer : Devise ${data.header.currency} non supportÃ©e.`);
+    throw new Error(`Impossible de générer : Devise ${data.header.currency} non supportée.`);
   }
 
   data.lines.forEach((line, idx) => {
     if (!Validators.isValidGTIN(line.gtin)) {
-      throw new Error(`Impossible de gÃ©nÃ©rer : GTIN invalide ligne ${idx + 1} (${line.gtin})`);
+      throw new Error(`Impossible de générer : GTIN invalide ligne ${idx + 1} (${line.gtin})`);
     }
   });
 
@@ -3442,7 +3481,7 @@ function generateInvoiceEANCOM(data) {
   const segments = [];
   const now = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-  // Construction standard (identique structure prÃ©cÃ©dente, mais sÃ©curisÃ©e)
+  // Construction standard (identique structure précédente, mais sécurisée)
   segments.push(`UNB${d}UNOB${c}1${d}${data.meta.sender}${c}1${d}${data.meta.receiver}${c}1${d}${now.substring(2)}${c}1200${d}1${t}`);
   segments.push(`UNH${d}ME000001${d}INVOIC${c}D${c}01B${c}UN${c}EAN011${t}`);
   segments.push(`BGM${d}380${d}${data.header.number}${t}`);
@@ -3455,7 +3494,7 @@ function generateInvoiceEANCOM(data) {
   // Devise
   segments.push(`CUX${d}2${c}${data.header.currency}${c}4${t}`);
 
-  // Lignes avec formatage des nombres (2 dÃ©cimales forcÃ©es pour les montants)
+  // Lignes avec formatage des nombres (2 décimales forcées pour les montants)
   if (data.lines) {
     data.lines.forEach((line, index) => {
       segments.push(`LIN${d}${index + 1}${d}${d}${line.gtin}${c}SRV${t}`);
@@ -3471,7 +3510,7 @@ function generateInvoiceEANCOM(data) {
 
   segments.push(`UNS${d}S${t}`);
 
-  // Totaux - Calcul automatique si non fournis pour Ã©viter les erreurs manuelles ?
+  // Totaux - Calcul automatique si non fournis pour éviter les erreurs manuelles ?
   // Pour cet exemple, on prend ceux fournis mais on les formatte.
   if (data.totals.totalAmount) segments.push(`MOA${d}86${c}${parseFloat(data.totals.totalAmount).toFixed(2)}${t}`);
   if (data.totals.taxableAmount) segments.push(`MOA${d}125${c}${parseFloat(data.totals.taxableAmount).toFixed(2)}${t}`);
@@ -3486,8 +3525,8 @@ function generateInvoiceEANCOM(data) {
 
 // --- EXEMPLE DE TEST (Pour voir la validation en action) ---
 
-// Cas : GTIN invalide (dernier chiffre devrait Ãªtre 3 pour ce code, j'ai mis 0)
-// Cas : IncohÃ©rence de montant
+// Cas : GTIN invalide (dernier chiffre devrait être 3 pour ce code, j'ai mis 0)
+// Cas : Incohérence de montant
 const badData = `
 UNB+UNOB:1+SENDER1:1+RECEIVER1:1+071101:1701+131++INVOIC++1++1'
 UNH+ME000001+INVOIC:D:01B:UN:EAN011'
@@ -3504,25 +3543,25 @@ UNT+10+ME000001'
 UNZ+1+131'
 `;
 
-// Test dÃ©sactivÃ© - Utilise des codes fictifs qui ne passent pas la validation GS1
+// Test désactivé - Utilise des codes fictifs qui ne passent pas la validation GS1
 /*
-console.log("--- TEST DE DÃ‰CODAGE ---");
+console.log("--- TEST DE DÉCODAGE ---");
 const result = decodeInvoiceEANCOM(badData);
 
 if (result.validationErrors.length > 0) {
-  console.error("âš ï¸ ERREURS DÃ‰TECTÃ‰ES :");
+  console.error("⚠️ ERREURS DÉTECTÉES :");
   result.validationErrors.forEach(e => console.error("- " + e));
 } else {
-  console.log("âœ… Facture Valide");
+  console.log("✅ Facture Valide");
 }
 */
 
 /**
- * Fonction de DÃ©codage d'une Commande (ORDERS)
- * Extrait les donnÃ©es clÃ©s : Qui commande ? Quoi ? Pour quand ?
+ * Fonction de Décodage d'une Commande (ORDERS)
+ * Extrait les données clés : Qui commande ? Quoi ? Pour quand ?
  */
 function decodeOrderEANCOM(ediString) {
-  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrÃ©e invalide");
+  if (!ediString || typeof ediString !== 'string') throw new Error("Format d'entrée invalide");
 
   const segments = ediString.split(EDI_CONFIG.segmentTerminator)
     .map(s => s.trim())
@@ -3535,13 +3574,13 @@ function decodeOrderEANCOM(ediString) {
       functionCode: null, // 9 = Original, 5 = Remplacement, 1 = Annulation
       orderDate: null,
       requestedDeliveryDate: null,
-      currency: 'EUR' // DÃ©faut
+      currency: 'EUR' // Défaut
     },
     parties: {
       buyer: null,      // BY
       supplier: null,   // SU
       deliveryPlace: null, // DP
-      invoicee: null    // IV (Celui qui reÃ§oit la facture)
+      invoicee: null    // IV (Celui qui reçoit la facture)
     },
     lines: [],
     instructions: [], // FTX (Global)
@@ -3579,11 +3618,11 @@ function decodeOrderEANCOM(ediString) {
 
           if (section === 'HEADER') {
             if (dateType === '137') order.header.orderDate = dateVal; // Date de commande
-            if (dateType === '2') order.header.requestedDeliveryDate = dateVal; // Livraison demandÃ©e
-            if (dateType === '64') order.header.earliestDeliveryDate = dateVal; // Au plus tÃ´t
+            if (dateType === '2') order.header.requestedDeliveryDate = dateVal; // Livraison demandée
+            if (dateType === '64') order.header.earliestDeliveryDate = dateVal; // Au plus tôt
             if (dateType === '63') order.header.latestDeliveryDate = dateVal;   // Au plus tard
           } else if (section === 'DETAIL' && currentLine) {
-            // Date spÃ©cifique Ã  la ligne (ex: livraison partielle diffÃ©rÃ©e)
+            // Date spécifique à la ligne (ex: livraison partielle différée)
             if (dateType === '2') currentLine.requestedDeliveryDate = dateVal;
           }
           break;
@@ -3629,14 +3668,14 @@ function decodeOrderEANCOM(ediString) {
           currentLine = {
             lineIndex: getVal(1),
             gtin: gtin,
-            supplierItemCode: getVal(3, 1), // Parfois le code fournisseur est en 2Ã¨me position
+            supplierItemCode: getVal(3, 1), // Parfois le code fournisseur est en 2ème position
             instructions: []
           };
           break;
 
         case 'QTY':
-          // 21 = QuantitÃ© commandÃ©e
-          // 59 = UnitÃ© consommateur (si diffÃ©rente)
+          // 21 = Quantité commandée
+          // 59 = Unité consommateur (si différente)
           if (section === 'DETAIL' && currentLine) {
             const qtyType = getVal(1);
             if (qtyType === '21') {
@@ -3648,8 +3687,8 @@ function decodeOrderEANCOM(ediString) {
 
         case 'PRI':
           // Note : Le prix n'est pas obligatoire dans une commande (c'est l'acheteur qui commande)
-          // Mais s'il est prÃ©sent, c'est souvent le prix attendu/nÃ©gociÃ©.
-          // AAA = Prix net calculÃ©, AAB = Prix brut
+          // Mais s'il est présent, c'est souvent le prix attendu/négocié.
+          // AAA = Prix net calculé, AAB = Prix brut
           if (section === 'DETAIL' && currentLine) {
             currentLine.expectedPrice = parseFloat(getVal(1, 1));
           }
@@ -3672,12 +3711,12 @@ function decodeOrderEANCOM(ediString) {
     }
   });
 
-  // Sauvegarde derniÃ¨re ligne
+  // Sauvegarde dernière ligne
   if (currentLine) order.lines.push(currentLine);
 
   // Validation Post-Parsing
   if (order.meta.lineCountDeclared && order.lines.length !== order.meta.lineCountDeclared) {
-    order.validationErrors.push(`Ecart nb lignes : DÃ©clarÃ© ${order.meta.lineCountDeclared} vs TrouvÃ© ${order.lines.length}`);
+    order.validationErrors.push(`Ecart nb lignes : Déclaré ${order.meta.lineCountDeclared} vs Trouvé ${order.lines.length}`);
   }
 
   return order;
@@ -3707,17 +3746,17 @@ UNT+15+ME001'
 UNZ+1+1234'
 `;
 
-// Test dÃ©sactivÃ© - Utilise des codes fictifs qui ne passent pas la validation GS1
-// Pour rÃ©activer le test, dÃ©commentez le code ci-dessous
+// Test désactivé - Utilise des codes fictifs qui ne passent pas la validation GS1
+// Pour réactiver le test, décommentez le code ci-dessous
 /*
 try {
   const decodedOrder = decodeOrderEANCOM(sampleOrder);
   console.log(JSON.stringify(decodedOrder, null, 2));
 
   if (decodedOrder.validationErrors.length > 0) {
-    console.error("âš ï¸ Erreurs de validation:", decodedOrder.validationErrors);
+    console.error("⚠️ Erreurs de validation:", decodedOrder.validationErrors);
   } else {
-    console.log("âœ… Commande valide et prÃªte pour insertion BDD");
+    console.log("✅ Commande valide et prête pour insertion BDD");
   }
 
 } catch (e) {
@@ -3726,22 +3765,22 @@ try {
 */
 
 /**
- * Codes d'action standard EANCOM pour la rÃ©ponse commande (Segment LIN, champ 1229)
+ * Codes d'action standard EANCOM pour la réponse commande (Segment LIN, champ 1229)
  */
 const ACTION_CODES = {
-  '1': 'ADDED',           // AjoutÃ©
-  '3': 'CHANGED',         // ModifiÃ© (QuantitÃ©, prix, date...)
-  '5': 'ACCEPTED',        // AcceptÃ© sans modification
-  '7': 'NOT_ACCEPTED'     // RefusÃ© / Non livrable
+  '1': 'ADDED',           // Ajouté
+  '3': 'CHANGED',         // Modifié (Quantité, prix, date...)
+  '5': 'ACCEPTED',        // Accepté sans modification
+  '7': 'NOT_ACCEPTED'     // Refusé / Non livrable
 };
 
 /**
  * Codes de statut global (Segment BGM, champ 1225)
  */
 const RESPONSE_STATUS = {
-  '4': 'CHANGE_PROPOSED', // AcceptÃ© avec rÃ©serves/changements
-  '29': 'ACCEPTED',       // AcceptÃ© totalement
-  '27': 'REJECTED'        // RefusÃ© totalement
+  '4': 'CHANGE_PROPOSED', // Accepté avec réserves/changements
+  '29': 'ACCEPTED',       // Accepté totalement
+  '27': 'REJECTED'        // Refusé totalement
 };
 
 function decodeOrderResponseEANCOM(ediString) {
@@ -3756,11 +3795,11 @@ function decodeOrderResponseEANCOM(ediString) {
       responseNumber: null,
       responseStatus: null, // Global status
       responseDate: null,
-      originalOrderNumber: null, // RÃ©fÃ©rence critique
+      originalOrderNumber: null, // Référence critique
       originalOrderDate: null
     },
     parties: { buyer: null, supplier: null },
-    lines: [], // DÃ©tail par article
+    lines: [], // Détail par article
     validationErrors: []
   };
 
@@ -3792,7 +3831,7 @@ function decodeOrderResponseEANCOM(ediString) {
           break;
 
         case 'RFF':
-          // RFF+ON:652744 (RÃ©fÃ©rence Ã  la commande d'origine)
+          // RFF+ON:652744 (Référence à la commande d'origine)
           const refType = getVal(1);
           if (refType === 'ON') response.header.originalOrderNumber = getVal(1, 1);
           break;
@@ -3818,22 +3857,22 @@ function decodeOrderResponseEANCOM(ediString) {
             gtin: gtin,
             status: ACTION_CODES[actionCode] || 'UNKNOWN',
             originalStatusCode: actionCode,
-            changes: {} // Pour stocker les nouvelles valeurs proposÃ©es
+            changes: {} // Pour stocker les nouvelles valeurs proposées
           };
           break;
 
         case 'QTY':
-          // QTY+21:48 (QuantitÃ© confirmÃ©e/modifiÃ©e)
+          // QTY+21:48 (Quantité confirmée/modifiée)
           if (section === 'DETAIL' && currentLine) {
             const qtyType = getVal(1);
-            if (qtyType === '21') { // 21 = Ordered Quantity (ici interprÃ©tÃ© comme Confirmed Quantity)
+            if (qtyType === '21') { // 21 = Ordered Quantity (ici interprété comme Confirmed Quantity)
               currentLine.confirmedQuantity = parseFloat(getVal(1, 1));
             }
           }
           break;
 
         case 'PRI':
-          // PRI+AAA:550... (Nouveau prix si modifiÃ©)
+          // PRI+AAA:550... (Nouveau prix si modifié)
           if (section === 'DETAIL' && currentLine) {
             currentLine.confirmedPrice = parseFloat(getVal(1, 1));
           }
@@ -3862,20 +3901,20 @@ function decodeOrderResponseEANCOM(ediString) {
 }
 
 // --- TEST AVEC L'EXEMPLE GS1 ---
-// J'ai reconstruit la chaÃ®ne brute Ã  partir de votre exemple
+// J'ai reconstruit la chaîne brute à partir de votre exemple
 const gs1Data = `UNH+ME000001+ORDRSP:D:01B:UN:EAN009'BGM+231+ORSP12856+4'DTM+137:20020330:102'RFF+ON:652744'DTM+171:20020325:102'NAD+BY+5412345000013::9'RFF+VA:452282'NAD+SU+4012345500004::9'RFF+VA:87765432'LIN+1+5+3312345501102:SRV'LIN+2+3+3312345501003:SRV'PIA+1+ABC1234:SA'IMD+C++TU::9'QTY+21:48'DTM+2:20020910:102'MOA+203:26400'PRI+AAA:550:CT:AAA'PAC+4+1+CS'TAX+7+VAT+++:::17.5+S'MOA+124:4620'TDT+20++30++31'LIN+3+7+3312345501096:SRV'UNS+S'CNT+2:3'UNT+25+ME000001'`;
 
-console.log("--- DÃ‰CODAGE ORDRSP (GS1 Example) ---");
+console.log("--- DÉCODAGE ORDRSP (GS1 Example) ---");
 const testResult = decodeOrderResponseEANCOM(gs1Data);
 
-// Affichage simplifiÃ© pour vÃ©rifier la logique des statuts
+// Affichage simplifié pour vérifier la logique des statuts
 console.log(`Status Global: ${testResult.header.responseStatus}`);
-console.log(`Commande RÃ©f: ${testResult.header.originalOrderNumber}`);
+console.log(`Commande Réf: ${testResult.header.originalOrderNumber}`);
 console.log("\n--- LIGNES ---");
 testResult.lines.forEach(l => {
   let detail = `Ligne ${l.lineIndex} [${l.status}] - GTIN: ${l.gtin}`;
-  if (l.confirmedQuantity) detail += ` | QtÃ© ConfirmÃ©e: ${l.confirmedQuantity}`;
-  if (l.confirmedPrice) detail += ` | Prix ConfirmÃ©: ${l.confirmedPrice}`;
+  if (l.confirmedQuantity) detail += ` | Qté Confirmée: ${l.confirmedQuantity}`;
+  if (l.confirmedPrice) detail += ` | Prix Confirmé: ${l.confirmedPrice}`;
   console.log(detail);
 });
 
@@ -3988,7 +4027,7 @@ app.post("/api/orders/eancom", async function (req, res) {
     if (buyerCheck.length === 0) {
       // Try to find similar GLNs for debugging
       const similarGLNs = await queryDB(entiteDB, "SELECT id_entite, gln, raison_socialle FROM Entite WHERE gln LIKE ? LIMIT 5", [`%${data.Acheteur.slice(-5)}%`]);
-      console.error("[ORDER VALIDATION] âŒ Buyer GLN not found. Similar GLNs in DB:", similarGLNs);
+      console.error("[ORDER VALIDATION] ❌ Buyer GLN not found. Similar GLNs in DB:", similarGLNs);
       
       return res.status(400).json({ 
         error: "Invalid Buyer", 
@@ -4000,7 +4039,7 @@ app.post("/api/orders/eancom", async function (req, res) {
     // Force Buyer Name from DB to ensure it's the Company Name (not User Name)
     data.buyerName = buyerCheck[0].raison_socialle;
     
-    console.log("[ORDER VALIDATION] âœ… Buyer found:", buyerCheck[0]);
+    console.log("[ORDER VALIDATION] ✅ Buyer found:", buyerCheck[0]);
     console.log("[ORDER VALIDATION] Using Buyer Name:", data.buyerName);
     console.log("=== [ORDER VALIDATION] GLN Checks Complete ===\n");
 
@@ -4074,7 +4113,7 @@ app.post("/api/orders/eancom", async function (req, res) {
         ]
       );
       const orderId = insertRes.lastID;
-      console.log(`[ORDER CREATION] âœ… Order inserted with ID: ${orderId}`);
+      console.log(`[ORDER CREATION] ✅ Order inserted with ID: ${orderId}`);
 
       // Insert Transport Order if transport data exists
       if (data.transporteurGln || data.modeTransport || data.moyenTransport) {
@@ -4089,9 +4128,9 @@ app.post("/api/orders/eancom", async function (req, res) {
               'PENDING'
             ]
           );
-          console.log(`[ORDER CREATION] âœ… Transport order created for Order #${orderId}`);
+          console.log(`[ORDER CREATION] ✅ Transport order created for Order #${orderId}`);
         } catch (transportErr) {
-          console.error(`[ORDER CREATION] âš ï¸ Failed to create transport order:`, transportErr.message);
+          console.error(`[ORDER CREATION] ⚠️ Failed to create transport order:`, transportErr.message);
           // Non-blocking error
         }
       }
@@ -4139,14 +4178,14 @@ app.post("/api/orders/eancom", async function (req, res) {
       if (!ediTarget.countryCode && data.supplierServer) {
         const hintedEdiUrl = configService.get(`EDI_URL_${data.supplierServer.toUpperCase()}`);
         if (hintedEdiUrl) {
-          console.log(`[EDI SEND] ðŸ”€ GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
+          console.log(`[EDI SEND] 🔀 GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
           ediTarget = { url: hintedEdiUrl, countryCode: data.supplierServer.toUpperCase(), countryName: data.supplierServer };
         }
       }
       
       const ediServerUrl = ediTarget.url;
       
-      console.log(`[EDI SEND] ðŸŽ¯ EDI Routing Details:`);
+      console.log(`[EDI SEND] 🎯 EDI Routing Details:`);
       console.log(`  - Supplier GLN: ${data.fournisseur}`);
       console.log(`  - Target Country: ${ediTarget.countryName} (${ediTarget.countryCode || 'local'})`);
       console.log(`  - Target EDI URL: ${ediServerUrl}`);
@@ -4163,7 +4202,7 @@ app.post("/api/orders/eancom", async function (req, res) {
             timeout: 30000
           });
 
-          console.log(`[EDI SEND] âœ… Successfully sent to EDI server. Response:`, ediResponse.data);
+          console.log(`[EDI SEND] ✅ Successfully sent to EDI server. Response:`, ediResponse.data);
           
           // Update transmission status to SENT
           await updateEdiTransmissionStatus(
@@ -4193,17 +4232,17 @@ app.post("/api/orders/eancom", async function (req, res) {
               sellerId: data.fournisseurIdEntite
             };
             global.io.emit('order:status:updated', eventData);
-            console.log(`[EDI SEND] ðŸ“¡ WebSocket event emitted globally for order #${orderId} (buyer:${sellerId}, seller:${data.fournisseurIdEntite})`);
+            console.log(`[EDI SEND] 📡 WebSocket event emitted globally for order #${orderId} (buyer:${sellerId}, seller:${data.fournisseurIdEntite})`);
           }
 
           // Notification to supplier users is handled by the EDI Worker (processInboundOrder)
           // after the order is actually received and processed on the supplier's server.
           // This avoids duplicate notifications and ensures the notification is sent only
           // after confirmed reception.
-          console.log(`[EDI SEND] ðŸ“¨ Order ${data.numCommande} sent. Supplier notification will be triggered by EDI Worker on reception.`);
+          console.log(`[EDI SEND] 📨 Order ${data.numCommande} sent. Supplier notification will be triggered by EDI Worker on reception.`);
           
         } catch (ediErr) {
-          console.error(`[EDI SEND] âŒ Failed to send to EDI server:`, ediErr.message);
+          console.error(`[EDI SEND] ❌ Failed to send to EDI server:`, ediErr.message);
           
           // Update transmission status to ERROR
           await updateEdiTransmissionStatus(
@@ -4409,7 +4448,7 @@ app.get("/api/orders/incoming", async function (req, res) {
             statut: (so.production_status && !['sent', 'new'].includes(so.production_status)) 
               ? so.production_status 
               : (so.statut === 'PENDING_VALIDATION' ? 'received' : so.statut),
-            type: "ReÃ§ue",
+            type: "Reçue",
             _server: "local",
             montant_ht: so.total_ht,
             comment: so.production_comment, // Include the global comment from production
@@ -4434,9 +4473,9 @@ app.get("/api/orders/incoming", async function (req, res) {
 let generateOrderChangeEANCOM;
 try {
   generateOrderChangeEANCOM = require('./generateOrderChangeEANCOM');
-  console.log("âœ… generateOrderChangeEANCOM loaded successfully");
+  console.log("✅ generateOrderChangeEANCOM loaded successfully");
 } catch (e) {
-  console.error("âŒ Failed to load generateOrderChangeEANCOM:", e);
+  console.error("❌ Failed to load generateOrderChangeEANCOM:", e);
 }
 
 app.get("/api/orders/test-ordchg", (req, res) => {
@@ -4444,7 +4483,7 @@ app.get("/api/orders/test-ordchg", (req, res) => {
 });
 
 app.post("/api/orders/accept-modifications", async function (req, res) {
-  console.log("ðŸ‘‰ ENTERING POST /api/orders/accept-modifications");
+  console.log("👉 ENTERING POST /api/orders/accept-modifications");
   try {
     const rawId = Number(req.headers["x-entite-id"]);
     if (!rawId) return res.status(400).json({ error: "Missing x-entite-id" });
@@ -4478,7 +4517,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
       return res.status(404).json({ error: "Order not found or access denied" });
     }
 
-    if (order.status !== 'modified' && order.status !== 'modifiÃ©e') {
+    if (order.status !== 'modified' && order.status !== 'modifiée') {
       return res.status(400).json({ error: "Order must be in 'modified' status to accept changes. Current status: " + order.status });
     }
 
@@ -4509,7 +4548,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
       supplierGln: order.fournisseur_gln,
       buyerName: buyerName,
       supplierName: supplierName,
-      comment: "Modifications approuvÃ©es par l'acheteur",
+      comment: "Modifications approuvées par l'acheteur",
       articles: lines.map(line => ({
         gtin: line.gtin,
         qty: line.confirmed_qty !== null ? line.confirmed_qty : line.qty,
@@ -4555,7 +4594,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.fournisseur_gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[ORDCHG SEND] ðŸŽ¯ EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
+    console.log(`[ORDCHG SEND] 🎯 EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -4568,7 +4607,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
           headers: serviceAuthHeaders()
         });
 
-        console.log(`[ORDCHG SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[ORDCHG SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -4578,7 +4617,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
           null
         );
       } catch (ediErr) {
-        console.error(`[ORDCHG SEND] âŒ Failed to send:`, ediErr.message);
+        console.error(`[ORDCHG SEND] ❌ Failed to send:`, ediErr.message);
         await updateEdiTransmissionStatus(
           entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
         );
@@ -4723,7 +4762,7 @@ app.post("/api/orders/respond", async function (req, res) {
 
             const orderResult = await runUpdate(entiteDB, orderInsertSql, orderParams);
             productionOrderId = orderResult.lastID;
-            console.log(`[ORDRSP] âœ… Promoted to Production Order #${productionOrderId}`);
+            console.log(`[ORDRSP] ✅ Promoted to Production Order #${productionOrderId}`);
 
             // 3. Insert Lines
             if (rawData.items && Array.isArray(rawData.items)) {
@@ -4904,7 +4943,7 @@ app.post("/api/orders/respond", async function (req, res) {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.acheteur_gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[ORDRSP SEND] ðŸŽ¯ EDI Routing: ${order.acheteur_gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[ORDRSP SEND] 🎯 EDI Routing: ${order.acheteur_gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -4917,7 +4956,7 @@ app.post("/api/orders/respond", async function (req, res) {
           headers: serviceAuthHeaders()
         });
 
-        console.log(`[ORDRSP SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[ORDRSP SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -4931,7 +4970,7 @@ app.post("/api/orders/respond", async function (req, res) {
         // ... (Optional: logic to find buyer user and notify)
 
       } catch (ediErr) {
-        console.error(`[ORDRSP SEND] âŒ Failed to send:`, ediErr.message);
+        console.error(`[ORDRSP SEND] ❌ Failed to send:`, ediErr.message);
         await updateEdiTransmissionStatus(
           entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
         );
@@ -4951,7 +4990,7 @@ app.post("/api/orders/respond", async function (req, res) {
   }
 });
 
-// GET /api/orders/sent - RÃ©cupÃ©rer les commandes envoyÃ©es
+// GET /api/orders/sent - Récupérer les commandes envoyées
 app.get("/api/orders/sent", async function (req, res) {
   try {
     console.log("\n=== [BACKEND] GET /api/orders/sent - START ===");
@@ -4974,7 +5013,7 @@ app.get("/api/orders/sent", async function (req, res) {
       }
     }
 
-    // RÃ©cupÃ©rer les commandes envoyÃ©es (oÃ¹ l'entitÃ© est l'acheteur)
+    // Récupérer les commandes envoyées (où l'entité est l'acheteur)
     // Inclure num_commande et le nom du fournisseur pour un affichage correct
     const query = `
       SELECT 
@@ -5436,6 +5475,20 @@ app.post('/api/edi/receive', async (req, res) => {
         error_message: validation.errors.join('; ')
       });
 
+      // P1.2 — APERAK DESADV : validation échouée → NACK (le hub génère l'APERAK 314 vers l'émetteur)
+      if (parsedData.messageType === 'DESADV' && ediWorker) {
+        ediWorker._notifyOrchestratorAck({
+          transmission_id: transmissionId,
+          original_ref: parsedData.documentNumber || 'UNKNOWN',
+          original_type: 'DESADV',
+          sender_gln: parsedData.buyer?.gln,
+          receiver_gln: parsedData.supplier?.gln,
+          status: 'NACK',
+          error_code: '18',
+          error_text: validation.errors.join('; ').substring(0, 250),
+        }).catch(err => console.log(`[EDI RECEIVE] ⚠️ APERAK NACK notify failed: ${err.message}`));
+      }
+
       return res.status(400).json({ 
         error: 'Invalid EANCOM message', 
         details: validation.errors,
@@ -5493,7 +5546,7 @@ app.post('/api/edi/receive', async (req, res) => {
       logs: `Message received and parsed successfully. Items: ${parsedData.items.length}, Total: ${parsedData.totals.totalAmount || 'N/A'}`
     });
 
-    console.log(`[EDI RECEIVE] âœ… Transmission #${transmissionId} recorded as RECEIVED`);
+    console.log(`[EDI RECEIVE] ✅ Transmission #${transmissionId} recorded as RECEIVED`);
 
     // --- PHASE 2: Staging ---
     // If message is an ORDER, insert into edi_orders immediately after parsing
@@ -5506,7 +5559,7 @@ app.post('/api/edi/receive', async (req, res) => {
         );
         
         if (existingOrder.length > 0) {
-          console.log(`[EDI RECEIVE] âš ï¸ Duplicate order detected: ${parsedData.documentNumber} already exists (ID: ${existingOrder[0].id}). Skipping insertion.`);
+          console.log(`[EDI RECEIVE] ⚠️ Duplicate order detected: ${parsedData.documentNumber} already exists (ID: ${existingOrder[0].id}). Skipping insertion.`);
           // Update transmission status to indicate duplicate
           await updateEdiTransmissionStatus(entiteDB, transmissionId, 'DUPLICATE', `Order ${parsedData.documentNumber} already exists in edi_orders`);
           
@@ -5546,16 +5599,16 @@ app.post('/api/edi/receive', async (req, res) => {
         ]);
 
         const stagingId = stagingResult.lastID;
-        console.log(`[EDI RECEIVE] âœ… Order staged in edi_orders (ID: ${stagingId}) for document ${parsedData.documentNumber}`);
+        console.log(`[EDI RECEIVE] ✅ Order staged in edi_orders (ID: ${stagingId}) for document ${parsedData.documentNumber}`);
         
         // Link the Transmission to the Staging Order
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'RECEIVED', null, null, stagingId);
 
         // Notify Supplier (the receiver of the order) if local
-        console.log(`[EDI RECEIVE] ðŸ“‹ Notification routing: buyer_gln=${parsedData.buyer.gln}, supplier_gln=${parsedData.supplier.gln}`);
+        console.log(`[EDI RECEIVE] 📋 Notification routing: buyer_gln=${parsedData.buyer.gln}, supplier_gln=${parsedData.supplier.gln}`);
         if (parsedData.supplier.gln) {
             const sellerRows = await queryDB(entiteDB, "SELECT id_entite, raison_socialle FROM Entite WHERE gln = ?", [parsedData.supplier.gln]);
-            console.log(`[EDI RECEIVE] ðŸ” Supplier lookup for GLN ${parsedData.supplier.gln}:`, sellerRows);
+            console.log(`[EDI RECEIVE] 🔍 Supplier lookup for GLN ${parsedData.supplier.gln}:`, sellerRows);
             if (sellerRows.length > 0) {
                 const sellerId = sellerRows[0].id_entite;
                 const sellerName = sellerRows[0].raison_socialle;
@@ -5572,9 +5625,9 @@ app.post('/api/edi/receive', async (req, res) => {
                 }
 
                 const accounts = await queryDB(entiteDB, "SELECT id_compte, id_entite FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
-                console.log(`[EDI RECEIVE] ðŸ”” Sending 'order received' notification to ${accounts.length} account(s) of SUPPLIER entity #${sellerId} (${sellerName}), from buyer: ${buyerName}`);
+                console.log(`[EDI RECEIVE] 🔔 Sending 'order received' notification to ${accounts.length} account(s) of SUPPLIER entity #${sellerId} (${sellerName}), from buyer: ${buyerName}`);
                 for (const acc of accounts) {
-                    console.log(`[EDI RECEIVE]   â†’ Notifying account #${acc.id_compte} (entity #${acc.id_entite})`);
+                    console.log(`[EDI RECEIVE]   → Notifying account #${acc.id_compte} (entity #${acc.id_entite})`);
                     await notifyOrderReceived(entiteDB, acc.id_compte, parsedData.documentNumber, buyerName);
                 }
                 // Emit order:new globally so supplier frontend reloads order list immediately
@@ -5585,17 +5638,17 @@ app.post('/api/edi/receive', async (req, res) => {
                         numCommande: parsedData.documentNumber,
                         timestamp: new Date().toISOString()
                     });
-                    console.log(`[EDI RECEIVE] ðŸ“¡ WebSocket order:new emitted globally for supplier entity #${sellerId}`);
+                    console.log(`[EDI RECEIVE] 📡 WebSocket order:new emitted globally for supplier entity #${sellerId}`);
                 }
             } else {
-                console.log(`[EDI RECEIVE] âš ï¸ Supplier entity not found for GLN ${parsedData.supplier.gln}, no notification sent`);
+                console.log(`[EDI RECEIVE] ⚠️ Supplier entity not found for GLN ${parsedData.supplier.gln}, no notification sent`);
             }
         } else {
-            console.log(`[EDI RECEIVE] âš ï¸ No supplier GLN in parsed data, no notification sent`);
+            console.log(`[EDI RECEIVE] ⚠️ No supplier GLN in parsed data, no notification sent`);
         }
 
       } catch (stageErr) {
-        console.error(`[EDI RECEIVE] âš ï¸ Failed to stage order: ${stageErr.message}`);
+        console.error(`[EDI RECEIVE] ⚠️ Failed to stage order: ${stageErr.message}`);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'ERROR', `Staging Error: ${stageErr.message}`);
       }
     }
@@ -5677,7 +5730,7 @@ app.post('/api/edi/receive', async (req, res) => {
                    } else {
                      await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, parsedData.comment || null, targetOrder.id_order]);
                    }
-                   console.log(`[EDI RECEIVE] âœ… Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
+                   console.log(`[EDI RECEIVE] ✅ Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
 
                    // Update the order lines with confirmed quantities and prices
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5703,10 +5756,10 @@ app.post('/api/edi/receive', async (req, res) => {
                        fournisseurName: supplierName
                      };
                      global.io.emit('order:status:updated', eventData);
-                     console.log(`[EDI RECEIVE] ðŸ“¡ WebSocket event emitted for ORDRSP update (buyer:${buyerId})`);
+                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDRSP update (buyer:${buyerId})`);
                    }
                 } else {
-                   console.log(`[EDI RECEIVE] âš ï¸ Buyer order ${orderRef} not found in database to update.`);
+                   console.log(`[EDI RECEIVE] ⚠️ Buyer order ${orderRef} not found in database to update.`);
                 }
                 // -------------------------------------------------------------
 
@@ -5714,7 +5767,7 @@ app.post('/api/edi/receive', async (req, res) => {
                 for (const acc of accounts) {
                     await notifyOrderResponseReceived(entiteDB, acc.id_compte, orderRef, supplierName);
                 }
-                console.log(`[EDI RECEIVE] ðŸ”” Notified buyer ${buyerId} of ORDRSP for order ${orderRef} from ${supplierName}`);
+                console.log(`[EDI RECEIVE] 🔔 Notified buyer ${buyerId} of ORDRSP for order ${orderRef} from ${supplierName}`);
             }
         }
 
@@ -5752,10 +5805,10 @@ app.post('/api/edi/receive', async (req, res) => {
                 if (targetOrder) {
                    const sellerId = targetOrder.id_entite_seller;
                    const newStatus = 'accepted'; // Buyer accepted modifications
-                   const commentMsg = parsedData.comment ? `Modifications acceptÃ©es : ${parsedData.comment}` : "Modifications acceptÃ©es par l'acheteur via ORDCHG";
+                   const commentMsg = parsedData.comment ? `Modifications acceptées : ${parsedData.comment}` : "Modifications acceptées par l'acheteur via ORDCHG";
 
                    await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, commentMsg, targetOrder.id_order]);
-                   console.log(`[EDI RECEIVE] âœ… Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
+                   console.log(`[EDI RECEIVE] ✅ Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
 
                    // Update the order lines with confirmed quantities and prices from ORDCHG if provided
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5780,23 +5833,23 @@ app.post('/api/edi/receive', async (req, res) => {
                        numCommande: orderRef
                      };
                      global.io.emit('order:status:updated', eventData);
-                     console.log(`[EDI RECEIVE] ðŸ“¡ WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
+                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
                    }
 
                     // Notify via accounts if needed
                     try {
                         const accounts = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
                         for (const acc of accounts) {
-                            const notifContent = `La modification de la commande ${orderRef} a Ã©tÃ© acceptÃ©e par l'acheteur.`;
+                            const notifContent = `La modification de la commande ${orderRef} a été acceptée par l'acheteur.`;
                             await runUpdate(entiteDB, "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'success', NOW(), 0)", [acc.id_compte, notifContent]);
                         }
-                        console.log(`[EDI RECEIVE] ðŸ”” Notified ${accounts.length} accounts for order ${orderRef}`);
+                        console.log(`[EDI RECEIVE] 🔔 Notified ${accounts.length} accounts for order ${orderRef}`);
                     } catch (notifErr) {
-                        console.error('[EDI RECEIVE] âš ï¸ Failed to send notifications:', notifErr.message);
+                        console.error('[EDI RECEIVE] ⚠️ Failed to send notifications:', notifErr.message);
                     }
 
                 } else {
-                   console.log(`[EDI RECEIVE] âš ï¸ Supplier order ${orderRef} not found in database to update.`);
+                   console.log(`[EDI RECEIVE] ⚠️ Supplier order ${orderRef} not found in database to update.`);
                 }
             }
         }
@@ -5879,6 +5932,18 @@ app.post('/api/edi/receive', async (req, res) => {
         }
         console.log(`[EDI RECEIVE] Processed DESADV #${desadvId}`);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'PROCESSED', null, null, desadvId);
+
+        // P1.2 — APERAK DESADV : persistance OK → ACK (le hub génère l'APERAK 313 vers l'émetteur)
+        if (ediWorker) {
+          ediWorker._notifyOrchestratorAck({
+            transmission_id: transmissionId,
+            original_ref: parsedData.documentNumber,
+            original_type: 'DESADV',
+            sender_gln: parsedData.buyer?.gln,
+            receiver_gln: parsedData.supplier?.gln,
+            status: 'ACK',
+          }).catch(err => console.log(`[EDI RECEIVE] ⚠️ APERAK ACK notify failed: ${err.message}`));
+        }
         
         // Notify
         if (partnerId) {
@@ -5961,7 +6026,7 @@ app.post('/api/edi/receive', async (req, res) => {
               for (const acc of accounts) {
                 await notifyInvoiceReceived(entiteDB, acc.id_compte, invoiceNumber, supplierName);
               }
-              console.log(`[EDI RECEIVE] ðŸ”” Notified ${accounts.length} buyer accounts for INVOIC ${invoiceNumber} from ${supplierName}`);
+              console.log(`[EDI RECEIVE] 🔔 Notified ${accounts.length} buyer accounts for INVOIC ${invoiceNumber} from ${supplierName}`);
             }
           }
         } catch (notifErr) {
@@ -6038,7 +6103,7 @@ app.get('/api/utils/sscc', async (req, res) => {
   }
 });
 
-// â”€â”€ GS1 check digit helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── GS1 check digit helpers ───────────────────────────────────────────────────
 // Recomputes and replaces the last digit so the string satisfies GS1 Mod-10
 function computeGS1CheckDigit(digits) {
   const s = String(digits);
@@ -6254,6 +6319,21 @@ app.get('/api/edi/desadv/:id/lines', async (req, res) => {
   }
 });
 
+// P1.3 — preview DESADV : génère l'EANCOM sans persistance ni envoi
+app.post('/api/edi/desadv/preview', async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.desadvNumber || !data.buyer || !data.seller) {
+      return res.status(400).json({ error: 'Missing required DESADV data' });
+    }
+    const eancomContent = generateDesadvEANCOM(data);
+    return res.json({ success: true, eancomContent });
+  } catch (err) {
+    console.error('[DESADV PREVIEW] Error:', err.message);
+    return res.status(500).json({ error: 'Failed to generate DESADV preview', details: err.message });
+  }
+});
+
 // POST /api/edi/desadv/send - Generate and Send DESADV
 app.post('/api/edi/desadv/send', async (req, res) => {
   try {
@@ -6380,21 +6460,26 @@ app.post('/api/edi/desadv/send', async (req, res) => {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.buyer.gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[DESADV SEND] ðŸŽ¯ EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[DESADV SEND] 🎯 EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
+        // P1.T — messageType dispatch : le hub journalise le bon document_type
         const ediResponse = await axios.post(ediServerUrl, {
           eancomContent: eancomContent,
           filename: filename,
           partnerGln: data.buyer.gln,
-          senderGln: data.seller.gln
+          senderGln: data.seller.gln,
+          receiverGln: data.buyer.gln,
+          messageType: 'DESADV',
+          transactionRef: `DESADV-${data.desadvNumber}-${Date.now()}`,
+          orderRef: data.orderNumber || null
         }, {
           headers: serviceAuthHeaders(),
           timeout: 30000
         });
 
-        console.log(`[DESADV SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[DESADV SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -6404,7 +6489,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
           null
         );
       } catch (ediErr) {
-        console.error(`[DESADV SEND] âŒ Failed to send to EDI server:`, ediErr.message);
+        console.error(`[DESADV SEND] ❌ Failed to send to EDI server:`, ediErr.message);
         
         await updateEdiTransmissionStatus(
           entiteDB,
@@ -6528,7 +6613,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.buyer.gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[INVOIC SEND] ðŸŽ¯ EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[INVOIC SEND] 🎯 EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -6536,13 +6621,17 @@ app.post('/api/edi/invoic/send', async (req, res) => {
           eancomContent: eancomContent,
           filename: filename,
           partnerGln: data.buyer.gln,
-          senderGln: data.seller.gln
+          senderGln: data.seller.gln,
+          receiverGln: data.buyer.gln,
+          messageType: 'INVOIC',
+          transactionRef: `INVOIC-${data.invoiceNumber}-${Date.now()}`,
+          orderRef: data.orderNumber || null
         }, {
           headers: serviceAuthHeaders(),
           timeout: 30000
         });
 
-        console.log(`[INVOIC SEND] âœ… Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[INVOIC SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -6552,7 +6641,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
           null
         );
       } catch (ediErr) {
-        console.error(`[INVOIC SEND] âŒ Failed to send to EDI server:`, ediErr.message);
+        console.error(`[INVOIC SEND] ❌ Failed to send to EDI server:`, ediErr.message);
         
         await updateEdiTransmissionStatus(
           entiteDB,
@@ -6609,13 +6698,13 @@ app.get("/api/edi/invoices/:id/lines", async (req, res) => {
 app.delete("/api/edi/invoices/:id", async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
-    // Check current status â€” only DRAFT invoices can be deleted
+    // Check current status — only DRAFT invoices can be deleted
     const rows = await queryDB(entiteDB, 'SELECT status, invoic_number FROM edi_invoic WHERE id = ?', [req.params.id]);
     if (!rows || rows.length === 0) return res.status(404).json({ error: 'Invoice not found' });
     const { status, invoic_number } = rows[0];
     if ((status || '').toUpperCase() !== 'DRAFT') {
       return res.status(403).json({
-        error: `Suppression impossible : la facture ${invoic_number} est en statut "${status}". Seules les factures en brouillon peuvent Ãªtre supprimÃ©es.`
+        error: `Suppression impossible : la facture ${invoic_number} est en statut "${status}". Seules les factures en brouillon peuvent être supprimées.`
       });
     }
     await runUpdate(entiteDB, 'DELETE FROM edi_invoic_lines WHERE id_invoic = ?', [req.params.id]);
@@ -6760,8 +6849,13 @@ app.get("/api/debug/entities", async (req, res) => {
 });
 
 
-// ?? GET /api/products â€” Fetch all with filters + pagination
-app.get("/api/products", async (req, res) => {
+// ??? GET /api/products — Fetch all with filters + pagination
+// SECURITY: entity scoping is derived from the verified JWT (req.user.id_entite),
+// never from a client-supplied query param. Previously the filter only applied
+// when the client bothered to send id_entite — omitting it (or sending 111/999)
+// returned every entity's products to anyone. Now it's enforced server-side from
+// the signed token, so it can't be bypassed by editing the request.
+app.get("/api/products", verifyJWT, async (req, res) => {
   try {
     if (!entiteDB)
       return res.status(503).json({ error: "Database connection unavailable" });
@@ -6774,8 +6868,10 @@ app.get("/api/products", async (req, res) => {
       sortDir = "DESC",
       page = "1",
       limit = "25",
-      id_entite
     } = req.query;
+
+    const callerEntite = Number(req.user?.id_entite);
+    const isPrivileged = [111, 999].includes(callerEntite);
 
     const safePage = Math.max(1, parseInt(page) || 1);
     const safeLimit = Math.max(1, parseInt(limit) || 25);
@@ -6801,10 +6897,15 @@ app.get("/api/products", async (req, res) => {
       params.push(s, s, s, s);
     }
 
-    // Restrict normal users
-    if (id_entite && ![111, 999].includes(Number(id_entite))) {
+    // Restrict every non-privileged caller to their own entity's products.
+    // Fail CLOSED (show nothing) rather than open if the token has no usable
+    // id_entite — that ambiguity is exactly what caused the leak before.
+    if (!isPrivileged) {
+      if (!callerEntite) {
+        return res.json({ products: [], total: 0, totalPages: 1 });
+      }
       where.push("idEntreprise = ?");
-      params.push(Number(id_entite));
+      params.push(callerEntite);
     }
 
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -6867,7 +6968,7 @@ app.post("/api/products", uploadProducts.array("images", 10), async (req, res) =
 
     // Save images in the products folder and store proper URL
     const images = req.files
-      ?.map(f => `https://fp.codeonline-info.com/images/products/${f.filename}`)
+      ?.map(f => `/images/products/${f.filename}`)
       .join(";") || "";
 
     if (!fields.brand || !fields.gtin || !fields.libelle || !fields.idEntreprise || !fields.codebrique) {
@@ -6915,7 +7016,7 @@ app.put("/api/products/:id", uploadProducts.array("images", 10), async (req, res
 
     // Save new images in the products folder
     const newImages = req.files
-      ?.map(f => `https://fp.codeonline-info.com/images/products/${f.filename}`)
+      ?.map(f => `/images/products/${f.filename}`)
       .join(";") || "";
 
     const existingQuery = await queryDB(entiteDB, "SELECT * FROM fiche_produit WHERE id = ?", [id]);
@@ -7019,7 +7120,7 @@ app.get('/api/bricks_by_class', async (req, res) => {
     const [rows] = await conn.query(`
       SELECT 
         codeBrique,
-        COALESCE(CONVERT(libelleBrique USING utf8mb4), '(Sans libellÃ©)') AS libelleBrique,
+        COALESCE(CONVERT(libelleBrique USING utf8mb4), '(Sans libellé)') AS libelleBrique,
         ordre_brique
       FROM brickgpc
       WHERE codeClasse = ?
@@ -7104,7 +7205,7 @@ app.get('/api/classes', async (req, res) => {
 
 
 
-// ?? GET /api/briques-by-class/:codeClasse â€” Fetch briques for a specific class
+// ?? GET /api/briques-by-class/:codeClasse — Fetch briques for a specific class
 app.get("/api/briques-by-class/:codeClasse", async (req, res) => {
   try {
     const { codeClasse } = req.params;
@@ -7124,7 +7225,7 @@ app.get("/api/briques-by-class/:codeClasse", async (req, res) => {
 // 1. TEMPLATE GENERATOR  (/api/products/template)
 // ---------------------------------------------------------------
 // ---------------------------------------------------------------
-// TEMPLATE â€“ /api/products/template
+// TEMPLATE – /api/products/template
 // ---------------------------------------------------------------
 app.get("/api/products/template", async (req, res) => {
   try {
@@ -7150,7 +7251,7 @@ app.get("/api/products/template", async (req, res) => {
 
     // ---- 2. CREATE WORKBOOK ------------------------------------
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("ModÃ¨le Import Produits");
+    const ws = wb.addWorksheet("Modèle Import Produits");
 
     // ----- headers ------------------------------------------------
     const headers = [
@@ -7178,7 +7279,7 @@ app.get("/api/products/template", async (req, res) => {
     const csv = arr => arr.map(s => `"${s.replace(/"/g, '""')}"`).join(",");
 
     // ----- helper: write a long list to a hidden column and return INDIRECT formula
-    // (Excel limit Ëœ 255 chars ? we use a hidden column when > 30 items)
+    // (Excel limit ˜ 255 chars ? we use a hidden column when > 30 items)
     const makeList = (arr, colLetter) => {
       if (arr.length <= 30) {
         return `=${csv(arr)}`;
@@ -7286,7 +7387,7 @@ app.post("/api/products/import", async (req, res) => {
     res.json({
       inserted,
       skipped,
-      message: `${inserted} produit(s) importÃ©(s), ${skipped} ignorÃ©(s)`
+      message: `${inserted} produit(s) importé(s), ${skipped} ignoré(s)`
     });
 
   } catch (err) {
@@ -7298,23 +7399,23 @@ app.post("/api/products/import", async (req, res) => {
 // ================== DECLINAISON CONSTANTS ==================
 
 const PACKAGING_TYPES = [
-  "Carton", "Plastique", "Verre", "MÃ©tal", "Bois",
+  "Carton", "Plastique", "Verre", "Métal", "Bois",
   "Papier", "Sachet", "Film plastique", "Barquette", "Bouteille"
 ];
 
 const PALLET_TYPES = [
   "EUR/EPAL", "CP1", "CP2", "CP3", "CP4",
-  "CP5", "CP6", "CP7", "CP8", "CP9", "Palette personnalisÃ©e"
+  "CP5", "CP6", "CP7", "CP8", "CP9", "Palette personnalisée"
 ];
 
-// HiÃ©rarchies GS1
+// Hiérarchies GS1
 const HIERARCHY_OPTIONS = {
-  PK: "PK (Lot Consommateur HomogÃ¨ne)",
-  AP: "AP (Lot Consommateur HÃ©tÃ©rogÃ¨ne)",
-  CA: "CA (Colis HomogÃ¨ne)",
-  DS: "DS (Colis HÃ©tÃ©rogÃ¨ne)",
-  PL: "PL (Palette HomogÃ¨ne)",
-  MX: "MX (Palette HÃ©tÃ©rogÃ¨ne)"
+  PK: "PK (Lot Consommateur Homogène)",
+  AP: "AP (Lot Consommateur Hétérogène)",
+  CA: "CA (Colis Homogène)",
+  DS: "DS (Colis Hétérogène)",
+  PL: "PL (Palette Homogène)",
+  MX: "MX (Palette Hétérogène)"
 };
 
 const HIERARCHY_FIELDS = {
@@ -7436,7 +7537,7 @@ app.post("/api/declinaisons", async (req, res) => {
     if (!HIERARCHY_FIELDS[hierarchy_code])
       return res.status(400).json({ error: "Invalid hierarchy_code" });
 
-    // ðŸ”’ Nettoyage sÃ©curisÃ©
+    // 🔒 Nettoyage sécurisé
     const allowed = HIERARCHY_FIELDS[hierarchy_code];
     const cleaned = {};
     for (const k of allowed) {
@@ -7724,7 +7825,7 @@ router.post("/invoices", async (req, res) => {
   try {
     // Support both legacy simple fields and full InvoiceFormData from InvoiceCreationModal
     if (d.invoic_number || d.buyer_gln || d.seller_gln) {
-      // Full InvoiceFormData â€” insert into edi_invoic + edi_invoic_lines
+      // Full InvoiceFormData — insert into edi_invoic + edi_invoic_lines
       const result = await runUpdate(entiteDB,
         `INSERT INTO edi_invoic (invoic_number, type_code, date_facture, date_echeance, buyer_gln, seller_gln, order_reference, desadv_reference, id_order, currency, total_ht, total_tax, total_ttc, direction, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OUTBOUND', 'DRAFT')`,
@@ -7779,7 +7880,7 @@ router.post("/invoices", async (req, res) => {
   }
 });
 
-// POST /api/invoices/:id/send â€” Proxy to /api/edi/invoices/:id/send
+// POST /api/invoices/:id/send — Proxy to /api/edi/invoices/:id/send
 router.post("/invoices/:id/send", async (req, res) => {
   if (!entiteDB) return res.status(503).json({ error: "DB unavailable" });
   try {
@@ -7818,7 +7919,7 @@ router.post("/invoices/:id/send", async (req, res) => {
       }))
     };
 
-    console.log(`[INVOICE SEND] Sending Draft INVOIC #${id} â€” ${payload.invoiceNumber}`);
+    console.log(`[INVOICE SEND] Sending Draft INVOIC #${id} — ${payload.invoiceNumber}`);
 
     // 3. Generate EANCOM
     const eancomContent = generateInvoicEANCOM(payload);
@@ -7951,7 +8052,7 @@ router.delete("/tracking/:id", async (req, res) => {
 });
 
 // ======================================
-//  CARACTÃ‰RISTIQUES IMAGE UPLOADER (CJS VERSION)
+//  CARACTÉRISTIQUES IMAGE UPLOADER (CJS VERSION)
 // ======================================
 // Folder for uploads
 const CARAC_DIR = process.env.CARAC_DIR || path.join(__dirname, 'uploads', 'caracteristiques');
@@ -7960,6 +8061,11 @@ const CARAC_DIR = process.env.CARAC_DIR || path.join(__dirname, 'uploads', 'cara
 if (!fs.existsSync(CARAC_DIR)) {
   fs.mkdirSync(CARAC_DIR, { recursive: true });
 }
+
+// Serve caracteristique images/videos directly from CARAC_DIR. This route didn't
+// exist before, so anything uploaded here was unreachable from the browser no
+// matter what URL was returned.
+app.use('/images/caracteristiques', express.static(CARAC_DIR));
 
 // -------------------------------------------
 // UPLOAD HANDLER (Images + Videos)
@@ -8183,7 +8289,7 @@ app.post("/api/caracteristiques/upload", caracteristiqueUpload.single("file"), (
 
     const type = file.mimetype.startsWith("video") ? "video" : "image";
 
-    const url = `https://fp.codeonline-info.com/caracteristiques/images/${file.filename}`;
+    const url = `/images/caracteristiques/${file.filename}`;
 
     res.json({
       success: true,
@@ -8225,7 +8331,7 @@ app.get('/api/avatars/:filename', (req, res) => {
   });
 });
 // ============================================================
-// GED LOG FUNCTION â€” needed for tracking uploads, downloads, deletes, etc.
+// GED LOG FUNCTION — needed for tracking uploads, downloads, deletes, etc.
 // ============================================================
 // ============================================================
 // HELPER: GED LOG FUNCTION
@@ -8247,7 +8353,7 @@ async function gedLog(conn, id_ged, action, performed_by = null, details = null)
 // GED LOGS (HISTORY)
 // ============================================================
 // ============================================================
-// GED LOGS (HISTORY) â€” French + real emails + folder names
+// GED LOGS (HISTORY) — French + real emails + folder names
 // ============================================================
 app.get('/api/ged/:id/logs', async (req, res) => {
   try {
@@ -8311,13 +8417,13 @@ app.get('/api/ged/:id/logs', async (req, res) => {
 
       // French labels
       const actionMap = {
-        'UPLOAD': 'TÃ©lÃ©chargement',
-        'DOWNLOAD': 'TÃ©lÃ©chargement',
+        'UPLOAD': 'Téléchargement',
+        'DOWNLOAD': 'Téléchargement',
         'VIEW': 'Visualisation',
         'SOFT_DELETE': 'Suppression (temporaire)',
-        'HARD_DELETE': 'Suppression dÃ©finitive',
+        'HARD_DELETE': 'Suppression définitive',
         'RESTORE': 'Restauration',
-        'UPDATE_METADATA': 'Mise Ã  jour des mÃ©tadonnÃ©es',
+        'UPDATE_METADATA': 'Mise à jour des métadonnées',
         'add_to_folder': 'Ajout au dossier',
         'remove_from_folder': 'Retrait du dossier'
       };
@@ -8333,7 +8439,7 @@ app.get('/api/ged/:id/logs', async (req, res) => {
     res.json({ logs: translatedLogs });
   } catch (err) {
     console.error('GET /api/ged/:id/logs error:', err);
-    res.status(500).json({ error: 'Erreur lors de la rÃ©cupÃ©ration des logs', details: safeErrDetails(err) });
+    res.status(500).json({ error: 'Erreur lors de la récupération des logs', details: safeErrDetails(err) });
   }
 });
 
@@ -8341,7 +8447,7 @@ app.get('/api/ged/:id/logs', async (req, res) => {
 // ============================================================
 // GED LIST (pagination + folder + search + restricted by entite)
 // ============================================================
-// GED LIST (per-entity isolation â€” strict filtering)
+// GED LIST (per-entity isolation — strict filtering)
 // ============================================================
 app.get('/api/ged/list', async (req, res) => {
   try {
@@ -8356,7 +8462,7 @@ app.get('/api/ged/list', async (req, res) => {
     } = req.query;
 
     if (!id_entite) {
-      return res.status(400).json({ error: 'id_entite requis pour la requÃªte.' });
+      return res.status(400).json({ error: 'id_entite requis pour la requête.' });
     }
 
     const offset = (page - 1) * perPage;
@@ -8381,7 +8487,9 @@ app.get('/api/ged/list', async (req, res) => {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    sql += ` ORDER BY d.${sort} ${dir} LIMIT ? OFFSET ?`;
+    const safeSort = /^[A-Za-z_][A-Za-z0-9_]*$/.test(String(sort)) ? sort : 'created_at';
+    const safeDir = String(dir).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    sql += ` ORDER BY d.${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
     params.push(Number(perPage), Number(offset));
 
     const conn = await mysql.createConnection(dbConfig);
@@ -8392,7 +8500,7 @@ app.get('/api/ged/list', async (req, res) => {
   } catch (err) {
     console.error('GET /api/ged/list error:', err);
     res.status(500).json({
-      error: 'Erreur lors de la rÃ©cupÃ©ration des fichiers',
+      error: 'Erreur lors de la récupération des fichiers',
       details: safeErrDetails(err)
     });
   }
@@ -8864,7 +8972,7 @@ app.delete('/api/ged/folders/:id/hard', async (req, res) => {
 // ? Notifications Endpoints (MySQL-compatible version)
 app.get('/api/notifications', async (req, res) => {
   try {
-    // Cache pour 30 secondes pour limiter la frÃ©quence d'appel
+    // Cache pour 30 secondes pour limiter la fréquence d'appel
     res.set('Cache-Control', 'private, max-age=30');
     const { id_compte } = req.query;
     console.log('?? GET /api/notifications called with id_compte:', id_compte);
@@ -9003,7 +9111,7 @@ app.delete('/api/notifications/clear', async (req, res) => {
 });
 
 // ==================================================
-// ðŸ“¢ FLASH NOTIFICATIONS (notifaction_flashmobile + notif_responses)
+// 📢 FLASH NOTIFICATIONS (notifaction_flashmobile + notif_responses)
 // ==================================================
 // Tables already exist in production DB (created by dev2).
 // We use the same table names but add PIN auth + mysql.createConnection pattern.
@@ -9326,7 +9434,7 @@ app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
 
     const password = generatePassword();
     const hashed = await bcrypt.hash(password, 10);
-    const avatarUrl = avatarFile ? `https://fp.codeonline-info.com/images/uploads/${avatarFile.filename}` : null;
+    const avatarUrl = avatarFile ? `/images/uploads/${avatarFile.filename}` : null;
 
     let finalProfileId = profile_id ? Number(profile_id) : 8;
 
@@ -9368,8 +9476,8 @@ app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
       await transporter.sendMail({
         from: getFromEmail(),
         to: email,
-        subject: 'Nouveau compte crÃ©Ã©',
-        text: `Votre compte a Ã©tÃ© crÃ©Ã©.\nEmail: ${email}\nMot de passe: ${password}\nCerticode: ${certicode || 'N/A'}\nLien: https://edi-dev.codeonline-info.com/`
+        subject: 'Nouveau compte créé',
+        text: `Votre compte a été créé.\nEmail: ${email}\nMot de passe: ${password}\nCerticode: ${certicode || 'N/A'}\nLien: https://edi-dev.codeonline-info.com/`
       });
     } catch (mailErr) {
       console.error('Email send error:', mailErr.message);
@@ -9452,7 +9560,7 @@ app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
     }
 
     let avatarUrl = accountRows[0].avatar_url;
-    if (avatarFile) avatarUrl = `https://fp.codeonline-info.com/images/uploads/${avatarFile.filename}`;
+    if (avatarFile) avatarUrl = `/images/uploads/${avatarFile.filename}`;
     let hashedPassword = accountRows[0].password;
     if (password) hashedPassword = await bcrypt.hash(password, 10);
 
@@ -9482,7 +9590,7 @@ app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
     await conn.commit();
     await conn.end();
 
-    res.json({ message: 'Compte mis Ã  jour avec succÃ¨s', id_compte: id });
+    res.json({ message: 'Compte mis à jour avec succès', id_compte: id });
   } catch (err) {
     if (conn) {
       await conn.rollback().catch(() => { });
@@ -10804,7 +10912,7 @@ app.get('/api/localite', async (req, res) => {
   }
 });
 
-// OPTIONAL Ã¢â‚¬â€œ fetch everything (not required)
+// OPTIONAL â€“ fetch everything (not required)
 app.get('/api/region-national', async (req, res) => {
   try {
     const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
@@ -10823,9 +10931,9 @@ app.get('/api/region-national', async (req, res) => {
 });
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
 // ADD THESE ENDPOINTS TO YOUR server.js
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
 
 // GET /api/models/by-brick/:brickCode
 // Load all models where rayon_code = brickCode (since rayon_code = brick code in your DB)
@@ -11283,8 +11391,8 @@ app.post('/api/create-supervisor-profile', async (req, res) => {
 // ============================================================================
 // NEW ENDPOINT: Get ONLY products for one specific entite/company
 // Usage: GET /api/entite-products?id=34
-//        â†’ Returns flat array of products [ {id, libelle, gtin, ...}, ... ]
-//        â†’ No pagination, no search, no admin override â€” simple & fast
+//        → Returns flat array of products [ {id, libelle, gtin, ...}, ... ]
+//        → No pagination, no search, no admin override — simple & fast
 // ============================================================================
 app.get("/api/entite-products", async (req, res) => {
   try {
@@ -11315,7 +11423,7 @@ app.get("/api/entite-products", async (req, res) => {
 
     console.log(`[entite-products] Fetched ${products.length} products for entite ID ${entiteId}`);
 
-    res.json(products);  // flat array â€” easy for frontend Autocomplete
+    res.json(products);  // flat array — easy for frontend Autocomplete
   } catch (err) {
     console.error("[/api/entite-products] Error:", err);
     res.status(500).json({ 
@@ -11358,7 +11466,7 @@ app.get('/api/rayongpc', async (req, res) => {
 
 
 // ============================================================================
-// âœ¨ SIMPLE IMPORT FOR BASIC TEMPLATE (NEW - Use this one!)
+// ✨ SIMPLE IMPORT FOR BASIC TEMPLATE (NEW - Use this one!)
 // ============================================================================
 app.post("/api/products/import-simple", multer().single("file"), async (req, res) => {
   try {
@@ -11472,11 +11580,11 @@ app.post("/api/products/import-simple", multer().single("file"), async (req, res
 
         await conn.query("INSERT INTO fiche_produit SET ?", insertData);
         inserted++;
-        console.log(`âœ… Row ${rowNum - 2} inserted: ${libelle}`);
+        console.log(`✅ Row ${rowNum - 2} inserted: ${libelle}`);
 
       } catch (err) {
         failed++;
-        console.error(`âŒ Row ${rowNum - 2} error:`, err.message);
+        console.error(`❌ Row ${rowNum - 2} error:`, err.message);
         anomalies.push({
           rowNumber: rowNum - 2,
           brand: brand || 'N/A',
@@ -11528,7 +11636,7 @@ app.post("/api/products/import-simple", multer().single("file"), async (req, res
       failed,
       anomalies: anomalies,
       anomaliesFile: anomaliesFile ? `/api/download-anomalies/${anomaliesFile}` : null,
-      message: `âœ… ${inserted}/${inserted + failed} produit(s) importÃ©(s) avec succÃ¨s`
+      message: `✅ ${inserted}/${inserted + failed} produit(s) importé(s) avec succès`
     });
 
   } catch (err) {
@@ -11538,9 +11646,9 @@ app.post("/api/products/import-simple", multer().single("file"), async (req, res
 });
 
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Manual export endpoint (for testing or on-demand)
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.post("/api/products/:id/export-xml", async (req, res) => {
   try {
     const productId = Number(req.params.id);
@@ -11553,7 +11661,7 @@ app.post("/api/products/:id/export-xml", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Export XML terminÃƒÂ© avec succÃƒÂ¨s",
+      message: "Export XML terminé avec succès",
       directory: `/var/www/produits/${result.entite}/${result.gtin}`,
       file: `${result.gtin}.xml`,
       size: result.size || 0
@@ -11562,7 +11670,7 @@ app.post("/api/products/:id/export-xml", async (req, res) => {
     console.error("[EXPORT-XML-ENDPOINT] Error", err.message);
     res.status(500).json({
       success: false,
-      error: err.message || "Ãƒâ€°chec de l'export XML"
+      error: err.message || "Ã‰chec de l'export XML"
     });
   }
 });
@@ -11857,7 +11965,7 @@ app.get('/api/generate-smart-model', async (req, res) => {
     res.json(modelData);
   } catch (err) {
     console.error('generate-smart-model error:', err);
-    res.status(500).json({ error: 'Ã‰chec gÃ©nÃ©ration IA', details: safeErrDetails(err) });
+    res.status(500).json({ error: 'Échec génération IA', details: safeErrDetails(err) });
   }
 });
 
@@ -11865,7 +11973,7 @@ app.get('/api/generate-smart-model', async (req, res) => {
 // -----------------------------------------------------------------------------
 // BULK GENERATE: GET /api/generate-all-models
 // Streams Server-Sent Events: progress updates + results in real-time
-// Query params: segmentCode, familleCode, classeCode (all optional â€” filter scope)
+// Query params: segmentCode, familleCode, classeCode (all optional — filter scope)
 // overwrite=true to regenerate even existing models
 // -----------------------------------------------------------------------------
 app.get('/api/generate-all-models', async (req, res) => {
@@ -11906,7 +12014,7 @@ app.get('/api/generate-all-models', async (req, res) => {
     const total = allBricks.length;
 
     if (total === 0) {
-      send({ type: 'error', message: 'Aucun brick actif trouvÃ© pour cette sÃ©lection.' });
+      send({ type: 'error', message: 'Aucun brick actif trouvé pour cette sélection.' });
       res.end();
       return;
     }
@@ -11954,7 +12062,7 @@ app.get('/api/generate-all-models', async (req, res) => {
         succeeded++;
         send({ type: 'progress', done, total, succeeded, skipped, failed, rayonCode, brickName, status: 'done' });
 
-        // 500ms delay â€” 3 rotating keys give us 36k tokens/min combined
+        // 500ms delay — 3 rotating keys give us 36k tokens/min combined
         await new Promise(r => setTimeout(r, 500));
 
       } catch (brickErr) {
@@ -11977,11 +12085,11 @@ app.get('/api/generate-all-models', async (req, res) => {
 });
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// TARIFICATION ENDPOINTS - Per Product Ã— Per Buyer
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════
+// TARIFICATION ENDPOINTS - Per Product × Per Buyer
+// ═══════════════════════════════════════════════════════════════════════════
 
-// â”€â”€â”€ 1. GET /api/tarifications â”€â”€â”€
+// ─── 1. GET /api/tarifications ───
 // Get all tarifications for a specific product and entite
 // Query params: id_fiche_produit, id_entite
 app.get('/api/tarifications', async (req, res) => {
@@ -12036,7 +12144,7 @@ app.get('/api/tarifications', async (req, res) => {
 });
 
 
-// â”€â”€â”€ 2. POST /api/tarifications â”€â”€â”€
+// ─── 2. POST /api/tarifications ───
 // Create a new tarification for a product and buyer
 app.post('/api/tarifications', async (req, res) => {
   try {
@@ -12118,7 +12226,7 @@ app.post('/api/tarifications', async (req, res) => {
 });
 
 
-// â”€â”€â”€ 3. PUT /api/tarifications/:id â”€â”€â”€
+// ─── 3. PUT /api/tarifications/:id ───
 // Update an existing tarification
 app.put('/api/tarifications/:id', async (req, res) => {
   try {
@@ -12189,7 +12297,7 @@ app.put('/api/tarifications/:id', async (req, res) => {
 });
 
 
-// â”€â”€â”€ 4. DELETE /api/tarifications/:id â”€â”€â”€
+// ─── 4. DELETE /api/tarifications/:id ───
 // Delete a tarification
 app.delete('/api/tarifications/:id', async (req, res) => {
   try {
@@ -12219,7 +12327,7 @@ app.delete('/api/tarifications/:id', async (req, res) => {
 });
 
 
-// â”€â”€â”€ 5. GET /api/tarifications/:id â”€â”€â”€
+// ─── 5. GET /api/tarifications/:id ───
 // Get a specific tarification by ID
 app.get('/api/tarifications/:id', async (req, res) => {
   try {
@@ -12268,7 +12376,7 @@ app.get('/api/tarifications/:id', async (req, res) => {
 });
 
 
-// â”€â”€â”€ 6. GET /api/tarifications/product/:id_product â”€â”€â”€
+// ─── 6. GET /api/tarifications/product/:id_product ───
 // Get all tarifications for a product (all buyers)
 app.get('/api/tarifications/product/:id_product', async (req, res) => {
   try {
@@ -12317,7 +12425,7 @@ app.get('/api/tarifications/product/:id_product', async (req, res) => {
 });
 
 
-// â”€â”€â”€ 7. GET /api/tarifications/buyer/:id_buyer â”€â”€â”€
+// ─── 7. GET /api/tarifications/buyer/:id_buyer ───
 // Get all tarifications for a buyer (all products)
 app.get('/api/tarifications/buyer/:id_buyer', async (req, res) => {
   try {
@@ -12371,7 +12479,7 @@ app.get('/api/tarifications/buyer/:id_buyer', async (req, res) => {
 
 
 // ============================================================================
-// âœ… TEMPLATE DOWNLOAD ENDPOINTS
+// ✅ TEMPLATE DOWNLOAD ENDPOINTS
 // ============================================================================
 
 // GET /api/model_by_brick?codebrique=XXXXX
@@ -12485,7 +12593,7 @@ app.post("/api/products/import-advanced", async (req, res) => {
       skipped,
       total: products.length,
       errors: errors.length > 0 ? errors : undefined,
-      message: `${inserted}/${products.length} produit(s) importÃ©(s)`
+      message: `${inserted}/${products.length} produit(s) importé(s)`
     });
   } catch (err) {
     console.error("[POST /api/products/import-advanced] Error:", err);
@@ -12555,123 +12663,123 @@ app.get("/api/model_by_brick", async (req, res) => {
 
 
 // ============================================================================
-// TEMPLATE HELPERS â€” libellÃ©s franÃ§ais, helpers Excel
+// TEMPLATE HELPERS — libellés français, helpers Excel
 // ============================================================================
 const FR_FIELD_LABELS = {
   brand:"Marque", subBrand:"Sous-marque", description:"Description produit",
-  gtin:"GTIN", libelle:"LibellÃ© produit", short_libelle:"LibellÃ© court",
+  gtin:"GTIN", libelle:"Libellé produit", short_libelle:"Libellé court",
   countryOfOrigin:"Pays d'origine", prix_min:"Prix minimum (DT)",
   prix_max:"Prix maximum (DT)", code_cader:"Code CADER",
-  activ_prix:"Prix activÃ© (0/1)", codeClasse:"Code classe",
+  activ_prix:"Prix activé (0/1)", codeClasse:"Code classe",
   codebrique:"Code brique / rayon",
   segment:"Segment", family:"Famille", class:"Classe", brick:"Brique", rayon:"Rayon",
   gln:"GLN", marque:"Marque", sous_marque:"Sous-marque",
-  libelle_court:"LibellÃ© court", pays_d_origine:"Pays d'origine",
-  libelle_internet:"LibellÃ© internet", type_de_marque:"Type de marque",
+  libelle_court:"Libellé court", pays_d_origine:"Pays d'origine",
+  libelle_internet:"Libellé internet", type_de_marque:"Type de marque",
   description_produit:"Description produit", mode_emploi:"Mode d'emploi",
-  precautions_emploi:"PrÃ©cautions d'emploi",
+  precautions_emploi:"Précautions d'emploi",
   dimensions_hors_emballage:"Dimensions hors emballage",
   type_d_emballage:"Type d'emballage",
-  mesures_unite_commerciale:"Mesures unitÃ© commerciale",
-  unite_consommateur:"UnitÃ© consommateur",
-  prix_unitaire:"Prix unitaire", unite_legale:"UnitÃ© lÃ©gale",
+  mesures_unite_commerciale:"Mesures unité commerciale",
+  unite_consommateur:"Unité consommateur",
+  prix_unitaire:"Prix unitaire", unite_legale:"Unité légale",
   type_de_taxe:"Type de taxe",
-  code_nomenclature_douaniere:"Code nomenclature douaniÃ¨re",
+  code_nomenclature_douaniere:"Code nomenclature douanière",
   gtin_d:"GTIN enfant", childTradeItem:"Article enfant",
-  quantityofNextLowerLevelTradeItem:"QtÃ© niv. infÃ©rieur",
-  quantityOfCompleteLayersContainedInATradeItem:"Nb couches complÃ¨tes",
+  quantityofNextLowerLevelTradeItem:"Qté niv. inférieur",
+  quantityOfCompleteLayersContainedInATradeItem:"Nb couches complètes",
   quantityOfTradeItemsContainedInACompleteLayer:"Articles par couche",
-  isTradeItemADespatchUnit:"UnitÃ© d'expÃ©dition",
-  isTradeItemAnInvoiceUnit:"UnitÃ© de facturation",
-  isTradeItemAnOrderableUnit:"UnitÃ© commandable",
-  isTradeItemAModel:"Article modÃ¨le", isTradeItemADivisibleItem:"Article divisible",
-  hasDisplayReadyPackaging:"Emballage prÃªt expo",
-  isTradeItemPackedIrregularly:"ConditionnÃ© irrÃ©guliÃ¨rement",
+  isTradeItemADespatchUnit:"Unité d'expédition",
+  isTradeItemAnInvoiceUnit:"Unité de facturation",
+  isTradeItemAnOrderableUnit:"Unité commandable",
+  isTradeItemAModel:"Article modèle", isTradeItemADivisibleItem:"Article divisible",
+  hasDisplayReadyPackaging:"Emballage prêt expo",
+  isTradeItemPackedIrregularly:"Conditionné irrégulièrement",
   compositionDepthValue:"Profondeur composition", compositionWidthValue:"Largeur composition",
   alimentaryProduct:"Produit alimentaire", TradeItemDisplayDimensions:"Dimensions affichage",
   contactGLN:"GLN contact", orderingUnitOfMeasure:"UM commande",
-  invoicingUnitOfMeasure:"UM facturation", packageMarksDietAllergen:"Marquage allergÃ¨nes",
-  cataloguePriceBasisQuantity:"QtÃ© base prix",
+  invoicingUnitOfMeasure:"UM facturation", packageMarksDietAllergen:"Marquage allergènes",
+  cataloguePriceBasisQuantity:"Qté base prix",
   cataloguePriceBasisUnitOfMeasure:"UM base prix",
   tradeItemWeight:"Poids article", tradeItemVolume:"Volume article",
-  packagingMaterial:"MatÃ©riau emballage", stackingFactor:"Facteur empilement",
-  maxStackingWeight:"Poids max empilement", palletLayerQuantity:"QtÃ© couche palette",
+  packagingMaterial:"Matériau emballage", stackingFactor:"Facteur empilement",
+  maxStackingWeight:"Poids max empilement", palletLayerQuantity:"Qté couche palette",
   type_emballage:"Type emballage", palletTypeCode:"Code type palette",
   packagingTypeCode:"Code type emballage",
-  unite_logistique_ap:"UL AP", unite_facturable_ap:"UnitÃ© fact. AP",
-  unite_commandable_ap:"UnitÃ© cmd. AP", isTradeItemAModel_ap:"Article modÃ¨le AP",
+  unite_logistique_ap:"UL AP", unite_facturable_ap:"Unité fact. AP",
+  unite_commandable_ap:"Unité cmd. AP", isTradeItemAModel_ap:"Article modèle AP",
   isTradeItemADivisibleItem_ap:"Article divisible AP",
   hasDisplayReadyPackaging_ap:"Emballage expo AP",
-  isTradeItemPackedIrregularly_ap:"Cond. irrÃ©g. AP",
+  isTradeItemPackedIrregularly_ap:"Cond. irrég. AP",
   compositionDepthValue_ap:"Prof. compo AP", compositionWidthValue_ap:"Larg. compo AP",
   alimentaryProduct_ap:"Prod. alim. AP", TradeItemDisplayDimensions_ap:"Dim. affich. AP",
   contactGLN_ap:"GLN contact AP", orderingUnitOfMeasure_ap:"UM commande AP",
   invoicingUnitOfMeasure_ap:"UM fact. AP", gtin_d_ap:"GTIN enfant AP",
   childTradeItem_ap:"Article enfant AP",
-  quantityofNextLowerLevelTradeItem_ap:"QtÃ© niv. inf. AP",
-  packageMarksDietAllergen_ap:"AllergÃ¨nes AP",
+  quantityofNextLowerLevelTradeItem_ap:"Qté niv. inf. AP",
+  packageMarksDietAllergen_ap:"Allergènes AP",
   tradeItemWeight_ap:"Poids AP", tradeItemVolume_ap:"Volume AP",
-  packagingMaterial_ap:"MatÃ©riau AP", stackingFactor_ap:"Facteur emp. AP",
+  packagingMaterial_ap:"Matériau AP", stackingFactor_ap:"Facteur emp. AP",
   gtin_d_ca:"GTIN enfant CA", childTradeItem_ca:"Article enfant CA",
-  quantityofNextLowerLevelTradeItem_ca:"QtÃ© niv. inf. CA",
+  quantityofNextLowerLevelTradeItem_ca:"Qté niv. inf. CA",
   quantityOfCompleteLayersContainedInATradeItem_ca:"Nb couches CA",
   quantityOfTradeItemsContainedInACompleteLayer_ca:"Articles/couche CA",
-  isTradeItemAConsumerUnit:"UnitÃ© conso", unite_facturable_ca:"UnitÃ© fact. CA",
-  unite_commandable_ca:"UnitÃ© cmd. CA", isTradeItemAFullDisplayStand:"PrÃ©sentoir complet",
+  isTradeItemAConsumerUnit:"Unité conso", unite_facturable_ca:"Unité fact. CA",
+  unite_commandable_ca:"Unité cmd. CA", isTradeItemAFullDisplayStand:"Présentoir complet",
   hasDisplayReadyPackaging_ca:"Emballage expo CA",
-  isTradeItemPackedIrregularly_ca:"Cond. irrÃ©g. CA",
+  isTradeItemPackedIrregularly_ca:"Cond. irrég. CA",
   compositionDepthValue_ca:"Prof. compo CA", compositionWidthValue_ca:"Larg. compo CA",
   alimentaryProduct_ca:"Prod. alim. CA", contactGLN_ca:"GLN contact CA",
   orderingUnitOfMeasure_ca:"UM commande CA", invoicingUnitOfMeasure_ca:"UM fact. CA",
   tradeItemWeight_ca:"Poids CA", tradeItemVolume_ca:"Volume CA",
-  packagingMaterial_ca:"MatÃ©riau CA", maxStackingWeight_ca:"Poids max CA",
-  palletLayerQuantity_ca:"QtÃ© couche CA",
-  quantityofNextLowerLevelTradeItem_ds:"QtÃ© niv. inf. DS",
+  packagingMaterial_ca:"Matériau CA", maxStackingWeight_ca:"Poids max CA",
+  palletLayerQuantity_ca:"Qté couche CA",
+  quantityofNextLowerLevelTradeItem_ds:"Qté niv. inf. DS",
   quantityOfCompleteLayersContainedInATradeItem_ds:"Nb couches DS",
   quantityOfTradeItemsContainedInACompleteLayer_ds:"Articles/couche DS",
-  unite_facturable_ds:"UnitÃ© fact. DS", isTradeItemAFullDisplayStand_ds:"PrÃ©sentoir DS",
+  unite_facturable_ds:"Unité fact. DS", isTradeItemAFullDisplayStand_ds:"Présentoir DS",
   hasDisplayReadyPackaging_ds:"Emballage expo DS",
-  isTradeItemPackedIrregularly_ds:"Cond. irrÃ©g. DS",
+  isTradeItemPackedIrregularly_ds:"Cond. irrég. DS",
   compositionDepthValue_ds:"Prof. compo DS", compositionWidthValue_ds:"Larg. compo DS",
   contactGLN_ds:"GLN contact DS", orderingUnitOfMeasure_ds:"UM commande DS",
   invoicingUnitOfMeasure_ds:"UM fact. DS",
   tradeItemWeight_ds:"Poids DS", tradeItemVolume_ds:"Volume DS",
-  packagingMaterial_ds:"MatÃ©riau DS", maxStackingWeight_ds:"Poids max DS",
-  palletLayerQuantity_ds:"QtÃ© couche DS",
+  packagingMaterial_ds:"Matériau DS", maxStackingWeight_ds:"Poids max DS",
+  palletLayerQuantity_ds:"Qté couche DS",
   gtin_d_pl:"GTIN enfant PL", childTradeItem_pl:"Article enfant PL",
-  quantityofNextLowerLevelTradeItem_pl:"QtÃ© niv. inf. PL",
+  quantityofNextLowerLevelTradeItem_pl:"Qté niv. inf. PL",
   quantityOfCompleteLayersContainedInATradeItem_pl:"Nb couches PL",
   quantityOfTradeItemsContainedInACompleteLayer_pl:"Articles/couche PL",
-  isTradeItemAnInvoiceUnit_pl:"UnitÃ© fact. PL",
-  isTradeItemAnOrderableUnit_pl:"UnitÃ© cmd. PL",
-  isTradeItemAFullDisplayStand_pl:"PrÃ©sentoir PL",
+  isTradeItemAnInvoiceUnit_pl:"Unité fact. PL",
+  isTradeItemAnOrderableUnit_pl:"Unité cmd. PL",
+  isTradeItemAFullDisplayStand_pl:"Présentoir PL",
   hasDisplayReadyPackaging_pl:"Emballage expo PL",
-  isTradeItemPackedIrregularly_pl:"Cond. irrÃ©g. PL",
+  isTradeItemPackedIrregularly_pl:"Cond. irrég. PL",
   compositionDepthValue_pl:"Prof. compo PL", compositionWidthValue_pl:"Larg. compo PL",
   contactGLN_pl:"GLN contact PL", orderingUnitOfMeasure_pl:"UM commande PL",
-  invoicingUnitOfMeasure_pl:"UM fact. PL", palletLayerQuantity_pl:"QtÃ© couche PL",
+  invoicingUnitOfMeasure_pl:"UM fact. PL", palletLayerQuantity_pl:"Qté couche PL",
   tradeItemWeight_pl:"Poids PL", tradeItemVolume_pl:"Volume PL",
-  packagingMaterial_pl:"MatÃ©riau PL", maxStackingWeight_pl:"Poids max PL",
+  packagingMaterial_pl:"Matériau PL", maxStackingWeight_pl:"Poids max PL",
   stackingFactor_pl:"Facteur emp. PL", palletDimensions_pl:"Dim. palette PL",
   gtin_d_mx:"GTIN enfant MX", childTradeItem1:"Article enfant 1 MX",
-  quantityofNextLowerLevelTradeItem1:"QtÃ© enfant 1 MX",
+  quantityofNextLowerLevelTradeItem1:"Qté enfant 1 MX",
   childTradeItem2:"Article enfant 2 MX",
-  quantityofNextLowerLevelTradeItem2:"QtÃ© enfant 2 MX",
+  quantityofNextLowerLevelTradeItem2:"Qté enfant 2 MX",
   childTradeItem3:"Article enfant 3 MX",
-  quantityofNextLowerLevelTradeItem3:"QtÃ© enfant 3 MX",
+  quantityofNextLowerLevelTradeItem3:"Qté enfant 3 MX",
   childTradeItem4:"Article enfant 4 MX",
-  quantityofNextLowerLevelTradeItem4:"QtÃ© enfant 4 MX",
+  quantityofNextLowerLevelTradeItem4:"Qté enfant 4 MX",
   quantityOfCompleteLayersContainedInATradeItem_mx:"Nb couches MX",
   quantityOfTradeItemsContainedInACompleteLayer_mx:"Articles/couche MX",
-  isTradeItemAnInvoiceUnit_mx:"UnitÃ© fact. MX",
-  isTradeItemAFullDisplayStand_mx:"PrÃ©sentoir MX",
+  isTradeItemAnInvoiceUnit_mx:"Unité fact. MX",
+  isTradeItemAFullDisplayStand_mx:"Présentoir MX",
   hasDisplayReadyPackaging_mx:"Emballage expo MX",
-  isTradeItemPackedIrregularly_mx:"Cond. irrÃ©g. MX",
+  isTradeItemPackedIrregularly_mx:"Cond. irrég. MX",
   compositionDepthValue_mx:"Prof. compo MX", compositionWidthValue_mx:"Larg. compo MX",
   contactGLN_mx:"GLN contact MX", orderingUnitOfMeasure_mx:"UM commande MX",
-  invoicingUnitOfMeasure_mx:"UM fact. MX", palletLayerQuantity_mx:"QtÃ© couche MX",
+  invoicingUnitOfMeasure_mx:"UM fact. MX", palletLayerQuantity_mx:"Qté couche MX",
   tradeItemWeight_mx:"Poids MX", tradeItemVolume_mx:"Volume MX",
-  packagingMaterial_mx:"MatÃ©riau MX", maxStackingWeight_mx:"Poids max MX",
+  packagingMaterial_mx:"Matériau MX", maxStackingWeight_mx:"Poids max MX",
   stackingFactor_mx:"Facteur emp. MX", palletDimensions_mx:"Dim. palette MX",
 };
 
@@ -12718,7 +12826,7 @@ const COUNTRIES_LIST = [
 
 
 // ============================================================================
-// GET /api/model_by_rayon â€” Alias for model_by_brick (frontend uses rayon_code param)
+// GET /api/model_by_rayon — Alias for model_by_brick (frontend uses rayon_code param)
 // ============================================================================
 app.get("/api/model_by_rayon", async (req, res) => {
   try {
@@ -12742,7 +12850,7 @@ app.get("/api/model_by_rayon", async (req, res) => {
 
 
 // ============================================================================
-// GET /api/products/parents_select â€” List products for parent selection (dÃ©clinaisons)
+// GET /api/products/parents_select — List products for parent selection (déclinaisons)
 // ============================================================================
 app.get("/api/products/parents_select", async (req, res) => {
   try {
@@ -12771,11 +12879,11 @@ app.get("/api/products/parents_select", async (req, res) => {
 
 
 // ============================================================================
-// TÃ‰LÃ‰CHARGEMENT DU MODÃˆLE EXCEL â€” template-advanced
-// Ordre : [DonnÃ©es de base] â†’ [Classification prÃ©-remplie]
-//       â†’ [Sections modÃ¨le JSON] â†’ [HiÃ©rarchie logistique]
-// Palette sombre/plate Â· ligne 1 = titres section Â· libellÃ©s ASCII (sans accents)
-// pour Ã©viter tout problÃ¨me d'encodage Ã  la rÃ©importation
+// TÉLÉCHARGEMENT DU MODÈLE EXCEL — template-advanced
+// Ordre : [Données de base] → [Classification pré-remplie]
+//       → [Sections modèle JSON] → [Hiérarchie logistique]
+// Palette sombre/plate · ligne 1 = titres section · libellés ASCII (sans accents)
+// pour éviter tout problème d'encodage à la réimportation
 // ============================================================================
 app.get("/api/products/template-advanced", async (req, res) => {
   try {
@@ -12786,7 +12894,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     try { conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG); }
     catch (e) { return res.status(500).json({ error: "Connexion BDD echouee" }); }
 
-    // â”€â”€ 1. ModÃ¨le JSON â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 1. Modèle JSON ────────────────────────────────────────────────────
     const [modelResults] = await conn.query(
       `SELECT model_json FROM models WHERE rayon_code = ? LIMIT 1`, [model_key]
     );
@@ -12795,7 +12903,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       try { modelData = JSON.parse(modelResults[0].model_json); } catch(e) {}
     }
 
-    // â”€â”€ 2. LibellÃ©s pour prÃ©-remplissage + nom fichier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 2. Libellés pour pré-remplissage + nom fichier ────────────────────
     let libelleSegment = "", libelleClasse = "", libelleRayon = "";
     try {
       if (rayon_code) {
@@ -12813,7 +12921,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     } catch(e) { /* non bloquant */ }
     await conn.end();
 
-    // â”€â”€ 3. Valeurs prÃ©-remplies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 3. Valeurs pré-remplies ───────────────────────────────────────────
     const PREFILL = {};
     if (codeSegment) PREFILL["segment"]    = libelleSegment ? `${codeSegment} - ${libelleSegment}` : codeSegment;
     if (codeClasse)  PREFILL["codeClasse"] = libelleClasse  ? `${codeClasse} - ${libelleClasse}`   : String(codeClasse);
@@ -12822,7 +12930,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     if (rayon_code)  PREFILL["brick"]      = PREFILL["codebrique"];
     if (rayon_code)  PREFILL["rayon"]      = PREFILL["codebrique"];
 
-    // â”€â”€ 4. Palette sombre/plate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 4. Palette sombre/plate ───────────────────────────────────────────
     const PAL = {
       BASE:            { hc:"1E3A5F", fc:"FFFFFF", dc:"EBF0F7" },
       Classification:  { hc:"2D4739", fc:"FFFFFF", dc:"E8F0EB" },
@@ -12838,7 +12946,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       MX: { hc:"2D2D00", fc:"FFFFFF", dc:"F7F5E0" },
     };
 
-    // ClÃ©s dÃ©jÃ  dans donnÃ©es de base â†’ ne pas dupliquer
+    // Clés déjà dans données de base → ne pas dupliquer
     const BASE_KEYS_SET = new Set([
       "segment","codeSegment","code_segment","family","famille","codeFamille",
       "classe","codeClasse","class","code_classe","codebrique","brick","brique",
@@ -12849,10 +12957,10 @@ app.get("/api/products/template-advanced", async (req, res) => {
     const normKey = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
     const BASE_KEYS_NORM = new Set([...BASE_KEYS_SET].map(normKey));
 
-    // â”€â”€ 5. Construction des colonnes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 5. Construction des colonnes ──────────────────────────────────────
     const columns = [];
 
-    // 5a. DONNÃ‰ES DE BASE (libellÃ©s ASCII pur â€” CRITIQUE pour encodage)
+    // 5a. DONNÉES DE BASE (libellés ASCII pur — CRITIQUE pour encodage)
     const BASE_DEF = [
       { key:"brand",           label:"Marque *"           },
       { key:"subBrand",        label:"Sous-marque"        },
@@ -12872,7 +12980,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
         prefill:PREFILL[f.key]||null, dvPays:f.dvPays||false });
     }
 
-    // 5b. CLASSIFICATION prÃ©-remplie
+    // 5b. CLASSIFICATION pré-remplie
     const CLASS_DEF = [
       { key:"segment",    label:"Segment"          },
       { key:"codeClasse", label:"Code classe"      },
@@ -12884,7 +12992,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
         prefill:PREFILL[f.key]||null, dvPays:false });
     }
 
-    // 5c. SECTIONS DU MODÃˆLE JSON
+    // 5c. SECTIONS DU MODÈLE JSON
     const MODEL_SECTION_ORDER = [
       "Donnees d'identification",
       "Donnees specifiques du produit",
@@ -12914,7 +13022,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
           if (BASE_KEYS_SET.has(fieldName) || BASE_KEYS_NORM.has(normKey(fieldName))) continue;
           const rule = modelData.fieldRules?.[fieldName] || {};
           const isMand = rule.validation === "OB";
-          // Use description from fieldRules if available, else frLabel â€” both ASCII-safe
+          // Use description from fieldRules if available, else frLabel — both ASCII-safe
           const displayLabel = (rule.description || frLabel(fieldName)) + (isMand ? " *" : "");
           columns.push({ key:fieldName, label:displayLabel, section:secName,
             sectionLabel:secLabel, pal, prefill:PREFILL[fieldName]||null, dvPays:false });
@@ -12922,7 +13030,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       }
     }
 
-    // 5d. HIÃ‰RARCHIE LOGISTIQUE
+    // 5d. HIÉRARCHIE LOGISTIQUE
     const HIER_DEFS = [
       { code:"PK", label:"PK - LOT CONSOMMATEUR HOMOGENE", pal:PAL.PK,
         fields:["gtin_d","childTradeItem","quantityofNextLowerLevelTradeItem","quantityOfCompleteLayersContainedInATradeItem","quantityOfTradeItemsContainedInACompleteLayer","isTradeItemADespatchUnit","isTradeItemAnInvoiceUnit","isTradeItemAnOrderableUnit","isTradeItemAModel","isTradeItemADivisibleItem","hasDisplayReadyPackaging","isTradeItemPackedIrregularly","compositionDepthValue","compositionWidthValue","alimentaryProduct","TradeItemDisplayDimensions","contactGLN","orderingUnitOfMeasure","invoicingUnitOfMeasure","packageMarksDietAllergen","cataloguePriceBasisQuantity","cataloguePriceBasisUnitOfMeasure","tradeItemWeight","tradeItemVolume","packagingMaterial","stackingFactor","maxStackingWeight","palletLayerQuantity","type_emballage","palletTypeCode"] },
@@ -12952,10 +13060,10 @@ app.get("/api/products/template-advanced", async (req, res) => {
     const N = columns.length;
     const REF_PAYS = `Pays!$A$2:$A$${COUNTRIES_LIST.length + 1}`;
 
-    // â”€â”€ 6. Classeur ExcelJS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6. Classeur ExcelJS ───────────────────────────────────────────────
     const wb = new ExcelJS.Workbook();
 
-    // Feuille Pays (masquÃ©e)
+    // Feuille Pays (masquée)
     const wsPays = wb.addWorksheet("Pays", { tabColor:{ argb:"FF999999" }, state:"hidden" });
     wsPays.getCell(1,1).value = "[Liste Pays - Ne pas modifier]";
     wsPays.getCell(1,1).font = { bold:true, color:{ argb:"FF999999" }, size:8 };
@@ -12966,7 +13074,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     const ws = wb.addWorksheet("Modele Produits", { tabColor:{ argb:"FF1E3A5F" } });
     wb.views = [{ activeTab:1 }];
 
-    // â”€â”€ 6a. Ligne 1 â€” Titres de section (fusionnÃ©es) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6a. Ligne 1 — Titres de section (fusionnées) ──────────────────────
     const sectionRanges = [];
     let prevSec = null, startC = 1;
     for (let j = 0; j < N; j++) {
@@ -12995,7 +13103,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       };
     }
 
-    // â”€â”€ 6b. Ligne 2 â€” En-tÃªtes colonnes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6b. Ligne 2 — En-têtes colonnes ──────────────────────────────────
     const headerRow = ws.addRow(columns.map(c => c.label));
     headerRow.height = 42;
     for (let j = 0; j < N; j++) {
@@ -13012,7 +13120,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       };
     }
 
-    // â”€â”€ 6c. Ligne 3 â€” Instruction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6c. Ligne 3 — Instruction ─────────────────────────────────────────
     const instrRow = ws.addRow(new Array(N).fill(null));
     instrRow.height = 16;
     if (N > 1) ws.mergeCells(3,1,3,N);
@@ -13022,7 +13130,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     instrCell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFF0F0F0" } };
     instrCell.alignment = { horizontal:"left", vertical:"middle" };
 
-    // â”€â”€ 6d. Lignes 4-103 â€” DonnÃ©es â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6d. Lignes 4-103 — Données ───────────────────────────────────────
     for (let ri = 0; ri < 100; ri++) {
       const dataRow = ws.addRow(new Array(N).fill(null));
       dataRow.height = 18;
@@ -13050,7 +13158,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       }
     }
 
-    // â”€â”€ 6e. Validation listes Pays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6e. Validation listes Pays ────────────────────────────────────────
     for (let j = 0; j < N; j++) {
       if (!columns[j].dvPays) continue;
       const sqref = `${excelCol(j+1)}4:${excelCol(j+1)}103`;
@@ -13061,7 +13169,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       } catch(e) {}
     }
 
-    // â”€â”€ 6f. Largeurs + gel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6f. Largeurs + gel ────────────────────────────────────────────────
     ws.columns = columns.map(c => ({
       key: c.key,
       width: Math.max(16, Math.min(38, c.label.replace(" *","").length + 4)),
@@ -13069,7 +13177,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     ws.views = [{ state:"frozen", xSplit:0, ySplit:3, activeCell:"A4" }];
     ws.pageSetup = { paperSize:9, orientation:"landscape", fitToPage:true, fitToWidth:1 };
 
-    // â”€â”€ 7. Nom de fichier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 7. Nom de fichier ─────────────────────────────────────────────────
     const safePart = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
       .replace(/[^a-zA-Z0-9\-_]/g,"_").replace(/_+/g,"_").slice(0,35);
     const libBrique = safePart(libelleRayon || rayon_code || model_key);
@@ -13090,15 +13198,15 @@ app.get("/api/products/template-advanced", async (req, res) => {
   }
 });
 
-// depuis des fichiers gÃ©nÃ©rÃ©s sur certains OS. La normalisation ci-dessous
-// supprime TOUS les caractÃ¨res non-ASCII et non-alphanumÃ©riques avant
+// depuis des fichiers générés sur certains OS. La normalisation ci-dessous
+// supprime TOUS les caractères non-ASCII et non-alphanumériques avant
 // comparaison, rendant le matching 100% robuste.
 //
 // Structure fichier attendue:
-//   Ligne 1 = titres section (fusionnÃ©es) â†’ ignorÃ©e
-//   Ligne 2 = en-tÃªtes colonnes           â†’ utilisÃ©e pour le mapping
-//   Ligne 3 = instruction                 â†’ ignorÃ©e
-//   Ligne 4+ = donnÃ©es produits
+//   Ligne 1 = titres section (fusionnées) → ignorée
+//   Ligne 2 = en-têtes colonnes           → utilisée pour le mapping
+//   Ligne 3 = instruction                 → ignorée
+//   Ligne 4+ = données produits
 // ============================================================================
 app.post("/api/products/import-template", multerMemory.single("file"), async (req, res) => {
   try {
@@ -13113,7 +13221,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
     if (!ws) ws = workbook.worksheets.find(s => !["Pays"].includes(s.name));
     if (!ws) return res.status(400).json({ error:"Feuille 'Modele Produits' introuvable dans le fichier" });
 
-    // â”€â”€ Lire les en-tÃªtes depuis la ligne 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Lire les en-têtes depuis la ligne 2 ───────────────────────────────
     // (ligne 1 = titres section, ligne 2 = col headers, ligne 3 = instruction)
     const headerRow = ws.getRow(2);
     const headers   = [];
@@ -13124,19 +13232,19 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       headers[colNum-1] = String(v).trim();
     });
 
-    // Normalisation ROBUSTE: supprime accents, U+FFFD, astÃ©risques, espaces, ponctuation
-    // RÃ©sultat: "LibellÃ© produit *" â†’ "libelleproduit"
-    //           "Libell\uFFFD produit *" â†’ "libelleproduit"  (mÃªme rÃ©sultat!)
+    // Normalisation ROBUSTE: supprime accents, U+FFFD, astérisques, espaces, ponctuation
+    // Résultat: "Libellé produit *" → "libelleproduit"
+    //           "Libell\uFFFD produit *" → "libelleproduit"  (même résultat!)
     const normH = s => s
-      .normalize("NFD")                        // dÃ©composer accents
+      .normalize("NFD")                        // décomposer accents
       .replace(/[\u0300-\u036f]/g, "")         // supprimer marques diacritiques
       .replace(/\ufffd/g, "")                  // supprimer U+FFFD (replacement char)
-      .replace(/\*/g, "")                      // supprimer astÃ©risques
+      .replace(/\*/g, "")                      // supprimer astérisques
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");             // garder seulement alphanum
 
-    // Mapping normalisÃ© â†’ champ BDD
-    // Les clÃ©s sont dÃ©jÃ  normalisÃ©es (sans accents, sans espaces, lowercase)
+    // Mapping normalisé → champ BDD
+    // Les clés sont déjà normalisées (sans accents, sans espaces, lowercase)
     const FR_TO_DB = {
       "marque":               "brand",
       "gtin":                 "gtin",
@@ -13170,7 +13278,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       "codebrique","codeClasse","segment_code"
     ]);
 
-    const baseColMap = {};  // dbField â†’ colIndex (0-based)
+    const baseColMap = {};  // dbField → colIndex (0-based)
     const extraCols  = [];  // { label, colIndex } pour extra_fields
 
     headers.forEach((h, i) => {
@@ -13183,7 +13291,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       }
     });
 
-    // Debug log pour vÃ©rification
+    // Debug log pour vérification
     console.log("[import-template] baseColMap:", JSON.stringify(baseColMap));
     console.log("[import-template] headers[0..14]:", headers.slice(0,14).map((h,i)=>`[${i}]${normH(h)}`));
 
@@ -13206,14 +13314,14 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       return String(v).trim() || null;
     };
 
-    // Extraire code seul depuis "CODE - Libelle" ou "CODE â€” Libelle" (prÃ©-remplis)
+    // Extraire code seul depuis "CODE - Libelle" ou "CODE — Libelle" (pré-remplis)
     const extractCode = v => {
       if (!v) return v;
-      const m = v.match(/^(\S+)\s*[-â€”â€“]\s*.+$/);
+      const m = v.match(/^(\S+)\s*[-—–]\s*.+$/);
       return m ? m[1] : v;
     };
 
-    // DonnÃ©es Ã  partir de la ligne 4
+    // Données à partir de la ligne 4
     const totalRows = ws.rowCount;
     for (let ri = 4; ri <= totalRows; ri++) {
       const row = ws.getRow(ri);
@@ -13222,10 +13330,10 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       const gtin    = getCellVal(row, baseColMap["gtin"]);
       const libelle = getCellVal(row, baseColMap["libelle"]);
 
-      // Ligne vraiment vide â†’ ignorer silencieusement
+      // Ligne vraiment vide → ignorer silencieusement
       if (!brand && !gtin && !libelle) continue;
 
-      // Codes prÃ©-remplis: extraire juste le code
+      // Codes pré-remplis: extraire juste le code
       let codebrique = extractCode(getCellVal(row, baseColMap["codebrique"]));
       let codeClasse  = extractCode(getCellVal(row, baseColMap["codeClasse"]));
 
@@ -13237,7 +13345,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       if (!codebrique) missing.push("Code brique/rayon");
 
       if (missing.length) {
-        results.push({ row:ri-3, status:"error", gtin:gtin||"â€”",
+        results.push({ row:ri-3, status:"error", gtin:gtin||"—",
           error:`Champs obligatoires manquants : ${missing.join(", ")}` });
         failedRows.push(ri);
         continue;
@@ -13255,7 +13363,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       const codeClasseNum   = codeClasse ? (parseInt(codeClasse) || null) : null;
       const idEntreprise    = id_entite  ? parseInt(id_entite) : null;
 
-      // Champs extra â†’ extra_fields JSON
+      // Champs extra → extra_fields JSON
       const extraFields = {};
       for (const ec of extraCols) {
         const val = getCellVal(row, ec.colIndex);
@@ -13263,7 +13371,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       }
 
       try {
-        // VÃ©rifier doublon GTIN
+        // Vérifier doublon GTIN
         const [existing] = await conn.query(
           `SELECT id FROM fiche_produit WHERE gtin = ? LIMIT 1`, [gtin]
         );
@@ -13291,7 +13399,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
         const errMsg = err.message.includes("Duplicate")
           ? `GTIN '${gtin}' en doublon (contrainte BDD)`
           : err.message.slice(0,140);
-        results.push({ row:ri-3, status:"error", gtin:gtin||"â€”", error:errMsg });
+        results.push({ row:ri-3, status:"error", gtin:gtin||"—", error:errMsg });
         failedRows.push(ri);
       }
     }
@@ -13301,7 +13409,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
     const successCount = results.filter(r => r.status === "success").length;
     const errorCount   = results.filter(r => r.status === "error").length;
 
-    // â”€â”€ GÃ©nÃ©ration fichier anomalies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Génération fichier anomalies ──────────────────────────────────────
     let failedFileBase64 = null;
     let failedFileName   = null;
 
@@ -13323,7 +13431,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
 
       const fws = fwb.addWorksheet("Anomalies Import", { tabColor:{ argb:"FFCC0000" } });
 
-      // Copier lignes 1, 2, 3 (structure entÃªte)
+      // Copier lignes 1, 2, 3 (structure entête)
       for (let ri = 1; ri <= 3; ri++) {
         const origRow = ws.getRow(ri);
         const newRow  = fws.getRow(ri);
@@ -13443,7 +13551,7 @@ app.post("/api/products/import-advanced", async (req, res) => {
       await awb.xlsx.write(res);
       res.end();
     } else {
-      res.json({ success: true, inserted, message: `${inserted} produit(s) importÃ©(s)` });
+      res.json({ success: true, inserted, message: `${inserted} produit(s) importé(s)` });
     }
   } catch (err) {
     console.error("Import error:", err);
@@ -13453,7 +13561,7 @@ app.post("/api/products/import-advanced", async (req, res) => {
 
 
 // ============================================================================
-// âœ¨ DOWNLOAD ANOMALIES REPORT
+// ✨ DOWNLOAD ANOMALIES REPORT
 // ============================================================================
 app.get("/api/download-anomalies/:filename", (req, res) => {
   try {
@@ -13475,7 +13583,7 @@ app.get("/api/download-anomalies/:filename", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 async function startServer() {
-  console.log(`[SERVER] ðŸš€ Attempting to start server on port ${PORT}...`);
+  console.log(`[SERVER] 🚀 Attempting to start server on port ${PORT}...`);
   try {
     await initializeDatabases();
     app.set('entiteDB', entiteDB); // Expose DB to routes
@@ -13484,7 +13592,7 @@ async function startServer() {
     discoveryCache.setDb(entiteDB);
     keyManager.setDb(entiteDB);
     auditLogger.setDb(entiteDB);
-    console.log('[Services] âœ… DiscoveryCache & AuditLogger initialized with DB');
+    console.log('[Services] ✅ DiscoveryCache & AuditLogger initialized with DB');
 
     await ensureOrdersColumns(); // Auto-create Orders date columns
     
@@ -13493,7 +13601,7 @@ async function startServer() {
     // Initialize Singleton Services with DB
     discoveryCache.setDb(entiteDB);
     auditLogger.setDb(entiteDB);
-    console.log('[Services] âœ… DiscoveryCache & AuditLogger initialized with DB');
+    console.log('[Services] ✅ DiscoveryCache & AuditLogger initialized with DB');
 
     await ensureOrdersColumns(); // Auto-create Orders date columns
     
@@ -13504,24 +13612,24 @@ async function startServer() {
       app.use('/api/orchestrator', initOrchestratorRoutes(entiteDB));
       // P4 — Proxy transport IFTMIN vers le hub (frontend -> /api/transport -> hub)
       app.use('/api/transport', require('./routes/transport_proxy')());
-      console.log('[Orchestrator] âœ… Routes initialized at /api/orchestrator');
+      console.log('[Orchestrator] ✅ Routes initialized at /api/orchestrator');
     } catch (orchErr) {
-      console.error('[Orchestrator] âš ï¸ Failed to initialize routes:', orchErr.message);
+      console.error('[Orchestrator] ⚠️ Failed to initialize routes:', orchErr.message);
     }
 
     // Initialize P2P Routes (Receiver)
     try {
       const p2pRoutes = require('./routes/p2p');
       app.use('/api/p2p', p2pRoutes);
-      console.log('[P2P] âœ… Routes initialized at /api/p2p');
+      console.log('[P2P] ✅ Routes initialized at /api/p2p');
     } catch (p2pErr) {
-      console.error('[P2P] âš ï¸ Failed to initialize routes:', p2pErr.message);
+      console.error('[P2P] ⚠️ Failed to initialize routes:', p2pErr.message);
     }
     
     // Initialize ConfigService with database connection
     try {
       await configService.initialize(entiteDB);
-      console.log('[ConfigService] âœ… Global parameters loaded from database');
+      console.log('[ConfigService] ✅ Global parameters loaded from database');
       
       // Start Background Workers (Discovery & Audit Sync)
       // Only start if not in dev/test mode that inhibits workers, or check a config flag
@@ -13552,12 +13660,12 @@ async function startServer() {
       // Initialize Mailer after config is ready
       await initMailer();
     } catch (err) {
-      console.warn('[ConfigService] âš ï¸ Failed to initialize, using defaults:', err.message);
+      console.warn('[ConfigService] ⚠️ Failed to initialize, using defaults:', err.message);
     }
     
     // Initialize and start EDI Worker
     if (ediWorkerConfig.startup.autoStart) {
-      console.log('\nðŸ“¦ Initializing EDI Worker...');
+      console.log('\n📦 Initializing EDI Worker...');
       ediWorker = new EDIWorker(entiteDB);
       initEdiWorkerRoutes(ediWorker);
       ediWorker.start();
@@ -13566,7 +13674,7 @@ async function startServer() {
     // --- DATA CORRECTION ROUTINE ---
     // Fix orders stuck in 'new' status despite being successfully sent via EDI
     try {
-      console.log("[STARTUP] ðŸ”§ Running data correction for stuck orders...");
+      console.log("[STARTUP] 🔧 Running data correction for stuck orders...");
       const fixQuery = `
         UPDATE orders o
         JOIN edi_transmissions t ON t.related_id = o.id_order
@@ -13579,7 +13687,7 @@ async function startServer() {
       
       if (entiteDB.pool) {
         const [result] = await entiteDB.pool.query(fixQuery);
-        console.log(`[STARTUP] âœ… Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
+        console.log(`[STARTUP] ✅ Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
       } else {
         // SQLite fallback (SQLite does not support JOIN in UPDATE, use subquery)
         const sqliteFixQuery = `
@@ -13595,19 +13703,19 @@ async function startServer() {
           )
         `;
         await runUpdate(entiteDB, sqliteFixQuery);
-        console.log(`[STARTUP] âœ… Data correction query executed`);
+        console.log(`[STARTUP] ✅ Data correction query executed`);
       }
     } catch (err) {
-      console.error("[STARTUP] âš ï¸ Data correction failed:", err.message);
+      console.error("[STARTUP] ⚠️ Data correction failed:", err.message);
     }
 
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\nâœ… Server running successfully!`);
-      console.log(`   â†’ Local:   http://localhost:${PORT}/`);
-      console.log(`   â†’ Network: http://0.0.0.0:${PORT}/`);
-      console.log(`   â†’ Health:  http://localhost:${PORT}/health`);
-      console.log(`   â†’ WebSocket: âœ… Enabled`);
-      console.log(`   â†’ EDI Worker: ${ediWorker ? 'âœ… Running' : 'â¸ï¸  Disabled'}\n`);
+      console.log(`\n✅ Server running successfully!`);
+      console.log(`   → Local:   http://localhost:${PORT}/`);
+      console.log(`   → Network: http://0.0.0.0:${PORT}/`);
+      console.log(`   → Health:  http://localhost:${PORT}/health`);
+      console.log(`   → WebSocket: ✅ Enabled`);
+      console.log(`   → EDI Worker: ${ediWorker ? '✅ Running' : '⏸️  Disabled'}\n`);
       console.log(`Server running on port ${PORT}`);
       console.log(`MODELES_DIR: ${MODELES_DIR}`);
       console.log(`FILES_JSON_PATH: ${FILES_JSON_PATH}`);
@@ -13645,7 +13753,7 @@ async function startServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('\nðŸ›‘ SIGTERM received, shutting down gracefully...');
+  console.log('\n🛑 SIGTERM received, shutting down gracefully...');
   if (ediWorker) {
     ediWorker.stop();
   }
@@ -13653,7 +13761,7 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('\nðŸ›‘ SIGINT received, shutting down gracefully...');
+  console.log('\n🛑 SIGINT received, shutting down gracefully...');
   if (ediWorker) {
     ediWorker.stop();
   }
