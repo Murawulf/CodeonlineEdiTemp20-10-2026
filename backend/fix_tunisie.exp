@@ -2,7 +2,7 @@
 set timeout 30
 set host "217.182.94.86"
 set user "Consultant"
-set password "A4b6xb1s*"
+set password $env(SSH_PASSWORD)
 
 # Copier le fichier .env depuis la racine vers le backend
 spawn scp -o StrictHostKeyChecking=no /Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn/.env.tunisie $user@$host:/var/www/Edi-dev/backend/.env

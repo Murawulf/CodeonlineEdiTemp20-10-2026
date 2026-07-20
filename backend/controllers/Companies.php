@@ -281,13 +281,13 @@ class Companies extends CI_Controller {
 				
 				// Authentification
 				$mail->Username = "netconsultingeurop@gmail.com";
-				$mail->Password = "lrftbiwreejhoxdf";
+				$mail->Password = getenv('SMTP_PASSWORD');
 				
 								// Authentification
 				//$mail->Username = "netconsulting.europe@gmail.com";
 				//$mail->Username = "netconsultingeurop@gmail.com";
-				//$mail->Password = "eUUhT,,1720>>lM";
-				//$mail->Password = "ueznbbhbhttqmxtn";
+				//$mail->Password = getenv('SMTP_PASSWORD');
+				//$mail->Password = getenv('SMTP_PASSWORD');
 				
 				// Expéditeur
 				$mail->SetFrom('support@codeonline-info.com', 'codeonline-info.com');

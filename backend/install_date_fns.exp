@@ -2,7 +2,7 @@
 set timeout 60
 set host "217.182.94.86"
 set user "Consultant"
-set password "A4b6xb1s*"
+set password $env(SSH_PASSWORD)
 
 spawn ssh -o StrictHostKeyChecking=no $user@$host
 expect {

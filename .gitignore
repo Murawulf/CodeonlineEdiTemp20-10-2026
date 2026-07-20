@@ -65,3 +65,10 @@ backend/temp_keys/
 sql/backend/Dev_Entitedb.sql
 Bdd/Dev_Entitedb.sql.bak
 *.sql.bak
+*.bak
+*.bak-*
+*.bak_*
+server.js.bak*
+vite.config.ts.timestamp-*.mjs
+!.env.example
+*.exp.local

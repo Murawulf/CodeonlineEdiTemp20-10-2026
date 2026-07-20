@@ -501,7 +501,7 @@ class Produits_conditionne extends CI_Controller {
 	{
 		$token= $this->auth();
 		//$gtin='0745240170808';
-		//$token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjZkMWEzOWZhMjVjZWE5MzM3NmJhZTczYWE0YTBmNGFmIiwidHlwIjoiSldUIn0.eyJuYmYiOjE2OTc0MDQ1MTksImV4cCI6MTY5NzQwODExOSwiaXNzIjoiaHR0cHM6Ly9hcGltZ3MxcHJvZC1jbGllbnQuYXp1cmUtYXBpLm5ldC9hdXRoIiwiYXVkIjpbImh0dHBzOi8vYXBpbWdzMXByb2QtY2xpZW50LmF6dXJlLWFwaS5uZXQvYXV0aC9yZXNvdXJjZXMiLCJDb2RlT25saW5lIl0sImNsaWVudF9pZCI6ImE1YWIzMDJjLTdlM2MtNGI2Yi1iMTEyLTE4ZThhNmFiZTAwZl9ORVRDT05TVUxUSU5HRVVST1BFTFREIiwiY2xpZW50X2VudiI6InNhbmRveCIsImNsaWVudF9nbG4iOiIzNzc5MDAwMDA0ODU3Iiwic2NvcGUiOlsiUHJvZHVjdHMuUmVhZCJdfQ.HEhsHtFjrcb8dnZ7fMK6TXlGVt9aUyEhwX_BVa1_dBWKLvOLYMxMvoJDiDUfUzAyxlbbFzEsDicBhVt-s6UhnDa6uB2xjT5OtCVEPTxmR1cMLsxs5mu2RCgrQb3lYHpQgW1ALOU020ivbVXAJX44Raasbw-3iT18zQw_JcNlP8BdOwvDUE9O3UNhDFfWnB6l8qiwCG2PzliUbMwp4jnjOg2Vae02EWz6Rf1xExgAPUGYavty8AnlTuKBK8rolb0O3ZcTQqx3lRx_G-WgCwG5kmmUErTEZyB5R0ad0GerPFUikqn5vwV-2Z9kgB0c4YrjQ0VoBRs9sSMJPURsQgshWA";
+		//$token = "<REDACTED_EXPIRED_SANDBOX_TOKEN>";
 			//setup the request, you can also use CURLOPT_URL
 			$ch = curl_init('https://api.gs1.fr/products/'.$gtin.'?api-version=v2');
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
