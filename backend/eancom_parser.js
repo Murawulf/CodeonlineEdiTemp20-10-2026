@@ -53,6 +53,15 @@ function parseEANCOM(eancomContent) {
     freeText: null,
     items: [],
     packages: [],
+    // P3.1 IFTMIN — instruction de transport
+    consignor: { gln: null, name: null },
+    consignee: { gln: null, name: null },
+    carrierParty: { code: null, name: null },
+    placeOfLoading: null,
+    placeOfDelivery: null,
+    equipment: null,
+    desadvReference: null,
+    goodsItems: [],
     totals: { lineAmount: null, taxAmount: null, totalAmount: null },
     totalWeight: null,
     itemCount: null,
@@ -63,6 +72,7 @@ function parseEANCOM(eancomContent) {
   let currentDeliveryLocation = null;
   let currentPackage = null;
   let lastPciCode = null;
+  let currentGoodsItem = null; // P3.1 IFTMIN
 
   for (const line of lines) {
     // Store raw segment
@@ -145,6 +155,7 @@ function parseEANCOM(eancomContent) {
           if (refQualifier === 'CT') result.contractReference = refValue;
           else if (refQualifier === 'PL') result.priceListReference = refValue;
           else if (refQualifier === 'ON') result.orderReference = refValue; // Original Order Number
+          else if (refQualifier === 'DQ') result.desadvReference = unescapeEancom(refValue); // P3.1 IFTMIN : réf DSADV
           else if (refQualifier === 'ACE') result.referencedDocumentNumber = unescapeEancom(refValue); // APERAK: ref to acknowledged doc
           else if (refQualifier === 'VA') {
             // VAT number - assign to current party context
@@ -159,6 +170,8 @@ function parseEANCOM(eancomContent) {
             const docQualifier = docSegParts[0];
             if (docQualifier === '131' && parts[2]) {
               result.referencedDocumentType = unescapeEancom(parts[2]);
+            } else if (docQualifier === '131' && docSegParts[2]) { // P1.2b DOC-colon (DOC+131:TYPE)
+              result.referencedDocumentType = unescapeEancom(docSegParts[2]);
             }
           }
           break;
@@ -191,8 +204,29 @@ function parseEANCOM(eancomContent) {
           else if (partyQualifier === 'UC') result.ultimateConsignee = partyGLN;
           else if (partyQualifier === 'IV') result.invoicee = partyGLN;
           // APERAK parties: MS = Message Sender (buyer), MR = Message Receiver (supplier)
-          else if (partyQualifier === 'MS') result.aperakSenderGln = partyGLN;
-          else if (partyQualifier === 'MR') result.aperakReceiverGln = partyGLN;
+          // P3.1 IFTMIN : CZ = expéditeur, CN = destinataire, CA = transporteur
+          else if (partyQualifier === 'CZ') {
+            result.consignor.gln = partyGLN;
+            if (partyName) result.consignor.name = unescapeEancom(partyName);
+            if (result.messageType === 'IFTMIN' && !result.supplier.gln) result.supplier.gln = partyGLN;
+          }
+          else if (partyQualifier === 'CN') {
+            result.consignee.gln = partyGLN;
+            if (partyName) result.consignee.name = unescapeEancom(partyName);
+            if (result.messageType === 'IFTMIN' && !result.buyer.gln) result.buyer.gln = partyGLN;
+          }
+          else if (partyQualifier === 'CA') {
+            result.carrierParty.code = partyGLN ? unescapeEancom(partyGLN) : null;
+            if (partyName) result.carrierParty.name = unescapeEancom(partyName);
+          }
+          else if (partyQualifier === 'MS') { // P1.2b NAD-APERAK
+            result.aperakSenderGln = partyGLN;
+            if (result.messageType === 'APERAK' && !result.buyer.gln) result.buyer.gln = partyGLN;
+          }
+          else if (partyQualifier === 'MR') {
+            result.aperakReceiverGln = partyGLN;
+            if (result.messageType === 'APERAK' && !result.supplier.gln) result.supplier.gln = partyGLN;
+          }
           break;
 
         case 'CTA': // Contact information
@@ -241,6 +275,24 @@ function parseEANCOM(eancomContent) {
           if (parts[9]) result.transport.vehicle = parts[9];
           break;
 
+        case 'GID': { // P3.1 IFTMIN — Goods Item Details : GID+seq+count:type
+          if (currentGoodsItem) result.goodsItems.push(currentGoodsItem);
+          const gidCount = parts[2] ? parts[2].split(/(?<!\?):/) : [];
+          currentGoodsItem = {
+            sequence: parseInt(parts[1]) || result.goodsItems.length + 1,
+            packageCount: gidCount[0] ? parseInt(gidCount[0]) : null,
+            packageType: gidCount[1] || null,
+            description: null,
+            weight: null,
+            sscc: null,
+          };
+          break;
+        }
+
+        case 'EQD': // P3.1 IFTMIN — équipement de transport
+          result.equipment = { type: parts[1] || null, id: parts[2] ? unescapeEancom(parts[2]) : null };
+          break;
+
         case 'CPS': // Consignment Packing Sequence (DESADV)
           // parts[1] = Hierarchical ID, parts[2] = Parent ID, parts[3] = Packaging Level
           {
@@ -274,6 +326,11 @@ function parseEANCOM(eancomContent) {
 
         case 'MEA': // Measurement
           {
+            // P3.1 IFTMIN : MEA sous GID = poids de la marchandise courante
+            if (currentGoodsItem && parts[1] === 'WT' && parts[3]) {
+              const gidMea = parts[3].split(/(?<!\?):/);
+              if (gidMea[1]) { currentGoodsItem.weight = parseFloat(gidMea[1]); break; }
+            }
             const meaPurpose = parts[1]; // WT = Weight, VOL = Volume
             const meaType = parts[2];    // G = Gross, AAE = Net
             if (parts[3]) {
@@ -292,6 +349,10 @@ function parseEANCOM(eancomContent) {
         case 'PCI': // Package Identification
           // 33E = Marked with SSCC (Etiquetage), 36E = Marked with batch, 17 = Batch/lot at item level
           lastPciCode = parts[1] || null;
+          // P3.1 IFTMIN : PCI+33E+<sscc> directement sous GID
+          if (currentGoodsItem && lastPciCode === '33E' && parts[2]) {
+            currentGoodsItem.sscc = unescapeEancom(parts[2]);
+          }
           break;
 
         case 'GIN': // Goods Identity Number
@@ -335,7 +396,12 @@ function parseEANCOM(eancomContent) {
           const locValue = parts[2];
           
           if (locQualifier === '1') result.deliveryPort = locValue; // Port of loading/unloading
+          else if (locQualifier === '9') { // P3.1 IFTMIN : lieu d'enlèvement/chargement
+            result.placeOfLoading = locValue ? unescapeEancom(locValue.split(/(?<!\?):/)[0]) : null;
+          }
           else if (locQualifier === '7') {
+            // P3.1 IFTMIN : lieu de livraison (champ dédié, en plus du flux ORDERS multi-livraison)
+            result.placeOfDelivery = locValue ? unescapeEancom(locValue.split(/(?<!\?):/)[0]) : null;
             // Place of delivery (for multi-delivery)
             currentDeliveryLocation = { gln: locValue, qty: null, date: null };
           }
@@ -505,6 +571,9 @@ function parseEANCOM(eancomContent) {
     }
   }
 
+  // P3.1 IFTMIN : flush du dernier goods item
+  if (currentGoodsItem) result.goodsItems.push(currentGoodsItem);
+
   // Push last item if exists
   if (currentItem) {
     // If we're inside a package context (DESADV), add item to package
@@ -533,6 +602,17 @@ function validateParsedEANCOM(parsedData) {
 
   if (!parsedData.messageType) errors.push('Missing message type');
   if (!parsedData.documentNumber) errors.push('Missing document number');
+
+  // P3.1 IFTMIN : règles dédiées (transporteur, lieux, colis)
+  if (parsedData.messageType === 'IFTMIN') {
+    if (!parsedData.consignor?.gln) errors.push('Missing consignor GLN');
+    if (!parsedData.consignee?.gln) errors.push('Missing consignee GLN');
+    if (!parsedData.carrierParty?.code && !parsedData.carrierParty?.name) errors.push('Missing carrier');
+    if (!parsedData.placeOfDelivery) errors.push('Missing place of delivery');
+    if (!parsedData.goodsItems || parsedData.goodsItems.length === 0) errors.push('No goods items found');
+    return { valid: errors.length === 0, errors };
+  }
+
   if (!parsedData.buyer.gln) errors.push('Missing buyer GLN');
   if (!parsedData.supplier.gln) errors.push('Missing supplier GLN');
   

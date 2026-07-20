@@ -969,31 +969,64 @@ class EDIWorker {
       let tableName = 'edi_invoic';
       let refColumn = 'invoic_number';
       let eventName = 'invoice:status:updated';
+      let hasDirection = true; // edi_orders has no direction column
 
       // Route based on document type
       if (referencedType === 'ORDERS') {
         tableName = 'edi_orders';
-        refColumn = 'order_number';
+        refColumn = 'document_number'; // edi_orders identifier column
         eventName = 'order:status:updated';
+        hasDirection = false;          // edi_orders has no direction column
       } else if (referencedType === 'ORDRSP') {
         tableName = 'edi_order_responses';
         refColumn = 'order_response_number';
         eventName = 'order_response:status:updated';
       } else if (referencedType === 'DESADV') {
-        tableName = 'edi_despatch_advices';
+        tableName = 'edi_desadv';
         refColumn = 'desadv_number';
         eventName = 'desadv:status:updated';
       }
 
+      const dirClause = hasDirection ? " AND direction = 'OUTBOUND'" : '';
+      let affected = 0;
+      try {
       const updateResult = await runUpdate(
         this.db,
         `UPDATE ${tableName} SET status = ?, updated_at = CURRENT_TIMESTAMP 
-         WHERE ${refColumn} = ? AND direction = 'OUTBOUND'`,
+         WHERE ${refColumn} = ?${dirClause}`,
         [newStatus, referencedRef]
       );
 
-      const affected = updateResult.changes || updateResult.affectedRows || 0;
+      affected = updateResult.changes || updateResult.affectedRows || 0;
+      } catch (updErr) {
+        this.log(`[INBOUND APERAK] ⚠️ Could not update ${tableName} status (${updErr.message}) — APERAK still acknowledged`);
+      }
       this.log(`[INBOUND APERAK] ${isAck ? '✅' : '❌'} ${referencedType} "${referencedRef}" → ${newStatus} (${affected} row(s) updated)`);
+
+      // P1.4 — transmission OUTBOUND liée : refléter l'APERAK dans edi_transmissions
+      try {
+        const relatedTypeMap = {
+          ORDERS: 'ORDER', ORDRSP: 'ORDER_RESPONSE', INVOIC: 'INVOICE', DESADV: 'DESPATCH_ADVICE',
+        };
+        const relatedType = relatedTypeMap[referencedType] || referencedType;
+        const metierRows = await queryDB(
+          this.db,
+          `SELECT id FROM ${tableName} WHERE ${refColumn} = ?${dirClause} ORDER BY id DESC LIMIT 1`,
+          [referencedRef]
+        );
+        if (metierRows.length > 0) {
+          const txUpdate = await runUpdate(
+            this.db,
+            `UPDATE edi_transmissions SET status = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE related_type = ? AND related_id = ? AND direction = 'OUTBOUND'`,
+            [newStatus, relatedType, metierRows[0].id]
+          );
+          const txAffected = txUpdate.changes || txUpdate.affectedRows || 0;
+          this.log(`[INBOUND APERAK] transmission OUTBOUND ${relatedType} #${metierRows[0].id} → ${newStatus} (${txAffected} row(s))`);
+        }
+      } catch (txErr) {
+        this.log(`[INBOUND APERAK] ⚠️ Could not update outbound transmission status: ${txErr.message}`);
+      }
 
       // Notify the UI in real-time
       if (global.io) {

@@ -59,7 +59,7 @@ async function runDbSeeder() {
       { key: 'NETWORK_TOPOLOGY', value: JSON.stringify(networkTopology), type: 'json', desc: 'Topologie réseau globale pour le routage EDI' },
       // Other common global settings that should be the same everywhere
       { key: 'SESSION_TIMEOUT', value: '3600', type: 'number', desc: 'Timeout session en secondes' },
-      { key: 'EDI_ORDERS_PATH', value: process.env.EDI_ORDERS_PATH || '/var/www/Edi-orders', type: 'string', desc: 'Chemin de stockage des documents EANCOM (commandes, envois, réceptions)' }
+      { key: 'EDI_ORDERS_PATH', value: '/var/www/Edi-orders', type: 'string', desc: 'Chemin de stockage des documents EANCOM (commandes, envois, réceptions)' }
     ];
 
     // Insert or Update Parameters
