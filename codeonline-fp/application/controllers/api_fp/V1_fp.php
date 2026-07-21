@@ -64,8 +64,11 @@ class V1_fp extends REST_Controller {
         if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0) {
             return $path;
         }
-        // Relative path � prefix with the images host
-        return self::IMAGES_BASE_URL . '/' . ltrim($path, '/');
+        // Chemin relatif -> prefixer avec le host images (config par pays: $config['images_base_url'],
+        // fallback sur la constante si non configure).
+        $base = $this->config->item('images_base_url');
+        if (empty($base)) { $base = self::IMAGES_BASE_URL; }
+        return rtrim($base, '/') . '/' . ltrim($path, '/');
     }
 
     /**

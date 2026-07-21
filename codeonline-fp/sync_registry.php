@@ -93,6 +93,22 @@ $rows = [];
 while ($r = mysqli_fetch_assoc($res)) { $rows[] = $r; }
 mysqli_close($link);
 
+// --- Fix images relatives -> URL absolues (host du node qui sert /images/) pour APK + cross-pays.
+//     Base lue depuis la config CI par pays ($config['images_base_url']) SANS include (BASEPATH). ---
+$IMG_BASE = '';
+$__cfgMain = __DIR__ . '/application/config/config.php';
+if (is_file($__cfgMain) && preg_match("/\\\$config\\['images_base_url'\\]\\s*=\\s*'([^']*)'/", file_get_contents($__cfgMain), $__m)) {
+    $IMG_BASE = rtrim($__m[1], '/');
+}
+if ($IMG_BASE !== '') {
+    foreach ($rows as &$__r) {
+        if (!empty($__r['images']) && strpos($__r['images'], '://') === false) {
+            $__r['images'] = str_replace('/images/', $IMG_BASE . '/images/', $__r['images']);
+        }
+    }
+    unset($__r);
+}
+
 // --- Push batch -> Hub ---
 function hub_post(array $products): array {
     $payload = json_encode(['country_code' => COUNTRY_CODE, 'products' => $products]);
