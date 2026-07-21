@@ -95,11 +95,16 @@ mysqli_close($link);
 
 // --- Fix images relatives -> URL absolues (host du node qui sert /images/) pour APK + cross-pays.
 //     Base lue depuis la config CI par pays ($config['images_base_url']) SANS include (BASEPATH). ---
-$IMG_BASE = '';
-$__cfgMain = __DIR__ . '/application/config/config.php';
-if (is_file($__cfgMain) && preg_match("/\\\$config\\['images_base_url'\\]\\s*=\\s*'([^']*)'/", file_get_contents($__cfgMain), $__m)) {
+$IMG_BASE  = '';
+$__cfgTxt  = is_file(__DIR__ . '/application/config/config.php') ? file_get_contents(__DIR__ . '/application/config/config.php') : '';
+if (preg_match("/\\\$config\\['images_base_url'\\]\\s*=\\s*'([^']*)'/", $__cfgTxt, $__m)) {
     $IMG_BASE = rtrim($__m[1], '/');
 }
+// Hub registry + clé lus depuis la config par pays (fallback sur les constantes si non configuré).
+$__hubUrl = preg_match("/\\\$config\\['registry_hub_url'\\]\\s*=\\s*'([^']*)'/", $__cfgTxt, $__u) ? rtrim($__u[1], '/') : HUB_URL;
+$__hubKey = preg_match("/\\\$config\\['registry_hub_key'\\]\\s*=\\s*'([^']*)'/", $__cfgTxt, $__k) ? $__k[1] : REGISTRY_KEY;
+define('SYNC_HUB_URL', $__hubUrl);
+define('SYNC_HUB_KEY', $__hubKey);
 if ($IMG_BASE !== '') {
     foreach ($rows as &$__r) {
         if (!empty($__r['images']) && strpos($__r['images'], '://') === false) {
@@ -112,7 +117,7 @@ if ($IMG_BASE !== '') {
 // --- Push batch -> Hub ---
 function hub_post(array $products): array {
     $payload = json_encode(['country_code' => COUNTRY_CODE, 'products' => $products]);
-    $ch = curl_init(HUB_URL . '/api/registry/fp/sync');
+    $ch = curl_init(SYNC_HUB_URL . '/api/registry/fp/sync');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
@@ -120,7 +125,7 @@ function hub_post(array $products): array {
         CURLOPT_TIMEOUT        => 60,
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/json',
-            'x-registry-key: ' . REGISTRY_KEY,
+            'x-registry-key: ' . SYNC_HUB_KEY,
         ],
     ]);
     $out  = curl_exec($ch);

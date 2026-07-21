@@ -242,11 +242,14 @@ class V1_fp extends REST_Controller {
     }
     private function registry_call($path)
     {
-        // DÉMO partenaires : TOUS les serveurs (DEV + PROD CIV/TUN) tapent le Hub DEV.
-        // Pour la vraie PROD plus tard : remettre la sélection par ENVIRONMENT
-        // (Hub Hetzner + clé PROD) — voir codeonline-fp_registry_fp.php.
-        $hub_url = 'http://217.182.94.86:5010';
-        $hub_key = 'REG-EDI-2026-9b9909f7d244d103ef4d09cb';
+        // Hub registry + clé lus depuis la config ($config['registry_hub_url'] / ['registry_hub_key']).
+        // Fallback historique (hub DEV) uniquement si non configuré.
+        $hub_url = $this->config->item('registry_hub_url');
+        $hub_key = $this->config->item('registry_hub_key');
+        if (empty($hub_url) || empty($hub_key)) {
+            $hub_url = 'http://217.182.94.86:5010';
+            $hub_key = 'REG-EDI-2026-9b9909f7d244d103ef4d09cb';
+        }
         $xlang   = $this->input->get_request_header('x-lang');
         $ch = curl_init($hub_url . $path);
         curl_setopt_array($ch, array(
