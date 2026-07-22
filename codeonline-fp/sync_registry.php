@@ -16,7 +16,7 @@
 const SECURITY_CODE = 'SYNC-2026-CHANGEME';                 // code attendu dans ?key=
 const COUNTRY_CODE  = '384';                                // 384=CIV / 788=TUN / 686=SEN
 const HUB_URL       = 'http://217.182.94.86:5010';          // Hub (DEV). PROD: Hetzner
-const REGISTRY_KEY  = 'REG-EDI-2026-9b9909f7d244d103ef4d09cb';
+const REGISTRY_KEY  = 'REG-CHANGEME';
 const BATCH         = 200;
 // ===========================================================================
 
