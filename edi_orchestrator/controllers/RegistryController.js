@@ -134,6 +134,17 @@ async function searchByGtin(req, res) {
  * Body : { country_code: "384", products: [ { gtin, source_gln, brand, ... }, ... ] }
  * Upsert idempotent sur (country_code, gtin).
  */
+// Dérive le country_code officiel depuis le préfixe du source_gln. Le HUB est
+// autoritaire sur le pays d'un produit : évite qu'une const mal réglée côté
+// noeud (sync_registry.php) ne duplique le produit sous un mauvais pays.
+function countryFromGln(gln) {
+  const g = String(gln || '').toUpperCase();
+  if (g.startsWith('SN')) return '686';   // Sénégal
+  if (g.startsWith('619')) return '788';  // Tunisie
+  if (g.startsWith('618')) return '384';  // Côte d'Ivoire
+  return null;                             // inconnu -> fallback payload country_code
+}
+
 async function syncBatch(req, res) {
   const { country_code, products } = req.body || {};
   if (!country_code || !Array.isArray(products)) {
@@ -156,7 +167,9 @@ async function syncBatch(req, res) {
   const conn = await db.getConnection();
   try {
     for (const p of products) {
-      const row = { ...p, country_code };
+      // pays autoritaire = dérivé du source_gln ; fallback payload si GLN inconnu
+      const cc = countryFromGln(p.source_gln) || country_code;
+      const row = { ...p, country_code: cc };
       // status défaut 2 si absent
       if (row.status === undefined || row.status === null) row.status = 2;
       // source_gln NOT NULL : on n'écarte pas un produit dont l'entreprise n'a
