@@ -105,6 +105,8 @@ $__hubUrl = preg_match("/\\\$config\\['registry_hub_url'\\]\\s*=\\s*'([^']*)'/",
 $__hubKey = preg_match("/\\\$config\\['registry_hub_key'\\]\\s*=\\s*'([^']*)'/", $__cfgTxt, $__k) ? $__k[1] : REGISTRY_KEY;
 define('SYNC_HUB_URL', $__hubUrl);
 define('SYNC_HUB_KEY', $__hubKey);
+$__cc = preg_match("/\\\$config\\['country_code'\\]\\s*=\\s*'([^']*)'/", $__cfgTxt, $__ccm) ? $__ccm[1] : COUNTRY_CODE;
+define('SYNC_COUNTRY_CODE', $__cc);
 if ($IMG_BASE !== '') {
     foreach ($rows as &$__r) {
         if (!empty($__r['images']) && strpos($__r['images'], '://') === false) {
@@ -116,7 +118,7 @@ if ($IMG_BASE !== '') {
 
 // --- Push batch -> Hub ---
 function hub_post(array $products): array {
-    $payload = json_encode(['country_code' => COUNTRY_CODE, 'products' => $products]);
+    $payload = json_encode(['country_code' => SYNC_COUNTRY_CODE, 'products' => $products]);
     $ch = curl_init(SYNC_HUB_URL . '/api/registry/fp/sync');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -150,7 +152,7 @@ for ($i = 0; $i < $total; $i += BATCH) {
 
 echo json_encode([
     'success'      => $http_err === 0,
-    'country_code' => COUNTRY_CODE,
+    'country_code' => SYNC_COUNTRY_CODE,
     'db'           => $c['database'],
     'total'        => $total,
     'sent'         => $sent,
