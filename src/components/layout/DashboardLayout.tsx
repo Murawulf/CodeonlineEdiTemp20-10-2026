@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
+import { useTranslation } from "@/contexts/TranslationContext";
 import { TopBarMenu } from "./TopBarMenu";
 import logo from "../layout/logo.png";
 import type { Compte } from "../../types/compte";
@@ -21,7 +22,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ currentUser }) => {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showTos, setShowTos] = useState(false);
-  const [lang, setLang] = useState<"fr" | "en" | "ar">("fr");
+  const { language, setLanguage, t } = useTranslation();
 
   const today = new Date().toLocaleDateString();
 
@@ -153,7 +154,7 @@ By clicking “Accept”, you confirm you have read, understood, and agreed to t
       <Header isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
       {currentUser && <TopBarMenu compte={currentUser} />}
       <div className="flex flex-1">
-        <Sidebar isSidebarOpen={isSidebarOpen} />
+        <Sidebar isSidebarOpen={isSidebarOpen} compte={currentUser} />
         <main
           className={`flex-1 p-6 transition-all duration-300 overflow-y-auto ${
             isSidebarOpen ? "md:ml-64" : "md:ml-0"
@@ -172,18 +173,16 @@ By clicking “Accept”, you confirm you have read, understood, and agreed to t
             className="h-32 mx-auto mb-4"
           />
           <div className="text-xs text-muted-foreground -mt-1">
-            Copyrights © 2014- {new Date().getFullYear()} Netconsulting Europe
-            LTD — Tous droits réservés
+            {t("Copyrights © 2014- {year} Netconsulting Europe LTD — Tous droits réservés").replace(
+              "{year}",
+              String(new Date().getFullYear())
+            )}
           </div>
           <button
             onClick={() => setShowTos(true)}
             className="mt-2 text-blue-600 underline hover:text-blue-800"
           >
-            {lang === "fr"
-              ? "Conditions d’utilisation"
-              : lang === "en"
-              ? "Terms of Service"
-              : "شروط الاستخدام"}
+            {t("Conditions d’utilisation")}
           </button>
         </div>
       </footer>
@@ -193,33 +192,29 @@ By clicking “Accept”, you confirm you have read, understood, and agreed to t
         <div className="fixed inset-0 bg-white z-50 flex flex-col">
           <div className="p-4 flex justify-between items-center border-b">
             <h2 className="text-lg font-semibold">
-              {lang === "fr"
-                ? "Conditions d’utilisation"
-                : lang === "en"
-                ? "Terms of Service"
-                : "شروط الاستخدام"}
+              {t("Conditions d’utilisation")}
             </h2>
             <div className="space-x-2">
               <button
-                onClick={() => setLang("fr")}
+                onClick={() => setLanguage("fr")}
                 className={`px-3 py-1 rounded ${
-                  lang === "fr" ? "bg-blue-600 text-white" : "bg-gray-200"
+                  language === "fr" ? "bg-blue-600 text-white" : "bg-gray-200"
                 }`}
               >
                 FR
               </button>
               <button
-                onClick={() => setLang("en")}
+                onClick={() => setLanguage("en")}
                 className={`px-3 py-1 rounded ${
-                  lang === "en" ? "bg-blue-600 text-white" : "bg-gray-200"
+                  language === "en" ? "bg-blue-600 text-white" : "bg-gray-200"
                 }`}
               >
                 EN
               </button>
               <button
-                onClick={() => setLang("ar")}
+                onClick={() => setLanguage("ar")}
                 className={`px-3 py-1 rounded ${
-                  lang === "ar" ? "bg-blue-600 text-white" : "bg-gray-200"
+                  language === "ar" ? "bg-blue-600 text-white" : "bg-gray-200"
                 }`}
               >
                 AR
@@ -227,14 +222,14 @@ By clicking “Accept”, you confirm you have read, understood, and agreed to t
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6 whitespace-pre-wrap leading-relaxed text-justify">
-            {tosContent[lang]}
+            {tosContent[language]}
           </div>
           <div className="p-4 border-t text-center">
             <button
               onClick={() => setShowTos(false)}
               className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
             >
-              {lang === "fr" ? "Accepter" : lang === "en" ? "Accept" : "أوافق"}
+              {t("Accepter")}
             </button>
           </div>
         </div>

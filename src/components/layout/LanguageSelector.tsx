@@ -9,38 +9,23 @@ import { Globe } from "lucide-react";
 import { Button } from "../ui/button";
 
 export const LanguageSelector = () => {
-  const { language, setLanguage } = useTranslation();
+  const { language, setLanguage, t } = useTranslation();
 
   const languages = [
-    { code: "fr", label: "Français", flag: "🇫🇷" },
-    { code: "en", label: "English",  flag: "🇬🇧" },
-    { code: "ar", label: "العربية",  flag: "🇹🇳" },
+    { code: "fr" as const, label: t("Français"), flag: "🇫🇷" },
+    { code: "en" as const, label: t("Anglais"), flag: "🇬🇧" },
+    { code: "ar" as const, label: t("Arabe"), flag: "🇹🇳" },
   ];
 
   const handleLanguageChange = (lang: "fr" | "en" | "ar") => {
     setLanguage(lang);
 
-    // RTL / LTR
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-    document.documentElement.lang = lang;
-
-    // Trigger Google Translate for ALL page content
-    const tryTranslate = (attempts = 0) => {
-      const select = document.querySelector(".goog-te-combo") as HTMLSelectElement;
-      if (select) {
-        select.value = lang;
-        select.dispatchEvent(new Event("change"));
-      } else if (attempts < 10) {
-        setTimeout(() => tryTranslate(attempts + 1), 200);
-      }
-    };
-    tryTranslate();
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" title="Change language">
+        <Button variant="ghost" size="icon" title={t("Changer la langue")} aria-label={t("Changer la langue")}>
           <Globe className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>

@@ -88,6 +88,8 @@ const COUNTRY_METADATA: Record<CountryId, { name: string; flagUrl: string; insti
   }
 };
 
+const BUILD_COUNTRY = import.meta.env.VITE_BUILD_COUNTRY as string | undefined;
+
 interface SettingsContextType {
   settings: AppSettings;
   isLoading: boolean;
@@ -230,7 +232,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const instanceCode = String(settings.CURRENT_INSTANCE_CODE || '').trim().toLowerCase();
     let id: CountryId;
 
-    if (instanceCode === 'senegal' || instanceCode === 'tunisia' || instanceCode === 'cote_ivoire') {
+    if (BUILD_COUNTRY === 'senegal' || BUILD_COUNTRY === 'tunisia' || BUILD_COUNTRY === 'cote_ivoire') {
+      id = BUILD_COUNTRY;
+    } else if (instanceCode === 'senegal' || instanceCode === 'tunisia' || instanceCode === 'cote_ivoire') {
       id = instanceCode;
     } else {
       const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';

@@ -1,11 +1,5 @@
 // src/contexts/TranslationContext.tsx
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { translations } from "../pages/src/translations";
 
 export type Language = "fr" | "en" | "ar";
@@ -23,14 +17,19 @@ const TranslationContext = createContext<TranslationContextType | undefined>(
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const originalText = useRef(new WeakMap<Text, string>());
   const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem("app-language") as Language) || "fr";
+    const storedLanguage = localStorage.getItem("app-language");
+    return storedLanguage === "en" || storedLanguage === "ar" || storedLanguage === "fr"
+      ? storedLanguage
+      : "fr";
   });
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem("app-language", lang);
     document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, []);
 
   // ✅ SAFE TRANSLATE FUNCTION with fallback chain: lang → fr → key
@@ -49,28 +48,33 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
     [language]
   );
 
-  // 🔥 AUTO DOM TRANSLATION (MutationObserver)
   useEffect(() => {
-    const shouldSkip = (el: HTMLElement) => {
-      const tag = el.tagName;
-      return (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SCRIPT" ||
-        tag === "STYLE"
-      );
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+
+    const frenchDictionary = translations.fr;
+    const shouldSkip = (node: Node) => {
+      const element = node.parentElement;
+      return !element || Boolean(element.closest(
+        "input, textarea, script, style, [contenteditable='true'], [data-no-translate]"
+      ));
     };
 
     const translateNode = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent?.trim();
+        if (shouldSkip(node)) return;
 
-        if (!text || text.length < 2) return;
+        const textNode = node as Text;
+        const source = originalText.current.get(textNode) ?? textNode.nodeValue ?? "";
+        const key = source.trim();
+        if (!key || !(key in frenchDictionary)) return;
 
-        const parent = node.parentElement;
-        if (!parent || shouldSkip(parent)) return;
-
-        node.textContent = t(text);
+        originalText.current.set(textNode, source);
+        const translated = language === "fr" ? key : t(key);
+        const leadingWhitespace = source.match(/^\s*/)?.[0] ?? "";
+        const trailingWhitespace = source.match(/\s*$/)?.[0] ?? "";
+        textNode.nodeValue = `${leadingWhitespace}${translated}${trailingWhitespace}`;
+        return;
       }
 
       node.childNodes.forEach(translateNode);
@@ -84,7 +88,6 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     });
 
-    // initial pass
     translateNode(document.body);
 
     observer.observe(document.body, {

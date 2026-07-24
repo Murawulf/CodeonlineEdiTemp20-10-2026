@@ -6,6 +6,10 @@
 
 export const translations: Record<string, Record<string, string>> = {
   en: {
+    "Changer la langue": "Change language",
+    "Conditions d’utilisation": "Terms of Service",
+    "Accepter": "Accept",
+    "Copyrights © 2014- {year} Netconsulting Europe LTD — Tous droits réservés": "Copyright © 2014- {year} Netconsulting Europe LTD — All rights reserved",
     // ── Navigation / TopBarMenu / TopNavigation ──────────────
     "Accueil": "Home",
     "accueil": "Home",
@@ -521,6 +525,10 @@ export const translations: Record<string, Record<string, string>> = {
   // FRENCH — keys and values are the same (app is natively FR)
   // ════════════════════════════════════════════════════════════
   fr: {
+    "Changer la langue": "Changer la langue",
+    "Conditions d’utilisation": "Conditions d’utilisation",
+    "Accepter": "Accepter",
+    "Copyrights © 2014- {year} Netconsulting Europe LTD — Tous droits réservés": "Copyrights © 2014- {year} Netconsulting Europe LTD — Tous droits réservés",
     "Accueil": "Accueil",
     "accueil": "Accueil",
     "Entité": "Entité",
@@ -985,6 +993,10 @@ export const translations: Record<string, Record<string, string>> = {
   // ARABIC
   // ════════════════════════════════════════════════════════════
   ar: {
+    "Changer la langue": "تغيير اللغة",
+    "Conditions d’utilisation": "شروط الاستخدام",
+    "Accepter": "أوافق",
+    "Copyrights © 2014- {year} Netconsulting Europe LTD — Tous droits réservés": "حقوق النشر © 2014- {year} Netconsulting Europe LTD — جميع الحقوق محفوظة",
     // ── Navigation ───────────────────────────────────────────
     "Accueil": "الرئيسية",
     "accueil": "الرئيسية",
