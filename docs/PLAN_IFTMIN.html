@@ -49,7 +49,7 @@ ul{padding-left:18px}
 - Tests présents sur le serveur : <code>test/{p3t_e2e,transport_order,carrier_registry,transport_route}.test.js</code>.
 - DB : table <strong><code>edi_transport_orders</code></strong> (colonnes : <code>id, ref, order_ref, desadv_ref, carrier_code, country_code, requester_gln, status, iftmin_content, tracking_number, carrier_response, error_message, created_at, updated_at</code>). <strong><code>0</code> ligne.</strong> <code>transactions</code> document_type <code>IFTMIN</code> : <strong><code>0</code>.</strong>
 - Endpoints live : <code>GET/POST /api/orchestrator/transport/*</code> → <strong>401</strong> (JWT requis) — jamais exercés avec un token.</p>
-<p><strong>Repo local</strong> : <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn</code> (git, <code>main</code> dual-push GitHub <code>Murawulf/CodeonlineEdi</code> + Gitea <code>git.iroconsult.com/majd/CodeonlineEdi</code>).
+<p><strong>Repo local</strong> : <code>/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn</code> (git, <code>main</code> dual-push GitHub <code>Murawulf/Codeonline EDI</code> + Gitea <code>git.iroconsult.com/majd/Codeonline EDI</code>).
 - Le repo <strong>n'a PAS</strong> le code transport prod dans <code>edi_orchestrator/</code> (pas de <code>controllers/TransportController.js</code>, pas de <code>services/carriers/</code>, pas de <code>routes/transport.js</code>).
 - Le repo contient une <strong>vieille copie staging INCOMPATIBLE</strong> dans <code>docs/tests/edi-suite/</code> (schéma <code>edi_transport_orders</code> différent : <code>id_order/id_shipment/vehicule/status</code>). → source de confusion, à remplacer par le réel.</p>
 <h3 id="regles-non-negociables">Règles NON NÉGOCIABLES</h3>

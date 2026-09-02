@@ -5,6 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useLocalApiUrl, useSettings } from "@/contexts/SettingsContext";
+import { LanguageSelector } from "@/components/layout/LanguageSelector";
 
 const Login: React.FC = () => {
   const API_BASE_URL = useLocalApiUrl();
@@ -127,15 +128,28 @@ const Login: React.FC = () => {
           <div className="flex items-center gap-3">
             <img src="/images/logo-codeonline.png" className="h-8" />
             <span className="font-semibold text-[#001861]">
-              CodeonlineEDI
+              Codeonline EDI
             </span>
           </div>
 
-          <img
-            src={getCurrentCountryInfo().flagUrl}
-            className="h-6 rounded-sm"
-            alt={`${getCurrentCountryInfo().name} Flag`}
-          />
+          <div className="flex items-center gap-4">
+            <LanguageSelector />
+
+            <img
+              src={getCurrentCountryInfo().flagUrl}
+              className="h-6 rounded-sm"
+              alt={`${getCurrentCountryInfo().name} Flag`}
+            />
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <img
+              src="https://edi.codeonline-info.com/images/cepex.png"
+              alt="CEPEX"
+              title="CEPEX"
+              className="h-9 w-9 object-contain rounded-full ring-1 ring-gray-200 p-1"
+            />
+          </div>
         </div>
       </header>
 
@@ -153,7 +167,7 @@ const Login: React.FC = () => {
             />
 
             <h1 className="text-2xl font-semibold">
-              CodeonlineEDI
+              Codeonline EDI
             </h1>
 
             <p className="text-gray-300 mt-2 text-center">
@@ -166,7 +180,16 @@ const Login: React.FC = () => {
 
             <form onSubmit={handleLogin} className="w-full max-w-sm">
 
-              <h2 className="text-2xl mb-6 font-semibold">
+              <div className="relative flex justify-center mb-8">
+                <div className="absolute w-36 h-36 bg-gradient-to-br from-red-50 to-transparent rounded-full blur-2xl" />
+                <img
+                  src="https://edi.codeonline-info.com/images/cepex_full.png"
+                  alt="Cepex - Tunisia Export"
+                  className="relative h-24 w-auto object-contain drop-shadow-sm"
+                />
+              </div>
+
+              <h2 className="text-2xl mb-6 font-semibold text-center text-gray-800">
                 Connexion
               </h2>
 

@@ -17,7 +17,7 @@ const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.error('❌ FATAL: JWT_SECRET is required (set it in /var/www/Edi-dev/backend/.env on every node — same value across the EDI network).');
+  console.error('? FATAL: JWT_SECRET is required (set it in /var/www/Edi-dev/backend/.env on every node — same value across the EDI network).');
   process.exit(1);
 }
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
@@ -66,6 +66,16 @@ const discoveryCache = require('./services/communication/DiscoveryCache');
 const auditLogger = require('./services/communication/AuditLogger');
 const settingsRoutes = require('./routes/settings_routes');
 const apiProxyRoutes = require('./routes/api_proxy');
+const {
+  ensureSubscriptionSchema,
+  startSubscriptionCron,
+  buildSubscriptionRouter,
+  requireActiveSubscription,
+} = require('./routes/subscription_routes');
+const {
+  ensureIpaySchema,
+  buildIpayRouter,
+} = require('./routes/ipay_payment_routes');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -545,6 +555,13 @@ const JWT_EXCLUDED_PATHS = [
   { path: '/login', method: 'POST' },
   { path: '/settings', method: 'GET' },
   { path: '/companies/template', method: 'GET' },
+  // iPay calls this server-to-server; it never carries the app's JWT. Payment creation
+  // (/api/payment/ipay/create) and status (/api/payment/ipay/status/:id) are NOT excluded —
+  // those still require the authenticated user's JWT.
+  { path: '/payment/ipay/webhook', method: 'POST' },
+  // Public transport survey (Enquete.tsx) — shared as a link with entités, no login.
+  { path: '/public/segments', method: 'GET' },
+  { path: '/public/enquete', method: 'POST' },
 ];
 app.use('/api', (req, res, next) => {
   const isExcluded = JWT_EXCLUDED_PATHS.some(
@@ -554,10 +571,252 @@ app.use('/api', (req, res, next) => {
   return verifyJWT(req, res, next);
 });
 
+// --- FIX: entity hierarchy rule (mirrors the comment block in comptes.tsx), now enforced
+// server-side. Previously PATCH /api/comptes/:id_compte/suspend and DELETE /api/comptes/:id
+// had NO authorization checks at all — any authenticated account of ANY entity could
+// suspend or delete ANY other account (or itself) just by calling the endpoint with a
+// different id_compte, regardless of what the UI showed them. The UI's entity filtering in
+// comptes.tsx only ever controlled what was *displayed*; it was never enforced by the API.
+const TOP_ENTITY_ID = 999;
+const SECOND_ENTITY_ID = 111;
+
+/**
+ * Checks whether req.user is allowed to suspend/reactivate/delete the given target account.
+ * Returns { ok: true, target } or { ok: false, status, error }.
+ * Rules (mirrors the frontend hierarchy comment, now actually enforced):
+ *  - Nobody may act on their own account through this endpoint (avoids permanent
+ *    self-lockout: a suspended/deleted account can no longer log in to undo it).
+ *  - Entity 999 may manage every account.
+ *  - Entity 111 may manage every account except ones belonging to entity 999.
+ *  - Everyone else may only manage accounts within their own entity, and only if their
+ *    own profile role is an admin/superviseur role.
+ */
+async function canManageAccount(conn, callerUser, targetIdCompte) {
+  const [targetRows] = await conn.query(
+    'SELECT id_compte, id_entite FROM comptes WHERE id_compte = ?',
+    [targetIdCompte]
+  );
+  if (targetRows.length === 0) {
+    return { ok: false, status: 404, error: 'Compte introuvable' };
+  }
+  const target = targetRows[0];
+
+  if (Number(target.id_compte) === Number(callerUser?.id_compte)) {
+    return { ok: false, status: 400, error: 'Vous ne pouvez pas effectuer cette action sur votre propre compte.' };
+  }
+
+  const callerEntite = Number(callerUser?.id_entite);
+  const targetEntite = Number(target.id_entite);
+
+  if (callerEntite === TOP_ENTITY_ID) {
+    return { ok: true, target };
+  }
+  if (callerEntite === SECOND_ENTITY_ID) {
+    if (targetEntite === TOP_ENTITY_ID) {
+      return { ok: false, status: 403, error: "Vous n'avez pas les droits pour gérer ce compte." };
+    }
+    return { ok: true, target };
+  }
+
+  if (targetEntite !== callerEntite) {
+    return { ok: false, status: 403, error: "Vous n'avez pas les droits pour gérer ce compte." };
+  }
+
+  // NEW: a master account manages its own entity exactly like an admin/superviseur
+  // profile does — it just can never cross the entity boundary checked above.
+  const [callerRows] = await conn.query(
+    `SELECT p.role, c.is_master FROM comptes c LEFT JOIN profiles p ON p.id_profile = c.profile_id WHERE c.id_compte = ?`,
+    [callerUser?.id_compte]
+  );
+  const callerRole = (callerRows[0]?.role || '').toLowerCase();
+  const isCallerMaster = !!callerRows[0]?.is_master;
+  const isCallerAdmin = callerRole.includes('admin') || callerRole.includes('superviseur');
+  if (!isCallerAdmin && !isCallerMaster) {
+    return { ok: false, status: 403, error: 'Seuls les administrateurs ou le compte maître de votre entité peuvent gérer les comptes.' };
+  }
+  return { ok: true, target };
+}
+
+// NEW: separate, narrower check for the payment-responsible flag — 999/111 can set it on
+// anyone (111 excluded from entity 999, same rule as everywhere else); anyone else needs
+// to BE the master account of that exact entity.
+async function canManagePaymentFlag(conn, callerUser, targetEntite) {
+  const callerEntite = Number(callerUser?.id_entite);
+  const targetEnt = Number(targetEntite);
+  if (callerEntite === TOP_ENTITY_ID) return true;
+  if (callerEntite === SECOND_ENTITY_ID) return targetEnt !== TOP_ENTITY_ID;
+  if (callerEntite !== targetEnt) return false;
+  const [rows] = await conn.query('SELECT is_master FROM comptes WHERE id_compte = ?', [callerUser?.id_compte]);
+  return !!rows[0]?.is_master;
+}
+
+// NEW: whenever an account is flagged as the master of its entity, it needs a profile
+// with full access to every page. This finds the entity's existing "Admin Entite" profile
+// or creates it if it doesn't exist yet, then makes sure it's granted full access
+// (read/write, no hidden pages, all the extra flags) to every page currently in `pages` —
+// upgrading it in place if it already existed with narrower permissions. Returns the
+// profile's id_profile so the caller can assign it to the newly-flagged master account.
+async function ensureAdminEntiteProfile(conn, id_entite) {
+  const ADMIN_ENTITE_ROLE = 'Admin Entite';
+
+  let profileId;
+  const [existing] = await conn.query(
+    'SELECT id_profile FROM profiles WHERE id_entite = ? AND role = ? LIMIT 1',
+    [id_entite, ADMIN_ENTITE_ROLE]
+  );
+  if (existing.length > 0) {
+    profileId = existing[0].id_profile;
+  } else {
+    const [inserted] = await conn.query(
+      `INSERT INTO profiles (id_entite, email, certicode, role, is_suspended, created_by_Entite)
+       VALUES (?, NULL, NULL, ?, 0, ?)`,
+      [id_entite, ADMIN_ENTITE_ROLE, id_entite]
+    );
+    profileId = inserted.insertId;
+  }
+
+  const [pages] = await conn.query('SELECT page_id FROM pages');
+  for (const p of pages) {
+    const [rows] = await conn.query(
+      'SELECT id_profile FROM autorisation_profile_page WHERE id_profile = ? AND page_id = ?',
+      [profileId, p.page_id]
+    );
+    if (rows.length === 0) {
+      await conn.query(
+        `INSERT INTO autorisation_profile_page
+           (id_profile, page_id, can_read, can_write, is_hidden, apercu, upload, delete_file, create_folder, view_content, created_at)
+         VALUES (?, ?, 1, 1, 0, 1, 1, 1, 1, 1, NOW())`,
+        [profileId, p.page_id]
+      );
+    } else {
+      await conn.query(
+        `UPDATE autorisation_profile_page
+         SET can_read = 1, can_write = 1, is_hidden = 0, apercu = 1, upload = 1, delete_file = 1, create_folder = 1, view_content = 1
+         WHERE id_profile = ? AND page_id = ?`,
+        [profileId, p.page_id]
+      );
+    }
+  }
+
+  return profileId;
+}
+
+// --- FIX: subscription/trial access gating. A `requireActiveSubscription` middleware was
+// already written in routes/subscription_routes.js for exactly this purpose, but it was
+// imported and then never mounted on any route — that's why an expired account could still
+// reach every page/endpoint instead of being confined to the account/subscription page.
+// This gate is implemented directly here (rather than trusting the unused import blind) so
+// its behavior is visible and auditable; consider reconciling/removing the now-redundant
+// export in subscription_routes.js once you've checked it doesn't do anything different.
+//
+// 999/111 (platform admins) are never gated. Everyone else, once their trial/subscription
+// has expired, may only reach the endpoints needed to view + submit for their own
+// subscription (their own account, and the subscription routes) — every other /api route
+// is blocked with 402 so the frontend can redirect them to "Mon compte".
+const SUBSCRIPTION_EXEMPT_PATHS = [
+  { prefix: '/subscription' },
+  { prefix: '/comptes' },
+  { prefix: '/profiles' },
+  { prefix: '/companies' },
+  { prefix: '/pages' },
+  { path: '/send-connection-info', method: 'POST' },
+  // iPay: an expired/trial-ended account must still be able to create a payment and check its
+  // status (that's how they regain access), and the webhook isn't an app user at all.
+  { prefix: '/payment/ipay' },
+];
+
+async function requireAccountAccess(req, res, next) {
+  try {
+    const isExempt = SUBSCRIPTION_EXEMPT_PATHS.some((e) => {
+      if (e.path) return req.path === e.path && (!e.method || req.method === e.method);
+      return req.path === e.prefix || req.path.startsWith(e.prefix + '/');
+    });
+    if (isExempt) return next();
+
+    const callerEntite = Number(req.user?.id_entite);
+    if (callerEntite === TOP_ENTITY_ID || callerEntite === SECOND_ENTITY_ID) return next();
+
+    if (!entiteDB) return next(); // don't hard-fail requests during startup before the DB pool exists
+
+    const rows = await queryDB(
+      entiteDB,
+      'SELECT subscription_status, subscription_expires_at FROM comptes WHERE id_compte = ?',
+      [req.user?.id_compte]
+    );
+    const status = rows[0]?.subscription_status || 'trial';
+    const expiresAt = rows[0]?.subscription_expires_at;
+    const isExpired =
+      status === 'expired' ||
+      status === 'suspended' ||
+      (status === 'active' && expiresAt && new Date(expiresAt) < new Date());
+
+    if (isExpired) {
+      return res.status(402).json({
+        error: 'SUBSCRIPTION_EXPIRED',
+        message: "Votre abonnement a expiré. Régularisez votre situation depuis la page Mon compte.",
+      });
+    }
+    return next();
+  } catch (err) {
+    console.error('requireAccountAccess error:', err);
+    return next(); // never hard-fail the whole API because of a gating bug
+  }
+}
+
+app.use('/api', (req, res, next) => {
+  const isExcluded = JWT_EXCLUDED_PATHS.some(
+    e => req.path === e.path && req.method === e.method
+  );
+  if (isExcluded) return next();
+  return requireAccountAccess(req, res, next);
+});
+
 // connectDB() supprimé : connexion exclusivement MySQL via entitePool (config/database.js).
 
 // Initialize databases (entiteDB est l'unique pool MySQL : ex-usersDB/allgpcDB/fieldrulesDB pointent dessus)
 let entiteDB;
+
+// Creates the Enquete table if it doesn't exist yet. id_entite is a nullable FK to
+// Entite (nullable so a row is never lost if the linked entité is later deleted).
+// Columns mirror the EnqueteForm fields used by Enquete.tsx (public survey + admin views).
+async function ensureEnqueteSchema() {
+  try {
+    await entitePool.query(`
+      CREATE TABLE IF NOT EXISTS Enquete (
+        id_enquete          INT AUTO_INCREMENT PRIMARY KEY,
+        id_entite           INT NULL,
+        raison_sociale      VARCHAR(255) NOT NULL,
+        identifiant_fiscal  VARCHAR(100) NULL,
+        secteur             VARCHAR(255) NULL,
+        flux                VARCHAR(50) NULL,
+        pays                VARCHAR(100) NULL,
+        volumes             JSON NULL,
+        groupage            VARCHAR(10) NULL,
+        frequences          JSON NULL,
+        transporteurs       JSON NULL,
+        difficultes         JSON NULL,
+        foprodex            VARCHAR(10) NULL,
+        besoins_transport   TEXT NULL,
+        classification_type VARCHAR(20) NULL,
+        gsa                 VARCHAR(255) NULL,
+        sous_gsa            VARCHAR(255) NULL,
+        segment_code        VARCHAR(50) NULL,
+        segment_libelle     VARCHAR(255) NULL,
+        date_enquete        DATETIME NULL,
+        created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at          DATETIME NULL,
+        INDEX idx_enquete_entite (id_entite),
+        INDEX idx_enquete_raison_sociale (raison_sociale)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('✓ Enquete table ready');
+  } catch (err) {
+    // Never block boot over this — the existing /api/enquetes routes already assume
+    // the table exists, so at worst we're back to the pre-existing behavior.
+    console.error('ensureEnqueteSchema error:', err.message);
+  }
+}
+
 async function initializeDatabases() {
   try {
     // Connexion unique : pool MySQL (entitePool) + adapter sqlite-like exposé via entiteDB
@@ -565,13 +824,13 @@ async function initializeDatabases() {
       if (entitePool) {
         const connection = await entitePool.getConnection();
         const { dbConfig } = require('./config/database');
-        console.log('✅ MySQL connection test successful - Connected to remote database at', dbConfig.host);
+        console.log('? MySQL connection test successful - Connected to remote database at', dbConfig.host);
         connection.release();
       } else {
         console.warn('Warning: entitePool is not initialized');
       }
     } catch (testErr) {
-      console.error('❌ MySQL connection test failed:', testErr.message);
+      console.error('? MySQL connection test failed:', testErr.message);
     }
 
     if (entitePool) {
@@ -669,6 +928,11 @@ async function initializeDatabases() {
     // Tables (comptes, Entite, GPC, users legacy, etc.) sont gérées par les
     // migrations SQL (sql/migrations/*.sql) et le dump initial. Plus de
     // CREATE TABLE IF NOT EXISTS au boot.
+    //
+    // EXCEPTION: the Enquete table (public transport survey) is created here so the
+    // public, unauthenticated survey link always has somewhere to save to, even on a
+    // fresh DB that hasn't run a dedicated migration for it yet.
+    await ensureEnqueteSchema();
 
   } catch (err) {
     console.error('Failed to initialize critical databases:', err.message);
@@ -3081,6 +3345,7 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
       volumes, groupage, frequences,
       transporteurs, difficultes,
       foprodex, besoins_transport,
+      classification_type, gsa, sous_gsa, segment_code, segment_libelle,
     } = req.body;
 
     if (!raison_sociale || !secteur || !flux || !pays) {
@@ -3091,8 +3356,9 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
       INSERT INTO Enquete
         (id_entite, raison_sociale, identifiant_fiscal, secteur, flux, pays,
          volumes, groupage, frequences, transporteurs, difficultes,
-         foprodex, besoins_transport, date_enquete)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+         foprodex, besoins_transport,
+         classification_type, gsa, sous_gsa, segment_code, segment_libelle, date_enquete)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       id_entite || null,
       raison_sociale,
@@ -3107,6 +3373,11 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
       JSON.stringify(difficultes || []),
       foprodex || null,
       besoins_transport || null,
+      classification_type || null,
+      gsa || null,
+      sous_gsa || null,
+      segment_code || null,
+      segment_libelle || null,
     ]);
     res.status(201).json({ id_enquete: result.insertId ?? result.lastID });
   } catch (err) {
@@ -3125,6 +3396,7 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
       volumes, groupage, frequences,
       transporteurs, difficultes,
       foprodex, besoins_transport,
+      classification_type, gsa, sous_gsa, segment_code, segment_libelle,
     } = req.body;
 
     await runUpdate(entiteDB, `
@@ -3142,6 +3414,11 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
         difficultes        = ?,
         foprodex           = ?,
         besoins_transport  = ?,
+        classification_type = ?,
+        gsa                = ?,
+        sous_gsa           = ?,
+        segment_code       = ?,
+        segment_libelle    = ?,
         updated_at         = NOW()
       WHERE id_enquete = ?
     `, [
@@ -3158,6 +3435,11 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
       JSON.stringify(difficultes || []),
       foprodex || null,
       besoins_transport || null,
+      classification_type || null,
+      gsa || null,
+      sous_gsa || null,
+      segment_code || null,
+      segment_libelle || null,
       Number(req.params.id),
     ]);
     res.json({ success: true });
@@ -3176,6 +3458,151 @@ app.delete('/api/enquetes/:id', verifyJWT, async (req, res) => {
   } catch (err) {
     console.error('DELETE /api/enquetes/:id error:', err);
     res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// ------------------------------------------------------------------------------
+// PUBLIC ENQUETE SUBMISSION — no login required.
+// This is what Enquete.tsx (public survey link) actually calls. Both paths are listed
+// in JWT_EXCLUDED_PATHS above so they skip verifyJWT and requireAccountAccess entirely.
+// ------------------------------------------------------------------------------
+
+// GET /api/public/segments — active GPC segments, for the "Classification GPC" dropdown
+app.get('/api/public/segments', async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const rows = await queryDB(
+      entiteDB,
+      `SELECT codeSegment AS code, libelleSegment AS libelle
+       FROM segmentgpc WHERE status_s = 1 ORDER BY ordre_segment ASC`,
+      []
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/public/segments error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/public/enquete — submit a survey.
+// Looks up the typed "raison sociale" against Entite (case-insensitive, trimmed).
+//   - Match found  -> the enquête is linked to that existing id_entite.
+//   - No match     -> a new, minimal Entite row is created from the survey's own
+//                     fields (raison sociale, identifiant fiscal, pays), and the
+//                     enquête is linked to that brand-new id_entite.
+// Everything happens in one transaction so we never end up with an orphan Entite
+// row if the Enquete insert fails, or vice versa.
+app.post('/api/public/enquete', async (req, res) => {
+  if (!entitePool) return res.status(503).json({ error: 'Database unavailable' });
+
+  const {
+    raison_sociale, identifiant_fiscal,
+    secteur, flux, pays,
+    volumes, groupage, frequences,
+    transporteurs, difficultes,
+    foprodex, besoins_transport,
+    classification_type, gsa, sous_gsa, segment_code, segment_libelle,
+  } = req.body || {};
+
+  const cleanRaisonSociale = (raison_sociale || '').trim();
+  if (!cleanRaisonSociale || !secteur || !flux || !pays) {
+    return res.status(400).json({ error: 'Champs obligatoires manquants (raison sociale, secteur/classification, flux, pays)' });
+  }
+
+  const conn = await entitePool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1) Case-insensitive, whitespace-tolerant match against existing entités.
+    const [matches] = await conn.query(
+      `SELECT id_entite, raison_socialle
+       FROM Entite
+       WHERE LOWER(TRIM(raison_socialle)) = LOWER(TRIM(?))
+       LIMIT 1`,
+      [cleanRaisonSociale]
+    );
+
+    let id_entite;
+    let entite_created = false;
+
+    if (matches.length > 0) {
+      id_entite = matches[0].id_entite;
+    } else {
+      // 2) No existing entité — create a minimal one from what the survey collected.
+      //    Everything not covered by the survey gets a safe, empty default so this
+      //    never trips a NOT NULL constraint; entité admins can complete the profile
+      //    later from the Entités page.
+      const newEntite = {
+        raison_socialle: cleanRaisonSociale,
+        identifiant_national: identifiant_fiscal || '',
+        pays: pays || '',
+        date_create: new Date().toISOString().slice(0, 10),
+        personne_contact: '',
+        service: '',
+        email: '',
+        tel_mobile: '',
+        telephone: '',
+        fax: '',
+        site: '',
+        adresse: '',
+        region: '',
+        city: '',
+        localite: '',
+        postalCode: '',
+        type_prod: 0,
+        statut: 0,
+        pwd: 'empty',
+        nb_fp: 0,
+        inscription: 0,
+        status_ent: 'E',
+      };
+      const [insertResult] = await conn.query('INSERT INTO Entite SET ?', newEntite);
+      id_entite = insertResult.insertId;
+      entite_created = true;
+    }
+
+    // 3) Save the enquête, linked to that entité either way.
+    const [enqueteResult] = await conn.query(
+      `INSERT INTO Enquete
+         (id_entite, raison_sociale, identifiant_fiscal, secteur, flux, pays,
+          volumes, groupage, frequences, transporteurs, difficultes,
+          foprodex, besoins_transport,
+          classification_type, gsa, sous_gsa, segment_code, segment_libelle, date_enquete)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        id_entite,
+        cleanRaisonSociale,
+        identifiant_fiscal || null,
+        secteur,
+        flux,
+        pays,
+        JSON.stringify(volumes || []),
+        groupage || null,
+        JSON.stringify(frequences || []),
+        JSON.stringify(transporteurs || []),
+        JSON.stringify(difficultes || []),
+        foprodex || null,
+        besoins_transport || null,
+        classification_type || null,
+        gsa || null,
+        sous_gsa || null,
+        segment_code || null,
+        segment_libelle || null,
+      ]
+    );
+
+    await conn.commit();
+    res.status(201).json({
+      id_enquete: enqueteResult.insertId,
+      id_entite,
+      entite_created,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('POST /api/public/enquete error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  } finally {
+    conn.release();
   }
 });
 
@@ -3244,7 +3671,7 @@ const MoneyHelper = {
 // Auto-create orders date columns if they don't exist
 async function ensureOrdersColumns() {
   if (!entiteDB) {
-    console.log('⚠️  EntiteDB not available, skipping orders columns check');
+    console.log('??  EntiteDB not available, skipping orders columns check');
     return;
   }
 
@@ -3272,12 +3699,12 @@ async function ensureOrdersColumns() {
           await entiteDB.pool.query(
             `ALTER TABLE orders ADD COLUMN ${col.name} ${col.type} NULL COMMENT '${col.comment}'`
           );
-          console.log(`✅ Column ${col.name} added to orders`);
+          console.log(`? Column ${col.name} added to orders`);
         } else {
-          console.log(`✓ Column ${col.name} already exists in orders`);
+          console.log(`? Column ${col.name} already exists in orders`);
         }
       } catch (err) {
-        console.error(`❌ Error adding column ${col.name} to orders:`, err.message);
+        console.error(`? Error adding column ${col.name} to orders:`, err.message);
       }
     }
 
@@ -3300,16 +3727,62 @@ async function ensureOrdersColumns() {
           await entiteDB.pool.query(
             `ALTER TABLE order_lines ADD COLUMN ${col.name} ${col.type} NULL COMMENT '${col.comment}'`
           );
-          console.log(`✅ Column ${col.name} added to order_lines`);
+          console.log(`? Column ${col.name} added to order_lines`);
         } else {
-          console.log(`✓ Column ${col.name} already exists in order_lines`);
+          console.log(`? Column ${col.name} already exists in order_lines`);
         }
       } catch (err) {
-        console.error(`❌ Error adding column ${col.name} to order_lines:`, err.message);
+        console.error(`? Error adding column ${col.name} to order_lines:`, err.message);
       }
     }
   } catch (err) {
-    console.error('❌ Error ensuring orders columns:', err);
+    console.error('? Error ensuring orders columns:', err);
+  }
+}
+
+async function ensureAccountHierarchyColumns() {
+  if (!entiteDB) {
+    console.log('??  EntiteDB not available, skipping account-hierarchy columns check');
+    return;
+  }
+
+  const comptesColumns = [
+    // 'active' | 'pending' | 'suspended' | 'disabled' — richer than the old is_suspended
+    // boolean. is_suspended is kept in sync (true whenever etat !== 'active') so every
+    // other query in this file that filters on is_suspended keeps working unmodified.
+    { name: 'etat', type: "ENUM('active','pending','suspended','disabled')", extra: "NOT NULL DEFAULT 'active'", comment: 'État détaillé du compte' },
+    { name: 'is_master', type: 'TINYINT(1)', extra: 'NOT NULL DEFAULT 0', comment: 'Compte maître de son entité (créé/géré uniquement par 999/111)' },
+    { name: 'is_payment_responsible', type: 'TINYINT(1)', extra: 'NOT NULL DEFAULT 0', comment: 'Compte responsable du paiement/paywall pour son entité' },
+  ];
+
+  for (const col of comptesColumns) {
+    try {
+      const [existing] = await entiteDB.pool.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'comptes' AND COLUMN_NAME = ?`,
+        [col.name]
+      );
+      if (existing.length === 0) {
+        await entiteDB.pool.query(
+          `ALTER TABLE comptes ADD COLUMN ${col.name} ${col.type} ${col.extra} COMMENT '${col.comment}'`
+        );
+        console.log(`? Column ${col.name} added to comptes`);
+      } else {
+        console.log(`??  Column ${col.name} already exists in comptes`);
+      }
+    } catch (err) {
+      console.error(`? Error adding column ${col.name} to comptes:`, err.message);
+    }
+  }
+
+  // Backfill: any account that was already suspended under the old boolean becomes
+  // etat='suspended' instead of silently defaulting to 'active'.
+  try {
+    await entiteDB.pool.query(
+      `UPDATE comptes SET etat = 'suspended' WHERE is_suspended = 1 AND etat = 'active'`
+    );
+  } catch (err) {
+    console.error('? Error backfilling comptes.etat from is_suspended:', err.message);
   }
 }
 
@@ -3549,10 +4022,10 @@ console.log("--- TEST DE DÉCODAGE ---");
 const result = decodeInvoiceEANCOM(badData);
 
 if (result.validationErrors.length > 0) {
-  console.error("⚠️ ERREURS DÉTECTÉES :");
+  console.error("?? ERREURS DÉTECTÉES :");
   result.validationErrors.forEach(e => console.error("- " + e));
 } else {
-  console.log("✅ Facture Valide");
+  console.log("? Facture Valide");
 }
 */
 
@@ -3754,9 +4227,9 @@ try {
   console.log(JSON.stringify(decodedOrder, null, 2));
 
   if (decodedOrder.validationErrors.length > 0) {
-    console.error("⚠️ Erreurs de validation:", decodedOrder.validationErrors);
+    console.error("?? Erreurs de validation:", decodedOrder.validationErrors);
   } else {
-    console.log("✅ Commande valide et prête pour insertion BDD");
+    console.log("? Commande valide et prête pour insertion BDD");
   }
 
 } catch (e) {
@@ -4027,7 +4500,7 @@ app.post("/api/orders/eancom", async function (req, res) {
     if (buyerCheck.length === 0) {
       // Try to find similar GLNs for debugging
       const similarGLNs = await queryDB(entiteDB, "SELECT id_entite, gln, raison_socialle FROM Entite WHERE gln LIKE ? LIMIT 5", [`%${data.Acheteur.slice(-5)}%`]);
-      console.error("[ORDER VALIDATION] ❌ Buyer GLN not found. Similar GLNs in DB:", similarGLNs);
+      console.error("[ORDER VALIDATION] ? Buyer GLN not found. Similar GLNs in DB:", similarGLNs);
       
       return res.status(400).json({ 
         error: "Invalid Buyer", 
@@ -4039,7 +4512,7 @@ app.post("/api/orders/eancom", async function (req, res) {
     // Force Buyer Name from DB to ensure it's the Company Name (not User Name)
     data.buyerName = buyerCheck[0].raison_socialle;
     
-    console.log("[ORDER VALIDATION] ✅ Buyer found:", buyerCheck[0]);
+    console.log("[ORDER VALIDATION] ? Buyer found:", buyerCheck[0]);
     console.log("[ORDER VALIDATION] Using Buyer Name:", data.buyerName);
     console.log("=== [ORDER VALIDATION] GLN Checks Complete ===\n");
 
@@ -4113,7 +4586,7 @@ app.post("/api/orders/eancom", async function (req, res) {
         ]
       );
       const orderId = insertRes.lastID;
-      console.log(`[ORDER CREATION] ✅ Order inserted with ID: ${orderId}`);
+      console.log(`[ORDER CREATION] ? Order inserted with ID: ${orderId}`);
 
       // Insert Transport Order if transport data exists
       if (data.transporteurGln || data.modeTransport || data.moyenTransport) {
@@ -4128,9 +4601,9 @@ app.post("/api/orders/eancom", async function (req, res) {
               'PENDING'
             ]
           );
-          console.log(`[ORDER CREATION] ✅ Transport order created for Order #${orderId}`);
+          console.log(`[ORDER CREATION] ? Transport order created for Order #${orderId}`);
         } catch (transportErr) {
-          console.error(`[ORDER CREATION] ⚠️ Failed to create transport order:`, transportErr.message);
+          console.error(`[ORDER CREATION] ?? Failed to create transport order:`, transportErr.message);
           // Non-blocking error
         }
       }
@@ -4178,14 +4651,14 @@ app.post("/api/orders/eancom", async function (req, res) {
       if (!ediTarget.countryCode && data.supplierServer) {
         const hintedEdiUrl = configService.get(`EDI_URL_${data.supplierServer.toUpperCase()}`);
         if (hintedEdiUrl) {
-          console.log(`[EDI SEND] 🔀 GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
+          console.log(`[EDI SEND] ?? GLN-based routing failed, using supplierServer hint: '${data.supplierServer}' -> ${hintedEdiUrl}`);
           ediTarget = { url: hintedEdiUrl, countryCode: data.supplierServer.toUpperCase(), countryName: data.supplierServer };
         }
       }
       
       const ediServerUrl = ediTarget.url;
       
-      console.log(`[EDI SEND] 🎯 EDI Routing Details:`);
+      console.log(`[EDI SEND] ?? EDI Routing Details:`);
       console.log(`  - Supplier GLN: ${data.fournisseur}`);
       console.log(`  - Target Country: ${ediTarget.countryName} (${ediTarget.countryCode || 'local'})`);
       console.log(`  - Target EDI URL: ${ediServerUrl}`);
@@ -4202,7 +4675,7 @@ app.post("/api/orders/eancom", async function (req, res) {
             timeout: 30000
           });
 
-          console.log(`[EDI SEND] ✅ Successfully sent to EDI server. Response:`, ediResponse.data);
+          console.log(`[EDI SEND] ? Successfully sent to EDI server. Response:`, ediResponse.data);
           
           // Update transmission status to SENT
           await updateEdiTransmissionStatus(
@@ -4232,17 +4705,17 @@ app.post("/api/orders/eancom", async function (req, res) {
               sellerId: data.fournisseurIdEntite
             };
             global.io.emit('order:status:updated', eventData);
-            console.log(`[EDI SEND] 📡 WebSocket event emitted globally for order #${orderId} (buyer:${sellerId}, seller:${data.fournisseurIdEntite})`);
+            console.log(`[EDI SEND] ?? WebSocket event emitted globally for order #${orderId} (buyer:${sellerId}, seller:${data.fournisseurIdEntite})`);
           }
 
           // Notification to supplier users is handled by the EDI Worker (processInboundOrder)
           // after the order is actually received and processed on the supplier's server.
           // This avoids duplicate notifications and ensures the notification is sent only
           // after confirmed reception.
-          console.log(`[EDI SEND] 📨 Order ${data.numCommande} sent. Supplier notification will be triggered by EDI Worker on reception.`);
+          console.log(`[EDI SEND] ?? Order ${data.numCommande} sent. Supplier notification will be triggered by EDI Worker on reception.`);
           
         } catch (ediErr) {
-          console.error(`[EDI SEND] ❌ Failed to send to EDI server:`, ediErr.message);
+          console.error(`[EDI SEND] ? Failed to send to EDI server:`, ediErr.message);
           
           // Update transmission status to ERROR
           await updateEdiTransmissionStatus(
@@ -4473,9 +4946,9 @@ app.get("/api/orders/incoming", async function (req, res) {
 let generateOrderChangeEANCOM;
 try {
   generateOrderChangeEANCOM = require('./generateOrderChangeEANCOM');
-  console.log("✅ generateOrderChangeEANCOM loaded successfully");
+  console.log("? generateOrderChangeEANCOM loaded successfully");
 } catch (e) {
-  console.error("❌ Failed to load generateOrderChangeEANCOM:", e);
+  console.error("? Failed to load generateOrderChangeEANCOM:", e);
 }
 
 app.get("/api/orders/test-ordchg", (req, res) => {
@@ -4483,7 +4956,7 @@ app.get("/api/orders/test-ordchg", (req, res) => {
 });
 
 app.post("/api/orders/accept-modifications", async function (req, res) {
-  console.log("👉 ENTERING POST /api/orders/accept-modifications");
+  console.log("?? ENTERING POST /api/orders/accept-modifications");
   try {
     const rawId = Number(req.headers["x-entite-id"]);
     if (!rawId) return res.status(400).json({ error: "Missing x-entite-id" });
@@ -4594,7 +5067,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.fournisseur_gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[ORDCHG SEND] 🎯 EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
+    console.log(`[ORDCHG SEND] ?? EDI Routing: ${order.fournisseur_gln} -> ${ediTarget.countryName} -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -4607,7 +5080,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
           headers: serviceAuthHeaders()
         });
 
-        console.log(`[ORDCHG SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[ORDCHG SEND] ? Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -4617,7 +5090,7 @@ app.post("/api/orders/accept-modifications", async function (req, res) {
           null
         );
       } catch (ediErr) {
-        console.error(`[ORDCHG SEND] ❌ Failed to send:`, ediErr.message);
+        console.error(`[ORDCHG SEND] ? Failed to send:`, ediErr.message);
         await updateEdiTransmissionStatus(
           entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
         );
@@ -4762,7 +5235,7 @@ app.post("/api/orders/respond", async function (req, res) {
 
             const orderResult = await runUpdate(entiteDB, orderInsertSql, orderParams);
             productionOrderId = orderResult.lastID;
-            console.log(`[ORDRSP] ✅ Promoted to Production Order #${productionOrderId}`);
+            console.log(`[ORDRSP] ? Promoted to Production Order #${productionOrderId}`);
 
             // 3. Insert Lines
             if (rawData.items && Array.isArray(rawData.items)) {
@@ -4943,7 +5416,7 @@ app.post("/api/orders/respond", async function (req, res) {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, order.acheteur_gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[ORDRSP SEND] 🎯 EDI Routing: ${order.acheteur_gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[ORDRSP SEND] ?? EDI Routing: ${order.acheteur_gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -4956,7 +5429,7 @@ app.post("/api/orders/respond", async function (req, res) {
           headers: serviceAuthHeaders()
         });
 
-        console.log(`[ORDRSP SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[ORDRSP SEND] ? Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -4970,7 +5443,7 @@ app.post("/api/orders/respond", async function (req, res) {
         // ... (Optional: logic to find buyer user and notify)
 
       } catch (ediErr) {
-        console.error(`[ORDRSP SEND] ❌ Failed to send:`, ediErr.message);
+        console.error(`[ORDRSP SEND] ? Failed to send:`, ediErr.message);
         await updateEdiTransmissionStatus(
           entiteDB, transmissionId, 'ERROR', `Failed to send`, ediErr.message
         );
@@ -5475,7 +5948,7 @@ app.post('/api/edi/receive', async (req, res) => {
         error_message: validation.errors.join('; ')
       });
 
-      // P1.2 — APERAK DESADV : validation échouée → NACK (le hub génère l'APERAK 314 vers l'émetteur)
+      // P1.2 — APERAK DESADV : validation échouée ? NACK (le hub génère l'APERAK 314 vers l'émetteur)
       if (parsedData.messageType === 'DESADV' && ediWorker) {
         ediWorker._notifyOrchestratorAck({
           transmission_id: transmissionId,
@@ -5486,7 +5959,7 @@ app.post('/api/edi/receive', async (req, res) => {
           status: 'NACK',
           error_code: '18',
           error_text: validation.errors.join('; ').substring(0, 250),
-        }).catch(err => console.log(`[EDI RECEIVE] ⚠️ APERAK NACK notify failed: ${err.message}`));
+        }).catch(err => console.log(`[EDI RECEIVE] ?? APERAK NACK notify failed: ${err.message}`));
       }
 
       return res.status(400).json({ 
@@ -5546,7 +6019,7 @@ app.post('/api/edi/receive', async (req, res) => {
       logs: `Message received and parsed successfully. Items: ${parsedData.items.length}, Total: ${parsedData.totals.totalAmount || 'N/A'}`
     });
 
-    console.log(`[EDI RECEIVE] ✅ Transmission #${transmissionId} recorded as RECEIVED`);
+    console.log(`[EDI RECEIVE] ? Transmission #${transmissionId} recorded as RECEIVED`);
 
     // --- PHASE 2: Staging ---
     // If message is an ORDER, insert into edi_orders immediately after parsing
@@ -5559,7 +6032,7 @@ app.post('/api/edi/receive', async (req, res) => {
         );
         
         if (existingOrder.length > 0) {
-          console.log(`[EDI RECEIVE] ⚠️ Duplicate order detected: ${parsedData.documentNumber} already exists (ID: ${existingOrder[0].id}). Skipping insertion.`);
+          console.log(`[EDI RECEIVE] ?? Duplicate order detected: ${parsedData.documentNumber} already exists (ID: ${existingOrder[0].id}). Skipping insertion.`);
           // Update transmission status to indicate duplicate
           await updateEdiTransmissionStatus(entiteDB, transmissionId, 'DUPLICATE', `Order ${parsedData.documentNumber} already exists in edi_orders`);
           
@@ -5599,16 +6072,16 @@ app.post('/api/edi/receive', async (req, res) => {
         ]);
 
         const stagingId = stagingResult.lastID;
-        console.log(`[EDI RECEIVE] ✅ Order staged in edi_orders (ID: ${stagingId}) for document ${parsedData.documentNumber}`);
+        console.log(`[EDI RECEIVE] ? Order staged in edi_orders (ID: ${stagingId}) for document ${parsedData.documentNumber}`);
         
         // Link the Transmission to the Staging Order
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'RECEIVED', null, null, stagingId);
 
         // Notify Supplier (the receiver of the order) if local
-        console.log(`[EDI RECEIVE] 📋 Notification routing: buyer_gln=${parsedData.buyer.gln}, supplier_gln=${parsedData.supplier.gln}`);
+        console.log(`[EDI RECEIVE] ?? Notification routing: buyer_gln=${parsedData.buyer.gln}, supplier_gln=${parsedData.supplier.gln}`);
         if (parsedData.supplier.gln) {
             const sellerRows = await queryDB(entiteDB, "SELECT id_entite, raison_socialle FROM Entite WHERE gln = ?", [parsedData.supplier.gln]);
-            console.log(`[EDI RECEIVE] 🔍 Supplier lookup for GLN ${parsedData.supplier.gln}:`, sellerRows);
+            console.log(`[EDI RECEIVE] ?? Supplier lookup for GLN ${parsedData.supplier.gln}:`, sellerRows);
             if (sellerRows.length > 0) {
                 const sellerId = sellerRows[0].id_entite;
                 const sellerName = sellerRows[0].raison_socialle;
@@ -5625,9 +6098,9 @@ app.post('/api/edi/receive', async (req, res) => {
                 }
 
                 const accounts = await queryDB(entiteDB, "SELECT id_compte, id_entite FROM comptes WHERE id_entite = ? AND is_suspended = 0", [sellerId]);
-                console.log(`[EDI RECEIVE] 🔔 Sending 'order received' notification to ${accounts.length} account(s) of SUPPLIER entity #${sellerId} (${sellerName}), from buyer: ${buyerName}`);
+                console.log(`[EDI RECEIVE] ?? Sending 'order received' notification to ${accounts.length} account(s) of SUPPLIER entity #${sellerId} (${sellerName}), from buyer: ${buyerName}`);
                 for (const acc of accounts) {
-                    console.log(`[EDI RECEIVE]   → Notifying account #${acc.id_compte} (entity #${acc.id_entite})`);
+                    console.log(`[EDI RECEIVE]   ? Notifying account #${acc.id_compte} (entity #${acc.id_entite})`);
                     await notifyOrderReceived(entiteDB, acc.id_compte, parsedData.documentNumber, buyerName);
                 }
                 // Emit order:new globally so supplier frontend reloads order list immediately
@@ -5638,17 +6111,17 @@ app.post('/api/edi/receive', async (req, res) => {
                         numCommande: parsedData.documentNumber,
                         timestamp: new Date().toISOString()
                     });
-                    console.log(`[EDI RECEIVE] 📡 WebSocket order:new emitted globally for supplier entity #${sellerId}`);
+                    console.log(`[EDI RECEIVE] ?? WebSocket order:new emitted globally for supplier entity #${sellerId}`);
                 }
             } else {
-                console.log(`[EDI RECEIVE] ⚠️ Supplier entity not found for GLN ${parsedData.supplier.gln}, no notification sent`);
+                console.log(`[EDI RECEIVE] ?? Supplier entity not found for GLN ${parsedData.supplier.gln}, no notification sent`);
             }
         } else {
-            console.log(`[EDI RECEIVE] ⚠️ No supplier GLN in parsed data, no notification sent`);
+            console.log(`[EDI RECEIVE] ?? No supplier GLN in parsed data, no notification sent`);
         }
 
       } catch (stageErr) {
-        console.error(`[EDI RECEIVE] ⚠️ Failed to stage order: ${stageErr.message}`);
+        console.error(`[EDI RECEIVE] ?? Failed to stage order: ${stageErr.message}`);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'ERROR', `Staging Error: ${stageErr.message}`);
       }
     }
@@ -5730,7 +6203,7 @@ app.post('/api/edi/receive', async (req, res) => {
                    } else {
                      await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, parsedData.comment || null, targetOrder.id_order]);
                    }
-                   console.log(`[EDI RECEIVE] ✅ Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
+                   console.log(`[EDI RECEIVE] ? Updated buyer order ${orderRef} to status: ${newStatus} with date ${dateLivraisonConfirmee}`);
 
                    // Update the order lines with confirmed quantities and prices
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5756,10 +6229,10 @@ app.post('/api/edi/receive', async (req, res) => {
                        fournisseurName: supplierName
                      };
                      global.io.emit('order:status:updated', eventData);
-                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDRSP update (buyer:${buyerId})`);
+                     console.log(`[EDI RECEIVE] ?? WebSocket event emitted for ORDRSP update (buyer:${buyerId})`);
                    }
                 } else {
-                   console.log(`[EDI RECEIVE] ⚠️ Buyer order ${orderRef} not found in database to update.`);
+                   console.log(`[EDI RECEIVE] ?? Buyer order ${orderRef} not found in database to update.`);
                 }
                 // -------------------------------------------------------------
 
@@ -5767,7 +6240,7 @@ app.post('/api/edi/receive', async (req, res) => {
                 for (const acc of accounts) {
                     await notifyOrderResponseReceived(entiteDB, acc.id_compte, orderRef, supplierName);
                 }
-                console.log(`[EDI RECEIVE] 🔔 Notified buyer ${buyerId} of ORDRSP for order ${orderRef} from ${supplierName}`);
+                console.log(`[EDI RECEIVE] ?? Notified buyer ${buyerId} of ORDRSP for order ${orderRef} from ${supplierName}`);
             }
         }
 
@@ -5808,7 +6281,7 @@ app.post('/api/edi/receive', async (req, res) => {
                    const commentMsg = parsedData.comment ? `Modifications acceptées : ${parsedData.comment}` : "Modifications acceptées par l'acheteur via ORDCHG";
 
                    await runUpdate(entiteDB, "UPDATE orders SET status = ?, comment = ?, updated_at = NOW() WHERE id_order = ?", [newStatus, commentMsg, targetOrder.id_order]);
-                   console.log(`[EDI RECEIVE] ✅ Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
+                   console.log(`[EDI RECEIVE] ? Updated supplier order ${orderRef} to status: ${newStatus} via ORDCHG`);
 
                    // Update the order lines with confirmed quantities and prices from ORDCHG if provided
                    if (parsedData.items && parsedData.items.length > 0) {
@@ -5833,7 +6306,7 @@ app.post('/api/edi/receive', async (req, res) => {
                        numCommande: orderRef
                      };
                      global.io.emit('order:status:updated', eventData);
-                     console.log(`[EDI RECEIVE] 📡 WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
+                     console.log(`[EDI RECEIVE] ?? WebSocket event emitted for ORDCHG update (seller:${sellerId})`);
                    }
 
                     // Notify via accounts if needed
@@ -5843,13 +6316,13 @@ app.post('/api/edi/receive', async (req, res) => {
                             const notifContent = `La modification de la commande ${orderRef} a été acceptée par l'acheteur.`;
                             await runUpdate(entiteDB, "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'success', NOW(), 0)", [acc.id_compte, notifContent]);
                         }
-                        console.log(`[EDI RECEIVE] 🔔 Notified ${accounts.length} accounts for order ${orderRef}`);
+                        console.log(`[EDI RECEIVE] ?? Notified ${accounts.length} accounts for order ${orderRef}`);
                     } catch (notifErr) {
-                        console.error('[EDI RECEIVE] ⚠️ Failed to send notifications:', notifErr.message);
+                        console.error('[EDI RECEIVE] ?? Failed to send notifications:', notifErr.message);
                     }
 
                 } else {
-                   console.log(`[EDI RECEIVE] ⚠️ Supplier order ${orderRef} not found in database to update.`);
+                   console.log(`[EDI RECEIVE] ?? Supplier order ${orderRef} not found in database to update.`);
                 }
             }
         }
@@ -5933,7 +6406,7 @@ app.post('/api/edi/receive', async (req, res) => {
         console.log(`[EDI RECEIVE] Processed DESADV #${desadvId}`);
         await updateEdiTransmissionStatus(entiteDB, transmissionId, 'PROCESSED', null, null, desadvId);
 
-        // P1.2 — APERAK DESADV : persistance OK → ACK (le hub génère l'APERAK 313 vers l'émetteur)
+        // P1.2 — APERAK DESADV : persistance OK ? ACK (le hub génère l'APERAK 313 vers l'émetteur)
         if (ediWorker) {
           ediWorker._notifyOrchestratorAck({
             transmission_id: transmissionId,
@@ -5942,7 +6415,7 @@ app.post('/api/edi/receive', async (req, res) => {
             sender_gln: parsedData.buyer?.gln,
             receiver_gln: parsedData.supplier?.gln,
             status: 'ACK',
-          }).catch(err => console.log(`[EDI RECEIVE] ⚠️ APERAK ACK notify failed: ${err.message}`));
+          }).catch(err => console.log(`[EDI RECEIVE] ?? APERAK ACK notify failed: ${err.message}`));
         }
         
         // Notify
@@ -6026,7 +6499,7 @@ app.post('/api/edi/receive', async (req, res) => {
               for (const acc of accounts) {
                 await notifyInvoiceReceived(entiteDB, acc.id_compte, invoiceNumber, supplierName);
               }
-              console.log(`[EDI RECEIVE] 🔔 Notified ${accounts.length} buyer accounts for INVOIC ${invoiceNumber} from ${supplierName}`);
+              console.log(`[EDI RECEIVE] ?? Notified ${accounts.length} buyer accounts for INVOIC ${invoiceNumber} from ${supplierName}`);
             }
           }
         } catch (notifErr) {
@@ -6103,7 +6576,7 @@ app.get('/api/utils/sscc', async (req, res) => {
   }
 });
 
-// ── GS1 check digit helpers ───────────────────────────────────────────────────
+// -- GS1 check digit helpers ---------------------------------------------------
 // Recomputes and replaces the last digit so the string satisfies GS1 Mod-10
 function computeGS1CheckDigit(digits) {
   const s = String(digits);
@@ -6460,7 +6933,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.buyer.gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[DESADV SEND] 🎯 EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[DESADV SEND] ?? EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -6479,7 +6952,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
           timeout: 30000
         });
 
-        console.log(`[DESADV SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[DESADV SEND] ? Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -6489,7 +6962,7 @@ app.post('/api/edi/desadv/send', async (req, res) => {
           null
         );
       } catch (ediErr) {
-        console.error(`[DESADV SEND] ❌ Failed to send to EDI server:`, ediErr.message);
+        console.error(`[DESADV SEND] ? Failed to send to EDI server:`, ediErr.message);
         
         await updateEdiTransmissionStatus(
           entiteDB,
@@ -6519,6 +6992,98 @@ app.post('/api/edi/desadv/send', async (req, res) => {
 });
 
 // POST /api/edi/invoic/send - Generate and Send INVOIC
+// -----------------------------------------------------------------------------
+// CLOISONNEMENT DES FACTURES PAR ENTREPRISE  (correctif de sécurité P1.1)
+//
+// Les routes de facturation exposaient l'intégralité des factures du noeud à
+// tout compte authentifié, et acceptaient un seller_gln arbitraire à la
+// création - un compte pouvait donc lire les factures d'un concurrent et en
+// émettre en son nom.
+//
+// Le rattachement facture -> entreprise se fait par GLN. Une entreprise peut
+// en posséder PLUSIEURS : celui de sa fiche Entite et ceux de ses sites.
+//
+// Politique alignée sur /api/products : les entités privilégiées gardent une
+// vue globale, et on échoue FERMÉ (ne rien montrer) si le jeton ne porte pas
+// d'id_entite exploitable - cette ambiguïté est précisément ce qui a causé la
+// fuite.
+// -----------------------------------------------------------------------------
+const PRIVILEGED_ENTITES = [111, 999];
+
+// La table `site` n'existe pas sur tous les noeuds : elle est ABSENTE des trois
+// productions (CIV, TUN, SEN) et de la base de développement au 21/07/2026,
+// alors que le code d'import d'entités sait l'alimenter. On teste donc sa
+// présence une seule fois, puis on met le résultat en cache : un noeud dépourvu
+// de cette table ne doit surtout pas voir ses routes de facturation tomber en
+// erreur. Le jour où elle est créée, les GLN de site sont pris en compte sans
+// changement de code.
+let _siteTableExists = null;
+async function siteTableExists() {
+  if (_siteTableExists !== null) return _siteTableExists;
+  try {
+    const rows = await queryDB(entiteDB,
+      `SELECT COUNT(*) AS n FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'site'`, []);
+    _siteTableExists = !!(rows && rows[0] && Number(rows[0].n) > 0);
+  } catch (e) {
+    _siteTableExists = false;
+  }
+  return _siteTableExists;
+}
+
+async function getEntityGlns(idEntite) {
+  if (!idEntite) return [];
+  const glns = new Set();
+
+  const ent = await queryDB(entiteDB,
+    `SELECT gln FROM Entite WHERE id_entite = ? AND gln IS NOT NULL AND gln <> ''`,
+    [idEntite]);
+  (ent || []).forEach(r => glns.add(String(r.gln)));
+
+  if (await siteTableExists()) {
+    try {
+      const st = await queryDB(entiteDB,
+        `SELECT gln FROM site WHERE id_entite = ? AND gln IS NOT NULL AND gln <> ''`,
+        [idEntite]);
+      (st || []).forEach(r => glns.add(String(r.gln)));
+    } catch (e) {
+      console.warn('[INVOICE SCOPE] GLN de site illisibles :', e.message);
+    }
+  }
+
+  return [...glns];
+}
+
+async function invoiceScope(req) {
+  const callerEntite = Number(req.user?.id_entite);
+  if (PRIVILEGED_ENTITES.includes(callerEntite)) return { isPrivileged: true, glns: [] };
+  return { isPrivileged: false, glns: await getEntityGlns(callerEntite) };
+}
+
+// Une facture appartient au porteur du jeton s'il en est l'émetteur OU le
+// destinataire. Renvoie false si le périmètre est vide (échec fermé).
+async function invoiceBelongsToCaller(req, idInvoic) {
+  const { isPrivileged, glns } = await invoiceScope(req);
+  if (isPrivileged) return true;
+  if (!glns.length) return false;
+  const ph = glns.map(() => '?').join(',');
+  const rows = await queryDB(entiteDB,
+    `SELECT 1 FROM edi_invoic WHERE id = ? AND (seller_gln IN (${ph}) OR buyer_gln IN (${ph})) LIMIT 1`,
+    [idInvoic, ...glns, ...glns]);
+  return !!(rows && rows.length);
+}
+
+// Refuse l'émission d'une facture au nom d'une entreprise tierce.
+async function assertCanIssueAs(req, sellerGln) {
+  const { isPrivileged, glns } = await invoiceScope(req);
+  if (isPrivileged) return null;
+  if (!sellerGln) return "GLN vendeur manquant.";
+  if (!glns.includes(String(sellerGln))) {
+    return "\u00c9mission interdite : le GLN vendeur n'appartient pas \u00e0 votre entreprise.";
+  }
+  return null;
+}
+
 app.post('/api/edi/invoic/send', async (req, res) => {
   try {
     const data = req.body;
@@ -6527,6 +7092,10 @@ app.post('/api/edi/invoic/send', async (req, res) => {
     if (!data.invoiceNumber || !data.buyer || !data.seller) {
       return res.status(400).json({ error: 'Missing required INVOIC data' });
     }
+
+    // Cloisonnement : interdiction d'émettre au nom d'une autre entreprise.
+    const issueErr = await assertCanIssueAs(req, data.seller.gln);
+    if (issueErr) return res.status(403).json({ error: issueErr });
 
     console.log(`[EDI SEND] Generating INVOIC ${data.invoiceNumber}`);
 
@@ -6613,7 +7182,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
     const ediTarget = await configService.getEdiTargetUrl(entiteDB, data.buyer.gln);
     const ediServerUrl = ediTarget.url;
     
-    console.log(`[INVOIC SEND] 🎯 EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
+    console.log(`[INVOIC SEND] ?? EDI Routing: ${data.buyer.gln} -> ${ediTarget.countryName} (${ediTarget.countryCode || 'local'}) -> ${ediServerUrl}`);
     
     setImmediate(async () => {
       try {
@@ -6631,7 +7200,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
           timeout: 30000
         });
 
-        console.log(`[INVOIC SEND] ✅ Sent to EDI server. Response:`, ediResponse.data);
+        console.log(`[INVOIC SEND] ? Sent to EDI server. Response:`, ediResponse.data);
         
         await updateEdiTransmissionStatus(
           entiteDB, 
@@ -6641,7 +7210,7 @@ app.post('/api/edi/invoic/send', async (req, res) => {
           null
         );
       } catch (ediErr) {
-        console.error(`[INVOIC SEND] ❌ Failed to send to EDI server:`, ediErr.message);
+        console.error(`[INVOIC SEND] ? Failed to send to EDI server:`, ediErr.message);
         
         await updateEdiTransmissionStatus(
           entiteDB,
@@ -6674,7 +7243,20 @@ app.post('/api/edi/invoic/send', async (req, res) => {
 app.get("/api/edi/invoices/list", async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
-    const rows = await queryDB(entiteDB, 'SELECT * FROM edi_invoic ORDER BY created_at DESC LIMIT 200', []);
+
+    // Cloisonnement : ne renvoyer que les factures de l'entreprise appelante.
+    const { isPrivileged, glns } = await invoiceScope(req);
+    let sql = 'SELECT * FROM edi_invoic';
+    const params = [];
+    if (!isPrivileged) {
+      if (!glns.length) return res.json({ success: true, data: [] }); // échec fermé
+      const ph = glns.map(() => '?').join(',');
+      sql += ` WHERE seller_gln IN (${ph}) OR buyer_gln IN (${ph})`;
+      params.push(...glns, ...glns);
+    }
+    sql += ' ORDER BY created_at DESC LIMIT 200';
+
+    const rows = await queryDB(entiteDB, sql, params);
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('[INVOICES LIST] Error:', err);
@@ -6686,6 +7268,12 @@ app.get("/api/edi/invoices/list", async (req, res) => {
 app.get("/api/edi/invoices/:id/lines", async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+
+    // Cloisonnement : 404 (et non 403) pour ne pas révéler l'existence de la facture.
+    if (!(await invoiceBelongsToCaller(req, req.params.id))) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
     const rows = await queryDB(entiteDB, 'SELECT * FROM edi_invoic_lines WHERE id_invoic = ? ORDER BY line_number, id', [req.params.id]);
     res.json({ success: true, data: rows });
   } catch (err) {
@@ -6699,6 +7287,11 @@ app.delete("/api/edi/invoices/:id", async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
     // Check current status — only DRAFT invoices can be deleted
+    // Cloisonnement : 404 avant tout controle de statut.
+    if (!(await invoiceBelongsToCaller(req, req.params.id))) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
     const rows = await queryDB(entiteDB, 'SELECT status, invoic_number FROM edi_invoic WHERE id = ?', [req.params.id]);
     if (!rows || rows.length === 0) return res.status(404).json({ error: 'Invoice not found' });
     const { status, invoic_number } = rows[0];
@@ -6720,6 +7313,11 @@ app.delete("/api/edi/invoices/:id", async (req, res) => {
 app.post("/api/edi/invoices/:id/send", async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Cloisonnement : on ne renvoie pas la facture d'une autre entreprise.
+    if (!(await invoiceBelongsToCaller(req, id))) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
 
     // 1. Fetch Invoice Data
     const invoiceRows = await queryDB(entiteDB, "SELECT * FROM edi_invoic WHERE id = ?", [id]);
@@ -7537,7 +8135,7 @@ app.post("/api/declinaisons", async (req, res) => {
     if (!HIERARCHY_FIELDS[hierarchy_code])
       return res.status(400).json({ error: "Invalid hierarchy_code" });
 
-    // 🔒 Nettoyage sécurisé
+    // ?? Nettoyage sécurisé
     const allowed = HIERARCHY_FIELDS[hierarchy_code];
     const cleaned = {};
     for (const k of allowed) {
@@ -7823,6 +8421,12 @@ router.post("/invoices", async (req, res) => {
   if (!entiteDB) return res.status(503).json({ error: "DB unavailable" });
   const d = req.body;
   try {
+    // Cloisonnement : interdiction de créer une facture au nom d'une autre entreprise.
+    if (d.seller_gln) {
+      const issueErr = await assertCanIssueAs(req, d.seller_gln);
+      if (issueErr) return res.status(403).json({ error: issueErr });
+    }
+
     // Support both legacy simple fields and full InvoiceFormData from InvoiceCreationModal
     if (d.invoic_number || d.buyer_gln || d.seller_gln) {
       // Full InvoiceFormData — insert into edi_invoic + edi_invoic_lines
@@ -7885,6 +8489,11 @@ router.post("/invoices/:id/send", async (req, res) => {
   if (!entiteDB) return res.status(503).json({ error: "DB unavailable" });
   try {
     const { id } = req.params;
+
+    // Cloisonnement : on ne renvoie pas la facture d'une autre entreprise.
+    if (!(await invoiceBelongsToCaller(req, id))) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
 
     // 1. Fetch Invoice Data from edi_invoic
     const invoiceRows = await queryDB(entiteDB, "SELECT * FROM edi_invoic WHERE id = ?", [id]);
@@ -9111,7 +9720,7 @@ app.delete('/api/notifications/clear', async (req, res) => {
 });
 
 // ==================================================
-// 📢 FLASH NOTIFICATIONS (notifaction_flashmobile + notif_responses)
+// ?? FLASH NOTIFICATIONS (notifaction_flashmobile + notif_responses)
 // ==================================================
 // Tables already exist in production DB (created by dev2).
 // We use the same table names but add PIN auth + mysql.createConnection pattern.
@@ -9259,13 +9868,30 @@ app.post('/api/notif_responses', async (req, res) => {
 
 app.get('/api/comptes', async (req, res) => {
   try {
-    // Check PIN header
     const conn = await mysql.createConnection(dbConfig);
+    const callerEntite = Number(req.user?.id_entite);
+
+    // Same hierarchy rule as canManageAccount, applied to visibility instead of mutation.
+    let whereClause = '';
+    let params = [];
+    if (callerEntite === TOP_ENTITY_ID) {
+      // sees everyone
+    } else if (callerEntite === SECOND_ENTITY_ID) {
+      whereClause = 'WHERE c.id_entite <> ?';
+      params = [TOP_ENTITY_ID];
+    } else {
+      whereClause = 'WHERE c.id_entite = ?';
+      params = [callerEntite];
+    }
 
     const sql = `
       SELECT 
         c.id_compte, c.email, c.name, c.prenom, c.certicode, c.role, c.is_suspended,
+        COALESCE(c.etat, 'active') AS etat,
+        IFNULL(c.is_master, 0) AS is_master,
+        IFNULL(c.is_payment_responsible, 0) AS is_payment_responsible,
         c.created_at, c.id_entite, c.profile_id, c.avatar_url,
+        c.subscription_status, c.subscription_expires_at,
         e.raison_socialle AS producer_name,
         p.role AS profile_role,
         ap.page_id, ap.can_read, ap.can_write, ap.is_hidden,
@@ -9275,10 +9901,11 @@ app.get('/api/comptes', async (req, res) => {
       LEFT JOIN profiles p ON c.profile_id = p.id_profile
       LEFT JOIN autorisation_profile_page ap ON ap.id_profile = c.profile_id
       LEFT JOIN pages pg ON ap.page_id = pg.page_id
+      ${whereClause}
       ORDER BY c.id_compte DESC;
     `;
 
-    const [rows] = await conn.query(sql);
+    const [rows] = await conn.query(sql, params);
     await conn.end();
 
     const accounts = {};
@@ -9293,10 +9920,15 @@ app.get('/api/comptes', async (req, res) => {
           certicode: r.certicode,
           role: r.role,
           is_suspended: !!r.is_suspended,
+          etat: r.etat,
+          is_master: !!r.is_master,
+          is_payment_responsible: !!r.is_payment_responsible,
           created_at: r.created_at,
           id_entite: r.id_entite,
           profile_id: r.profile_id,
           avatar_url: r.avatar_url,
+          subscription_status: r.subscription_status || 'trial',
+          subscription_expires_at: r.subscription_expires_at || null,
           producer_name: r.producer_name || null,
           permissions: []
         };
@@ -9330,7 +9962,11 @@ app.get('/api/comptes/:id', async (req, res) => {
     const sql = `
       SELECT 
         c.id_compte, c.email, c.name, c.prenom, c.certicode, c.role, c.is_suspended,
+        COALESCE(c.etat, 'active') AS etat,
+        IFNULL(c.is_master, 0) AS is_master,
+        IFNULL(c.is_payment_responsible, 0) AS is_payment_responsible,
         c.created_at, c.id_entite, c.profile_id, c.avatar_url,
+        c.subscription_status, c.subscription_expires_at,
         e.raison_socialle AS producer_name,
         p.role AS profile_role,
         ap.page_id, ap.can_read, ap.can_write, ap.is_hidden,
@@ -9358,10 +9994,15 @@ app.get('/api/comptes/:id', async (req, res) => {
       certicode: rows[0].certicode,
       role: rows[0].role,
       is_suspended: !!rows[0].is_suspended,
+      etat: rows[0].etat,
+      is_master: !!rows[0].is_master,
+      is_payment_responsible: !!rows[0].is_payment_responsible,
       created_at: rows[0].created_at,
       id_entite: rows[0].id_entite,
       profile_id: rows[0].profile_id,
       avatar_url: rows[0].avatar_url,
+      subscription_status: rows[0].subscription_status || 'trial',
+      subscription_expires_at: rows[0].subscription_expires_at || null,
       producer_name: rows[0].producer_name || null,
       permissions: []
     };
@@ -9423,13 +10064,31 @@ app.get("/api/account-permissions/:id", async (req, res) => {
 app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
   let conn;
   try {
-    const { email, name, prenom, certicode, profile_id, id_entite, useCustomPermissions, permissions, role } = req.body;
+    const { email, name, prenom, certicode, profile_id, useCustomPermissions, permissions, role } = req.body;
+    let { id_entite, is_master, is_payment_responsible } = req.body;
     const avatarFile = req.file;
+    const callerEntite = Number(req.user?.id_entite);
+    const isCallerPlatformAdmin = callerEntite === TOP_ENTITY_ID || callerEntite === SECOND_ENTITY_ID;
 
-    if (!email || !id_entite)
+    if (!email || (!id_entite && !isCallerPlatformAdmin))
       return res.status(400).json({ error: 'Email et id_entite requis' });
 
     conn = await mysql.createConnection(dbConfig);
+
+    // NEW: anyone who isn't 999/111 (i.e. a regular admin or a master) can only ever
+    // create accounts inside their OWN entity — the id_entite they send is ignored.
+    if (!isCallerPlatformAdmin) {
+      id_entite = callerEntite;
+    }
+
+    // NEW: is_master may only be set by 999/111.
+    const wantsMaster = (is_master === 'true' || is_master === true) && isCallerPlatformAdmin;
+
+    // NEW: is_payment_responsible may be set by 999/111, or by the master of this exact entity.
+    const wantsPaymentResponsible =
+      (is_payment_responsible === 'true' || is_payment_responsible === true) &&
+      (await canManagePaymentFlag(conn, req.user, id_entite));
+
     await conn.beginTransaction();
 
     const password = generatePassword();
@@ -9460,11 +10119,24 @@ app.post('/api/comptes', upload.single('avatar'), async (req, res) => {
       }
     }
 
+    // NEW: at most one master / one payment-responsible per entity — clear any existing
+    // holder before inserting the new flagged account.
+    if (wantsMaster) {
+      await conn.query('UPDATE comptes SET is_master = 0 WHERE id_entite = ? AND is_master = 1', [id_entite]);
+      // A master account always gets the entity's "Admin Entite" profile (created here if
+      // it doesn't exist yet) with full access to every page — overrides whatever
+      // profile_id/custom permissions were submitted, since "master" implies full access.
+      finalProfileId = await ensureAdminEntiteProfile(conn, id_entite);
+    }
+    if (wantsPaymentResponsible) {
+      await conn.query('UPDATE comptes SET is_payment_responsible = 0 WHERE id_entite = ? AND is_payment_responsible = 1', [id_entite]);
+    }
+
     // ? Insert compte with the profile_id (either selected or new custom)
     const [result] = await conn.query(`
-      INSERT INTO comptes (email, name, prenom, certicode, password, profile_id, id_entite, is_suspended, avatar_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
-    `, [email, name || null, prenom || null, certicode || null, hashed, finalProfileId, id_entite, avatarUrl]);
+      INSERT INTO comptes (email, name, prenom, certicode, password, profile_id, id_entite, is_suspended, avatar_url, is_master, is_payment_responsible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+    `, [email, name || null, prenom || null, certicode || null, hashed, finalProfileId, id_entite, avatarUrl, wantsMaster ? 1 : 0, wantsPaymentResponsible ? 1 : 0]);
 
     const newId = result.insertId;
 
@@ -9513,6 +10185,15 @@ app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
       return res.status(404).json({ error: 'Compte introuvable' });
     }
     const oldProfileId = accountRows[0].profile_id;
+
+    // NEW: stop a master account (or any non-platform-admin) from re-parenting an account
+    // into a different entity via edit, mirroring the same rule enforced on POST.
+    const callerEntite = Number(req.user?.id_entite);
+    const isCallerPlatformAdmin = callerEntite === TOP_ENTITY_ID || callerEntite === SECOND_ENTITY_ID;
+    let finalIdEntite = id_entite;
+    if (!isCallerPlatformAdmin) {
+      finalIdEntite = accountRows[0].id_entite; // ignore whatever was submitted
+    }
 
     const [oldProfileRows] = await conn.query('SELECT role FROM profiles WHERE id_profile = ?', [oldProfileId]);
     const oldRole = oldProfileRows[0]?.role || '';
@@ -9573,7 +10254,7 @@ app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
     if (email !== undefined) push('email', email);
     if (password) push('password', hashedPassword);
     if (certicode !== undefined) push('certicode', certicode);
-    if (id_entite !== undefined) push('id_entite', id_entite);
+    if (finalIdEntite !== undefined) push('id_entite', finalIdEntite);
     if (is_suspended !== undefined) push('is_suspended', is_suspended);
     if (role !== undefined && !useCustomPermissions) push('role', role);
     if (avatarUrl && avatarFile) push('avatar_url', avatarUrl); // Only update if new file
@@ -9602,30 +10283,188 @@ app.put('/api/comptes/:id', upload.single('avatar'), async (req, res) => {
 });
 
 // ? Suspend / Reactivate compte
+// --- FIX: this endpoint previously had ZERO authorization checks — it didn't even look at
+// req.user. Any authenticated account, from any entity, could suspend or reactivate any
+// other account (or itself) purely by knowing/guessing an id_compte, regardless of the
+// entity-hierarchy rules the frontend only enforced visually. It now uses canManageAccount()
+// to apply the same hierarchy rule server-side, and blocks self-suspension outright.
 app.patch('/api/comptes/:id_compte/suspend', async (req, res) => {
   const { id_compte } = req.params;
   const { is_suspended } = req.body;
+  let conn;
 
   try {
-    const conn = await mysql.createConnection(dbConfig);
-    const [result] = await conn.query('UPDATE comptes SET is_suspended = ? WHERE id_compte = ?', [is_suspended, id_compte]);
+    conn = await mysql.createConnection(dbConfig);
+
+    const permission = await canManageAccount(conn, req.user, id_compte);
+    if (!permission.ok) {
+      await conn.end();
+      return res.status(permission.status).json({ error: permission.error });
+    }
+
+    const [result] = await conn.query('UPDATE comptes SET is_suspended = ? WHERE id_compte = ?', [is_suspended ? 1 : 0, id_compte]);
     await conn.end();
 
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Compte introuvable' });
-    res.json({ id_compte, is_suspended });
+    res.json({ id_compte, is_suspended: is_suspended ? 1 : 0 });
   } catch (err) {
+    if (conn) await conn.end().catch(() => {});
     console.error('PATCH /api/comptes/:id_compte/suspend error:', err);
     res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
 
+// --- NEW: account état, master accounts, payment-responsible flag ---------------------
+// The old suspend endpoint above stays as a legacy alias (it keeps working since etat
+// changes below keep is_suspended in sync), but the frontend now uses /etat exclusively.
+
+const VALID_ETATS = ['active', 'pending', 'suspended', 'disabled'];
+
+// Replaces the old suspend-only toggle: moves an account through any of the four états.
+app.patch('/api/comptes/:id_compte/etat', async (req, res) => {
+  const { id_compte } = req.params;
+  const { etat } = req.body;
+  let conn;
+
+  if (!VALID_ETATS.includes(etat)) {
+    return res.status(400).json({ error: `État invalide. Valeurs autorisées : ${VALID_ETATS.join(', ')}` });
+  }
+
+  try {
+    conn = await mysql.createConnection(dbConfig);
+    const permission = await canManageAccount(conn, req.user, id_compte);
+    if (!permission.ok) {
+      await conn.end();
+      return res.status(permission.status).json({ error: permission.error });
+    }
+
+    // is_suspended stays in sync so every other query filtering on it (notifications,
+    // login, etc.) keeps working exactly as before.
+    const isSuspended = etat === 'active' ? 0 : 1;
+    const [result] = await conn.query(
+      'UPDATE comptes SET etat = ?, is_suspended = ? WHERE id_compte = ?',
+      [etat, isSuspended, id_compte]
+    );
+    await conn.end();
+
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Compte introuvable' });
+    res.json({ id_compte, etat, is_suspended: isSuspended });
+  } catch (err) {
+    if (conn) await conn.end().catch(() => {});
+    console.error('PATCH /api/comptes/:id_compte/etat error:', err);
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
+  }
+});
+
+// 999/111 only — flags/unflags an account as the master of its entity. Setting a new
+// master clears any previous one in that same entity, so there's always at most one.
+app.patch('/api/comptes/:id_compte/master', async (req, res) => {
+  const { id_compte } = req.params;
+  const { is_master } = req.body;
+  let conn;
+
+  const callerEntite = Number(req.user?.id_entite);
+  if (callerEntite !== TOP_ENTITY_ID && callerEntite !== SECOND_ENTITY_ID) {
+    return res.status(403).json({ error: 'Seul un administrateur de plateforme (999/111) peut définir un compte maître.' });
+  }
+
+  try {
+    conn = await mysql.createConnection(dbConfig);
+    await conn.beginTransaction();
+
+    const [targetRows] = await conn.query('SELECT id_compte, id_entite FROM comptes WHERE id_compte = ?', [id_compte]);
+    if (targetRows.length === 0) {
+      await conn.rollback(); await conn.end();
+      return res.status(404).json({ error: 'Compte introuvable' });
+    }
+    const targetEntite = targetRows[0].id_entite;
+
+    // 111 can't touch entity 999, same rule as everywhere else.
+    if (callerEntite === SECOND_ENTITY_ID && Number(targetEntite) === TOP_ENTITY_ID) {
+      await conn.rollback(); await conn.end();
+      return res.status(403).json({ error: "Vous n'avez pas les droits pour gérer ce compte." });
+    }
+
+    if (is_master) {
+      await conn.query('UPDATE comptes SET is_master = 0 WHERE id_entite = ? AND is_master = 1', [targetEntite]);
+    }
+    await conn.query('UPDATE comptes SET is_master = ? WHERE id_compte = ?', [is_master ? 1 : 0, id_compte]);
+
+    // NEW: a newly-flagged master automatically gets the entity's "Admin Entite" profile
+    // (created on first use) with full access to every page, so it doesn't end up master
+    // in name only while still stuck on whatever limited profile it had before.
+    if (is_master) {
+      const adminProfileId = await ensureAdminEntiteProfile(conn, targetEntite);
+      await conn.query('UPDATE comptes SET profile_id = ? WHERE id_compte = ?', [adminProfileId, id_compte]);
+    }
+
+    await conn.commit();
+    await conn.end();
+    res.json({ id_compte, is_master: !!is_master });
+  } catch (err) {
+    if (conn) { await conn.rollback().catch(() => {}); await conn.end().catch(() => {}); }
+    console.error('PATCH /api/comptes/:id_compte/master error:', err);
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
+  }
+});
+
+// 999/111, or the master account of that exact entity — flags/unflags the account that
+// gets the paywall + payment notifications for its entity. Same "only one" enforcement.
+app.patch('/api/comptes/:id_compte/payment-responsible', async (req, res) => {
+  const { id_compte } = req.params;
+  const { is_payment_responsible } = req.body;
+  let conn;
+
+  try {
+    conn = await mysql.createConnection(dbConfig);
+    await conn.beginTransaction();
+
+    const [targetRows] = await conn.query('SELECT id_compte, id_entite FROM comptes WHERE id_compte = ?', [id_compte]);
+    if (targetRows.length === 0) {
+      await conn.rollback(); await conn.end();
+      return res.status(404).json({ error: 'Compte introuvable' });
+    }
+    const targetEntite = targetRows[0].id_entite;
+
+    const allowed = await canManagePaymentFlag(conn, req.user, targetEntite);
+    if (!allowed) {
+      await conn.rollback(); await conn.end();
+      return res.status(403).json({ error: "Vous n'avez pas les droits pour définir le responsable du paiement de cette entité." });
+    }
+
+    if (is_payment_responsible) {
+      await conn.query('UPDATE comptes SET is_payment_responsible = 0 WHERE id_entite = ? AND is_payment_responsible = 1', [targetEntite]);
+    }
+    await conn.query('UPDATE comptes SET is_payment_responsible = ? WHERE id_compte = ?', [is_payment_responsible ? 1 : 0, id_compte]);
+
+    await conn.commit();
+    await conn.end();
+    res.json({ id_compte, is_payment_responsible: !!is_payment_responsible });
+  } catch (err) {
+    if (conn) { await conn.rollback().catch(() => {}); await conn.end().catch(() => {}); }
+    console.error('PATCH /api/comptes/:id_compte/payment-responsible error:', err);
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
+  }
+});
+
 // ? DELETE compte
+// --- FIX: same issue as the suspend endpoint — no authorization checks at all. Also, there
+// was no "Delete" button anywhere in the UI (comptes.tsx), so in practice this endpoint was
+// unreachable through the app; it's now wired up on the frontend too, behind the same
+// canManageAccount() check used above.
 app.delete('/api/comptes/:id', async (req, res) => {
   let conn;
   try {
     const { id } = req.params;
 
     conn = await mysql.createConnection(dbConfig);
+
+    const permission = await canManageAccount(conn, req.user, id);
+    if (!permission.ok) {
+      await conn.end();
+      return res.status(permission.status).json({ error: permission.error });
+    }
+
     await conn.beginTransaction();
 
     const [accountRows] = await conn.query("SELECT profile_id FROM comptes WHERE id_compte = ?", [id]);
@@ -9665,6 +10504,7 @@ app.delete('/api/comptes/:id', async (req, res) => {
     res.status(500).json({ error: "Failed to delete compte", details: safeErrDetails(err) });
   }
 });
+
 
 // ? Current user
 app.get('/api/current-user/:id', async (req, res) => {
@@ -9718,6 +10558,7 @@ app.post('/api/login', async (req, res) => {
              c.is_suspended, c.created_at, p.id_entite,
              c.prenom, c.name AS nom,
              c.certicode, c.certicode_generated_at,
+             c.subscription_status, c.subscription_expires_at,
              p.raison_socialle AS producer_name,
              p.gln
       FROM comptes c
@@ -9794,7 +10635,9 @@ app.post('/api/login', async (req, res) => {
       })),
       producer_name: account.producer_name,
       id_entite: account.id_entite,
-      gln: account.gln || ''
+      gln: account.gln || '',
+      subscription_status: account.subscription_status || 'trial',
+      subscription_expires_at: account.subscription_expires_at || null
     });
 
   } catch (err) {
@@ -10931,9 +11774,9 @@ app.get('/api/region-national', async (req, res) => {
 });
 
 
-// ═══════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------
 // ADD THESE ENDPOINTS TO YOUR server.js
-// ═══════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------
 
 // GET /api/models/by-brick/:brickCode
 // Load all models where rayon_code = brickCode (since rayon_code = brick code in your DB)
@@ -11391,8 +12234,8 @@ app.post('/api/create-supervisor-profile', async (req, res) => {
 // ============================================================================
 // NEW ENDPOINT: Get ONLY products for one specific entite/company
 // Usage: GET /api/entite-products?id=34
-//        → Returns flat array of products [ {id, libelle, gtin, ...}, ... ]
-//        → No pagination, no search, no admin override — simple & fast
+//        ? Returns flat array of products [ {id, libelle, gtin, ...}, ... ]
+//        ? No pagination, no search, no admin override — simple & fast
 // ============================================================================
 app.get("/api/entite-products", async (req, res) => {
   try {
@@ -11466,7 +12309,7 @@ app.get('/api/rayongpc', async (req, res) => {
 
 
 // ============================================================================
-// ✨ SIMPLE IMPORT FOR BASIC TEMPLATE (NEW - Use this one!)
+// ? SIMPLE IMPORT FOR BASIC TEMPLATE (NEW - Use this one!)
 // ============================================================================
 app.post("/api/products/import-simple", multer().single("file"), async (req, res) => {
   try {
@@ -11580,11 +12423,11 @@ app.post("/api/products/import-simple", multer().single("file"), async (req, res
 
         await conn.query("INSERT INTO fiche_produit SET ?", insertData);
         inserted++;
-        console.log(`✅ Row ${rowNum - 2} inserted: ${libelle}`);
+        console.log(`? Row ${rowNum - 2} inserted: ${libelle}`);
 
       } catch (err) {
         failed++;
-        console.error(`❌ Row ${rowNum - 2} error:`, err.message);
+        console.error(`? Row ${rowNum - 2} error:`, err.message);
         anomalies.push({
           rowNumber: rowNum - 2,
           brand: brand || 'N/A',
@@ -11636,7 +12479,7 @@ app.post("/api/products/import-simple", multer().single("file"), async (req, res
       failed,
       anomalies: anomalies,
       anomaliesFile: anomaliesFile ? `/api/download-anomalies/${anomaliesFile}` : null,
-      message: `✅ ${inserted}/${inserted + failed} produit(s) importé(s) avec succès`
+      message: `? ${inserted}/${inserted + failed} produit(s) importé(s) avec succès`
     });
 
   } catch (err) {
@@ -12085,11 +12928,11 @@ app.get('/api/generate-all-models', async (req, res) => {
 });
 
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 // TARIFICATION ENDPOINTS - Per Product × Per Buyer
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 
-// ─── 1. GET /api/tarifications ───
+// --- 1. GET /api/tarifications ---
 // Get all tarifications for a specific product and entite
 // Query params: id_fiche_produit, id_entite
 app.get('/api/tarifications', async (req, res) => {
@@ -12144,7 +12987,7 @@ app.get('/api/tarifications', async (req, res) => {
 });
 
 
-// ─── 2. POST /api/tarifications ───
+// --- 2. POST /api/tarifications ---
 // Create a new tarification for a product and buyer
 app.post('/api/tarifications', async (req, res) => {
   try {
@@ -12226,7 +13069,7 @@ app.post('/api/tarifications', async (req, res) => {
 });
 
 
-// ─── 3. PUT /api/tarifications/:id ───
+// --- 3. PUT /api/tarifications/:id ---
 // Update an existing tarification
 app.put('/api/tarifications/:id', async (req, res) => {
   try {
@@ -12297,7 +13140,7 @@ app.put('/api/tarifications/:id', async (req, res) => {
 });
 
 
-// ─── 4. DELETE /api/tarifications/:id ───
+// --- 4. DELETE /api/tarifications/:id ---
 // Delete a tarification
 app.delete('/api/tarifications/:id', async (req, res) => {
   try {
@@ -12327,7 +13170,7 @@ app.delete('/api/tarifications/:id', async (req, res) => {
 });
 
 
-// ─── 5. GET /api/tarifications/:id ───
+// --- 5. GET /api/tarifications/:id ---
 // Get a specific tarification by ID
 app.get('/api/tarifications/:id', async (req, res) => {
   try {
@@ -12376,7 +13219,7 @@ app.get('/api/tarifications/:id', async (req, res) => {
 });
 
 
-// ─── 6. GET /api/tarifications/product/:id_product ───
+// --- 6. GET /api/tarifications/product/:id_product ---
 // Get all tarifications for a product (all buyers)
 app.get('/api/tarifications/product/:id_product', async (req, res) => {
   try {
@@ -12425,7 +13268,7 @@ app.get('/api/tarifications/product/:id_product', async (req, res) => {
 });
 
 
-// ─── 7. GET /api/tarifications/buyer/:id_buyer ───
+// --- 7. GET /api/tarifications/buyer/:id_buyer ---
 // Get all tarifications for a buyer (all products)
 app.get('/api/tarifications/buyer/:id_buyer', async (req, res) => {
   try {
@@ -12479,7 +13322,7 @@ app.get('/api/tarifications/buyer/:id_buyer', async (req, res) => {
 
 
 // ============================================================================
-// ✅ TEMPLATE DOWNLOAD ENDPOINTS
+// ? TEMPLATE DOWNLOAD ENDPOINTS
 // ============================================================================
 
 // GET /api/model_by_brick?codebrique=XXXXX
@@ -12880,8 +13723,8 @@ app.get("/api/products/parents_select", async (req, res) => {
 
 // ============================================================================
 // TÉLÉCHARGEMENT DU MODÈLE EXCEL — template-advanced
-// Ordre : [Données de base] → [Classification pré-remplie]
-//       → [Sections modèle JSON] → [Hiérarchie logistique]
+// Ordre : [Données de base] ? [Classification pré-remplie]
+//       ? [Sections modèle JSON] ? [Hiérarchie logistique]
 // Palette sombre/plate · ligne 1 = titres section · libellés ASCII (sans accents)
 // pour éviter tout problème d'encodage à la réimportation
 // ============================================================================
@@ -12894,7 +13737,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     try { conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG); }
     catch (e) { return res.status(500).json({ error: "Connexion BDD echouee" }); }
 
-    // ── 1. Modèle JSON ────────────────────────────────────────────────────
+    // -- 1. Modèle JSON ----------------------------------------------------
     const [modelResults] = await conn.query(
       `SELECT model_json FROM models WHERE rayon_code = ? LIMIT 1`, [model_key]
     );
@@ -12903,7 +13746,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       try { modelData = JSON.parse(modelResults[0].model_json); } catch(e) {}
     }
 
-    // ── 2. Libellés pour pré-remplissage + nom fichier ────────────────────
+    // -- 2. Libellés pour pré-remplissage + nom fichier --------------------
     let libelleSegment = "", libelleClasse = "", libelleRayon = "";
     try {
       if (rayon_code) {
@@ -12921,7 +13764,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     } catch(e) { /* non bloquant */ }
     await conn.end();
 
-    // ── 3. Valeurs pré-remplies ───────────────────────────────────────────
+    // -- 3. Valeurs pré-remplies -------------------------------------------
     const PREFILL = {};
     if (codeSegment) PREFILL["segment"]    = libelleSegment ? `${codeSegment} - ${libelleSegment}` : codeSegment;
     if (codeClasse)  PREFILL["codeClasse"] = libelleClasse  ? `${codeClasse} - ${libelleClasse}`   : String(codeClasse);
@@ -12930,7 +13773,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     if (rayon_code)  PREFILL["brick"]      = PREFILL["codebrique"];
     if (rayon_code)  PREFILL["rayon"]      = PREFILL["codebrique"];
 
-    // ── 4. Palette sombre/plate ───────────────────────────────────────────
+    // -- 4. Palette sombre/plate -------------------------------------------
     const PAL = {
       BASE:            { hc:"1E3A5F", fc:"FFFFFF", dc:"EBF0F7" },
       Classification:  { hc:"2D4739", fc:"FFFFFF", dc:"E8F0EB" },
@@ -12946,7 +13789,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       MX: { hc:"2D2D00", fc:"FFFFFF", dc:"F7F5E0" },
     };
 
-    // Clés déjà dans données de base → ne pas dupliquer
+    // Clés déjà dans données de base ? ne pas dupliquer
     const BASE_KEYS_SET = new Set([
       "segment","codeSegment","code_segment","family","famille","codeFamille",
       "classe","codeClasse","class","code_classe","codebrique","brick","brique",
@@ -12957,7 +13800,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     const normKey = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
     const BASE_KEYS_NORM = new Set([...BASE_KEYS_SET].map(normKey));
 
-    // ── 5. Construction des colonnes ──────────────────────────────────────
+    // -- 5. Construction des colonnes --------------------------------------
     const columns = [];
 
     // 5a. DONNÉES DE BASE (libellés ASCII pur — CRITIQUE pour encodage)
@@ -13060,7 +13903,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     const N = columns.length;
     const REF_PAYS = `Pays!$A$2:$A$${COUNTRIES_LIST.length + 1}`;
 
-    // ── 6. Classeur ExcelJS ───────────────────────────────────────────────
+    // -- 6. Classeur ExcelJS -----------------------------------------------
     const wb = new ExcelJS.Workbook();
 
     // Feuille Pays (masquée)
@@ -13074,7 +13917,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     const ws = wb.addWorksheet("Modele Produits", { tabColor:{ argb:"FF1E3A5F" } });
     wb.views = [{ activeTab:1 }];
 
-    // ── 6a. Ligne 1 — Titres de section (fusionnées) ──────────────────────
+    // -- 6a. Ligne 1 — Titres de section (fusionnées) ----------------------
     const sectionRanges = [];
     let prevSec = null, startC = 1;
     for (let j = 0; j < N; j++) {
@@ -13103,7 +13946,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       };
     }
 
-    // ── 6b. Ligne 2 — En-têtes colonnes ──────────────────────────────────
+    // -- 6b. Ligne 2 — En-têtes colonnes ----------------------------------
     const headerRow = ws.addRow(columns.map(c => c.label));
     headerRow.height = 42;
     for (let j = 0; j < N; j++) {
@@ -13120,7 +13963,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       };
     }
 
-    // ── 6c. Ligne 3 — Instruction ─────────────────────────────────────────
+    // -- 6c. Ligne 3 — Instruction -----------------------------------------
     const instrRow = ws.addRow(new Array(N).fill(null));
     instrRow.height = 16;
     if (N > 1) ws.mergeCells(3,1,3,N);
@@ -13130,7 +13973,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     instrCell.fill  = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFF0F0F0" } };
     instrCell.alignment = { horizontal:"left", vertical:"middle" };
 
-    // ── 6d. Lignes 4-103 — Données ───────────────────────────────────────
+    // -- 6d. Lignes 4-103 — Données ---------------------------------------
     for (let ri = 0; ri < 100; ri++) {
       const dataRow = ws.addRow(new Array(N).fill(null));
       dataRow.height = 18;
@@ -13158,7 +14001,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       }
     }
 
-    // ── 6e. Validation listes Pays ────────────────────────────────────────
+    // -- 6e. Validation listes Pays ----------------------------------------
     for (let j = 0; j < N; j++) {
       if (!columns[j].dvPays) continue;
       const sqref = `${excelCol(j+1)}4:${excelCol(j+1)}103`;
@@ -13169,7 +14012,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
       } catch(e) {}
     }
 
-    // ── 6f. Largeurs + gel ────────────────────────────────────────────────
+    // -- 6f. Largeurs + gel ------------------------------------------------
     ws.columns = columns.map(c => ({
       key: c.key,
       width: Math.max(16, Math.min(38, c.label.replace(" *","").length + 4)),
@@ -13177,7 +14020,7 @@ app.get("/api/products/template-advanced", async (req, res) => {
     ws.views = [{ state:"frozen", xSplit:0, ySplit:3, activeCell:"A4" }];
     ws.pageSetup = { paperSize:9, orientation:"landscape", fitToPage:true, fitToWidth:1 };
 
-    // ── 7. Nom de fichier ─────────────────────────────────────────────────
+    // -- 7. Nom de fichier -------------------------------------------------
     const safePart = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
       .replace(/[^a-zA-Z0-9\-_]/g,"_").replace(/_+/g,"_").slice(0,35);
     const libBrique = safePart(libelleRayon || rayon_code || model_key);
@@ -13203,9 +14046,9 @@ app.get("/api/products/template-advanced", async (req, res) => {
 // comparaison, rendant le matching 100% robuste.
 //
 // Structure fichier attendue:
-//   Ligne 1 = titres section (fusionnées) → ignorée
-//   Ligne 2 = en-têtes colonnes           → utilisée pour le mapping
-//   Ligne 3 = instruction                 → ignorée
+//   Ligne 1 = titres section (fusionnées) ? ignorée
+//   Ligne 2 = en-têtes colonnes           ? utilisée pour le mapping
+//   Ligne 3 = instruction                 ? ignorée
 //   Ligne 4+ = données produits
 // ============================================================================
 app.post("/api/products/import-template", multerMemory.single("file"), async (req, res) => {
@@ -13221,7 +14064,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
     if (!ws) ws = workbook.worksheets.find(s => !["Pays"].includes(s.name));
     if (!ws) return res.status(400).json({ error:"Feuille 'Modele Produits' introuvable dans le fichier" });
 
-    // ── Lire les en-têtes depuis la ligne 2 ───────────────────────────────
+    // -- Lire les en-têtes depuis la ligne 2 -------------------------------
     // (ligne 1 = titres section, ligne 2 = col headers, ligne 3 = instruction)
     const headerRow = ws.getRow(2);
     const headers   = [];
@@ -13233,8 +14076,8 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
     });
 
     // Normalisation ROBUSTE: supprime accents, U+FFFD, astérisques, espaces, ponctuation
-    // Résultat: "Libellé produit *" → "libelleproduit"
-    //           "Libell\uFFFD produit *" → "libelleproduit"  (même résultat!)
+    // Résultat: "Libellé produit *" ? "libelleproduit"
+    //           "Libell\uFFFD produit *" ? "libelleproduit"  (même résultat!)
     const normH = s => s
       .normalize("NFD")                        // décomposer accents
       .replace(/[\u0300-\u036f]/g, "")         // supprimer marques diacritiques
@@ -13243,7 +14086,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");             // garder seulement alphanum
 
-    // Mapping normalisé → champ BDD
+    // Mapping normalisé ? champ BDD
     // Les clés sont déjà normalisées (sans accents, sans espaces, lowercase)
     const FR_TO_DB = {
       "marque":               "brand",
@@ -13278,7 +14121,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       "codebrique","codeClasse","segment_code"
     ]);
 
-    const baseColMap = {};  // dbField → colIndex (0-based)
+    const baseColMap = {};  // dbField ? colIndex (0-based)
     const extraCols  = [];  // { label, colIndex } pour extra_fields
 
     headers.forEach((h, i) => {
@@ -13330,7 +14173,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       const gtin    = getCellVal(row, baseColMap["gtin"]);
       const libelle = getCellVal(row, baseColMap["libelle"]);
 
-      // Ligne vraiment vide → ignorer silencieusement
+      // Ligne vraiment vide ? ignorer silencieusement
       if (!brand && !gtin && !libelle) continue;
 
       // Codes pré-remplis: extraire juste le code
@@ -13363,7 +14206,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
       const codeClasseNum   = codeClasse ? (parseInt(codeClasse) || null) : null;
       const idEntreprise    = id_entite  ? parseInt(id_entite) : null;
 
-      // Champs extra → extra_fields JSON
+      // Champs extra ? extra_fields JSON
       const extraFields = {};
       for (const ec of extraCols) {
         const val = getCellVal(row, ec.colIndex);
@@ -13409,7 +14252,7 @@ app.post("/api/products/import-template", multerMemory.single("file"), async (re
     const successCount = results.filter(r => r.status === "success").length;
     const errorCount   = results.filter(r => r.status === "error").length;
 
-    // ── Génération fichier anomalies ──────────────────────────────────────
+    // -- Génération fichier anomalies --------------------------------------
     let failedFileBase64 = null;
     let failedFileName   = null;
 
@@ -13561,7 +14404,7 @@ app.post("/api/products/import-advanced", async (req, res) => {
 
 
 // ============================================================================
-// ✨ DOWNLOAD ANOMALIES REPORT
+// ? DOWNLOAD ANOMALIES REPORT
 // ============================================================================
 app.get("/api/download-anomalies/:filename", (req, res) => {
   try {
@@ -13583,25 +14426,40 @@ app.get("/api/download-anomalies/:filename", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 async function startServer() {
-  console.log(`[SERVER] 🚀 Attempting to start server on port ${PORT}...`);
+  console.log(`[SERVER] ?? Attempting to start server on port ${PORT}...`);
   try {
     await initializeDatabases();
     app.set('entiteDB', entiteDB); // Expose DB to routes
-    
+
+    // Subscription / trial routes (needs the live entiteDB + verifyJWT)
+    app.use('/api/subscription', buildSubscriptionRouter(entiteDB, {
+      verifyJWT,
+      getTransporter: () => transporter,
+      getFromEmail,
+    }));
+
+    // iPay automatic online payment routes (needs the live entiteDB + verifyJWT).
+    // The webhook route inside this router is public (see JWT_EXCLUDED_PATHS above) —
+    // /create and /status still require the authenticated user's JWT.
+    app.use('/api/payment/ipay', buildIpayRouter(entiteDB, { verifyJWT }));
+
     // Pass db to DiscoveryCache and KeyManager for local fallback
     discoveryCache.setDb(entiteDB);
     keyManager.setDb(entiteDB);
     auditLogger.setDb(entiteDB);
-    console.log('[Services] ✅ DiscoveryCache & AuditLogger initialized with DB');
+    console.log('[Services] ? DiscoveryCache & AuditLogger initialized with DB');
 
     await ensureOrdersColumns(); // Auto-create Orders date columns
-    
+    await ensureSubscriptionSchema(entiteDB); // Auto-create subscription columns/table
+    await ensureIpaySchema(entiteDB); // Auto-create ipay_payments table
+    await ensureAccountHierarchyColumns();    // Auto-create etat/is_master/is_payment_responsible columns
+
     const { Worker } = require('worker_threads');
 
     // Initialize Singleton Services with DB
     discoveryCache.setDb(entiteDB);
     auditLogger.setDb(entiteDB);
-    console.log('[Services] ✅ DiscoveryCache & AuditLogger initialized with DB');
+    console.log('[Services] ? DiscoveryCache & AuditLogger initialized with DB');
 
     await ensureOrdersColumns(); // Auto-create Orders date columns
     
@@ -13612,24 +14470,24 @@ async function startServer() {
       app.use('/api/orchestrator', initOrchestratorRoutes(entiteDB));
       // P4 — Proxy transport IFTMIN vers le hub (frontend -> /api/transport -> hub)
       app.use('/api/transport', require('./routes/transport_proxy')());
-      console.log('[Orchestrator] ✅ Routes initialized at /api/orchestrator');
+      console.log('[Orchestrator] ? Routes initialized at /api/orchestrator');
     } catch (orchErr) {
-      console.error('[Orchestrator] ⚠️ Failed to initialize routes:', orchErr.message);
+      console.error('[Orchestrator] ?? Failed to initialize routes:', orchErr.message);
     }
 
     // Initialize P2P Routes (Receiver)
     try {
       const p2pRoutes = require('./routes/p2p');
       app.use('/api/p2p', p2pRoutes);
-      console.log('[P2P] ✅ Routes initialized at /api/p2p');
+      console.log('[P2P] ? Routes initialized at /api/p2p');
     } catch (p2pErr) {
-      console.error('[P2P] ⚠️ Failed to initialize routes:', p2pErr.message);
+      console.error('[P2P] ?? Failed to initialize routes:', p2pErr.message);
     }
     
     // Initialize ConfigService with database connection
     try {
       await configService.initialize(entiteDB);
-      console.log('[ConfigService] ✅ Global parameters loaded from database');
+      console.log('[ConfigService] ? Global parameters loaded from database');
       
       // Start Background Workers (Discovery & Audit Sync)
       // Only start if not in dev/test mode that inhibits workers, or check a config flag
@@ -13659,13 +14517,19 @@ async function startServer() {
 
       // Initialize Mailer after config is ready
       await initMailer();
+
+      // Start subscription/trial cron (hourly expiry sweep + day-20 email notice)
+      startSubscriptionCron(entiteDB, {
+        getTransporter: () => transporter,
+        getFromEmail,
+      });
     } catch (err) {
-      console.warn('[ConfigService] ⚠️ Failed to initialize, using defaults:', err.message);
+      console.warn('[ConfigService] ?? Failed to initialize, using defaults:', err.message);
     }
     
     // Initialize and start EDI Worker
     if (ediWorkerConfig.startup.autoStart) {
-      console.log('\n📦 Initializing EDI Worker...');
+      console.log('\n?? Initializing EDI Worker...');
       ediWorker = new EDIWorker(entiteDB);
       initEdiWorkerRoutes(ediWorker);
       ediWorker.start();
@@ -13674,7 +14538,7 @@ async function startServer() {
     // --- DATA CORRECTION ROUTINE ---
     // Fix orders stuck in 'new' status despite being successfully sent via EDI
     try {
-      console.log("[STARTUP] 🔧 Running data correction for stuck orders...");
+      console.log("[STARTUP] ?? Running data correction for stuck orders...");
       const fixQuery = `
         UPDATE orders o
         JOIN edi_transmissions t ON t.related_id = o.id_order
@@ -13687,7 +14551,7 @@ async function startServer() {
       
       if (entiteDB.pool) {
         const [result] = await entiteDB.pool.query(fixQuery);
-        console.log(`[STARTUP] ✅ Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
+        console.log(`[STARTUP] ? Fixed ${result.changedRows} orders status from 'new' to 'sent'`);
       } else {
         // SQLite fallback (SQLite does not support JOIN in UPDATE, use subquery)
         const sqliteFixQuery = `
@@ -13703,19 +14567,19 @@ async function startServer() {
           )
         `;
         await runUpdate(entiteDB, sqliteFixQuery);
-        console.log(`[STARTUP] ✅ Data correction query executed`);
+        console.log(`[STARTUP] ? Data correction query executed`);
       }
     } catch (err) {
-      console.error("[STARTUP] ⚠️ Data correction failed:", err.message);
+      console.error("[STARTUP] ?? Data correction failed:", err.message);
     }
 
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n✅ Server running successfully!`);
-      console.log(`   → Local:   http://localhost:${PORT}/`);
-      console.log(`   → Network: http://0.0.0.0:${PORT}/`);
-      console.log(`   → Health:  http://localhost:${PORT}/health`);
-      console.log(`   → WebSocket: ✅ Enabled`);
-      console.log(`   → EDI Worker: ${ediWorker ? '✅ Running' : '⏸️  Disabled'}\n`);
+      console.log(`\n? Server running successfully!`);
+      console.log(`   ? Local:   http://localhost:${PORT}/`);
+      console.log(`   ? Network: http://0.0.0.0:${PORT}/`);
+      console.log(`   ? Health:  http://localhost:${PORT}/health`);
+      console.log(`   ? WebSocket: ? Enabled`);
+      console.log(`   ? EDI Worker: ${ediWorker ? '? Running' : '??  Disabled'}\n`);
       console.log(`Server running on port ${PORT}`);
       console.log(`MODELES_DIR: ${MODELES_DIR}`);
       console.log(`FILES_JSON_PATH: ${FILES_JSON_PATH}`);
@@ -13753,7 +14617,7 @@ async function startServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('\n🛑 SIGTERM received, shutting down gracefully...');
+  console.log('\n?? SIGTERM received, shutting down gracefully...');
   if (ediWorker) {
     ediWorker.stop();
   }
@@ -13761,11 +14625,11 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('\n🛑 SIGINT received, shutting down gracefully...');
+  console.log('\n?? SIGINT received, shutting down gracefully...');
   if (ediWorker) {
     ediWorker.stop();
   }
   process.exit(0);
-});
+}); 
 
 startServer();

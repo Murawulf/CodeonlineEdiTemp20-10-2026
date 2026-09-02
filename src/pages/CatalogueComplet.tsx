@@ -510,6 +510,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
   const [page, setPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalProducts, setTotalProducts] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedBrand, setSelectedBrand] = useState<string>("");
   const [selectedSector, setSelectedSector] = useState<string>("");
@@ -525,6 +526,20 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
   const [retry, setRetry] = useState<number>(0);
   const [paysList, setPaysList] = useState<any[]>([]);
   const [isActionOpen, setIsActionOpen] = useState<number | null>(null);
+  const [actionDropdownPos, setActionDropdownPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Close the actions dropdown when clicking anywhere outside it.
+  useEffect(() => {
+    if (isActionOpen === null) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.product-action-dropdown') && !target.closest('[data-action-btn]')) {
+        setIsActionOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isActionOpen]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [allNodes, setAllNodes] = useState<Record<number, Node>>({});
   const { addNotification } = useNotifications();
@@ -659,37 +674,21 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
     load();
   }, [retry]);
   // FETCH ENTITIES
+  // Previously called /api/entites — that route doesn't exist on the server
+  // (only /api/companies does), so this always failed silently and every
+  // row fell back to the "Entité {id}" placeholder. Also switched from raw
+  // fetch() to axios: the app's global axios interceptor (set up in App.tsx)
+  // attaches the JWT automatically, but native fetch() does not, and the
+  // server has no cookie/session auth for `credentials: "include"` to rely on.
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/entites`, { credentials: "include" });
-        if (!res.ok) throw new Error("No entities");
-        const data = await res.json();
+        const res = await axios.get(`${API_BASE}/api/companies`, { withCredentials: true });
+        const data = res.data;
         const map: Record<number, string> = {};
         if (Array.isArray(data)) {
           data.forEach((e: any) => {
-            map[e.id_entite || e.id] = e.entite_name || e.name || e.raison_sociale || "Inconnu";
-          });
-        }
-        setEntitiesMap(map);
-      } catch (err) {
-        console.warn("Entities not available", err);
-        setEntitiesMap({});
-      }
-    };
-    load();
-  }, []);
-  // FETCH ENTITIES
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/entites`, { credentials: "include" });
-        if (!res.ok) throw new Error("No entities");
-        const data = await res.json();
-        const map: Record<number, string> = {};
-        if (Array.isArray(data)) {
-          data.forEach((e: any) => {
-            map[e.id_entite || e.id] = e.entite_name || e.name || e.raison_sociale || "Inconnu";
+            map[e.id_entite || e.id] = e.raison_socialle || e.entite_name || e.name || e.raison_sociale || "Inconnu";
           });
         }
         setEntitiesMap(map);
@@ -737,6 +736,7 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
         const data = await res.json();
         setProducts(Array.isArray(data.products) ? data.products : []);
         setTotalPages(data.totalPages || 1);
+        setTotalProducts(data.total || 0);
         if (brands.length === 0) {
           const uniques = Array.from(new Set((data.products || []).map((p: Product) => p.brand).filter(Boolean))) as string[];
           setBrands(uniques.sort());
@@ -1529,7 +1529,7 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
       <div className="container mx-auto p-6">
              <div className="flex justify-between items-end mb-10">
           <div>
-            <h1 className="text-4xl font-medium tracking-tight text-slate-900">Fiches Produits</h1>
+            <h1 className="text-4xl font-normal tracking-tight text-slate-900">Fiches Produits</h1>
             <p className="text-slate-500 mt-1.5">Gestion avancée des produits et hiérarchies logistiques</p>
           </div>
           
@@ -1678,28 +1678,50 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
             {hasActionPermission && (
               <div className="relative inline-block">
                 <button 
+                  data-action-btn
                   className="bg-blue-900 hover:bg-blue-800 text-white px-5 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-1"
-                  onClick={() => setIsActionOpen(isActionOpen === p.id ? null : p.id)}
+                  onClick={(e) => {
+                    const willOpen = isActionOpen !== p.id;
+                    if (willOpen) {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const menuWidth = 192; // w-48
+                      const estimatedMenuHeight = 190;
+                      let left = rect.right - menuWidth;
+                      if (left < 10) left = 10;
+                      if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
+                      let top = rect.bottom + 8;
+                      // Flip above the button if there isn't enough room below.
+                      if (top + estimatedMenuHeight > window.innerHeight) {
+                        top = rect.top - estimatedMenuHeight - 8;
+                        if (top < 10) top = 10;
+                      }
+                      setActionDropdownPos({ top, left });
+                    }
+                    setIsActionOpen(willOpen ? p.id : null);
+                  }}
                 >
                   ⋮ Actions
                 </button>
 
-                {isActionOpen === p.id && (
-                  <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-30 w-48 py-1 overflow-hidden text-sm">
-                    <button className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center gap-2" onClick={() => handleEdit(p)}>
+                {isActionOpen === p.id && actionDropdownPos && (
+                  <div
+                    className="product-action-dropdown fixed bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] w-48 py-1 overflow-hidden text-sm"
+                    style={{ top: actionDropdownPos.top, left: actionDropdownPos.left }}
+                  >
+                    <button className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center gap-2" onClick={() => { handleEdit(p); setIsActionOpen(null); }}>
                       ✏️ Modifier
                     </button>
                     {canEditStatus && p.status !== 2 && (
-                      <button className="w-full text-left px-4 py-2.5 hover:bg-green-50 flex items-center gap-2" onClick={() => handlePublier(p)}>
+                      <button className="w-full text-left px-4 py-2.5 hover:bg-green-50 flex items-center gap-2" onClick={() => { handlePublier(p); setIsActionOpen(null); }}>
                         ✓ Valider
                       </button>
                     )}
                     {p.status !== 0 && (
-                      <button className="w-full text-left px-4 py-2.5 hover:bg-orange-50 flex items-center gap-2" onClick={() => handleSuspend(p)}>
+                      <button className="w-full text-left px-4 py-2.5 hover:bg-orange-50 flex items-center gap-2" onClick={() => { handleSuspend(p); setIsActionOpen(null); }}>
                         ⏸️ Suspendre
                       </button>
                     )}
-                    <button className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2" onClick={() => handleDelete(p.id)}>
+                    <button className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2" onClick={() => { handleDelete(p.id); setIsActionOpen(null); }}>
                       🗑️ Supprimer
                     </button>
                   </div>
@@ -1785,8 +1807,11 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
 </table>
         </div>
         <div className="flex items-center justify-between mt-6 px-2">
-          <div className="text-sm font-semibold text-slate-700">📄 Page {page} / {totalPages}</div>
+          <div className="text-sm font-semibold text-slate-700">
+            📄 Page {page} / {totalPages} · {totalProducts.toLocaleString('fr')} produit{totalProducts !== 1 ? 's' : ''} au total
+          </div>
           <div className="flex gap-3">
+              <button className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Précédent</button>
               <button className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Suivant →</button>
           </div>
         </div>
@@ -2214,28 +2239,82 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
             </motion.div>
           </div>
         )}
-        {/* Pagination */}
-        <div className="flex justify-between items-center mt-10 px-4">
-          <div className="text-sm text-slate-500 font-medium">
-            Page {page} sur {totalPages} • {products.length} produits
-          </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setPage(p => Math.max(1, p - 1))} 
-              disabled={page === 1}
-              className="px-5 py-2.5 border border-slate-300 rounded-2xl text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition"
-            >
-              ← Précédent
-            </button>
-            <button 
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-              disabled={page === totalPages}
-              className="px-5 py-2.5 border border-slate-300 rounded-2xl text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition"
-            >
-              Suivant →
-            </button>
-          </div>
-        </div>
+      {/* Pagination */}
+<div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-10 px-4">
+  {/* Page info */}
+  <div className="text-sm text-slate-500 font-medium">
+    Page <span className="text-slate-900 font-semibold">{page}</span> sur{" "}
+    <span className="text-slate-900 font-semibold">{totalPages}</span>
+    <span className="mx-2 text-slate-300">•</span>
+    {products.length} produits
+  </div>
+
+  {/* Pagination controls */}
+  <div className="flex items-center gap-2">
+    <button
+      onClick={() => setPage((p) => Math.max(1, p - 1))}
+      disabled={page === 1}
+      className="
+        inline-flex items-center gap-2
+        px-4 py-2.5
+        rounded-xl
+        border border-slate-200
+        bg-white
+        text-sm font-medium text-slate-700
+        shadow-sm
+        transition-all duration-200
+        hover:bg-slate-50 hover:border-slate-300
+        hover:shadow
+        disabled:cursor-not-allowed
+        disabled:opacity-40
+        disabled:hover:bg-white
+        disabled:hover:border-slate-200
+        disabled:hover:shadow-sm
+      "
+    >
+      <span className="text-base">←</span>
+      <span>Précédent</span>
+    </button>
+
+    <div
+      className="
+        min-w-[48px] h-[42px]
+        flex items-center justify-center
+        rounded-xl
+        bg-slate-900
+        text-sm font-semibold text-white
+        shadow-sm
+      "
+    >
+      {page}
+    </div>
+
+    <button
+      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+      disabled={page === totalPages}
+      className="
+        inline-flex items-center gap-2
+        px-4 py-2.5
+        rounded-xl
+        border border-slate-200
+        bg-white
+        text-sm font-medium text-slate-700
+        shadow-sm
+        transition-all duration-200
+        hover:bg-slate-50 hover:border-slate-300
+        hover:shadow
+        disabled:cursor-not-allowed
+        disabled:opacity-40
+        disabled:hover:bg-white
+        disabled:hover:border-slate-200
+        disabled:hover:shadow-sm
+      "
+    >
+      <span>Suivant</span>
+      <span className="text-base">→</span>
+    </button>
+  </div>
+</div>
         {/* ========== RAPPORT MODAL ========== */}
         {rapportModal?.open && (
           <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center" onClick={() => setRapportModal(null)}>

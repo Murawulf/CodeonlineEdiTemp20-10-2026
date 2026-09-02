@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import { XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
@@ -44,7 +44,36 @@ type Company = {
   titre_ar?: string;
   titre_en?: string;
   logo?: string | null;
+  // ── Newly added columns (importateurs/exportateurs import) ──
+  sci?: number;
+  destinations?: string | null;
+  export_burkina_faso?: number;
+  export_cote_ivoire?: number;
+  export_gambie?: number;
+  export_guinee?: number;
+  export_libye?: number;
+  export_mali?: number;
+  export_senegal?: number;
 };
+
+type DestinationKey =
+  | 'export_burkina_faso'
+  | 'export_cote_ivoire'
+  | 'export_gambie'
+  | 'export_guinee'
+  | 'export_libye'
+  | 'export_mali'
+  | 'export_senegal';
+
+const DESTINATION_OPTIONS: { key: DestinationKey; label: string }[] = [
+  { key: 'export_burkina_faso', label: 'Burkina Faso' },
+  { key: 'export_cote_ivoire', label: "Côte d'Ivoire" },
+  { key: 'export_gambie', label: 'Gambie' },
+  { key: 'export_guinee', label: 'Guinée' },
+  { key: 'export_libye', label: 'Libye' },
+  { key: 'export_mali', label: 'Mali' },
+  { key: 'export_senegal', label: 'Sénégal' },
+];
 
 type Segment = { code: string; libelle: string };
 
@@ -111,17 +140,22 @@ const fetchPaysList = async () => {
 
   const [searchRegion, setSearchRegion] = useState('');
   const [searchDelegation, setSearchDelegation] = useState('');
-  const [searchSegment, setSearchSegment] = useState('');
+  const [searchSegments, setSearchSegments] = useState<string[]>([]);
+  const [searchDestinations, setSearchDestinations] = useState<DestinationKey[]>([]);
   const [searchType, setSearchType] = useState('');
   const [searchText, setSearchText] = useState('');
 
   const [isRegionOpen, setIsRegionOpen] = useState(false);
-  const [isDelegationOpen, setIsDelegationOpen] = useState(false);
+  const [regionDelExpanded, setRegionDelExpanded] = useState('');
   const [isSegmentOpen, setIsSegmentOpen] = useState(false);
+  const [isDestinationOpen, setIsDestinationOpen] = useState(false);
   const [isTypeOpen, setIsTypeOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // ── Mass selection for contact export ──
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const [basicEditingCompany, setBasicEditingCompany] = useState<Company | null>(null);
   const [isBasicModalOpen, setIsBasicModalOpen] = useState(false);
@@ -179,8 +213,9 @@ const fetchPaysList = async () => {
 
   const typeRef = useRef<HTMLDivElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
-  const delegationRef = useRef<HTMLDivElement>(null);
   const segmentRef = useRef<HTMLDivElement>(null);
+  const destinationRef = useRef<HTMLDivElement>(null);
+  const filtersBarRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const importModalRef = useRef<HTMLDivElement>(null);
@@ -192,8 +227,76 @@ const fetchPaysList = async () => {
   const mainActionRef = useRef<HTMLDivElement>(null);
 
   const canWrite = true;
-  const initialShowAll = true;
-  const initialUser = { id_entite: 123 };
+
+  // ── CURRENT USER'S id_entite ────────────────────────────────────────────
+  // Previously hardcoded as `{ id_entite: 123 }` — never wired to the real
+  // logged-in account, which is why privileged users saw nothing and
+  // everyone else's own-entity filter was meaningless.
+  //
+  // Source of truth, in priority order (mirrors how the rest of the app
+  // already resolves the current user, e.g. the "Fetching all comptes for
+  // id_compte..." / "Found id_entite: ..." logic run elsewhere on login):
+  //   1. The user object your login flow stores in localStorage/sessionStorage
+  //      (POST /api/login already returns id_entite directly in its JSON, so
+  //      if that whole response — or a user object built from it — is what
+  //      gets persisted, it's already there with zero extra requests).
+  //   2. Fallback: call GET /api/comptes (JWT-scoped server-side) and match
+  //      the row for the current id_compte, exactly like the rest of the app
+  //      does.
+  const getStoredUser = (): any | null => {
+    try {
+      const raw =
+        localStorage.getItem('user') ||
+        sessionStorage.getItem('user') ||
+        localStorage.getItem('currentUser') ||
+        sessionStorage.getItem('currentUser');
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) {
+      console.error('Failed to read stored user:', err);
+      return null;
+    }
+  };
+
+  const [initialUser, setInitialUser] = useState<{ id_entite: number | null }>({ id_entite: null });
+  const [userResolved, setUserResolved] = useState(false);
+
+  useEffect(() => {
+    const resolveCurrentEntite = async () => {
+      const storedUser = getStoredUser();
+      const storedIdEntite = storedUser?.id_entite;
+
+      // 1. Already present on the stored user object — use it directly.
+      if (storedIdEntite !== undefined && storedIdEntite !== null && storedIdEntite !== '') {
+        setInitialUser({ id_entite: Number(storedIdEntite) });
+        setUserResolved(true);
+        return;
+      }
+
+      // 2. Fall back to resolving it via /api/comptes, same as the rest of the app.
+      const idCompte = storedUser?.id_compte ?? storedUser?.idCompte ?? storedUser?.id ?? null;
+      if (!idCompte) {
+        console.error('Entite.tsx: could not determine current id_compte from stored user — treating as non-privileged.');
+        setUserResolved(true);
+        return;
+      }
+
+      try {
+        const res = await api.get('/api/comptes', { withCredentials: true });
+        const match = (res.data || []).find((c: any) => Number(c.id_compte) === Number(idCompte));
+        setInitialUser({ id_entite: match?.id_entite != null ? Number(match.id_entite) : null });
+      } catch (err) {
+        console.error('Entite.tsx: failed to resolve current user entite via /api/comptes:', err);
+      } finally {
+        setUserResolved(true);
+      }
+    };
+    resolveCurrentEntite();
+  }, []);
+
+  // Fail CLOSED while resolving, or if resolution never found an id_entite:
+  // scoped to nothing rather than accidentally showing everything.
+  const isPrivilegedEntite = initialUser?.id_entite === 111 || initialUser?.id_entite === 999;
+  const initialShowAll = isPrivilegedEntite;
 
   const debouncedAddNotification = (msg: string, type: 'success' | 'error') => console.log(msg, type);
   const addNotification = (msg: string, type: 'success' | 'error') => console.log(msg, type);
@@ -218,7 +321,7 @@ const fetchPaysList = async () => {
     try {
       const response = await api.get(`/api/companies`, {
         withCredentials: true,
-        params: { region: searchRegion, segment: searchSegment, delegation: searchDelegation, type: searchType },
+        params: { region: searchRegion, delegation: searchDelegation, type: searchType },
       });
       setCompanies(response.data || []);
     } catch (err) {
@@ -240,29 +343,24 @@ const fetchPaysList = async () => {
   const fetchDelegations = async (region: string) => {
     if (!region) { setDelegations([]); return; }
     try {
-      const res = await fetch(`/api/delegation?region=${encodeURIComponent(region)}`);
-      const data = await res.json();
-      setDelegations(data);
+      const res = await api.get(`/api/delegation`, { params: { region }, withCredentials: true });
+      setDelegations(res.data || []);
       setSearchDelegation('');
     } catch (err) { console.error('Error fetching delegations:', err); }
   };
 
   const fetchModalRegions = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/regions`);
-      if (!res.ok) throw new Error('Failed regions');
-      const data = await res.json();
-      setModalRegions(data);
+      const res = await api.get(`/api/regions`, { withCredentials: true });
+      setModalRegions(res.data || []);
     } catch (err) { console.error('fetchModalRegions error:', err); }
   };
 
   const fetchModalDelegations = async (region: string) => {
     if (!region) { setModalDelegations([]); setModalLocalites([]); return; }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/delegation?region=${encodeURIComponent(region)}`);
-      if (!res.ok) throw new Error('Failed delegations');
-      const data = await res.json();
-      setModalDelegations(data);
+      const res = await api.get(`/api/delegation`, { params: { region }, withCredentials: true });
+      setModalDelegations(res.data || []);
       setModalLocalites([]);
     } catch (err) { console.error('fetchModalDelegations error:', err); }
   };
@@ -270,10 +368,8 @@ const fetchPaysList = async () => {
   const fetchModalLocalites = async (delegation: string) => {
     if (!delegation) { setModalLocalites([]); return; }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/localite?delegation=${encodeURIComponent(delegation)}`);
-      if (!res.ok) throw new Error('Failed localites');
-      const data = await res.json();
-      setModalLocalites(data);
+      const res = await api.get(`/api/localite`, { params: { delegation }, withCredentials: true });
+      setModalLocalites(res.data || []);
     } catch (err) { console.error('fetchModalLocalites error:', err); }
   };
 
@@ -289,14 +385,29 @@ const fetchPaysList = async () => {
     }
   };
 
-const baseCompanies = initialShowAll
+  // Users belonging to entite 111 or 999 see every entite (except the two admin placeholders).
+  // Everyone else only ever sees their own entite.
+  const baseCompanies = initialShowAll
     ? companies.filter(c => ![111, 999].includes(c.id_entite) && c.etat !== 'archivé')
-    : companies.filter(c => c.id_entite === initialUser?.id_entite && ![111, 999].includes(c.id_entite) && c.etat !== 'archivé');
-  const filteredCompanies = baseCompanies.filter(company =>
-    company.raison_socialle.toLowerCase().includes(searchText.toLowerCase()) ||
-    (company.personne_contact || '').toLowerCase().includes(searchText.toLowerCase()) ||
-    (company.email || '').toLowerCase().includes(searchText.toLowerCase())
-  );
+    : companies.filter(c => c.id_entite === initialUser?.id_entite && c.etat !== 'archivé');
+  const filteredCompanies = baseCompanies.filter(company => {
+    const matchesText =
+      company.raison_socialle.toLowerCase().includes(searchText.toLowerCase()) ||
+      (company.personne_contact || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (company.email || '').toLowerCase().includes(searchText.toLowerCase());
+
+    // Multi-select: a company matches if it has AT LEAST ONE of the checked segments.
+    const matchesSegment =
+      searchSegments.length === 0 ||
+      (company.segments || []).some(code => searchSegments.includes(code));
+
+    // Multi-select: a company matches if it exports to AT LEAST ONE of the checked destinations.
+    const matchesDestination =
+      searchDestinations.length === 0 ||
+      searchDestinations.some(key => Number(company[key]) === 1);
+
+    return matchesText && matchesSegment && matchesDestination;
+  }).sort((a, b) => (Number(b.sci) === 1 ? 1 : 0) - (Number(a.sci) === 1 ? 1 : 0)); // SCI entities always float to the top, stable otherwise
 
   const paginatedCompanies = filteredCompanies.slice(
     (currentPage - 1) * itemsPerPage,
@@ -314,23 +425,44 @@ const baseCompanies = initialShowAll
     }
   };
 
-  const handleRegionSelect = (region: string) => {
+  // Clicking a region in the combined Région/Délégation dropdown selects that
+  // region and expands its délégations inline underneath, in the same list.
+  // Clicking it again while already expanded just collapses the sub-list.
+  const handleRegionPick = (region: string) => {
+    const willExpand = regionDelExpanded !== region;
     setSearchRegion(region);
     setSearchDelegation('');
-    fetchDelegations(region);
+    setCurrentPage(1);
+    if (willExpand) {
+      setRegionDelExpanded(region);
+      fetchDelegations(region);
+    } else {
+      setRegionDelExpanded('');
+    }
+  };
+
+  const handleDelegationPick = (delegation: string) => {
+    setSearchDelegation(delegation);
     setIsRegionOpen(false);
     setCurrentPage(1);
   };
 
-  const handleSegmentSelect = (segment: string) => {
-    setSearchSegment(segment);
-    setIsSegmentOpen(false);
+  const clearRegionDelegation = () => {
+    setSearchRegion('');
+    setSearchDelegation('');
+    setRegionDelExpanded('');
+    setIsRegionOpen(false);
     setCurrentPage(1);
   };
 
-  const handleDelegationSelect = (delegation: string) => {
-    setSearchDelegation(delegation);
-    setIsDelegationOpen(false);
+  // Segment & Destination are multi-select: toggle membership, dropdown stays open.
+  const toggleSegmentValue = (code: string) => {
+    setSearchSegments(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+    setCurrentPage(1);
+  };
+
+  const toggleDestinationValue = (key: DestinationKey) => {
+    setSearchDestinations(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
     setCurrentPage(1);
   };
 
@@ -424,6 +556,74 @@ const baseCompanies = initialShowAll
     setIsImportModalOpen(true);
     setIsMainActionOpen(false);
     if (modalRegions.length === 0) fetchModalRegions();
+  };
+
+  // ── Mass selection helpers ──
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const isAllPageSelected = paginatedCompanies.length > 0 && paginatedCompanies.every(c => selectedIds.has(c.id_entite));
+  const isSomePageSelected = paginatedCompanies.some(c => selectedIds.has(c.id_entite));
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (isAllPageSelected) {
+        paginatedCompanies.forEach(c => next.delete(c.id_entite));
+      } else {
+        paginatedCompanies.forEach(c => next.add(c.id_entite));
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredCompanies.map(c => c.id_entite)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleExportContacts = () => {
+    const selectedCompanies = companies.filter(c => selectedIds.has(c.id_entite));
+    if (selectedCompanies.length === 0) {
+      debouncedAddNotification('Aucune entité sélectionnée', 'error');
+      return;
+    }
+    const exportData = selectedCompanies.map((company) => ({
+      'Raison sociale': company.raison_socialle,
+      'Identifiant national': company.identifiant_national || '',
+      'Personne contact': company.personne_contact || '',
+      'Email': company.email || '',
+      'Téléphone mobile': company.tel_mobile || '',
+      'Téléphone fixe': company.telephone || '',
+      'Fax': company.fax || '',
+      'Adresse': company.adresse || '',
+      'Région': company.region || '',
+      'Délégation': company.delegation || '',
+      'Ville': company.city || '',
+      'Localité': company.localite || '',
+      'Code postal': company.postalCode || '',
+      'Pays': paysList.find(p => p.isoNumeric === company.pays)?.libelle || company.pays || '',
+      'Site': company.site || '',
+      'Service': company.service || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws['!cols'] = [
+      { wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 26 }, { wch: 16 },
+      { wch: 16 }, { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 16 },
+      { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 18 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
+    XLSX.writeFile(wb, `contacts_selection_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    debouncedAddNotification(`${selectedCompanies.length} contact(s) exporté(s)`, 'success');
   };
 
   const handleExport = () => {
@@ -899,9 +1099,7 @@ const baseCompanies = initialShowAll
     }
   };
 
-  const handleSort = (key: keyof Company) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig?.key === key && sortConfig.direction === 'ascending') direction = 'descending';
+  const applySort = (key: keyof Company, direction: 'ascending' | 'descending') => {
     setSortConfig({ key, direction });
     setCurrentPage(1);
     const sorted = [...companies].sort((a, b) => {
@@ -916,6 +1114,34 @@ const baseCompanies = initialShowAll
     });
     setCompanies(sorted);
   };
+
+  const handleSort = (key: keyof Company) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig?.key === key && sortConfig.direction === 'ascending') direction = 'descending';
+    applySort(key, direction);
+  };
+
+  // Small segmented ↑ / ↓ control shown on each sortable column header.
+  const SortToggle = ({ column }: { column: keyof Company }) => (
+    <span className="ent-sort-toggle" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        className={sortConfig?.key === column && sortConfig.direction === 'ascending' ? 'active' : ''}
+        onClick={() => applySort(column, 'ascending')}
+        title="Ordre croissant"
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        className={sortConfig?.key === column && sortConfig.direction === 'descending' ? 'active' : ''}
+        onClick={() => applySort(column, 'descending')}
+        title="Ordre décroissant"
+      >
+        ↓
+      </button>
+    </span>
+  );
 
   const toggleActionDropdown = (id: number, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -948,7 +1174,7 @@ const baseCompanies = initialShowAll
 
   const shouldShowDescriptions = (company: Company) => [2, 6].includes(company.type_prod);
 
-  const totalColumns = 9 + (canWrite ? 1 : 0);
+  const totalColumns = 12 + (canWrite ? 1 : 0); // +1 vs before: new "Segments" column, +1 again: new "SCI" column, +1 again: selection checkbox column
 
   const openSiteModal = (site?: Site) => {
     if (!selectedCompany) return;
@@ -1045,7 +1271,20 @@ const baseCompanies = initialShowAll
     fetchCompanies();
     fetchSegments();
     fetchPaysList();
-  }, [searchRegion, searchSegment, searchDelegation, searchType]);
+  }, [searchRegion, searchDelegation, searchType]);
+
+  useEffect(() => {
+    const handleClickOutsideFilters = (e: MouseEvent) => {
+      if (filtersBarRef.current && !filtersBarRef.current.contains(e.target as Node)) {
+        setIsTypeOpen(false);
+        setIsRegionOpen(false);
+        setIsSegmentOpen(false);
+        setIsDestinationOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideFilters);
+    return () => document.removeEventListener('mousedown', handleClickOutsideFilters);
+  }, []);
 
   useEffect(() => {
     if (isActionOpen === null) return;
@@ -1094,6 +1333,7 @@ const baseCompanies = initialShowAll
 
 
   --header-border: #cbd5e1;
+  --header-bg: #eef2f9;
 
   --expand-bg: #f8fafc;
 
@@ -1141,9 +1381,18 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 }
 
 .ent-filters {
-  display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;
-  padding: 16px 32px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;
+  justify-content: space-between;
+  padding: 18px 32px; border-bottom: 1px solid var(--border);
   background: var(--surface3);
+}
+.ent-filters-left {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+  flex: 1 1 auto; min-width: 0;
+}
+.ent-filters-right {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+  flex-shrink: 0;
 }
 
 .ent-filter-group { display: flex; flex-direction: column; gap: 4px; }
@@ -1153,24 +1402,25 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 }
 
 .ent-filter-btn {
-  height: 36px; min-width: 160px; padding: 0 12px;
-  background: var(--surface2); border: 1px solid var(--border);
+  height: 38px; min-width: 160px; padding: 0 12px;
+  background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; color: var(--text2); font-size: 13px;
   font-family: 'DM Sans', sans-serif;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  cursor: pointer; transition: border-color 0.15s, color 0.15s; white-space: nowrap;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s, box-shadow 0.15s; white-space: nowrap;
 }
 .ent-filter-btn:hover, .ent-filter-btn.active { border-color: var(--accent); color: var(--accent); }
+.ent-filter-btn.active { box-shadow: 0 0 0 3px rgba(23,37,84,0.08); }
 
 .ent-filter-input {
-  height: 36px; padding: 0 12px;
-  background: var(--surface2); border: 1px solid var(--border);
+  height: 38px; padding: 0 12px 0 36px;
+  background: #eff6ff; border: 1.5px solid var(--accent);
   border-radius: 8px; color: var(--text); font-size: 13px;
   font-family: 'DM Sans', sans-serif; outline: none; min-width: 200px;
-  transition: border-color 0.15s;
+  transition: box-shadow 0.15s, border-color 0.15s;
 }
-.ent-filter-input::placeholder { color: var(--muted); }
-.ent-filter-input:focus { border-color: var(--accent); }
+.ent-filter-input::placeholder { color: #64748b; }
+.ent-filter-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(23,37,84,0.15); }
 
 .ent-filter-dropdown {
   position: fixed; z-index: 9999;
@@ -1185,6 +1435,54 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 }
 .ent-filter-dropdown-item:last-child { border-bottom: none; }
 .ent-filter-dropdown-item:hover { background: var(--surface2); color: var(--accent); }
+
+/* chevron on filter buttons — smooth rotate instead of flipping glyphs */
+.ent-chevron {
+  width: 13px; height: 13px; color: var(--muted); flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1), color 0.15s;
+}
+.ent-chevron.open { transform: rotate(180deg); }
+.ent-filter-btn.active .ent-chevron, .ent-filter-btn:hover .ent-chevron { color: var(--accent); }
+
+/* dropdown entrance animation */
+@keyframes entDropIn {
+  from { opacity: 0; transform: translateY(-6px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ent-filter-dropdown { animation: entDropIn .16s cubic-bezier(.16,1,.3,1); transform-origin: top center; }
+
+/* nested delegation accordion — slides open smoothly */
+@keyframes entSlideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ent-sub-accordion { animation: entSlideDown .18s ease-out; }
+
+/* segment picker — two per row, indented checkboxes */
+.ent-segment-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; padding: 6px;
+}
+.ent-segment-grid label.ent-filter-dropdown-item {
+  border-bottom: none; border-radius: 7px; padding: 8px 10px 8px 8px;
+  margin: 0;
+}
+.ent-segment-grid label.ent-filter-dropdown-item span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* asc / desc segmented toggle on sortable table headers */
+.ent-sort-toggle {
+  display: inline-flex; margin-left: 7px; border-radius: 5px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.32); vertical-align: middle;
+}
+.ent-sort-toggle button {
+  border: none; background: transparent; padding: 3px 6px; font-size: 9px;
+  line-height: 1; cursor: pointer; color: rgba(255,255,255,0.5);
+  transition: background 0.15s, color 0.15s; display: flex; align-items: center;
+}
+.ent-sort-toggle button + button { border-left: 1px solid rgba(255,255,255,0.32); }
+.ent-sort-toggle button.active { background: rgba(255,255,255,0.24); color: #fff; }
+.ent-sort-toggle button:hover { color: #fff; }
 
 .ent-action-btn {
   height: 36px; padding: 0 16px;
@@ -1214,12 +1512,15 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 }
 
 .ent-table thead tr th {
-  padding: 8px 12px; text-align: left;
-  font-size: 10px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--muted); white-space: nowrap; user-select: none;
+  padding: 10px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; white-space: nowrap; user-select: none;
   cursor: pointer;
+  background: var(--accent); color: var(--accent-text);
 }
-.ent-table thead tr th:hover { color: var(--accent); }
+.ent-table thead tr th:first-child { border-radius: 8px 0 0 8px; }
+.ent-table thead tr th:last-child { border-radius: 0 8px 8px 0; }
+.ent-table thead tr th:hover { color: var(--accent-text); background: #22346b; }
 
 .ent-table tbody tr {
   background: var(--surface); cursor: pointer; transition: background 0.12s;
@@ -1268,6 +1569,56 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 .ent-pill.status-i {
   background: rgba(122,128,144,0.12); color: var(--muted); border-color: rgba(122,128,144,0.3);
 }
+
+/* SCI column value — plain Oui / Non, no badge */
+.ent-sci-value {
+  font-size: 12px; font-weight: 600;
+}
+.ent-sci-value.oui { color: #d4a32a; }
+.ent-sci-value.non { color: var(--muted); font-weight: 500; }
+
+/* SCI group header — shown once above the contiguous block of SCI entities */
+.ent-sci-group-header td {
+  padding: 10px 12px 8px !important;
+  border-bottom: none !important;
+  background: transparent;
+}
+.ent-sci-group-label {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(212,163,42,0.10);
+  border: 1px solid rgba(212,163,42,0.3);
+  width: fit-content;
+}
+.ent-sci-group-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 9px; border-radius: 6px;
+  font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+  background: rgba(212,163,42,0.18); color: #d4a32a; border: 1px solid rgba(212,163,42,0.4);
+  white-space: nowrap;
+}
+.ent-sci-group-text {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.02em; color: #b8901f;
+}
+
+/* Rows belonging to the SCI group — subtle indent + accent so membership reads without repeating the label */
+tr.ent-row-sci {
+  border-left: 2px solid rgba(212,163,42,0.35);
+}
+tr.ent-row-sci td:first-child {
+  padding-left: 14px;
+}
+
+/* Destinations "view more" affordance */
+.ent-view-more {
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); font-size: 11px; font-weight: 600;
+  padding: 2px 4px; white-space: nowrap; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ent-view-more:hover { opacity: 0.8; }
 
 .ent-expand-content {
   background: var(--expand-bg); border: 1px solid var(--border);
@@ -1435,9 +1786,13 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
       </nav>
       
 
+      {/* ── CONTENT CARD (filters + table + pagination) ───────────────────────── */}
+      <div className="mx-4 md:mx-6 my-4 bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+
       {/* ── FILTER BAR ──────────────────────────────────────────────────────── */}
-      <div className="ent-filters">
-        {/* TYPE */}
+      <div className="ent-filters" ref={filtersBarRef}>
+        <div className="ent-filters-left">
+        {/* TYPE D'OPÉRATEUR */}
         <div className="ent-filter-group" ref={typeRef}>
           <span className="ent-filter-label">Type d'opérateur</span>
           <button
@@ -1448,13 +1803,13 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
               const next = !isTypeOpen;
               setIsTypeOpen(next);
               if (next) setFilterDropdownPos(getDropdownPos(e.currentTarget));
-              setIsRegionOpen(false); setIsSegmentOpen(false); setIsDelegationOpen(false);
+              setIsRegionOpen(false); setIsSegmentOpen(false); setIsDestinationOpen(false);
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
               {searchType ? typeOptions.find(t => t.value === searchType)?.label || searchType : 'Tous les types'}
             </span>
-            <span style={{ fontSize: 9, flexShrink: 0, color: 'var(--muted)' }}>{isTypeOpen ? '▲' : '▼'}</span>
+            <ChevronDownIcon className={`ent-chevron ${isTypeOpen ? 'open' : ''}`} />
           </button>
           {isTypeOpen && filterDropdownPos && (
             <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: Math.max(filterDropdownPos.width, 220) }}>
@@ -1466,103 +1821,221 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
           )}
         </div>
 
-        {/* REGION */}
-        <div className="ent-filter-group" ref={regionRef}>
-          <span className="ent-filter-label">Région</span>
+        {/* SEGMENT — multi-select */}
+        <div className="ent-filter-group" ref={segmentRef}>
+          <span className="ent-filter-label">Segment</span>
           <button
             type="button"
-            className={`ent-filter-btn ${searchRegion ? 'active' : ''}`}
+            className={`ent-filter-btn ${searchSegments.length ? 'active' : ''}`}
             onClick={(e) => {
-              if (modalRegions.length === 0) fetchModalRegions();
-              const next = !isRegionOpen;
-              setIsRegionOpen(next);
+              const next = !isSegmentOpen;
+              setIsSegmentOpen(next);
               if (next) setFilterDropdownPos(getDropdownPos(e.currentTarget));
-              setIsTypeOpen(false); setIsSegmentOpen(false); setIsDelegationOpen(false);
+              setIsTypeOpen(false); setIsRegionOpen(false); setIsDestinationOpen(false);
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-              {searchRegion || 'Toutes les régions'}
+              {searchSegments.length === 0
+                ? 'Tous les segments'
+                : searchSegments.length === 1
+                  ? (segments.find(s => s.code === searchSegments[0])?.libelle || searchSegments[0])
+                  : `${searchSegments.length} segments sélectionnés`}
             </span>
-            <span style={{ fontSize: 9, flexShrink: 0, color: 'var(--muted)' }}>{isRegionOpen ? '▲' : '▼'}</span>
+            <ChevronDownIcon className={`ent-chevron ${isSegmentOpen ? 'open' : ''}`} />
           </button>
-          {isRegionOpen && filterDropdownPos && (
-            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: filterDropdownPos.width }}>
-              <div className="ent-filter-dropdown-item" onClick={() => handleRegionSelect('')} style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Toutes les régions</div>
-              {modalRegions.map(r => (
-                <div key={r.region} className="ent-filter-dropdown-item" onClick={() => handleRegionSelect(r.region)}>{r.region}</div>
-              ))}
+          {isSegmentOpen && filterDropdownPos && (
+            <div
+              className="ent-filter-dropdown"
+              style={{
+                top: filterDropdownPos.top,
+                left: Math.min(filterDropdownPos.left, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 420),
+                width: 400,
+              }}
+            >
+              <div className="ent-segment-grid">
+                {segments.map(s => (
+                  <label key={s.code} className="ent-filter-dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={searchSegments.includes(s.code)}
+                      onChange={() => toggleSegmentValue(s.code)}
+                      style={{ accentColor: 'var(--accent)', width: 14, height: 14, flexShrink: 0 }}
+                    />
+                    <span>{s.libelle}</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px', borderTop: '1px solid var(--border)' }}>
+                <span
+                  onClick={() => { setSearchSegments([]); setCurrentPage(1); }}
+                  style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}
+                >
+                  Réinitialiser
+                </span>
+                <span
+                  onClick={() => setIsSegmentOpen(false)}
+                  style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Fermer
+                </span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* DELEGATION */}
-        <div className="ent-filter-group" ref={delegationRef}>
-          <span className="ent-filter-label">Délégation</span>
+        {/* DESTINATION — multi-select, the 7 export countries added from the importateurs/exportateurs list */}
+        <div className="ent-filter-group" ref={destinationRef}>
+          <span className="ent-filter-label">Destination</span>
           <button
             type="button"
-            className={`ent-filter-btn ${searchDelegation ? 'active' : ''}`}
+            className={`ent-filter-btn ${searchDestinations.length ? 'active' : ''}`}
             onClick={(e) => {
-              if (searchRegion && modalDelegations.length === 0) fetchModalDelegations(searchRegion);
-              const next = !isDelegationOpen;
-              setIsDelegationOpen(next);
+              const next = !isDestinationOpen;
+              setIsDestinationOpen(next);
               if (next) setFilterDropdownPos(getDropdownPos(e.currentTarget));
               setIsTypeOpen(false); setIsRegionOpen(false); setIsSegmentOpen(false);
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-              {searchDelegation || 'Toutes les délégations'}
+              {searchDestinations.length === 0
+                ? 'Toutes les destinations'
+                : searchDestinations.length === 1
+                  ? DESTINATION_OPTIONS.find(d => d.key === searchDestinations[0])?.label
+                  : `${searchDestinations.length} destinations sélectionnées`}
             </span>
-            <span style={{ fontSize: 9, flexShrink: 0, color: 'var(--muted)' }}>{isDelegationOpen ? '▲' : '▼'}</span>
+            <ChevronDownIcon className={`ent-chevron ${isDestinationOpen ? 'open' : ''}`} />
           </button>
-          {isDelegationOpen && filterDropdownPos && (
-            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: filterDropdownPos.width }}>
-              <div className="ent-filter-dropdown-item" onClick={() => handleDelegationSelect('')} style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Toutes les délégations</div>
-              {modalDelegations.map(d => (
-                <div key={d.delegation} className="ent-filter-dropdown-item" onClick={() => handleDelegationSelect(d.delegation)}>{d.delegation}</div>
+          {isDestinationOpen && filterDropdownPos && (
+            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: Math.max(filterDropdownPos.width, 220) }}>
+              {DESTINATION_OPTIONS.map(d => (
+                <label key={d.key} className="ent-filter-dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={searchDestinations.includes(d.key)}
+                    onChange={() => toggleDestinationValue(d.key)}
+                    style={{ accentColor: 'var(--accent)', width: 14, height: 14, flexShrink: 0 }}
+                  />
+                  <span>{d.label}</span>
+                </label>
               ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px', borderTop: '1px solid var(--border)' }}>
+                <span
+                  onClick={() => { setSearchDestinations([]); setCurrentPage(1); }}
+                  style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}
+                >
+                  Réinitialiser
+                </span>
+                <span
+                  onClick={() => setIsDestinationOpen(false)}
+                  style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Fermer
+                </span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* SEGMENT */}
-        <div className="ent-filter-group" ref={segmentRef}>
-          <span className="ent-filter-label">Segment</span>
+        {/* RÉGION / DÉLÉGATION — combined: pick a région, its délégations expand right underneath */}
+        <div className="ent-filter-group" ref={regionRef}>
+          <span className="ent-filter-label">Région / Délégation</span>
           <button
             type="button"
-            className={`ent-filter-btn ${searchSegment ? 'active' : ''}`}
+            className={`ent-filter-btn ${searchRegion ? 'active' : ''}`}
+            style={{ minWidth: 220 }}
             onClick={(e) => {
-              const next = !isSegmentOpen;
-              setIsSegmentOpen(next);
-              if (next) setFilterDropdownPos(getDropdownPos(e.currentTarget));
-              setIsTypeOpen(false); setIsRegionOpen(false); setIsDelegationOpen(false);
+              if (modalRegions.length === 0) fetchModalRegions();
+              const next = !isRegionOpen;
+              setIsRegionOpen(next);
+              if (next) {
+                setFilterDropdownPos(getDropdownPos(e.currentTarget));
+                setRegionDelExpanded(searchRegion || '');
+                if (searchRegion) fetchDelegations(searchRegion);
+              }
+              setIsTypeOpen(false); setIsSegmentOpen(false); setIsDestinationOpen(false);
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-              {searchSegment ? segments.find(s => s.code === searchSegment)?.libelle || searchSegment : 'Tous les segments'}
+              {searchRegion ? (searchDelegation ? `${searchRegion} › ${searchDelegation}` : searchRegion) : 'Toutes les régions'}
             </span>
-            <span style={{ fontSize: 9, flexShrink: 0, color: 'var(--muted)' }}>{isSegmentOpen ? '▲' : '▼'}</span>
+            <ChevronDownIcon className={`ent-chevron ${isRegionOpen ? 'open' : ''}`} />
           </button>
-          {isSegmentOpen && filterDropdownPos && (
-            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: filterDropdownPos.width }}>
-              <div className="ent-filter-dropdown-item" onClick={() => handleSegmentSelect('')} style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Tous les segments</div>
-              {segments.map(s => (
-                <div key={s.code} className="ent-filter-dropdown-item" onClick={() => handleSegmentSelect(s.code)}>{s.libelle}</div>
+          {isRegionOpen && filterDropdownPos && (
+            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: Math.max(filterDropdownPos.width, 260) }}>
+              <div
+                className="ent-filter-dropdown-item"
+                onClick={clearRegionDelegation}
+                style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em' }}
+              >
+                Toutes les régions
+              </div>
+              {modalRegions.map(r => (
+                <div key={r.region}>
+                  <div
+                    className="ent-filter-dropdown-item"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      fontWeight: searchRegion === r.region ? 600 : 400,
+                      color: searchRegion === r.region ? 'var(--accent)' : 'var(--text2)',
+                    }}
+                    onClick={() => handleRegionPick(r.region)}
+                  >
+                    <span>{r.region}</span>
+                    <ChevronDownIcon
+                      className={`ent-chevron ${regionDelExpanded === r.region ? 'open' : ''}`}
+                      style={{ width: 12, height: 12, transform: regionDelExpanded === r.region ? 'rotate(180deg)' : 'rotate(-90deg)' }}
+                    />
+                  </div>
+                  {regionDelExpanded === r.region && (
+                    <div className="ent-sub-accordion" style={{ background: 'var(--surface2)' }}>
+                      <div
+                        className="ent-filter-dropdown-item"
+                        style={{ paddingLeft: 30, fontSize: 12, color: 'var(--muted)' }}
+                        onClick={() => handleDelegationPick('')}
+                      >
+                        Toutes les délégations
+                      </div>
+                      {delegations.length === 0 ? (
+                        <div style={{ padding: '9px 14px 9px 30px', fontSize: 12, color: 'var(--muted)' }}>Aucune délégation</div>
+                      ) : (
+                        delegations.map(d => (
+                          <div
+                            key={d.delegation}
+                            className="ent-filter-dropdown-item"
+                            style={{
+                              paddingLeft: 30, fontSize: 12,
+                              fontWeight: searchDelegation === d.delegation ? 600 : 400,
+                              color: searchDelegation === d.delegation ? 'var(--accent)' : 'var(--text2)',
+                            }}
+                            onClick={() => handleDelegationPick(d.delegation)}
+                          >
+                            {d.delegation}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* SEARCH */}
-        <div className="ent-filter-group" style={{ flex: 1, minWidth: 200 }}>
+        </div>
+        {/* ── right-hand cluster: search sits right beside the actions button ── */}
+        <div className="ent-filters-right">
+        <div className="ent-filter-group" style={{ width: 260 }}>
           <span className="ent-filter-label">Rechercher</span>
-          <input
-            type="text"
-            placeholder="Raison sociale, contact, email…"
-            value={searchText}
-            onChange={e => { setSearchText(e.target.value); setCurrentPage(1); }}
-            className="ent-filter-input"
-            style={{ width: '100%' }}
-          />
+          <div style={{ position: 'relative' }}>
+            <MagnifyingGlassIcon style={{ width: 15, height: 15, color: 'var(--accent)', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Raison sociale, contact, email…"
+              value={searchText}
+              onChange={e => { setSearchText(e.target.value); setCurrentPage(1); }}
+              className="ent-filter-input"
+              style={{ width: '100%' }}
+            />
+          </div>
         </div>
 
         {/* ACTIONS */}
@@ -1570,7 +2043,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
           <div className="ent-filter-group" style={{ position: 'relative' }} ref={mainActionRef}>
             <span className="ent-filter-label" style={{ opacity: 0 }}>.</span>
             <button type="button" className="ent-action-btn" onClick={() => setIsMainActionOpen(prev => !prev)}>
-              Actions <span style={{ fontSize: 9 }}>{isMainActionOpen ? '▲' : '▼'}</span>
+              Actions <ChevronDownIcon className={`ent-chevron ${isMainActionOpen ? 'open' : ''}`} style={{ color: 'rgba(255,255,255,0.85)' }} />
             </button>
             {isMainActionOpen && (
               <div className="ent-main-action-dropdown">
@@ -1581,11 +2054,46 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* ── RESULTS BAR ─────────────────────────────────────────────────────── */}
       <div className="ent-results-bar">
-        <div><strong>{filteredCompanies.length.toLocaleString('fr')}</strong>‎  résultats</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div><strong>{filteredCompanies.length.toLocaleString('fr')}</strong>‎  résultats</div>
+
+          {selectedIds.size > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px' }}>
+              <span style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
+                {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+              </span>
+              <button
+                type="button"
+                onClick={handleExportContacts}
+                className="ent-btn-primary"
+                style={{ padding: '4px 10px', fontSize: 12 }}
+              >
+                ↓ Exporter contacts
+              </button>
+              {selectedIds.size < filteredCompanies.length && (
+                <button
+                  type="button"
+                  onClick={selectAllFiltered}
+                  style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                >
+                  Tout sélectionner ({filteredCompanies.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={clearSelection}
+                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}
+              >
+                Désélectionner
+              </button>
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Afficher</span>
           <select
@@ -1606,31 +2114,86 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
         <table className="ent-table">
           <thead>
             <tr>
+              <th style={{ width: 36, textAlign: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={isAllPageSelected}
+                  ref={el => { if (el) el.indeterminate = !isAllPageSelected && isSomePageSelected; }}
+                  onChange={toggleSelectAllOnPage}
+                  style={{ accentColor: 'var(--accent)', width: 15, height: 15, cursor: 'pointer' }}
+                  title="Sélectionner tout sur cette page"
+                />
+              </th>
               <th style={{ width: 52 }}>Logo</th>
-              <th onClick={() => handleSort('raison_socialle')}>Raison sociale {sortConfig?.key === 'raison_socialle' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('type_prod')}>Type {sortConfig?.key === 'type_prod' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('personne_contact')}>Contact {sortConfig?.key === 'personne_contact' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('email')}>Email {sortConfig?.key === 'email' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('tel_mobile')}>Mobile {sortConfig?.key === 'tel_mobile' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('region')}>Région {sortConfig?.key === 'region' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('city')}>Ville {sortConfig?.key === 'city' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}</th>
+              <th style={{ width: 160 }}>Segments</th>
+              <th onClick={() => handleSort('raison_socialle')}>Raison sociale<SortToggle column="raison_socialle" /></th>
+              <th onClick={() => handleSort('sci')} style={{ width: 84, textAlign: 'center' }}>SCI<SortToggle column="sci" /></th>
+              <th style={{ width: 180 }}>Destinations</th>
+              <th onClick={() => handleSort('personne_contact')}>Contact<SortToggle column="personne_contact" /></th>
+              <th onClick={() => handleSort('email')}>Email<SortToggle column="email" /></th>
+              <th onClick={() => handleSort('tel_mobile')}>Mobile<SortToggle column="tel_mobile" /></th>
+              <th onClick={() => handleSort('region')}>Région<SortToggle column="region" /></th>
+              <th onClick={() => handleSort('city')}>Ville<SortToggle column="city" /></th>
               <th style={{ width: 40 }}></th>
               {canWrite && <th style={{ width: 120, textAlign: 'center' }}>Statut / Actions</th>}
             </tr>
           </thead>
 
           <tbody>
-            {paginatedCompanies.length === 0 ? (
+            {!userResolved ? (
+              <tr>
+                <td colSpan={totalColumns} style={{ textAlign: 'center', padding: 60, color: 'var(--muted)', fontSize: 15 }}>
+                  Chargement…
+                </td>
+              </tr>
+            ) : paginatedCompanies.length === 0 ? (
               <tr>
                 <td colSpan={totalColumns} style={{ textAlign: 'center', padding: 60, color: 'var(--muted)', fontSize: 15 }}>
                   Aucune entité ne correspond à ces critères
                 </td>
               </tr>
-            ) : paginatedCompanies.map(company => (
+            ) : paginatedCompanies.map((company, index) => {
+              const isSci = Number(company.sci) === 1;
+              const prevIsSci = index > 0 && Number(paginatedCompanies[index - 1].sci) === 1;
+              const isSciGroupStart = isSci && !prevIsSci;
+              let sciGroupCount = 0;
+              if (isSciGroupStart) {
+                for (let i = index; i < paginatedCompanies.length && Number(paginatedCompanies[i].sci) === 1; i++) sciGroupCount++;
+              }
+
+              return (
               <React.Fragment key={company.id_entite}>
-                <tr className={expandedRow === company.id_entite ? 'expanded' : ''}>
+                {isSciGroupStart && (
+                  <tr className="ent-sci-group-header">
+                    <td colSpan={totalColumns}>
+                      <div className="ent-sci-group-label">
+                        <span className="ent-sci-group-badge">SCI</span>
+                        <span className="ent-sci-group-text">
+                          Groupement SCI — {sciGroupCount} entité{sciGroupCount > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                <tr
+                  className={[
+                    expandedRow === company.id_entite ? 'expanded' : '',
+                    isSci ? 'ent-row-sci' : '',
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => toggleRow(company.id_entite)}
+                >
+                  {/* Selection checkbox */}
+                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(company.id_entite)}
+                      onChange={() => toggleSelectOne(company.id_entite)}
+                      style={{ accentColor: 'var(--accent)', width: 15, height: 15, cursor: 'pointer' }}
+                    />
+                  </td>
+
                   {/* Logo */}
-                  <td style={{ textAlign: 'center' }}>
+                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                     {company.logo ? (
                       <img
                         src={getLogoUrl(company.logo)}
@@ -1647,8 +2210,30 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                     )}
                   </td>
 
-                  {/* Raison sociale */}
+                  {/* Segments — shown right before Raison sociale so the entity's activity segments are visible at a glance */}
                   <td>
+                    {company.segments?.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 150 }}>
+                        {company.segments.slice(0, 2).map(code => {
+                          const label = segments.find(s => s.code === code)?.libelle;
+                          return label ? <span key={code} className="ent-pill seg" style={{ maxWidth: 90 }} title={label}>{label}</span> : null;
+                        })}
+                        {company.segments.length > 2 && (
+                          <span
+                            className="ent-pill"
+                            title={company.segments.slice(2).map(code => segments.find(s => s.code === code)?.libelle || code).join(', ')}
+                          >
+                            +{company.segments.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
+                    )}
+                  </td>
+
+                  {/* Raison sociale */}
+                  <td onClick={e => editingField?.id === company.id_entite && e.stopPropagation()}>
                     {editingField?.id === company.id_entite && editingField.field === 'raison_socialle' ? (
                       <input
                         value={editingField.value}
@@ -1658,17 +2243,46 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                         autoFocus
                       />
                     ) : (
-                      <span className="ent-company-name">{company.raison_socialle}</span>
+                      <span className="ent-company-name">
+                        {company.raison_socialle}
+                      </span>
                     )}
                   </td>
 
-                  {/* Type */}
-                  <td style={{ color: 'var(--text2)', fontSize: 12 }}>
-                    {typeOptions.find(t => t.value === String(company.type_prod))?.label || '—'}
+                  {/* SCI — plain Oui / Non. The visual highlight + grouping now lives once, above the group. */}
+                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                    <span className={Number(company.sci) === 1 ? 'ent-sci-value oui' : 'ent-sci-value non'}>
+                      {Number(company.sci) === 1 ? 'Oui' : 'Non'}
+                    </span>
+                  </td>
+
+                  {/* Destinations (export) — swapped out of the collapsible so it's visible without expanding */}
+                  <td onClick={e => e.stopPropagation()}>
+                    {DESTINATION_OPTIONS.some(d => Number(company[d.key]) === 1) ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 170, alignItems: 'center' }}>
+                        {DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).slice(0, 2).map(d => (
+                          <span key={d.key} className="ent-pill" style={{ background: 'rgba(23,37,84,0.08)', color: 'var(--accent)', borderColor: 'rgba(23,37,84,0.22)', maxWidth: 90 }} title={d.label}>
+                            {d.label}
+                          </span>
+                        ))}
+                        {DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).length > 2 && (
+                          <button
+                            type="button"
+                            className="ent-view-more"
+                            onClick={(e) => { e.stopPropagation(); toggleRow(company.id_entite); }}
+                            title="Voir toutes les destinations"
+                          >
+                            +{DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).length - 2} · voir plus
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
+                    )}
                   </td>
 
                   {/* Contact */}
-                  <td style={{ color: 'var(--text2)', fontSize: 12 }}>
+                  <td style={{ color: 'var(--text2)', fontSize: 12 }} onClick={e => editingField?.id === company.id_entite && e.stopPropagation()}>
                     {editingField?.id === company.id_entite && editingField.field === 'personne_contact' ? (
                       <input
                         value={editingField.value}
@@ -1681,7 +2295,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                   </td>
 
                   {/* Email */}
-                  <td style={{ color: 'var(--text2)', fontSize: 12, wordBreak: 'break-all' }}>
+                  <td style={{ color: 'var(--text2)', fontSize: 12, wordBreak: 'break-all' }} onClick={e => e.stopPropagation()}>
                     {editingField?.id === company.id_entite && editingField.field === 'email' ? (
                       <input
                         type="email"
@@ -1700,7 +2314,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                   </td>
 
                   {/* Mobile */}
-                  <td style={{ color: 'var(--text2)', fontSize: 12 }}>
+                  <td style={{ color: 'var(--text2)', fontSize: 12 }} onClick={e => editingField?.id === company.id_entite && e.stopPropagation()}>
                     {editingField?.id === company.id_entite && editingField.field === 'tel_mobile' ? (
                       <input
                         type="tel"
@@ -1717,7 +2331,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                   </td>
 
                   {/* Région */}
-                  <td style={{ color: 'var(--text2)', fontSize: 12 }}>
+                  <td style={{ color: 'var(--text2)', fontSize: 12 }} onClick={e => editingField?.id === company.id_entite && e.stopPropagation()}>
                     {editingField?.id === company.id_entite && editingField.field === 'region' ? (
                       <input
                         value={editingField.value}
@@ -1730,7 +2344,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                   </td>
 
                   {/* Ville */}
-                  <td style={{ color: 'var(--text2)', fontSize: 12 }}>
+                  <td style={{ color: 'var(--text2)', fontSize: 12 }} onClick={e => editingField?.id === company.id_entite && e.stopPropagation()}>
                     {editingField?.id === company.id_entite && editingField.field === 'city' ? (
                       <input
                         value={editingField.value}
@@ -1743,7 +2357,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                   </td>
 
                   {/* Expand */}
-                  <td style={{ textAlign: 'center' }}>
+                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => toggleRow(company.id_entite)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 4, transition: 'color 0.15s' }}
@@ -1757,7 +2371,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 
                   {/* Statut + Actions */}
                   {canWrite && (
-                    <td style={{ textAlign: 'center', position: 'relative' }}>
+                    <td style={{ textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                         <span className={`ent-pill ${company.status_ent === 'A' ? 'status-a' : company.status_ent === 'E' ? 'status-e' : 'status-i'}`}>
                           {company.status_ent === 'A' ? 'Actif' : company.status_ent === 'E' ? 'En attente' : 'Inactif'}
@@ -1860,6 +2474,10 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                               <a href={company.site.startsWith('http') ? company.site : `https://${company.site}`} target="_blank" rel="noopener noreferrer">{company.site}</a>
                             ) : '—'}</p>
                           </div>
+                          <div className="ent-expand-section">
+                            <h4>Type</h4>
+                            <p>{typeOptions.find(t => t.value === String(company.type_prod))?.label || '—'}</p>
+                          </div>
                         </div>
 
                         {/* Segments */}
@@ -1873,6 +2491,25 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                                   const label = segments.find(s => s.code === code)?.libelle;
                                   return label ? <span key={code} className="ent-pill seg">{label}</span> : null;
                                 })}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Destinations — full list, untruncated, so the rest of the destinations can be read */}
+                        {DESTINATION_OPTIONS.some(d => Number(company[d.key]) === 1) && (
+                          <>
+                            <hr className="ent-expand-divider" />
+                            <div>
+                              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>
+                                Destinations ({DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).length})
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).map(d => (
+                                  <span key={d.key} className="ent-pill" style={{ background: 'rgba(23,37,84,0.08)', color: 'var(--accent)', borderColor: 'rgba(23,37,84,0.22)' }}>
+                                    {d.label}
+                                  </span>
+                                ))}
                               </div>
                             </div>
                           </>
@@ -1964,7 +2601,8 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
                   </tr>
                 )}
               </React.Fragment>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -1986,6 +2624,9 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
         <button className="ent-page-btn" onClick={() => setCurrentPage(Math.ceil(filteredCompanies.length / itemsPerPage))} disabled={currentPage >= Math.ceil(filteredCompanies.length / itemsPerPage)}>»</button>
         <span className="ent-page-info">Page {currentPage} / {Math.max(1, Math.ceil(filteredCompanies.length / itemsPerPage))}</span>
       </div>
+
+      </div>
+      {/* end content card */}
 
 
       {/* ─── BASIC CREATE MODAL ──────────────────────────────────────────────── */}

@@ -49,7 +49,7 @@
 <h2>1. Jalons du contrat — état de livraison</h2>
 <table>
   <tr><th>Échéance</th><th>%</th><th>Livrable</th><th>Statut</th><th>Preuve / détail</th></tr>
-  <tr class="done"><td>Janvier 2026</td><td>20%</td><td>Démarrage des travaux</td><td><span class="pill p-done">LIVRÉ</span></td><td>Architecture PAESN Registry (hub étoile), refonte app CodeonlineEDI, infra multi-pays</td></tr>
+  <tr class="done"><td>Janvier 2026</td><td>20%</td><td>Démarrage des travaux</td><td><span class="pill p-done">LIVRÉ</span></td><td>Architecture PAESN Registry (hub étoile), refonte app Codeonline EDI, infra multi-pays</td></tr>
   <tr class="done"><td>10 fév 2026</td><td>20%</td><td><b>ORDER</b> (ORDERS)</td><td><span class="pill p-done">LIVRÉ</span></td><td>Générateur + parser + routes ; <b>testé en prod cross-pays</b> (CIV↔TUN, reçu & traité)</td></tr>
   <tr class="done"><td>20 fév 2026</td><td>15%</td><td><b>INVOIC</b> (facture)</td><td><span class="pill p-done">LIVRÉ</span></td><td>Générateur + parser + routes (/api/edi/invoices/send) ; <b>testé en prod</b> (CIV→TUN PROCESSED)</td></tr>
   <tr class="part"><td>15 mars 2026</td><td>30%</td><td><b>Ordre de Transport + DSADV</b></td><td><span class="pill p-part">PARTIEL</span></td><td><b>DSADV = LIVRÉ</b> (générateur + parser + routes /api/edi/desadv/send + lines/packages ; testé prod TUN→SEN PROCESSED).<br><b>Ordre de Transport</b> : pas de message EANCOM IFTMIN dédié ; le transport est <b>embarqué dans l'ORDER</b> (champs mode_transport, moyen_transport, transporteur_gln + segments transport dans le générateur). → <b>à cadrer avec le client</b> (voir §3)</td></tr>

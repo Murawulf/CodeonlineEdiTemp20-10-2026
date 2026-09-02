@@ -245,7 +245,6 @@ export const Header = ({ setIsSidebarOpen, isSidebarOpen }: HeaderProps) => {
 
         {/* Right Side */}
         <div className="ml-auto md:ml-4 flex items-center gap-4">
-      
           <img
             src={getCurrentCountryInfo().flagUrl}
             alt={`${getCurrentCountryInfo().name} Flag`}

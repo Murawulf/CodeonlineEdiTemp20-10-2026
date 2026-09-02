@@ -31,11 +31,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ currentUser }) => {
 Conditions Générales d’Utilisation (CGU)
 Dernière mise à jour : ${today}
 
-Bienvenue sur CodeonlineEdi, une plateforme développée et exploitée par Netconsulting Europe LTD.
+Bienvenue sur Codeonline EDI, une plateforme développée et exploitée par Netconsulting Europe LTD.
 L’accès et l’utilisation de ce service impliquent l’acceptation pleine et entière des présentes CGU.
 
 1. Objet
-CodeonlineEdi permet aux utilisateurs professionnels de gérer, échanger et consulter des données produits, catalogues électroniques et informations EDI de manière sécurisée.
+Codeonline EDI permet aux utilisateurs professionnels de gérer, échanger et consulter des données produits, catalogues électroniques et informations EDI de manière sécurisée.
 
 2. Accès au service
 - L’accès est réservé aux comptes autorisés par Netconsulting Europe LTD.
@@ -47,11 +47,11 @@ CodeonlineEdi permet aux utilisateurs professionnels de gérer, échanger et con
 - Respecter les droits de propriété intellectuelle et la confidentialité des données échangées.
 
 4. Propriété intellectuelle
-- Tous les éléments de CodeonlineEdi (code, interface, logos, documentation, bases de données) sont protégés par les droits d’auteur et restent la propriété exclusive de Netconsulting Europe LTD.
+- Tous les éléments de Codeonline EDI (code, interface, logos, documentation, bases de données) sont protégés par les droits d’auteur et restent la propriété exclusive de Netconsulting Europe LTD.
 - Toute reproduction ou utilisation non autorisée est interdite.
 
 5. Confidentialité & sécurité
-- Les données traitées sur CodeonlineEdi sont strictement confidentielles.
+- Les données traitées sur Codeonline EDI sont strictement confidentielles.
 - Netconsulting Europe LTD met en œuvre les meilleures pratiques de sécurité pour protéger les informations, sans garantir une sécurité absolue face aux risques numériques.
 
 6. Limitation de responsabilité
@@ -71,11 +71,11 @@ En cliquant sur “Accepter”, vous confirmez avoir lu, compris et accepté l�
 Terms of Service (ToS)
 Last update: ${today}
 
-Welcome to CodeonlineEdi, a platform developed and operated by Netconsulting Europe LTD.
+Welcome to Codeonline EDI, a platform developed and operated by Netconsulting Europe LTD.
 By accessing and using this service, you agree to the following Terms of Service.
 
 1. Purpose
-CodeonlineEdi provides professional users with a secure environment to manage, exchange, and consult product data, electronic catalogues, and EDI information.
+Codeonline EDI provides professional users with a secure environment to manage, exchange, and consult product data, electronic catalogues, and EDI information.
 
 2. Service Access
 - Access is limited to accounts authorized by Netconsulting Europe LTD.
@@ -87,11 +87,11 @@ CodeonlineEdi provides professional users with a secure environment to manage, e
 - Respect intellectual property rights and the confidentiality of shared data.
 
 4. Intellectual Property
-- All elements of CodeonlineEdi (software, UI, logos, documentation, databases) are protected and remain the exclusive property of Netconsulting Europe LTD.
+- All elements of Codeonline EDI (software, UI, logos, documentation, databases) are protected and remain the exclusive property of Netconsulting Europe LTD.
 - Any unauthorized reproduction or use is prohibited.
 
 5. Confidentiality & Security
-- Data processed through CodeonlineEdi is strictly confidential.
+- Data processed through Codeonline EDI is strictly confidential.
 - Netconsulting Europe LTD implements security best practices but does not guarantee absolute protection against cyber risks.
 
 6. Limitation of Liability
@@ -111,11 +111,11 @@ By clicking “Accept”, you confirm you have read, understood, and agreed to t
 شروط الاستخدام
 آخر تحديث: ${today}
 
-مرحبًا بكم في CodeonlineEdi، وهي منصة تم تطويرها وتشغيلها بواسطة Netconsulting Europe LTD.
+مرحبًا بكم في Codeonline EDI، وهي منصة تم تطويرها وتشغيلها بواسطة Netconsulting Europe LTD.
 باستخدامكم لهذه الخدمة، فإنكم توافقون على شروط الاستخدام التالية:
 
 1. الغرض
-توفر منصة CodeonlineEdi بيئة آمنة للمستخدمين المهنيين لإدارة وتبادل واستشارة بيانات المنتجات والفهارس الإلكترونية ومعلومات EDI.
+توفر منصة Codeonline EDI بيئة آمنة للمستخدمين المهنيين لإدارة وتبادل واستشارة بيانات المنتجات والفهارس الإلكترونية ومعلومات EDI.
 
 2. الوصول إلى الخدمة
 - الوصول مخصص فقط للحسابات المصرح بها من قبل Netconsulting Europe LTD.
@@ -127,11 +127,11 @@ By clicking “Accept”, you confirm you have read, understood, and agreed to t
 - احترام حقوق الملكية الفكرية والحفاظ على سرية البيانات المتبادلة.
 
 4. الملكية الفكرية
-- جميع عناصر CodeonlineEdi (البرمجيات، واجهة المستخدم، الشعارات، الوثائق، قواعد البيانات) محمية وتبقى ملكًا حصريًا لشركة Netconsulting Europe LTD.
+- جميع عناصر Codeonline EDI (البرمجيات، واجهة المستخدم، الشعارات، الوثائق، قواعد البيانات) محمية وتبقى ملكًا حصريًا لشركة Netconsulting Europe LTD.
 - يحظر أي نسخ أو استخدام غير مصرح به.
 
 5. السرية والأمان
-- جميع البيانات المعالجة عبر CodeonlineEdi سرية تمامًا.
+- جميع البيانات المعالجة عبر Codeonline EDI سرية تمامًا.
 - تعتمد Netconsulting Europe LTD أفضل الممارسات الأمنية لكنها لا تضمن حماية مطلقة ضد المخاطر الإلكترونية.
 
 6. حدود المسؤولية

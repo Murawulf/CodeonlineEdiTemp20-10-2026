@@ -186,6 +186,10 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/forgot-password" element={<div>Forgot Password Page</div>} />
                   <Route path="/login" element={<Login />} />
+                  {/* Public survey link — no login, no dashboard shell. Sent externally to
+                      entités who may not have an account. Must stay outside both
+                      ProtectedRoute and DashboardLayout. */}
+                  <Route path="/enquete" element={<Enquete />} />
                   <Route element={<DashboardLayout currentUser={currentUser} />}>
                     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                     <Route path="/parametres/profils" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -202,7 +206,6 @@ const App: React.FC = () => {
                     <Route path="/catalogueComplet" element={<ProtectedRoute><CatalogueComplet /></ProtectedRoute>} />
                     <Route path="/tarification" element={<ProtectedRoute><Tarification /></ProtectedRoute>} />
                     <Route path="/operation-edi/order" element={<ProtectedRoute><Order /></ProtectedRoute>} />
-<Route path="/enquete" element={<ProtectedRoute><Enquete /></ProtectedRoute>} />
                     <Route path="/operation-edi/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
                     <Route path="/operation-edi/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
                     <Route path="/operation-edi/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />

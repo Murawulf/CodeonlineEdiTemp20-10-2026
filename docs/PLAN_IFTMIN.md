@@ -24,7 +24,7 @@
 - DB : table **`edi_transport_orders`** (colonnes : `id, ref, order_ref, desadv_ref, carrier_code, country_code, requester_gln, status, iftmin_content, tracking_number, carrier_response, error_message, created_at, updated_at`). **`0` ligne.** `transactions` document_type `IFTMIN` : **`0`.**
 - Endpoints live : `GET/POST /api/orchestrator/transport/*` → **401** (JWT requis) — jamais exercés avec un token.
 
-**Repo local** : `/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn` (git, `main` dual-push GitHub `Murawulf/CodeonlineEdi` + Gitea `git.iroconsult.com/majd/CodeonlineEdi`).
+**Repo local** : `/Users/majdhakim/Travail/netconsulting/Codeonline-InfoTn` (git, `main` dual-push GitHub `Murawulf/Codeonline EDI` + Gitea `git.iroconsult.com/majd/Codeonline EDI`).
 - Le repo **n'a PAS** le code transport prod dans `edi_orchestrator/` (pas de `controllers/TransportController.js`, pas de `services/carriers/`, pas de `routes/transport.js`).
 - Le repo contient une **vieille copie staging INCOMPATIBLE** dans `docs/tests/edi-suite/` (schéma `edi_transport_orders` différent : `id_order/id_shipment/vehicule/status`). → source de confusion, à remplacer par le réel.
 
