@@ -562,6 +562,13 @@ const JWT_EXCLUDED_PATHS = [
   // Public transport survey (Enquete.tsx) — shared as a link with entités, no login.
   { path: '/public/segments', method: 'GET' },
   { path: '/public/enquete', method: 'POST' },
+  // Région / Délégation / Localité cascading pickers on the same public survey —
+  // this is non-sensitive reference data (Tunisia's administrative divisions +
+  // postal codes from Region_national), so it's safe to expose without a login,
+  // same as /public/segments above.
+  { path: '/regions', method: 'GET' },
+  { path: '/delegations', method: 'GET' },
+  { path: '/localites', method: 'POST' },
 ];
 app.use('/api', (req, res, next) => {
   const isExcluded = JWT_EXCLUDED_PATHS.some(
@@ -776,9 +783,118 @@ app.use('/api', (req, res, next) => {
 // Initialize databases (entiteDB est l'unique pool MySQL : ex-usersDB/allgpcDB/fieldrulesDB pointent dessus)
 let entiteDB;
 
+// ------------------------------------------------------------------------------
+// EXPORT / IMPORT DESTINATION COUNTRIES — shared by the public survey (Enquete.tsx)
+// and its self-heal routine below. Same country list on both sides (mirrors
+// PAYS_OPTIONS in Enquete.tsx): the survey's "Pays de destination" checkboxes
+// set the export_<pays> flag for each one, and the new "Pays d'importation"
+// checkboxes set the matching import_<pays> flag — both on Entite, one boolean
+// column per country, independent of each other.
+// ------------------------------------------------------------------------------
+const EXPORT_DESTINATION_COLUMNS = {
+  'Libye': 'export_libye',
+  'Sénégal': 'export_senegal',
+  "Côte d'Ivoire": 'export_cote_ivoire',
+  'Mali': 'export_mali',
+  'Burkina Faso': 'export_burkina_faso',
+  'Guinée': 'export_guinee',
+};
+const IMPORT_DESTINATION_COLUMNS = {
+  'Libye': 'import_libye',
+  'Sénégal': 'import_senegal',
+  "Côte d'Ivoire": 'import_cote_ivoire',
+  'Mali': 'import_mali',
+  'Burkina Faso': 'import_burkina_faso',
+  'Guinée': 'import_guinee',
+};
+
+// Turns the per-country import_<pays> boolean flags on Entite into one
+// comma-joined text expression (e.g. "Libye, Mali") — same shape Enquete.pays
+// already has for export destinations. Import destinations live on Entite (not
+// Enquete — see the comment on POST /api/public/enquete below), so every query
+// that wants to show them alongside an enquête needs to JOIN Entite and select
+// this expression. Built once here so both /api/enquetes queries below share
+// the exact same logic instead of drifting apart.
+const IMPORT_PAYS_SQL_EXPR = `CONCAT_WS(', ', ${Object.entries(IMPORT_DESTINATION_COLUMNS)
+  .map(([country, col]) => `CASE WHEN ent.${col} = 1 THEN '${country.replace(/'/g, "''")}' END`)
+  .join(', ')})`;
+
+// Self-heals the export_<pays> / import_<pays> boolean columns on Entite. The
+// export_<pays> columns were already assumed to exist (created by an earlier
+// migration outside this file); import_<pays> is new. Entite itself is never
+// CREATE TABLE'd here (see the "no CREATE TABLE at boot" note further down —
+// it's managed by sql/migrations/*.sql), but a missing column on an otherwise
+// real table is exactly the "Field doesn't have a default value" / "Unknown
+// column" class of bug that used to surface as a bare "Server error" on every
+// survey submission (same failure mode ensureEnqueteSchema() guards against
+// for the Enquete table) — so both column sets are self-healed here too.
+async function ensureEntiteExportImportColumns() {
+  try {
+    const [existingCols] = await entitePool.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Entite'`
+    );
+    const existingNames = new Set(existingCols.map(c => c.COLUMN_NAME));
+    const allColumns = {
+      ...EXPORT_DESTINATION_COLUMNS,
+      ...IMPORT_DESTINATION_COLUMNS,
+    };
+    for (const col of [...Object.values(allColumns), 'Extra_export', 'Extra_import']) {
+      if (!existingNames.has(col)) {
+        try {
+          const definition = col === 'Extra_export' || col === 'Extra_import'
+            ? 'VARCHAR(2000) NULL'
+            : 'TINYINT(1) NOT NULL DEFAULT 0';
+          await entitePool.query(`ALTER TABLE Entite ADD COLUMN ${col} ${definition}`);
+          console.log(`? Entite table: added missing column '${col}'`);
+        } catch (alterErr) {
+          console.error(`? Entite table: failed to add column '${col}':`, alterErr.message);
+        }
+      }
+    }
+    console.log('? Entite export_/import_ destination columns ready');
+  } catch (err) {
+    // Never block boot over this — worst case the columns already exist (the
+    // common case) and this was a no-op anyway.
+    console.error('ensureEntiteExportImportColumns error:', err.message);
+  }
+}
+
 // Creates the Enquete table if it doesn't exist yet. id_entite is a nullable FK to
 // Entite (nullable so a row is never lost if the linked entité is later deleted).
 // Columns mirror the EnqueteForm fields used by Enquete.tsx (public survey + admin views).
+//
+// Also self-heals an already-existing Enquete table that's missing one of these
+// columns (e.g. left over from an earlier version of this code) by ALTERing it
+// in — CREATE TABLE IF NOT EXISTS only helps on a brand-new table, it does
+// nothing if Enquete already exists with a different shape, and a missing
+// column there is exactly the kind of thing that shows up to the user as a
+// generic "Server error" on every submission.
+const ENQUETE_COLUMNS = {
+  id_entite: 'INT NULL',
+  raison_sociale: "VARCHAR(255) NOT NULL DEFAULT ''",
+  identifiant_fiscal: 'VARCHAR(100) NULL',
+  secteur: 'VARCHAR(255) NULL',
+  flux: 'VARCHAR(50) NULL',
+  pays: 'VARCHAR(100) NULL',
+  volumes: 'JSON NULL',
+  groupage: 'VARCHAR(10) NULL',
+  frequences: 'JSON NULL',
+  transporteurs: 'JSON NULL',
+  difficultes: 'JSON NULL',
+  foprodex: 'VARCHAR(10) NULL',
+  besoins_transport: 'TEXT NULL',
+  classification_type: 'VARCHAR(20) NULL',
+  gsa: 'VARCHAR(255) NULL',
+  sous_gsa: 'VARCHAR(255) NULL',
+  segment_code: 'VARCHAR(50) NULL',
+  segment_libelle: 'VARCHAR(255) NULL',
+  rue: 'VARCHAR(255) NULL',
+  date_enquete: 'DATETIME NULL',
+  created_at: 'DATETIME DEFAULT CURRENT_TIMESTAMP',
+  updated_at: 'DATETIME NULL',
+};
+
 async function ensureEnqueteSchema() {
   try {
     await entitePool.query(`
@@ -802,6 +918,7 @@ async function ensureEnqueteSchema() {
         sous_gsa            VARCHAR(255) NULL,
         segment_code        VARCHAR(50) NULL,
         segment_libelle     VARCHAR(255) NULL,
+        rue                 VARCHAR(255) NULL,
         date_enquete        DATETIME NULL,
         created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at          DATETIME NULL,
@@ -809,7 +926,28 @@ async function ensureEnqueteSchema() {
         INDEX idx_enquete_raison_sociale (raison_sociale)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
-    console.log('✓ Enquete table ready');
+
+    // Self-heal: whatever the table's actual current shape is (freshly created
+    // just now, or a pre-existing table from an older deploy), make sure every
+    // column we rely on in the INSERT/SELECT actually exists.
+    const [existingCols] = await entitePool.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Enquete'`
+    );
+    const existingNames = new Set(existingCols.map(c => c.COLUMN_NAME));
+
+    for (const [col, def] of Object.entries(ENQUETE_COLUMNS)) {
+      if (!existingNames.has(col)) {
+        try {
+          await entitePool.query(`ALTER TABLE Enquete ADD COLUMN ${col} ${def}`);
+          console.log(`? Enquete table: added missing column '${col}'`);
+        } catch (alterErr) {
+          console.error(`? Enquete table: failed to add column '${col}':`, alterErr.message);
+        }
+      }
+    }
+
+    console.log('? Enquete table ready');
   } catch (err) {
     // Never block boot over this — the existing /api/enquetes routes already assume
     // the table exists, so at worst we're back to the pre-existing behavior.
@@ -933,6 +1071,7 @@ async function initializeDatabases() {
     // public, unauthenticated survey link always has somewhere to save to, even on a
     // fresh DB that hasn't run a dedicated migration for it yet.
     await ensureEnqueteSchema();
+    await ensureEntiteExportImportColumns();
 
   } catch (err) {
     console.error('Failed to initialize critical databases:', err.message);
@@ -1055,9 +1194,12 @@ app.get('/api/delegations', async (req, res) => {
     let sql = 'SELECT DISTINCT delegation FROM Region_national WHERE delegation IS NOT NULL';
     const params = [];
     if (region && region !== 'all') {
-      sql += ' AND gouvernorat = ?';
+      // See /api/localites below for why CONVERT(...) USING latin1 is needed:
+      // Region_national is latin1_swedish_ci, the connection is utf8mb4.
+      sql += ' AND LOWER(TRIM(gouvernorat)) = LOWER(TRIM(CONVERT(? USING latin1) COLLATE latin1_swedish_ci))';
       params.push(decodeURIComponent(region));
     }
+    sql += ' ORDER BY delegation ASC';
     const [rows] = await conn.query(sql, params);
     await conn.end();
     res.json(rows.map(r => ({ delegation: r.delegation })));
@@ -1079,11 +1221,22 @@ app.post('/api/localites', async (req, res) => {
   }
   try {
     const conn = await mysql.createConnection(dbConfig);
+    // Region_national's columns are latin1_swedish_ci while the app connection
+    // is utf8mb4 by default — comparing them directly (especially inside
+    // LOWER()/TRIM()) throws "Illegal mix of collations", which crashes the
+    // request before any JSON response is sent. Explicitly converting the
+    // bound parameter to the column's own charset/collation on both sides
+    // removes that mismatch entirely.
     const [rows] = await conn.query(
-      'SELECT localite, code_postal FROM Region_national WHERE delegation = ?',
+      `SELECT DISTINCT localite, code_postal
+       FROM Region_national
+       WHERE LOWER(TRIM(delegation)) = LOWER(TRIM(CONVERT(? USING latin1) COLLATE latin1_swedish_ci))
+         AND localite IS NOT NULL
+       ORDER BY localite ASC`,
       [name_delegation]
     );
     await conn.end();
+    console.log(`[localites] delegation="${name_delegation}" -> ${rows.length} row(s)`);
     res.json(rows);
   } catch (err) {
     console.error('Error fetching localites:', {
@@ -3283,14 +3436,29 @@ const typeOptions = [
 // ENQUETES — Transport Logistique Afrique de l'Ouest
 // ------------------------------------------------------------------------------
 
-// GET /api/enquetes — list (light columns for table)
-app.get('/api/enquetes', verifyJWT, async (req, res) => {
+// This is the cross-entity survey data behind the "Retour Enquêtes" admin console
+// (RetourEnquete.tsx) — same 999/111 platform-admin hierarchy already enforced above
+// for account management (see TOP_ENTITY_ID / SECOND_ENTITY_ID). The UI hiding the
+// page from non-admins is not enough on its own (same lesson as the comptes.tsx
+// suspend/delete bug fixed above), so it's enforced here too: anyone else calling
+// these endpoints directly gets a 403 instead of the whole survey table.
+function requireEnqueteAdmin(req, res, next) {
+  const callerEntite = Number(req.user?.id_entite);
+  if (callerEntite === TOP_ENTITY_ID || callerEntite === SECOND_ENTITY_ID) return next();
+  return res.status(403).json({ error: "Accès réservé aux administrateurs de la plateforme (entités 999/111)." });
+}
+
+// GET /api/enquetes — list (light columns for table) — admin-only, cross-entity
+app.get('/api/enquetes', verifyJWT, requireEnqueteAdmin, async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
     const rows = await queryDB(entiteDB, `
-      SELECT id_enquete, id_entite, raison_sociale, secteur, flux, pays, foprodex, date_enquete
-      FROM Enquete
-      ORDER BY date_enquete DESC
+      SELECT e.id_enquete, e.id_entite, e.raison_sociale, e.secteur, e.flux, e.pays,
+             ${IMPORT_PAYS_SQL_EXPR} AS pays_import,
+             ent.Extra_export, ent.Extra_import, e.foprodex, e.date_enquete
+      FROM Enquete e
+      LEFT JOIN Entite ent ON ent.id_entite = e.id_entite
+      ORDER BY e.date_enquete DESC
     `, []);
     res.json(rows);
   } catch (err) {
@@ -3299,13 +3467,25 @@ app.get('/api/enquetes', verifyJWT, async (req, res) => {
   }
 });
 
-// GET /api/enquetes/by-entite/:id_entite — all enquêtes for one entité
+// GET /api/enquetes/by-entite/:id_entite — all enquêtes for one entité.
+// Admins (999/111) can look up any entité; anyone else may only look up their own
+// (prevents any logged-in account from paging through another entité's surveys by
+// just changing the :id_entite in the URL).
 app.get('/api/enquetes/by-entite/:id_entite', verifyJWT, async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    const callerEntite = Number(req.user?.id_entite);
+    const isAdmin = callerEntite === TOP_ENTITY_ID || callerEntite === SECOND_ENTITY_ID;
+    if (!isAdmin && callerEntite !== Number(req.params.id_entite)) {
+      return res.status(403).json({ error: "Vous n'avez pas accès aux enquêtes de cette entité." });
+    }
     const rows = await queryDB(entiteDB, `
-      SELECT id_enquete, raison_sociale, secteur, flux, pays, foprodex, date_enquete
-      FROM Enquete WHERE id_entite = ? ORDER BY date_enquete DESC
+      SELECT e.id_enquete, e.raison_sociale, e.secteur, e.flux, e.pays,
+             ${IMPORT_PAYS_SQL_EXPR} AS pays_import,
+             ent.Extra_export, ent.Extra_import, e.foprodex, e.date_enquete
+      FROM Enquete e
+      LEFT JOIN Entite ent ON ent.id_entite = e.id_entite
+      WHERE e.id_entite = ? ORDER BY e.date_enquete DESC
     `, [Number(req.params.id_entite)]);
     res.json(rows);
   } catch (err) {
@@ -3316,12 +3496,24 @@ app.get('/api/enquetes/by-entite/:id_entite', verifyJWT, async (req, res) => {
 
 // GET /api/enquetes/:id — full detail for edit modal
 // ??  Must come AFTER /by-entite to avoid route collision
+// Same access rule as by-entite above: admins see any enquête, everyone else only
+// the ones belonging to their own entité.
 app.get('/api/enquetes/:id', verifyJWT, async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
-    const rows = await queryDB(entiteDB, 'SELECT * FROM Enquete WHERE id_enquete = ?', [Number(req.params.id)]);
+    const rows = await queryDB(entiteDB, `
+      SELECT e.*, ${IMPORT_PAYS_SQL_EXPR} AS pays_import
+      FROM Enquete e
+      LEFT JOIN Entite ent ON ent.id_entite = e.id_entite
+      WHERE e.id_enquete = ?
+    `, [Number(req.params.id)]);
     if (!rows.length) return res.status(404).json({ error: 'Enquête introuvable' });
     const row = rows[0];
+    const callerEntite = Number(req.user?.id_entite);
+    const isAdmin = callerEntite === TOP_ENTITY_ID || callerEntite === SECOND_ENTITY_ID;
+    if (!isAdmin && callerEntite !== Number(row.id_entite)) {
+      return res.status(403).json({ error: "Vous n'avez pas accès à cette enquête." });
+    }
     // Parse JSON columns (mysql2 may return them as strings)
     ['volumes', 'frequences', 'transporteurs', 'difficultes'].forEach(col => {
       if (typeof row[col] === 'string') {
@@ -3335,8 +3527,8 @@ app.get('/api/enquetes/:id', verifyJWT, async (req, res) => {
   }
 });
 
-// POST /api/enquetes — create
-app.post('/api/enquetes', verifyJWT, async (req, res) => {
+// POST /api/enquetes — create (admin-only: manual/back-office survey entry)
+app.post('/api/enquetes', verifyJWT, requireEnqueteAdmin, async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
     const {
@@ -3346,6 +3538,7 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
       transporteurs, difficultes,
       foprodex, besoins_transport,
       classification_type, gsa, sous_gsa, segment_code, segment_libelle,
+      rue,
     } = req.body;
 
     if (!raison_sociale || !secteur || !flux || !pays) {
@@ -3357,8 +3550,8 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
         (id_entite, raison_sociale, identifiant_fiscal, secteur, flux, pays,
          volumes, groupage, frequences, transporteurs, difficultes,
          foprodex, besoins_transport,
-         classification_type, gsa, sous_gsa, segment_code, segment_libelle, date_enquete)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+         classification_type, gsa, sous_gsa, segment_code, segment_libelle, rue, date_enquete)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       id_entite || null,
       raison_sociale,
@@ -3378,6 +3571,7 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
       sous_gsa || null,
       segment_code || null,
       segment_libelle || null,
+      rue || null,
     ]);
     res.status(201).json({ id_enquete: result.insertId ?? result.lastID });
   } catch (err) {
@@ -3386,8 +3580,8 @@ app.post('/api/enquetes', verifyJWT, async (req, res) => {
   }
 });
 
-// PUT /api/enquetes/:id — update
-app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
+// PUT /api/enquetes/:id — update (admin-only)
+app.put('/api/enquetes/:id', verifyJWT, requireEnqueteAdmin, async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
     const {
@@ -3397,6 +3591,7 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
       transporteurs, difficultes,
       foprodex, besoins_transport,
       classification_type, gsa, sous_gsa, segment_code, segment_libelle,
+      rue,
     } = req.body;
 
     await runUpdate(entiteDB, `
@@ -3419,6 +3614,7 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
         sous_gsa           = ?,
         segment_code       = ?,
         segment_libelle    = ?,
+        rue                = ?,
         updated_at         = NOW()
       WHERE id_enquete = ?
     `, [
@@ -3440,6 +3636,7 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
       sous_gsa || null,
       segment_code || null,
       segment_libelle || null,
+      rue || null,
       Number(req.params.id),
     ]);
     res.json({ success: true });
@@ -3449,8 +3646,8 @@ app.put('/api/enquetes/:id', verifyJWT, async (req, res) => {
   }
 });
 
-// DELETE /api/enquetes/:id
-app.delete('/api/enquetes/:id', verifyJWT, async (req, res) => {
+// DELETE /api/enquetes/:id (admin-only)
+app.delete('/api/enquetes/:id', verifyJWT, requireEnqueteAdmin, async (req, res) => {
   try {
     if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
     await runUpdate(entiteDB, 'DELETE FROM Enquete WHERE id_enquete = ?', [Number(req.params.id)]);
@@ -3479,115 +3676,274 @@ app.get('/api/public/segments', async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    console.error('GET /api/public/segments error:', err);
-    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+    console.error('GET /api/public/segments error:', {
+      message: err.message, code: err.code, sqlMessage: err.sqlMessage,
+    });
+    res.status(500).json({ error: 'Server error', details: err.sqlMessage || err.message });
   }
 });
 
 // POST /api/public/enquete — submit a survey.
-// Looks up the typed "raison sociale" against Entite (case-insensitive, trimmed).
-//   - Match found  -> the enquête is linked to that existing id_entite.
-//   - No match     -> a new, minimal Entite row is created from the survey's own
-//                     fields (raison sociale, identifiant fiscal, pays), and the
-//                     enquête is linked to that brand-new id_entite.
+// Only "raison sociale" and "identifiant national" are required — every other
+// field on the form is optional and stored as-is (or left NULL/empty).
+//
+// Looks up the typed "raison sociale" against Entite (case-insensitive, trimmed);
+// if that doesn't match anything, falls back to matching by "identifiant national"
+// (also case-insensitive, trimmed) so we never try to insert a second Entite row
+// with a national ID that already exists (Entite.identifiant_national is unique —
+// this fallback, plus the ER_DUP_ENTRY catch below, is what used to blow up as a
+// bare "Server error" whenever two survey submissions collided on that column).
+//   - Match found (either way) -> the enquête is linked to that existing id_entite.
+//   - No match at all          -> a new, minimal Entite row is created from the
+//                                 survey's own fields, and the enquête is linked
+//                                 to that brand-new id_entite.
 // Everything happens in one transaction so we never end up with an orphan Entite
 // row if the Enquete insert fails, or vice versa.
 app.post('/api/public/enquete', async (req, res) => {
   if (!entitePool) return res.status(503).json({ error: 'Database unavailable' });
 
   const {
-    raison_sociale, identifiant_fiscal,
-    secteur, flux, pays,
+    raison_sociale,
+    identifiant_national,
+    identifiant_fiscal, // legacy field name, still accepted for backward compatibility
+    secteur, flux, pays, pays_import,
     volumes, groupage, frequences,
     transporteurs, difficultes,
-    foprodex, besoins_transport,
     classification_type, gsa, sous_gsa, segment_code, segment_libelle,
+    personne_contact, email, telephone, tel_mobile, adresse, city,
+    region, delegation, localite, postalCode, rue,
   } = req.body || {};
 
   const cleanRaisonSociale = (raison_sociale || '').trim();
-  if (!cleanRaisonSociale || !secteur || !flux || !pays) {
-    return res.status(400).json({ error: 'Champs obligatoires manquants (raison sociale, secteur/classification, flux, pays)' });
+  const cleanIdentifiantNational = (identifiant_national || identifiant_fiscal || '').trim();
+
+  // "Pays de destination" (export) and "Pays d'importation" (import) are checkbox
+  // lists on the client, so each arrives as an array; stay tolerant of a single
+  // string too (older clients / manual calls).
+  const paysArray = Array.isArray(pays) ? pays.filter(Boolean) : (pays ? [pays] : []);
+  const paysText = paysArray.join(', ');
+  const paysImportArray = Array.isArray(pays_import) ? pays_import.filter(Boolean) : (pays_import ? [pays_import] : []);
+  const extraExportText = paysArray.filter(country => !Object.prototype.hasOwnProperty.call(EXPORT_DESTINATION_COLUMNS, country)).join(', ');
+  const extraImportText = paysImportArray.filter(country => !Object.prototype.hasOwnProperty.call(IMPORT_DESTINATION_COLUMNS, country)).join(', ');
+
+  // "Flux" drives which of the two country lists actually count: ticking a
+  // country in "Pays de destination" while Flux is set to "Import" shouldn't
+  // silently mark the entité as exporting there, and vice versa. "Import/Export"
+  // is the only value where both sides can be true.
+  const fluxNorm = (flux || '').trim();
+  const isExportFlux = fluxNorm === 'Export' || fluxNorm === 'Import/Export';
+  const isImportFlux = fluxNorm === 'Import' || fluxNorm === 'Import/Export';
+
+  // One explicit 1/0 per known country, for both directions — deterministic on
+  // every submission (not just "set the ones that are checked"), so a country
+  // unticked on a resubmission is correctly cleared back to 0 instead of being
+  // left stale at whatever it was set to before.
+  const exportFlags = {};
+  for (const [country, col] of Object.entries(EXPORT_DESTINATION_COLUMNS)) {
+    exportFlags[col] = (isExportFlux && paysArray.includes(country)) ? 1 : 0;
+  }
+  const importFlags = {};
+  for (const [country, col] of Object.entries(IMPORT_DESTINATION_COLUMNS)) {
+    importFlags[col] = (isImportFlux && paysImportArray.includes(country)) ? 1 : 0;
+  }
+
+  // Only these two fields are mandatory — everything else on the survey is optional.
+  if (!cleanRaisonSociale || !cleanIdentifiantNational) {
+    return res.status(400).json({
+      error: 'Champs obligatoires manquants (raison sociale et identifiant national)',
+    });
   }
 
   const conn = await entitePool.getConnection();
   try {
     await conn.beginTransaction();
 
-    // 1) Case-insensitive, whitespace-tolerant match against existing entités.
-    const [matches] = await conn.query(
-      `SELECT id_entite, raison_socialle
-       FROM Entite
+    // 1) Case-insensitive, whitespace-tolerant match against existing entités,
+    //    first by raison sociale, then by identifiant national.
+    let id_entite = null;
+    let entite_created = false;
+
+    const [byName] = await conn.query(
+      `SELECT id_entite FROM Entite
        WHERE LOWER(TRIM(raison_socialle)) = LOWER(TRIM(?))
        LIMIT 1`,
       [cleanRaisonSociale]
     );
 
-    let id_entite;
-    let entite_created = false;
-
-    if (matches.length > 0) {
-      id_entite = matches[0].id_entite;
+    if (byName.length > 0) {
+      id_entite = byName[0].id_entite;
     } else {
+      const [byNationalId] = await conn.query(
+        `SELECT id_entite FROM Entite
+         WHERE LOWER(TRIM(identifiant_national)) = LOWER(TRIM(?))
+         LIMIT 1`,
+        [cleanIdentifiantNational]
+      );
+      if (byNationalId.length > 0) {
+        id_entite = byNationalId[0].id_entite;
+      }
+    }
+
+    // 1bis) Entité already exists — sync whatever contact details the survey
+    //       collected onto it. Only fields the person actually filled in are
+    //       written, so a blank field on the survey never wipes out a value
+    //       already on file; this covers "they changed one tiny detail" without
+    //       risking data loss on partially-filled submissions.
+    if (id_entite) {
+      const contactUpdates = {};
+      if (personne_contact && personne_contact.trim()) contactUpdates.personne_contact = personne_contact.trim();
+      if (email && email.trim()) contactUpdates.email = email.trim();
+      if (telephone && telephone.trim()) contactUpdates.telephone = telephone.trim();
+      if (tel_mobile && tel_mobile.trim()) contactUpdates.tel_mobile = tel_mobile.trim();
+      if (adresse && adresse.trim()) contactUpdates.adresse = adresse.trim();
+      if (city && city.trim()) contactUpdates.city = city.trim();
+      if (region && region.trim()) contactUpdates.region = region.trim();
+      if (delegation && delegation.trim()) contactUpdates.delegation = delegation.trim();
+      if (localite && localite.trim()) contactUpdates.localite = localite.trim();
+      if (postalCode && String(postalCode).trim()) contactUpdates.postalCode = String(postalCode).trim();
+      // Export/import destination flags reflect this submission's Flux + country
+      // picks directly (see exportFlags/importFlags above) — unlike the contact
+      // fields above, these are always written (not only when non-blank), since
+      // that's the whole point of the survey and an unticked country on a
+      // resubmission should genuinely clear the flag back to 0.
+      if (fluxNorm) {
+        Object.assign(contactUpdates, exportFlags, importFlags);
+        contactUpdates.destinations = paysText || null;
+        contactUpdates.Extra_export = isExportFlux ? (extraExportText || null) : null;
+        contactUpdates.Extra_import = isImportFlux ? (extraImportText || null) : null;
+      }
+
+      if (Object.keys(contactUpdates).length > 0) {
+        await conn.query('UPDATE Entite SET ? WHERE id_entite = ?', [contactUpdates, id_entite]);
+      }
+    }
+
+    if (!id_entite) {
       // 2) No existing entité — create a minimal one from what the survey collected.
-      //    Everything not covered by the survey gets a safe, empty default so this
-      //    never trips a NOT NULL constraint; entité admins can complete the profile
-      //    later from the Entités page.
+      //    IMPORTANT: this mirrors the exact field set used by the known-working
+      //    POST /api/companies and bulk-import inserts elsewhere in this file.
+      //    Entite has several NOT NULL columns with no default (identifiant_rex,
+      //    date_enregistrement_rex, debut_validite_rex, fin_validite_rex, etat,
+      //    certicode, date_abonnement, date_echeance, delegation, titre_fr/ar/en,
+      //    logo) — leaving any of them out of the INSERT throws "Field 'x' doesn't
+      //    have a default value" under strict SQL mode, which is what was
+      //    surfacing as a bare "Server error" on every survey submission.
+      //
+      //    Entite.pays is a FOREIGN KEY to pays.isoNumeric — it identifies the
+      //    entité's own home country, NOT an export destination. This survey is
+      //    for Tunisian exporters, so it's hardcoded to Tunisia's isoNumeric
+      //    code (788). The survey's own "pays" field is actually the export
+      //    DESTINATION(S) (Libye, Sénégal, ...) and belongs in the matching
+      //    export_<pays> boolean column(s) instead — writing it into Entite.pays
+      //    is exactly what was tripping the FK constraint on every submission.
+      const TUNISIA_ISO_NUMERIC = '788';
+
       const newEntite = {
+        identifiant_rex: '',
+        date_enregistrement_rex: '',
+        debut_validite_rex: '',
+        fin_validite_rex: '',
+        etat: '',
         raison_socialle: cleanRaisonSociale,
-        identifiant_national: identifiant_fiscal || '',
-        pays: pays || '',
+        identifiant_national: cleanIdentifiantNational,
+        certicode: 0,
         date_create: new Date().toISOString().slice(0, 10),
-        personne_contact: '',
-        service: '',
-        email: '',
-        tel_mobile: '',
-        telephone: '',
-        fax: '',
+        pays: TUNISIA_ISO_NUMERIC,
+        destinations: paysText || null,
         site: '',
-        adresse: '',
-        region: '',
-        city: '',
-        localite: '',
-        postalCode: '',
+        personne_contact: personne_contact || '',
+        service: '',
+        email: email || '',
+        tel_mobile: tel_mobile || '',
+        telephone: telephone || '',
+        fax: '',
+        adresse: adresse || '',
+        region: region || '',
+        city: city || '',
+        localite: localite || '',
+        postalCode: postalCode || '',
         type_prod: 0,
         statut: 0,
+        date_abonnement: '',
+        date_echeance: '',
         pwd: 'empty',
         nb_fp: 0,
         inscription: 0,
         status_ent: 'E',
+        delegation: delegation || '',
+        titre_fr: '',
+        titre_ar: '',
+        titre_en: '',
+        logo: null,
+        // Every export_<pays> / import_<pays> boolean column, explicitly set from
+        // this submission's Flux + country picks (see exportFlags/importFlags
+        // above) — e.g. export_libye = 1, import_senegal = 0, etc.
+        ...exportFlags,
+        ...importFlags,
+        Extra_export: isExportFlux ? (extraExportText || null) : null,
+        Extra_import: isImportFlux ? (extraImportText || null) : null,
       };
-      const [insertResult] = await conn.query('INSERT INTO Entite SET ?', newEntite);
-      id_entite = insertResult.insertId;
-      entite_created = true;
+
+      try {
+        const [insertResult] = await conn.query('INSERT INTO Entite SET ?', newEntite);
+        id_entite = insertResult.insertId;
+        entite_created = true;
+      } catch (insertErr) {
+        // Two submissions racing each other (or a match our two lookups above
+        // missed for some reason) can still collide on a unique column like
+        // identifiant_national. Rather than fail the whole survey, fall back to
+
+        // whichever entité already owns that raison sociale / identifiant national.
+        if (insertErr && insertErr.code === 'ER_DUP_ENTRY') {
+          const [fallback] = await conn.query(
+            `SELECT id_entite FROM Entite
+             WHERE LOWER(TRIM(identifiant_national)) = LOWER(TRIM(?))
+                OR LOWER(TRIM(raison_socialle)) = LOWER(TRIM(?))
+             LIMIT 1`,
+            [cleanIdentifiantNational, cleanRaisonSociale]
+          );
+          if (fallback.length > 0) {
+            id_entite = fallback[0].id_entite;
+          } else {
+            throw insertErr;
+          }
+        } else {
+          throw insertErr;
+        }
+      }
     }
 
-    // 3) Save the enquête, linked to that entité either way.
+    // 3) Save the enquête, linked to that entité either way. All non-required
+    //    fields fall back to null / empty defaults so a partially-filled form
+    //    never fails to save.
     const [enqueteResult] = await conn.query(
       `INSERT INTO Enquete
          (id_entite, raison_sociale, identifiant_fiscal, secteur, flux, pays,
           volumes, groupage, frequences, transporteurs, difficultes,
-          foprodex, besoins_transport,
-          classification_type, gsa, sous_gsa, segment_code, segment_libelle, date_enquete)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          classification_type, gsa, sous_gsa, segment_code, segment_libelle, rue, date_enquete)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         id_entite,
         cleanRaisonSociale,
-        identifiant_fiscal || null,
-        secteur,
-        flux,
-        pays,
+        cleanIdentifiantNational || null,
+        secteur || null,
+        flux || null,
+        paysText || null,
         JSON.stringify(volumes || []),
         groupage || null,
         JSON.stringify(frequences || []),
         JSON.stringify(transporteurs || []),
         JSON.stringify(difficultes || []),
-        foprodex || null,
-        besoins_transport || null,
         classification_type || null,
         gsa || null,
         sous_gsa || null,
         segment_code || null,
         segment_libelle || null,
+        // "Rue" is a free-text field the person types in themselves — stored
+        // exactly as-is on the Enquete row (not on Entite, and not validated
+        // against any list), since it's just the street-level detail of their
+        // submission and has no bearing on the region/délégation lookup below.
+        (rue || '').trim() || null,
       ]
     );
 
@@ -3599,8 +3955,25 @@ app.post('/api/public/enquete', async (req, res) => {
     });
   } catch (err) {
     await conn.rollback();
-    console.error('POST /api/public/enquete error:', err);
-    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+    // Always log full SQL diagnostics for this route (code/errno/sqlMessage), since
+    // safeErrDetails() hides err.message in production and this endpoint has been
+    // silently failing — we need to actually see what MySQL is complaining about.
+    console.error('POST /api/public/enquete error:', {
+      message: err.message,
+      code: err.code,
+      errno: err.errno,
+      sqlMessage: err.sqlMessage,
+      sqlState: err.sqlState,
+    });
+    // Deliberately NOT using safeErrDetails() here: this is a public form with no
+    // sensitive data behind it, and hiding the reason is exactly why this was
+    // impossible to diagnose from the browser. Revert to safeErrDetails(err) once
+    // this is confirmed working end-to-end.
+    res.status(500).json({
+      error: 'Server error',
+      details: err.sqlMessage || err.message,
+      code: err.code,
+    });
   } finally {
     conn.release();
   }
@@ -3783,6 +4156,50 @@ async function ensureAccountHierarchyColumns() {
     );
   } catch (err) {
     console.error('? Error backfilling comptes.etat from is_suspended:', err.message);
+  }
+}
+
+// ============================================================================
+// PRODUCT HIGHLIGHTS ("mobile showcase") — one row per product an entity has
+// ever asked to be featured. status walks pending -> approved|rejected via the
+// review endpoints below; a rejected row can be re-requested (goes back to
+// pending) rather than piling up duplicate rows, hence the UNIQUE(id_produit).
+// Same idempotent "check INFORMATION_SCHEMA, create if missing" style as the
+// other ensure* functions in this file — safe to call on every boot.
+// ============================================================================
+async function ensureProductHighlightSchema(db) {
+  if (!db) {
+    console.log('??  EntiteDB not available, skipping product_highlights schema check');
+    return;
+  }
+  try {
+    const [existing] = await db.pool.query(
+      `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_highlights'`
+    );
+    if (existing.length === 0) {
+      await db.pool.query(`
+        CREATE TABLE product_highlights (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          id_produit INT NOT NULL,
+          id_entite INT NOT NULL,
+          status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+          requested_by INT NULL,
+          requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          reviewed_by INT NULL,
+          reviewed_at DATETIME NULL,
+          reject_reason VARCHAR(255) NULL,
+          UNIQUE KEY uniq_produit (id_produit),
+          KEY idx_status (status),
+          KEY idx_entite (id_entite)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+      console.log('? product_highlights table created');
+    } else {
+      console.log('? product_highlights table already exists');
+    }
+  } catch (err) {
+    console.error('? Error ensuring product_highlights schema:', err.message);
   }
 }
 
@@ -7513,9 +7930,11 @@ app.get("/api/products", verifyJWT, async (req, res) => {
              fp.countryOfOrigin, fp.idEntreprise, fp.images, fp.nb_images, fp.prix_min, fp.prix_max,
              fp.code_cader, fp.codeClasse, fp.codebrique, fp.date_mis_a_jour_fp,
              fp.tradeItemSynchronisationDates, fp.date_create_fp, fp.activ_prix, fp.status, fp.done_new,
-             COALESCE(dc.cnt, 0) AS declinaison_count
+             COALESCE(dc.cnt, 0) AS declinaison_count,
+             ph.status AS highlight_status, ph.id AS highlight_id
       FROM fiche_produit fp
       LEFT JOIN (SELECT id_produit, COUNT(*) AS cnt FROM declinaison GROUP BY id_produit) dc ON dc.id_produit = fp.id
+      LEFT JOIN product_highlights ph ON ph.id_produit = fp.id
       ${whereClause}
       ORDER BY fp.\`${sortBy}\` ${sortDir}
       LIMIT ${offset}, ${safeLimit};
@@ -7765,6 +8184,324 @@ app.patch("/api/products/:id", async (req, res) => {
   } catch (err) {
     console.error("PATCH /api/products/:id error:", err);
     res.status(500).json({ error: "Failed to update status", details: safeErrDetails(err) });
+  }
+});
+
+// ============================================================================
+// PRODUCT HIGHLIGHTS — entity requests / withdraws, admin (999/111) reviews,
+// mobile app reads the approved result. See ensureProductHighlightSchema()
+// above for the table shape.
+// ============================================================================
+
+// Does `callerEntite` own `idProduit`? Privileged entities (999/111) are
+// treated as owning everything — same rule as every other ownership check
+// in this file (canManageAccount, GET /api/products, etc).
+async function assertOwnsProductOrPrivileged(callerEntite, idProduit) {
+  const rows = await queryDB(entiteDB, "SELECT idEntreprise FROM fiche_produit WHERE id = ?", [idProduit]);
+  if (!rows.length) return { ok: false, status: 404, error: "Produit introuvable" };
+  const owner = Number(rows[0].idEntreprise);
+  if (PRIVILEGED_ENTITES.includes(callerEntite) || owner === callerEntite) {
+    return { ok: true, owner };
+  }
+  return { ok: false, status: 403, error: "Vous ne pouvez mettre en avant que vos propres produits." };
+}
+
+// POST /api/products/:id/highlight-request — an entity asks for ONE of its
+// own products to be flagged for the mobile showcase. Idempotent: calling it
+// again on an already pending/approved product is a no-op (200, same id);
+// calling it on a previously rejected product resets it to pending for a
+// fresh review instead of creating a duplicate row (id_produit is UNIQUE).
+app.post("/api/products/:id/highlight-request", verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: "Database unavailable" });
+    const idProduit = Number(req.params.id);
+    if (!idProduit) return res.status(400).json({ error: "id produit invalide" });
+
+    const callerEntite = Number(req.user?.id_entite);
+    const ownership = await assertOwnsProductOrPrivileged(callerEntite, idProduit);
+    if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+
+    const existing = await queryDB(entiteDB, "SELECT id, status FROM product_highlights WHERE id_produit = ?", [idProduit]);
+    if (existing.length && existing[0].status !== "rejected") {
+      return res.json({ status: existing[0].status, id: existing[0].id });
+    }
+
+    let highlightId;
+    if (existing.length) {
+      await runUpdate(
+        entiteDB,
+        `UPDATE product_highlights
+         SET status = 'pending', requested_by = ?, requested_at = NOW(), reviewed_by = NULL, reviewed_at = NULL, reject_reason = NULL
+         WHERE id = ?`,
+        [req.user?.id_compte || null, existing[0].id]
+      );
+      highlightId = existing[0].id;
+    } else {
+      const result = await queryDB(
+        entiteDB,
+        `INSERT INTO product_highlights (id_produit, id_entite, status, requested_by, requested_at)
+         VALUES (?, ?, 'pending', ?, NOW())`,
+        [idProduit, ownership.owner, req.user?.id_compte || null]
+      );
+      highlightId = result.insertId;
+    }
+
+    // Best-effort: let platform admins know there's something to review.
+    try {
+      const admins = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite IN (?, ?)", [TOP_ENTITY_ID, SECOND_ENTITY_ID]);
+      for (const a of admins) {
+        await queryDB(
+          entiteDB,
+          "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'success', NOW(), 0)",
+          [a.id_compte, `Nouvelle demande de mise en avant produit (#${idProduit}) à approuver.`]
+        );
+      }
+    } catch (notifErr) {
+      console.warn("?? Failed to notify admins of highlight request:", notifErr.message);
+    }
+
+    res.json({ status: "pending", id: highlightId });
+  } catch (err) {
+    console.error("? POST /api/products/:id/highlight-request error:", err);
+    res.status(500).json({ error: "Échec de la demande de mise en avant", details: safeErrDetails(err) });
+  }
+});
+
+// DELETE /api/products/:id/highlight-request — entity withdraws its own
+// pending/approved request. An approved product simply drops out of the
+// mobile showcase on its next refresh (the public endpoint only reads
+// status='approved').
+app.delete("/api/products/:id/highlight-request", verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: "Database unavailable" });
+    const idProduit = Number(req.params.id);
+    if (!idProduit) return res.status(400).json({ error: "id produit invalide" });
+
+    const callerEntite = Number(req.user?.id_entite);
+    const ownership = await assertOwnsProductOrPrivileged(callerEntite, idProduit);
+    if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+
+    const result = await runUpdate(entiteDB, "DELETE FROM product_highlights WHERE id_produit = ?", [idProduit]);
+    res.json({ removed: result.changes > 0 });
+  } catch (err) {
+    console.error("? DELETE /api/products/:id/highlight-request error:", err);
+    res.status(500).json({ error: "Échec du retrait", details: safeErrDetails(err) });
+  }
+});
+
+// GET /api/products/highlight-requests?status=pending — admin (999/111)
+// only. Lists requests for review, newest first, joined with product +
+// entity info so the review UI needs no extra round trips.
+app.get("/api/products/highlight-requests", verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: "Database unavailable" });
+    const callerEntite = Number(req.user?.id_entite);
+    if (!PRIVILEGED_ENTITES.includes(callerEntite)) {
+      return res.status(403).json({ error: "Accès réservé aux administrateurs de la plateforme (entités 999/111)." });
+    }
+
+    let { status = "pending" } = req.query;
+    const allowedStatuses = ["pending", "approved", "rejected", "all"];
+    if (!allowedStatuses.includes(status)) status = "pending";
+
+    const where = status === "all" ? "" : "WHERE ph.status = ?";
+    const params = status === "all" ? [] : [status];
+
+    const rows = await queryDB(
+      entiteDB,
+      `
+      SELECT ph.id, ph.id_produit, ph.id_entite, ph.status, ph.requested_by, ph.requested_at,
+             ph.reviewed_by, ph.reviewed_at, ph.reject_reason,
+             fp.gtin, fp.brand, fp.libelle, fp.images, fp.countryOfOrigin,
+             e.raison_socialle AS entite_name,
+             c.email AS requested_by_email
+      FROM product_highlights ph
+      JOIN fiche_produit fp ON fp.id = ph.id_produit
+      LEFT JOIN Entite e ON e.id_entite = ph.id_entite
+      LEFT JOIN comptes c ON c.id_compte = ph.requested_by
+      ${where}
+      ORDER BY ph.requested_at DESC
+      LIMIT 200
+      `,
+      params
+    );
+
+    res.json({ requests: rows });
+  } catch (err) {
+    console.error("? GET /api/products/highlight-requests error:", err);
+    res.status(500).json({ error: "Échec du chargement des demandes", details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/products/highlight-requests/:id/approve — admin only.
+app.post("/api/products/highlight-requests/:id/approve", verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: "Database unavailable" });
+    const callerEntite = Number(req.user?.id_entite);
+    if (!PRIVILEGED_ENTITES.includes(callerEntite)) {
+      return res.status(403).json({ error: "Accès réservé aux administrateurs de la plateforme (entités 999/111)." });
+    }
+
+    const reqId = Number(req.params.id);
+    const rows = await queryDB(entiteDB, "SELECT * FROM product_highlights WHERE id = ?", [reqId]);
+    if (!rows.length) return res.status(404).json({ error: "Demande introuvable" });
+
+    const result = await runUpdate(
+      entiteDB,
+      "UPDATE product_highlights SET status = 'approved', reviewed_by = ?, reviewed_at = NOW(), reject_reason = NULL WHERE id = ?",
+      [req.user?.id_compte || null, reqId]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: "Demande introuvable" });
+
+    try {
+      const comptes = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ?", [rows[0].id_entite]);
+      for (const c of comptes) {
+        await queryDB(
+          entiteDB,
+          "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'success', NOW(), 0)",
+          [c.id_compte, `Votre demande de mise en avant pour le produit #${rows[0].id_produit} a été approuvée.`]
+        );
+      }
+    } catch (notifErr) {
+      console.warn("?? Failed to notify entity of highlight approval:", notifErr.message);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("? POST /api/products/highlight-requests/:id/approve error:", err);
+    res.status(500).json({ error: "Échec de l'approbation", details: safeErrDetails(err) });
+  }
+});
+
+// POST /api/products/highlight-requests/:id/reject — admin only. Body: { reason? }
+app.post("/api/products/highlight-requests/:id/reject", verifyJWT, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: "Database unavailable" });
+    const callerEntite = Number(req.user?.id_entite);
+    if (!PRIVILEGED_ENTITES.includes(callerEntite)) {
+      return res.status(403).json({ error: "Accès réservé aux administrateurs de la plateforme (entités 999/111)." });
+    }
+
+    const reqId = Number(req.params.id);
+    const reason = req.body && req.body.reason ? String(req.body.reason).slice(0, 255) : null;
+
+    const rows = await queryDB(entiteDB, "SELECT * FROM product_highlights WHERE id = ?", [reqId]);
+    if (!rows.length) return res.status(404).json({ error: "Demande introuvable" });
+
+    const result = await runUpdate(
+      entiteDB,
+      "UPDATE product_highlights SET status = 'rejected', reviewed_by = ?, reviewed_at = NOW(), reject_reason = ? WHERE id = ?",
+      [req.user?.id_compte || null, reason, reqId]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: "Demande introuvable" });
+
+    try {
+      const comptes = await queryDB(entiteDB, "SELECT id_compte FROM comptes WHERE id_entite = ?", [rows[0].id_entite]);
+      const suffix = reason ? ` Motif : ${reason}` : "";
+      for (const c of comptes) {
+        await queryDB(
+          entiteDB,
+          "INSERT INTO notifications (id_compte, contenu, type, created_at, `read`) VALUES (?, ?, 'error', NOW(), 0)",
+          [c.id_compte, `Votre demande de mise en avant pour le produit #${rows[0].id_produit} a été refusée.${suffix}`]
+        );
+      }
+    } catch (notifErr) {
+      console.warn("?? Failed to notify entity of highlight rejection:", notifErr.message);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("? POST /api/products/highlight-requests/:id/reject error:", err);
+    res.status(500).json({ error: "Échec du refus", details: safeErrDetails(err) });
+  }
+});
+
+// ----------------------------------------------------------------------------
+// PUBLIC — GET /api/public/highlighted-products
+// No auth: this is what the MOBILE APP (home.dart) calls directly to build
+// its home-screen showcase. NOTE: the mobile app's other endpoints go through
+// a separate PHP API (see AppConfig.apiBase in the Flutter project) which is
+// NOT this Node server — this one specific endpoint is the exception, and the
+// mobile app needs a base URL pointed at THIS server to reach it (see the
+// comment in home.dart). Returns every entity that currently has at least one
+// APPROVED highlighted product, each with a capped product list, image URLs
+// made fully-qualified so the app can load them without depending on the
+// request's own host header being public/stable — set PUBLIC_BASE_URL in
+// .env to pin it explicitly (recommended for production).
+// ----------------------------------------------------------------------------
+const PUBLIC_ASSET_BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
+function toAbsoluteImageUrl(req, relPath) {
+  if (!relPath) return null;
+  if (/^https?:\/\//i.test(relPath)) return relPath;
+  const base = PUBLIC_ASSET_BASE_URL || `${req.protocol}://${req.get("host")}`;
+  return `${base}${relPath.startsWith("/") ? "" : "/"}${relPath}`;
+}
+
+app.get("/api/public/highlighted-products", async (req, res) => {
+  try {
+    res.set("Cache-Control", "public, max-age=60"); // mobile can poll cheaply; keeps DB load light
+    if (!entiteDB) return res.status(503).json({ error: "Database unavailable" });
+
+    const perEntityLimit = Math.max(1, Math.min(20, parseInt(req.query.limit_per_entity, 10) || 10));
+
+    const rows = await queryDB(
+      entiteDB,
+      `
+      SELECT ph.id_produit, ph.id_entite, ph.reviewed_at,
+             fp.gtin, fp.brand, fp.subBrand, fp.libelle, fp.short_libelle,
+             fp.description, fp.countryOfOrigin, fp.images,
+             e.raison_socialle AS entite_name
+      FROM product_highlights ph
+      JOIN fiche_produit fp ON fp.id = ph.id_produit
+      LEFT JOIN Entite e ON e.id_entite = ph.id_entite
+      WHERE ph.status = 'approved'
+      ORDER BY ph.reviewed_at DESC
+      `
+    );
+
+    // Group by entity in JS (simpler/safer than relying on window functions
+    // across whatever MySQL version each node in this fleet runs) and cap
+    // the product list per entity.
+    const byEntite = new Map();
+    for (const r of rows) {
+      if (!byEntite.has(r.id_entite)) {
+        byEntite.set(r.id_entite, {
+          id_entite: r.id_entite,
+          name: r.entite_name || `Entité ${r.id_entite}`,
+          latest_reviewed_at: r.reviewed_at,
+          products: [],
+        });
+      }
+      const bucket = byEntite.get(r.id_entite);
+      if (bucket.products.length < perEntityLimit) {
+        const images = (r.images || "")
+          .split(";")
+          .filter(Boolean)
+          .map((p) => toAbsoluteImageUrl(req, p));
+        bucket.products.push({
+          id: r.id_produit,
+          gtin: r.gtin,
+          brand: r.brand,
+          subBrand: r.subBrand,
+          productName: r.libelle,
+          short_libelle: r.short_libelle,
+          description: r.description,
+          countryOfOrigin: r.countryOfOrigin,
+          images,
+        });
+      }
+    }
+
+    // Freshest approvals lead the carousel.
+    const entities = [...byEntite.values()].sort(
+      (a, b) => new Date(b.latest_reviewed_at || 0) - new Date(a.latest_reviewed_at || 0)
+    );
+    entities.forEach((e) => delete e.latest_reviewed_at);
+
+    res.json({ entities });
+  } catch (err) {
+    console.error("? GET /api/public/highlighted-products error:", err);
+    res.status(500).json({ error: "Échec du chargement des mises en avant", details: safeErrDetails(err) });
   }
 });
 
@@ -10352,6 +11089,59 @@ app.patch('/api/comptes/:id_compte/etat', async (req, res) => {
   } catch (err) {
     if (conn) await conn.end().catch(() => {});
     console.error('PATCH /api/comptes/:id_compte/etat error:', err);
+    res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
+  }
+});
+
+// --- NEW: manual subscription overrides ------------------------------------------------
+// Lets an admin/master force an account's subscription into 'expired' (e.g. to test the
+// paywall, or to cut off a demo) or back into 'trial' (undo that, or extend a demo) without
+// a real payment or virement. Only touches the two columns every other part of the app
+// already reads/writes (`subscription_status`, `subscription_expires_at` — see the /etat
+// endpoint above, the login endpoint, and requireAccountAccess()), so it stays consistent
+// with the existing paywall gate. NOTE: the trial countdown shown elsewhere (days_left_trial
+// / trial_ends_at, computed in routes/subscription_routes.js) is derived from the account's
+// created_at rather than a stored "trial start" column, so on a long-lived account "Remettre
+// en essai" restores access immediately (status stops being 'expired'/'suspended') even if
+// the displayed day-count doesn't restart from scratch — this endpoint intentionally never
+// touches created_at, since that's also the "Date de création" shown in the table.
+const VALID_SUBSCRIPTION_ACTIONS = ['expire', 'trial'];
+
+app.patch('/api/comptes/:id_compte/subscription', async (req, res) => {
+  const { id_compte } = req.params;
+  const { action } = req.body;
+  let conn;
+
+  if (!VALID_SUBSCRIPTION_ACTIONS.includes(action)) {
+    return res.status(400).json({ error: `Action invalide. Valeurs autorisées : ${VALID_SUBSCRIPTION_ACTIONS.join(', ')}` });
+  }
+
+  try {
+    conn = await mysql.createConnection(dbConfig);
+
+    const permission = await canManageAccount(conn, req.user, id_compte);
+    if (!permission.ok) {
+      await conn.end();
+      return res.status(permission.status).json({ error: permission.error });
+    }
+
+    const subscriptionStatus = action === 'expire' ? 'expired' : 'trial';
+    // 'expired' gets a concrete timestamp (matches how the active->expired transition reads
+    // elsewhere); putting an account back into 'trial' clears any prior expiry date so the
+    // access checks fall through to the trial branch instead of a stale expiry.
+    const subscriptionExpiresAt = action === 'expire' ? new Date() : null;
+
+    const [result] = await conn.query(
+      'UPDATE comptes SET subscription_status = ?, subscription_expires_at = ? WHERE id_compte = ?',
+      [subscriptionStatus, subscriptionExpiresAt, id_compte]
+    );
+    await conn.end();
+
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Compte introuvable' });
+    res.json({ id_compte: Number(id_compte), subscription_status: subscriptionStatus, subscription_expires_at: subscriptionExpiresAt });
+  } catch (err) {
+    if (conn) await conn.end().catch(() => {});
+    console.error('PATCH /api/comptes/:id_compte/subscription error:', err);
     res.status(500).json({ error: 'Erreur interne du serveur', details: safeErrDetails(err) });
   }
 });
@@ -14453,6 +15243,7 @@ async function startServer() {
     await ensureSubscriptionSchema(entiteDB); // Auto-create subscription columns/table
     await ensureIpaySchema(entiteDB); // Auto-create ipay_payments table
     await ensureAccountHierarchyColumns();    // Auto-create etat/is_master/is_payment_responsible columns
+    await ensureProductHighlightSchema(entiteDB); // Auto-create product_highlights table (mobile showcase)
 
     const { Worker } = require('worker_threads');
 
@@ -14614,6 +15405,18 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// --- GLOBAL SAFETY NET ------------------------------------------------------
+// Must be registered after all routes. Catches anything that slips past a
+// route's own try/catch (sync throws, middleware errors, etc.) and guarantees
+// a JSON response instead of Express/nginx falling back to an HTML error page
+// — which is what makes a server crash look like a non-JSON "null" body on
+// the client instead of a readable error.
+app.use((err, req, res, next) => {
+  console.error('[UNHANDLED ERROR]', req.method, req.originalUrl, err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Internal server error', details: safeErrDetails(err) });
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
