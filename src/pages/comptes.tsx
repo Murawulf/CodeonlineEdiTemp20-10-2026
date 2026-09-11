@@ -105,6 +105,14 @@ interface Company {
 const TOP_ENTITY_ID = 999;
 const SECOND_ENTITY_ID = 111;
 
+// ─── NEW: bank demo entity — id_entite 2756 is used for live demonstrations to the bank.
+// iPay Tn / ClicToPay hasn't been given real API credentials yet (see the "Configuration —
+// ClicToPay" panel under Paramètres), so redirecting straight to iPay's hosted payment page
+// currently dead-ends in ERR_CONNECTION_RESET. Rather than sending a demo viewer into that
+// wall, any account under this entity gets a friendly explanatory notice instead when it
+// tries to pay an iPay offer — see handleIpayPayment() and the "iPay demo notice" modal below.
+const DEMO_ENTITY_ID = 2756;
+
 // ─── Subscription / trial status display ───
 const SUBSCRIPTION_LABELS: Record<SubscriptionState, { label: string; className: string }> = {
   trial: { label: 'Essai', className: 'bg-blue-100 text-blue-800' },
@@ -374,6 +382,13 @@ const Comptes: React.FC = () => {
   const [ipayPlans, setIpayPlans] = useState<IpayPlan[]>([]);
   const [loadingIpayPlans, setLoadingIpayPlans] = useState(false);
 
+  // ─── NEW: iPay bank-demo notice — shown instead of the real iPay redirect for
+  // DEMO_ENTITY_ID accounts (see handleIpayPayment). Keeps the plan + the real payment_url
+  // around so the "Continuer vers la page de paiement" button can still reach it on demand.
+  const [ipayDemoNoticeOpen, setIpayDemoNoticeOpen] = useState(false);
+  const [ipayDemoPlan, setIpayDemoPlan] = useState<IpayPlan | null>(null);
+  const [ipayDemoPaymentUrl, setIpayDemoPaymentUrl] = useState<string | null>(null);
+
   // ─── NEW: subscription validation (999/111 admins) ───
   const [virementsModalOpen, setVirementsModalOpen] = useState(false);
   const [virements, setVirements] = useState<Virement[]>([]);
@@ -398,6 +413,12 @@ const Comptes: React.FC = () => {
   const isSpecialUser = useMemo(() => {
     return isSecondEntity || isTopEntity;
   }, [isSecondEntity, isTopEntity]);
+
+  // ─── NEW: bank demo entity — see DEMO_ENTITY_ID above. Coerced with Number() because
+  // userIdProducteur is set straight from whatever the login payload / localStorage JSON
+  // has for id_entite, which can come through as a string depending on how it was stored —
+  // a strict `===` against the numeric constant would silently never match in that case. ───
+  const isDemoEntity = useMemo(() => Number(userIdProducteur) === DEMO_ENTITY_ID, [userIdProducteur]);
 
   // ─── NEW: master account — set only by 999/111, scoped to their own entity. A master
   // acts like an entity-level admin: full manage rights over accounts in `id_entite`,
@@ -637,6 +658,28 @@ const Comptes: React.FC = () => {
         throw new Error('Lien de paiement iPay manquant');
       }
 
+      // ─── DEBUG: temporary — remove once the bank-demo notice is confirmed to trigger
+      // correctly in the field. If the notice still doesn't show for the demo account,
+      // check this log: userIdProducteur must equal 2756 (as a number) for isDemoEntity
+      // to be true. If it prints something like "2756" (string) that's already handled by
+      // the Number() coercion above; if it prints a completely different id, the logged-in
+      // test account's id_entite isn't actually 2756 and DEMO_ENTITY_ID below needs updating.
+      console.log('[iPay demo check]', { userIdProducteur, isDemoEntity, DEMO_ENTITY_ID });
+
+      // ─── DEMO: the create call above already recorded the transaction server-side —
+      // it shows up in Transactions as "En attente" exactly like any other request. For
+      // DEMO_ENTITY_ID accounts, iPay Tn / ClicToPay hasn't been given real API credentials
+      // yet, so redirecting straight to `payment_url` only leads to iPay's hosted page
+      // failing with ERR_CONNECTION_RESET. Show an explanatory notice instead of that dead
+      // end; the real link is kept so "Continuer vers la page de paiement" can still reach it.
+      if (isDemoEntity) {
+        setIpayDemoPlan(ipayPlans.find((p) => p.code === planCode) || null);
+        setIpayDemoPaymentUrl(res.data.payment_url);
+        setIpayDemoNoticeOpen(true);
+        setIpayLoading(false);
+        return;
+      }
+
       window.location.href = res.data.payment_url;
     } catch (error: any) {
       console.error('iPay payment error:', error);
@@ -646,6 +689,20 @@ const Comptes: React.FC = () => {
       );
       setIpayLoading(false);
     }
+  };
+
+  // ─── NEW: "Continuer vers la page de paiement" — for the bank-demo notice. Lets anyone
+  // who wants to see the real (currently failing) iPay checkout reach it on purpose, instead
+  // of the app silently hiding that it exists.
+  const handleContinueToIpayCheckout = () => {
+    if (!ipayDemoPaymentUrl) return;
+    window.location.href = ipayDemoPaymentUrl;
+  };
+
+  const closeIpayDemoNotice = () => {
+    setIpayDemoNoticeOpen(false);
+    setIpayDemoPlan(null);
+    setIpayDemoPaymentUrl(null);
   };
 
   const handleSubmitVirement = async () => {
@@ -1147,6 +1204,61 @@ const Comptes: React.FC = () => {
     }
   };
 
+  // ─── NEW: manual subscription overrides — lets an admin/master mark an account's
+  // subscription as expired (e.g. to test the paywall) or put it back into trial (e.g. to
+  // undo that, or to extend a demo) without needing a real payment or virement. Calls the
+  // new PATCH /api/comptes/:id_compte/subscription endpoint (see server.js). Same
+  // "never on your own account" rule as handleChangeEtat, enforced both here and server-side.
+  const handleExpireSubscription = async (account: Account) => {
+    setActionMenuOpen(null);
+    setMenuPosition(null);
+
+    if (account.id_compte === idCompte) {
+      addNotification('Vous ne pouvez pas modifier l’abonnement de votre propre compte.', 'error');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Marquer l'abonnement de ${account.email} comme expiré ? Le compte perdra l'accès jusqu'à un nouveau paiement ou une remise en essai.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setSuspending(account.id_compte);
+      await api.patch(`/api/comptes/${account.id_compte}/subscription`, { action: 'expire' }, { withCredentials: true });
+      addNotification('Abonnement marqué comme expiré', 'success');
+      fetchAccounts();
+    } catch (error: any) {
+      addNotification(error.response?.data?.error || "Erreur lors de l'expiration de l'abonnement", 'error');
+    } finally {
+      setSuspending(null);
+    }
+  };
+
+  const handleResetTrial = async (account: Account) => {
+    setActionMenuOpen(null);
+    setMenuPosition(null);
+
+    if (account.id_compte === idCompte) {
+      addNotification('Vous ne pouvez pas modifier l’abonnement de votre propre compte.', 'error');
+      return;
+    }
+
+    const confirmed = window.confirm(`Remettre le compte ${account.email} en période d'essai ?`);
+    if (!confirmed) return;
+
+    try {
+      setSuspending(account.id_compte);
+      await api.patch(`/api/comptes/${account.id_compte}/subscription`, { action: 'trial' }, { withCredentials: true });
+      addNotification('Compte remis en période d’essai', 'success');
+      fetchAccounts();
+    } catch (error: any) {
+      addNotification(error.response?.data?.error || 'Erreur lors de la remise en essai', 'error');
+    } finally {
+      setSuspending(null);
+    }
+  };
+
   // ─── FIXED: use mousedown + stopPropagation so the outside-click never fires first ───
   // ─── FIXED: menu now always fits on screen. Instead of guessing a fixed menu height,
   // we pick whichever side (above/below the button) has more room, then cap the menu's
@@ -1376,6 +1488,20 @@ const Comptes: React.FC = () => {
     }
     return rows;
   }, [filteredAccounts, isSpecialUser, companies]);
+
+  // ─── NEW: illustrative preview values for the iPay bank-demo notice — a mocked
+  // transaction row + reference, shaped just like a real one, purely to show what the
+  // account will see once the payment is recorded (see the "iPay demo notice" modal below).
+  const demoTransactionPreview = useMemo(() => {
+    if (!ipayDemoNoticeOpen) return null;
+    const now = Date.now();
+    const rand = Math.random().toString(16).slice(2, 8);
+    return {
+      id: `${rand}${now.toString(16).slice(-2)}`.slice(0, 8),
+      reference: `CO-3-${now}-${rand}`,
+      clientName: [userAccount?.prenom, userAccount?.name].filter(Boolean).join(' ') || userAccount?.email || 'Votre compte',
+    };
+  }, [ipayDemoNoticeOpen, userAccount]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -1834,6 +1960,37 @@ const Comptes: React.FC = () => {
                                     ))}
                                   </div>,
                                   document.body
+                                )}
+
+                                {/* ─── NEW: manual subscription overrides — expire the account's
+                                    subscription on demand, or put it back into a fresh trial.
+                                    Same visibility rule as État / Supprimer. ─── */}
+                                {canManageOtherAccount(account) && (
+                                  <div className="border-t border-gray-100">
+                                    <p className="px-4 pt-2 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                                      Abonnement
+                                    </p>
+                                    <button
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation();
+                                        handleResetTrial(account);
+                                      }}
+                                      className="block w-full text-left px-4 py-2 text-sm text-teal-700 hover:bg-teal-50 transition-colors"
+                                      role="menuitem"
+                                    >
+                                      🔄 Remettre en essai
+                                    </button>
+                                    <button
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation();
+                                        handleExpireSubscription(account);
+                                      }}
+                                      className="block w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 transition-colors"
+                                      role="menuitem"
+                                    >
+                                      ⛔ Marquer comme expiré
+                                    </button>
+                                  </div>
                                 )}
 
                                 {/* ─── NEW: 999/111 only — flag/unflag this account as the master
@@ -2428,6 +2585,127 @@ const Comptes: React.FC = () => {
                   className="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors"
                 >
                   Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── NEW: iPay bank-demo notice — shown instead of the real iPay redirect for
+            DEMO_ENTITY_ID (2756) accounts. See handleIpayPayment(). Explains, in French,
+            that the card-entry page is unavailable pending ClicToPay's real credentials,
+            while making clear the transaction itself is already recorded and will work
+            end-to-end once configured. A "Continuer" button still lets anyone reach the
+            real (currently failing) iPay page on purpose. ─── */}
+        {ipayDemoNoticeOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-gray-200">
+              <div className="flex items-start gap-4 mb-2">
+                <div className="flex-shrink-0 w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-950 animate-spin" style={{ animationDuration: '2s' }} viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-blue-950">Paiement en ligne — configuration en cours</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Entité de démonstration {DEMO_ENTITY_ID}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3 text-sm text-gray-700 leading-relaxed">
+                <p>
+                  Votre transaction {ipayDemoPlan ? <>pour l'offre <strong>{ipayDemoPlan.label}</strong></> : ''} a bien été
+                  enregistrée. Comme illustré ci-dessous, elle apparaît immédiatement dans l'onglet <strong>Transactions</strong> avec
+                  le statut <strong>« En attente »</strong>, exactement comme pour toute autre demande d'abonnement.
+                </p>
+                <p>
+                  Actuellement, l'équipe technique finalise la configuration des identifiants ClicToPay (Merchant ID, API Key, API
+                  Secret) auprès d'iPay Tn. Tant que ces identifiants ne sont pas renseignés, la page de saisie des informations de
+                  carte bancaire — hébergée par iPay — ne peut pas se charger.
+                </p>
+                <p>
+                  Dès que la configuration ci-dessous sera complétée, le parcours de paiement en ligne fonctionnera de bout en bout et
+                  l'abonnement sera activé automatiquement, sans aucune action supplémentaire de votre part.
+                </p>
+              </div>
+
+              {/* ─── Preview A: how the transaction already appears (mirrors the Transactions table) ─── */}
+              <div className="mt-6">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Aperçu — Transactions</h3>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 bg-blue-950 text-white text-[11px] font-medium px-3 py-2">
+                    <span className="col-span-1">ID</span>
+                    <span className="hidden sm:block col-span-1">Produit</span>
+                    <span className="col-span-1">Client</span>
+                    <span className="hidden sm:block col-span-1">Montant</span>
+                    <span className="col-span-1">Statut</span>
+                    <span className="col-span-1 sm:col-span-1">Référence</span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 items-center px-3 py-2.5 text-xs text-gray-700 bg-white">
+                    <span className="col-span-1 truncate">{demoTransactionPreview?.id || '…'}</span>
+                    <span className="hidden sm:block col-span-1 truncate">abonnement-edi</span>
+                    <span className="col-span-1 truncate">{demoTransactionPreview?.clientName || '…'}</span>
+                    <span className="hidden sm:block col-span-1">
+                      {ipayDemoPlan ? `${ipayDemoPlan.amount} ${ipayDemoPlan.currency}` : '—'}
+                    </span>
+                    <span className="col-span-1">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-800">
+                        En attente
+                      </span>
+                    </span>
+                    <span className="col-span-1 truncate text-[11px] text-gray-500">{demoTransactionPreview?.reference || '…'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Preview B: what still needs to be filled in (mirrors the ClicToPay config panel) ─── */}
+              <div className="mt-5">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Aperçu — Configuration ClicToPay</h3>
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs text-gray-500">Saisis par l'équipe technique — non disponible pour ce compte de démonstration.</p>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-orange-100 text-orange-800 whitespace-nowrap ml-2">
+                      En cours
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block mb-1 text-[11px] font-medium text-gray-500">Merchant ID</label>
+                      <input type="text" disabled placeholder="Ex: MERCH_xxx" className="w-full border border-gray-200 rounded-md p-2 text-xs bg-gray-100 text-gray-400 cursor-not-allowed" />
+                    </div>
+                    <div>
+                      <label className="block mb-1 text-[11px] font-medium text-gray-500">API Key</label>
+                      <input type="text" disabled placeholder="••••••••••••" className="w-full border border-gray-200 rounded-md p-2 text-xs bg-gray-100 text-gray-400 cursor-not-allowed" />
+                    </div>
+                    <div>
+                      <label className="block mb-1 text-[11px] font-medium text-gray-500">API Secret</label>
+                      <input type="text" disabled placeholder="••••••••••••" className="w-full border border-gray-200 rounded-md p-2 text-xs bg-gray-100 text-gray-400 cursor-not-allowed" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── NEW: still offer a way through to the real iPay redirect, on purpose ─── */}
+              <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs text-amber-800">
+                  Vous pouvez tout de même continuer vers la page de paiement réelle si vous souhaitez voir son état actuel — tant que
+                  les identifiants ci-dessus ne sont pas configurés, cette page ne se chargera pas (erreur de connexion côté iPay).
+                </p>
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+                <button
+                  onClick={closeIpayDemoNotice}
+                  className="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={handleContinueToIpayCheckout}
+                  className="px-6 py-3 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-50 text-sm font-medium transition-colors"
+                >
+                  Continuer vers la page de paiement
                 </button>
               </div>
             </div>
