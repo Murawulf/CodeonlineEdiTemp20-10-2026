@@ -359,6 +359,50 @@ const MODELES_DIR = process.env.MODELES_DIR || path.join(__dirname, 'Modeles');
 const { pool: entitePool, dbConfig } = require('./config/database');
 const ENTITE_MYSQL_CONFIG = dbConfig; // alias used by Dev2 routes
 
+// Country GTIN/GS1 prefix used to auto-generate a caracteristique's public
+// "code_identifiant" (see genererCodeIdentifiant below). Defaults to 619
+// (Cote d'Ivoire) as requested; override per-deployment via env var for
+// other countries (Tunisia/Senegal) without touching code.
+const COUNTRY_GTIN_PREFIX = process.env.COUNTRY_GTIN_PREFIX || '619';
+
+// Defensive migration helper: makes sure a table's actual primary key
+// column (whatever it's named - some pre-existing deployments used e.g.
+// "id_attribut" instead of "id") has AUTO_INCREMENT set, so plain INSERTs
+// that omit it (as this file's INSERT statements all do) don't fail with
+// "Field '<pk>' doesn't have a default value". If the table has no primary
+// key at all yet, it falls back to creating/using `fallbackColumn` as an
+// AUTO_INCREMENT PRIMARY KEY. Safe to call on every boot - it's a no-op
+// once the column is already AUTO_INCREMENT.
+async function ensureAutoIncrementPK(conn, tableName, fallbackColumn = 'id') {
+  try {
+    const [pkRows] = await conn.query(
+      `SELECT COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_KEY = 'PRI'`,
+      [tableName]
+    );
+    if (pkRows.length > 0) {
+      const pk = pkRows[0];
+      if (!/auto_increment/i.test(pk.EXTRA || '')) {
+        await conn.query(`ALTER TABLE \`${tableName}\` MODIFY \`${pk.COLUMN_NAME}\` INT NOT NULL AUTO_INCREMENT`);
+        console.log(`[MySQL] ${tableName}.${pk.COLUMN_NAME} AUTO_INCREMENT fixed (migration)`);
+      }
+      return;
+    }
+    // No primary key at all on this table yet.
+    const [colRows] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [tableName, fallbackColumn]
+    );
+    if (colRows.length > 0) {
+      await conn.query(`ALTER TABLE \`${tableName}\` MODIFY \`${fallbackColumn}\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY`);
+    } else {
+      await conn.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${fallbackColumn}\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST`);
+    }
+    console.log(`[MySQL] ${tableName}.${fallbackColumn} AUTO_INCREMENT PRIMARY KEY ensured (migration)`);
+  } catch (pkErr) {
+    console.warn(`[MySQL] could not ensure AUTO_INCREMENT primary key on ${tableName}:`, pkErr.message);
+  }
+}
+
 // Create caracteristiques tables in MySQL if they don't exist
 (async () => {
   try {
@@ -367,10 +411,17 @@ const ENTITE_MYSQL_CONFIG = dbConfig; // alias used by Dev2 routes
       id_carac INT AUTO_INCREMENT PRIMARY KEY,
       id_entite INT NOT NULL,
       identification VARCHAR(500) NOT NULL,
+      brand VARCHAR(255),
+      code_identifiant VARCHAR(50),
       description_fr TEXT,
       description_en TEXT,
       description_ar TEXT,
       nature VARCHAR(100),
+      -- Mobile visibility gate: only ever meaningful when nature = 'fiche
+      -- permanente' (an occasionnelle fiche never appears on mobile no
+      -- matter what this says - see the WHERE clauses below and in
+      -- V1_fp.php). 'pending' | 'approved' | 'rejected' | NULL.
+      approval_status VARCHAR(20),
       utilite TEXT,
       date_lancement DATE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -391,12 +442,224 @@ const ENTITE_MYSQL_CONFIG = dbConfig; // alias used by Dev2 routes
       type VARCHAR(20),
       url TEXT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+    // Defensive migration: older deployments may already have the
+    // caracteristiques table WITHOUT the new brand/code_identifiant
+    // columns (CREATE TABLE IF NOT EXISTS above is a no-op on those). Add
+    // them here if missing, so nothing breaks on existing databases.
+    const [existingCols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'caracteristiques'`
+    );
+    const colNames = new Set(existingCols.map(c => c.COLUMN_NAME));
+    if (!colNames.has('brand')) {
+      await conn.query(`ALTER TABLE caracteristiques ADD COLUMN brand VARCHAR(255) AFTER identification`);
+      console.log('[MySQL] caracteristiques.brand column added (migration)');
+    }
+    if (!colNames.has('code_identifiant')) {
+      await conn.query(`ALTER TABLE caracteristiques ADD COLUMN code_identifiant VARCHAR(50) AFTER brand`);
+      console.log('[MySQL] caracteristiques.code_identifiant column added (migration)');
+    }
+    if (!colNames.has('approval_status')) {
+      await conn.query(`ALTER TABLE caracteristiques ADD COLUMN approval_status VARCHAR(20) AFTER nature`);
+      console.log('[MySQL] caracteristiques.approval_status column added (migration)');
+    }
+    // Older deployments may lack the timestamp columns - the web list can
+    // sort on created_at and the mobile API reads updated_at, so add them.
+    if (!colNames.has('created_at')) {
+      try {
+        await conn.query(`ALTER TABLE caracteristiques ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP`);
+        console.log('[MySQL] caracteristiques.created_at column added (migration)');
+      } catch (e) { console.warn('[MySQL] could not add caracteristiques.created_at:', e.message); }
+    }
+    if (!colNames.has('updated_at')) {
+      try {
+        await conn.query(`ALTER TABLE caracteristiques ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`);
+        console.log('[MySQL] caracteristiques.updated_at column added (migration)');
+      } catch (e) { console.warn('[MySQL] could not add caracteristiques.updated_at:', e.message); }
+    }
+
+    // Defensive migration: on some pre-existing deployments the
+    // caracteristiques table was created with id_carac as a plain INT
+    // PRIMARY KEY, WITHOUT AUTO_INCREMENT (CREATE TABLE IF NOT EXISTS above
+    // is a no-op if the table already exists, so it never fixes this).
+    // Every INSERT here relies on MySQL assigning id_carac automatically -
+    // without AUTO_INCREMENT that fails with "Field 'id_carac' doesn't have
+    // a default value". Detect and fix that here so saving a fiche always
+    // works, regardless of how the table was originally created.
+    const [idCaracCol] = await conn.query(
+      `SELECT COLUMN_KEY, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'caracteristiques' AND COLUMN_NAME = 'id_carac'`
+    );
+    if (idCaracCol.length > 0 && !/auto_increment/i.test(idCaracCol[0].EXTRA || '')) {
+      try {
+        if (idCaracCol[0].COLUMN_KEY === 'PRI') {
+          // Already the primary key - just add AUTO_INCREMENT to it.
+          await conn.query(`ALTER TABLE caracteristiques MODIFY id_carac INT NOT NULL AUTO_INCREMENT`);
+        } else {
+          // Not even a primary key yet - make it one and auto-increment it.
+          await conn.query(`ALTER TABLE caracteristiques MODIFY id_carac INT NOT NULL AUTO_INCREMENT PRIMARY KEY`);
+        }
+        console.log('[MySQL] caracteristiques.id_carac AUTO_INCREMENT fixed (migration)');
+      } catch (autoIncErr) {
+        console.warn('[MySQL] could not fix id_carac AUTO_INCREMENT:', autoIncErr.message);
+      }
+    }
+
+    // Defensive migration: same problem as above, but for the two child
+    // tables - an older deployment may already have caracteristiques_elements
+    // and/or caracteristiques_illustrations WITHOUT some of the columns
+    // used here (e.g. options_element/valeur_default were added later for
+    // the dynamic "elements techniques" editor). CREATE TABLE IF NOT EXISTS
+    // is a no-op on those pre-existing tables, so check and add whatever is
+    // missing, exactly like the caracteristiques table above.
+    const [existingElCols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'caracteristiques_elements'`
+    );
+    const elColNames = new Set(existingElCols.map(c => c.COLUMN_NAME));
+    const elColumnDefs = [
+      ['id_carac', 'INT NOT NULL'],
+      ['nom_element', 'VARCHAR(255)'],
+      ['type_element', 'VARCHAR(50)'],
+      ['options_element', 'TEXT'],
+      ['valeur_default', 'TEXT'],
+    ];
+    for (const [col, def] of elColumnDefs) {
+      if (!elColNames.has(col)) {
+        try {
+          await conn.query(`ALTER TABLE caracteristiques_elements ADD COLUMN ${col} ${def}`);
+          console.log(`[MySQL] caracteristiques_elements.${col} column added (migration)`);
+        } catch (elColErr) {
+          console.warn(`[MySQL] could not add caracteristiques_elements.${col}:`, elColErr.message);
+        }
+      }
+    }
+
+    const [existingIllCols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'caracteristiques_illustrations'`
+    );
+    const illColNames = new Set(existingIllCols.map(c => c.COLUMN_NAME));
+    const illColumnDefs = [
+      ['id_carac', 'INT NOT NULL'],
+      ['filename', 'VARCHAR(500)'],
+      ['type', 'VARCHAR(20)'],
+      ['url', 'TEXT'],
+    ];
+    for (const [col, def] of illColumnDefs) {
+      if (!illColNames.has(col)) {
+        try {
+          await conn.query(`ALTER TABLE caracteristiques_illustrations ADD COLUMN ${col} ${def}`);
+          console.log(`[MySQL] caracteristiques_illustrations.${col} column added (migration)`);
+        } catch (illColErr) {
+          console.warn(`[MySQL] could not add caracteristiques_illustrations.${col}:`, illColErr.message);
+        }
+      }
+    }
+
+    // Defensive migration: some pre-existing deployments have an older,
+    // unrelated "valeur_element" column on caracteristiques_elements
+    // (distinct from "valeur_default" above) that is NOT NULL with no
+    // default. This code never writes to it - it's dead legacy data - but
+    // MySQL will still reject every insert unless it's nullable. Relax it
+    // if found, so it stops blocking saves.
+    if (elColNames.has('valeur_element')) {
+      try {
+        const [veCol] = await conn.query(
+          `SELECT IS_NULLABLE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'caracteristiques_elements' AND COLUMN_NAME = 'valeur_element'`
+        );
+        if (veCol.length > 0 && veCol[0].IS_NULLABLE === 'NO') {
+          await conn.query(`ALTER TABLE caracteristiques_elements MODIFY valeur_element ${veCol[0].COLUMN_TYPE} NULL`);
+          console.log('[MySQL] caracteristiques_elements.valeur_element relaxed to NULL (migration)');
+        }
+      } catch (veErr) {
+        console.warn('[MySQL] could not relax caracteristiques_elements.valeur_element:', veErr.message);
+      }
+    }
+
+    // Defensive migration: fix the primary key AUTO_INCREMENT on the two
+    // child tables too, whatever that column is actually named on this
+    // deployment (some pre-existing installs used "id_attribut" instead of
+    // "id" here, same underlying bug as the id_carac fix above).
+    await ensureAutoIncrementPK(conn, 'caracteristiques_elements', 'id');
+    await ensureAutoIncrementPK(conn, 'caracteristiques_illustrations', 'id');
+
+    // Unique index on code_identifiant, added separately (and defensively)
+    // so a fresh install and a migrated install both end up with it,
+    // without failing if it already exists.
+    const [existingIdx] = await conn.query(
+      `SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'caracteristiques' AND INDEX_NAME = 'uniq_code_identifiant'`
+    );
+    if (existingIdx.length === 0) {
+      try {
+        await conn.query(`ALTER TABLE caracteristiques ADD UNIQUE INDEX uniq_code_identifiant (code_identifiant)`);
+      } catch (idxErr) {
+        // If pre-existing rows collide (e.g. all NULL is fine in MySQL - NULLs
+        // don't collide in a unique index - but just in case), don't block boot.
+        console.warn('[MySQL] could not add uniq_code_identifiant index:', idxErr.message);
+      }
+    }
+
     await conn.end();
     console.log('[MySQL] caracteristiques tables verified/created');
   } catch (e) {
     console.warn('[MySQL] caracteristiques table init warning:', e.message);
   }
 })();
+
+// Generates this entity's public "code_identifiant", ALWAYS server-side
+// (no manual input is accepted anywhere):
+//   COUNTRY_GTIN_PREFIX + id_entite + a 4-digit number 0001..9999
+//   e.g. "619" + "34" + "0007" -> "619340007".
+// The 4-digit suffix is fixed-width, so codes of different entities can
+// never collide (their length/prefix always differ). A random free number is
+// picked first; if the random tries all hit used numbers, the exact set of
+// numbers still free for this entity is computed from the DB and one of them
+// is used - so an entity only gets CODE_IDENTIFIANT_EXHAUSTED when all 9999
+// numbers are really taken. The unique index uniq_code_identifiant + the
+// caller's retry loop cover two simultaneous saves.
+async function genererCodeIdentifiant(conn, idEntite, randomAttempts = 20) {
+  const base = `${COUNTRY_GTIN_PREFIX}${Number(idEntite)}`;
+  for (let attempt = 0; attempt < randomAttempts; attempt++) {
+    const rand = Math.floor(Math.random() * 9999) + 1; // 1..9999
+    const candidate = `${base}${String(rand).padStart(4, '0')}`;
+    const [[{ cnt }]] = await conn.query(
+      'SELECT COUNT(*) AS cnt FROM caracteristiques WHERE code_identifiant = ?',
+      [candidate]
+    );
+    if (Number(cnt) === 0) return candidate;
+  }
+  const [usedRows] = await conn.query(
+    'SELECT code_identifiant FROM caracteristiques WHERE code_identifiant LIKE ? AND CHAR_LENGTH(code_identifiant) = ?',
+    [`${base}%`, base.length + 4]
+  );
+  const used = new Set(usedRows.map(r => String(r.code_identifiant)));
+  const free = [];
+  for (let n = 1; n <= 9999; n++) {
+    const c = `${base}${String(n).padStart(4, '0')}`;
+    if (!used.has(c)) free.push(c);
+  }
+  if (free.length === 0) throw new Error('CODE_IDENTIFIANT_EXHAUSTED');
+  return free[Math.floor(Math.random() * free.length)];
+}
+
+// The two "nature" values a caracteristique fiche can have (mirrors the
+// <select> options in Caracteristiques.tsx exactly):
+//  - 'fiche permanente'    -> needs admin approval before it can ever show
+//                             on mobile (see caracteristiques_search_get /
+//                             caracteristique_by_id_get in V1_fp.php, which
+//                             both require nature = permanente AND
+//                             approval_status = 'approved').
+//  - 'fiche occasionnelle' -> never needs approval, but also never shows on
+//                             mobile at all - stays web-admin only.
+const CARAC_NATURE_PERMANENTE = 'fiche permanente';
+
+// Computes the approval_status a fiche should be saved with, given its
+// nature and whether the saver is a privileged (111/999) account. A
+// privileged account is the same one that would review/approve it anyway,
+// so its own saves are auto-approved instead of making it wait on itself -
+// a regular entity's save always starts (or goes back to) pending.
+function computeApprovalStatus(nature, isPrivileged) {
+  if (nature !== CARAC_NATURE_PERMANENTE) return null; // n/a - never shown on mobile regardless of this value
+  return isPrivileged ? 'approved' : 'pending';
+}
 
 const EANCOM_BASE_DIR = process.env.EANCOM_BASE_DIR || path.join(__dirname, 'uploads', 'eancom');
 const EDI_ORDERS_PATH = process.env.EDI_ORDERS_PATH || path.join(__dirname, 'uploads', 'orders');
@@ -9398,96 +9661,255 @@ router.delete("/tracking/:id", async (req, res) => {
 });
 
 // ======================================
-//  CARACTÉRISTIQUES IMAGE UPLOADER (CJS VERSION)
+//  CARACTÉRISTIQUES – IMAGES / VIDÉOS (même stockage que les fiches produit)
 // ======================================
-// Folder for uploads
-const CARAC_DIR = process.env.CARAC_DIR || path.join(__dirname, 'uploads', 'caracteristiques');
-
-// Ensure folder exists
+// Les illustrations des fiches caractéristique sont désormais enregistrées
+// EXACTEMENT comme les images des fiches produit :
+//   - même dossier disque      : PRODUCTS_DIR (env PRODUCTS_DIR, ex.
+//                                /var/www/codeonline-fp/images/products)
+//   - même URL publique        : /images/products/<fichier>
+//   - même résolution mobile   : V1_fp.php::_resolve_image_url() préfixe
+//                                images_base_url, comme pour fiche_produit
+// Avant, elles partaient dans ./uploads/caracteristiques (dossier du code,
+// écrasé à chaque redéploiement et non servi par le domaine images du mobile)
+// -> images « perdues ». L'ancien dossier reste servi (compatibilité) et ses
+// fichiers sont recopiés automatiquement vers PRODUCTS_DIR au démarrage.
+const CARAC_DIR = process.env.CARAC_DIR || path.join(__dirname, 'uploads', 'caracteristiques'); // LEGACY (lecture seule)
 if (!fs.existsSync(CARAC_DIR)) {
-  fs.mkdirSync(CARAC_DIR, { recursive: true });
+  try { fs.mkdirSync(CARAC_DIR, { recursive: true }); } catch (e) { /* non bloquant */ }
 }
-
-// Serve caracteristique images/videos directly from CARAC_DIR. This route didn't
-// exist before, so anything uploaded here was unreachable from the browser no
-// matter what URL was returned.
+// Ancienne URL toujours servie pour ne casser aucun lien existant.
 app.use('/images/caracteristiques', express.static(CARAC_DIR));
 
-// -------------------------------------------
-// UPLOAD HANDLER (Images + Videos)
-// -------------------------------------------
+const CARAC_IMAGE_MIMES = ['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+const CARAC_VIDEO_MIMES = ['video/mp4', 'video/webm', 'video/quicktime'];
+const CARAC_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+const CARAC_VIDEO_EXTS = ['.mp4', '.webm', '.mov'];
+
+function caracMediaKind(file) {
+  const mime = String(file.mimetype || '').toLowerCase();
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (CARAC_IMAGE_MIMES.includes(mime)) return 'image';
+  if (CARAC_VIDEO_MIMES.includes(mime)) return 'video';
+  // Certains navigateurs/OS envoient application/octet-stream : on se fie
+  // alors à l'extension.
+  if (CARAC_IMAGE_EXTS.includes(ext)) return 'image';
+  if (CARAC_VIDEO_EXTS.includes(ext)) return 'video';
+  return null;
+}
+
 const storageCaracteristique = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, CARAC_DIR);
+    try {
+      if (!fs.existsSync(PRODUCTS_DIR)) fs.mkdirSync(PRODUCTS_DIR, { recursive: true });
+      cb(null, PRODUCTS_DIR);
+    } catch (e) {
+      cb(e);
+    }
   },
   filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const name = crypto.randomUUID() + ext;
-    cb(null, name);
+    // Même schéma de nom que les images produit (timestamp + aléatoire),
+    // préfixé "carac-" pour les reconnaître dans le dossier partagé.
+    let ext = path.extname(file.originalname || '').toLowerCase();
+    if (!/^\.[a-z0-9]{1,5}$/.test(ext)) ext = '';
+    const uniq = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `carac-${uniq}${ext}`);
   }
 });
 
 const caracteristiqueUpload = multer({
   storage: storageCaracteristique,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB images/videos
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 Mo images/vidéos
   fileFilter: (req, file, cb) => {
-    const allowed = [
-      "image/jpeg", "image/png", "image/webp",
-      "video/mp4", "video/webm"
-    ];
-
-    if (!allowed.includes(file.mimetype)) {
-      return cb(new Error("Invalid file type (jpg/png/webp/mp4/webm only)"));
+    if (!caracMediaKind(file)) {
+      return cb(new Error('Type de fichier non autorisé (jpg, png, gif, webp, svg, mp4, webm, mov uniquement)'));
     }
     cb(null, true);
   }
 });
 
+// Normalise une illustration reçue du client avant insertion : on n'accepte
+// que nos propres URLs (/images/products/... ou legacy /images/caracteristiques/...)
+// ou une URL absolue http(s), jamais de champs undefined (mysql2 les refuse).
+function sanitizeIllustration(file) {
+  if (!file || typeof file !== 'object') return null;
+  const url = String(file.url || '').trim();
+  if (!url) return null;
+  const okUrl = url.startsWith('/images/') || /^https?:\/\//i.test(url);
+  if (!okUrl) return null;
+  const filename = String(file.filename || path.basename(url) || '').slice(0, 500);
+  const type = file.type === 'video' ? 'video' : 'image';
+  return { filename, type, url };
+}
+
+function sanitizeElement(el) {
+  if (!el || typeof el !== 'object') return null;
+  const nom = String(el.nom || '').trim();
+  if (!nom) return null; // un élément sans nom n'a pas de sens -> ignoré
+  const allowedTypes = ['varchar', 'number', 'integer', 'text', 'list'];
+  const type = allowedTypes.includes(el.type) ? el.type : 'varchar';
+  const options = type === 'list' && Array.isArray(el.options) && el.options.length
+    ? JSON.stringify(el.options.map(o => String(o)))
+    : null;
+  const defaultValue = el.defaultValue === undefined || el.defaultValue === null || el.defaultValue === ''
+    ? null
+    : String(el.defaultValue);
+  return { nom, type, options, defaultValue };
+}
+
+// mysql2 returns DATE columns as JS Date objects at LOCAL midnight; sending
+// them as JSON would convert to UTC and can shift the day (e.g. UTC+1 ->
+// previous day). Always hand the client a plain 'YYYY-MM-DD'.
+function formatCaracDate(v) {
+  if (!v) return null;
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(v);
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null;
+}
+
+function nullIfEmpty(v) {
+  if (v === undefined || v === null) return null;
+  const s = String(v);
+  return s.trim() === '' ? null : s;
+}
+
+// Only a valid 'YYYY-MM-DD' (or a string starting with it) is stored.
+function cleanCaracDate(v) {
+  const s = nullIfEmpty(v);
+  if (!s) return null;
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(s.trim());
+  return m ? m[1] : null;
+}
+
+async function insertCaracChildren(conn, id_carac, elements, illustrations) {
+  for (const raw of Array.isArray(elements) ? elements : []) {
+    const el = sanitizeElement(raw);
+    if (!el) continue;
+    await conn.query(
+      `INSERT INTO caracteristiques_elements (id_carac, nom_element, type_element, options_element, valeur_default) VALUES (?, ?, ?, ?, ?)`,
+      [id_carac, el.nom, el.type, el.options, el.defaultValue]
+    );
+  }
+  for (const raw of Array.isArray(illustrations) ? illustrations : []) {
+    const file = sanitizeIllustration(raw);
+    if (!file) continue;
+    await conn.query(
+      `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url) VALUES (?, ?, ?, ?)`,
+      [id_carac, file.filename, file.type, file.url]
+    );
+  }
+}
+
+// Migration automatique (une fois par démarrage, idempotente) : toute
+// illustration encore enregistrée sous /images/caracteristiques/<f> est
+// recopiée dans PRODUCTS_DIR puis son URL passe à /images/products/<f>.
+// La ligne n'est mise à jour QUE si le fichier est bien présent dans
+// PRODUCTS_DIR - jamais de lien cassé.
+setTimeout(async () => {
+  let conn;
+  try {
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [rows] = await conn.query(
+      "SELECT id, url FROM caracteristiques_illustrations WHERE url LIKE '/images/caracteristiques/%'"
+    );
+    let moved = 0;
+    for (const row of rows) {
+      const fname = path.basename(String(row.url));
+      if (!fname) continue;
+      const src = path.join(CARAC_DIR, fname);
+      const dst = path.join(PRODUCTS_DIR, fname);
+      try {
+        if (!fs.existsSync(dst)) {
+          if (!fs.existsSync(src)) continue; // fichier réellement perdu : on ne touche pas la ligne
+          fs.copyFileSync(src, dst);
+        }
+        await conn.query('UPDATE caracteristiques_illustrations SET url=? WHERE id=?', [`/images/products/${fname}`, row.id]);
+        moved++;
+      } catch (e) {
+        console.warn('[caracteristiques] migration image ignorée:', fname, e.message);
+      }
+    }
+    if (moved) console.log(`[caracteristiques] ${moved} illustration(s) migrée(s) vers /images/products`);
+  } catch (e) {
+    console.warn('[caracteristiques] migration images non effectuée:', e.message);
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
+  }
+}, 8000);
+
 // =====================================================
 // GET ALL CARACTERISTIQUES
 // =====================================================
 app.get("/api/caracteristiques", async (req, res) => {
+  let conn;
   try {
     const {
       search,
-      id_entite,
       nature,
+      status, // approval_status : 'pending' | 'approved' | 'rejected'
       sortBy = "id_carac",
       sortDir = "DESC",
       page = "1",
       limit = "25"
     } = req.query;
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    // SECURITY : le périmètre entité vient UNIQUEMENT du JWT vérifié.
+    // Un compte privilégié (111/999) voit toutes les entités ; les autres
+    // uniquement la leur. L'id_entite éventuellement envoyé est ignoré.
+    const callerEntite = Number(req.user?.id_entite);
+    const isPrivileged = [111, 999].includes(callerEntite);
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 25));
+    const offset = (pageNum - 1) * limitNum;
 
     const where = [];
     const params = [];
 
-    if (id_entite) { where.push("id_entite=?"); params.push(id_entite); }
-    if (nature) { where.push("nature=?"); params.push(nature); }
+    if (!isPrivileged) {
+      if (!callerEntite) return res.json({ caracteristiques: [] });
+      where.push("c.id_entite=?");
+      params.push(callerEntite);
+    }
+    if (nature) { where.push("c.nature=?"); params.push(nature); }
+    if (status) { where.push("c.approval_status=?"); params.push(status); }
 
     if (search) {
       const s = `%${search}%`;
-      where.push("(identification LIKE ? OR utilite LIKE ?)");
-      params.push(s, s);
+      where.push("(c.identification LIKE ? OR c.utilite LIKE ? OR c.brand LIKE ? OR c.code_identifiant LIKE ?)");
+      params.push(s, s, s, s);
     }
 
     const whereSQL = where.length ? "WHERE " + where.join(" AND ") : "";
     const allowedSort = ["id_carac", "identification", "nature", "date_lancement", "created_at"];
     const safeSortBy = allowedSort.includes(sortBy) ? sortBy : "id_carac";
-    const safeSortDir = sortDir.toUpperCase() === "ASC" ? "ASC" : "DESC";
+    const safeSortDir = String(sortDir).toUpperCase() === "ASC" ? "ASC" : "DESC";
 
-    const sql = `SELECT * FROM caracteristiques ${whereSQL} ORDER BY ${safeSortBy} ${safeSortDir} LIMIT ? OFFSET ?`;
+    // Nombre d'éléments + première image (vignette) renvoyés directement,
+    // pour que la liste web affiche la bonne info sans N requêtes.
+    const sql = `
+      SELECT c.*,
+        (SELECT COUNT(*) FROM caracteristiques_elements ce WHERE ce.id_carac = c.id_carac) AS nb_elements,
+        (SELECT ci.url FROM caracteristiques_illustrations ci WHERE ci.id_carac = c.id_carac AND ci.type = 'image' ORDER BY ci.id ASC LIMIT 1) AS thumbnail
+      FROM caracteristiques c
+      ${whereSQL}
+      ORDER BY c.${safeSortBy} ${safeSortDir}
+      LIMIT ? OFFSET ?`;
 
-    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
-    const [caracteristiques] = await conn.query(sql, [...params, parseInt(limit), offset]);
-    await conn.end();
-
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [rows] = await conn.query(sql, [...params, limitNum, offset]);
+    const caracteristiques = rows.map(r => ({ ...r, date_lancement: formatCaracDate(r.date_lancement) }));
     res.json({ caracteristiques });
-
   } catch (err) {
     console.error('[GET /api/caracteristiques]', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
   }
 });
 
@@ -9496,17 +9918,28 @@ app.get("/api/caracteristiques", async (req, res) => {
 // GET ONE CARACTERISTIQUE BY ID
 // =====================================================
 app.get("/api/caracteristiques/:id", async (req, res) => {
+  let conn;
   try {
     const id = req.params.id;
-    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const callerEntite = Number(req.user?.id_entite);
+    const isPrivileged = [111, 999].includes(callerEntite);
+
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
     const [[carac]] = await conn.query("SELECT * FROM caracteristiques WHERE id_carac=?", [id]);
-    const [elements] = await conn.query("SELECT * FROM caracteristiques_elements WHERE id_carac=?", [id]);
-    const [illustrations] = await conn.query("SELECT * FROM caracteristiques_illustrations WHERE id_carac=?", [id]);
-    await conn.end();
-    res.json({ carac, elements, illustrations });
+
+    // 404 (et non 403) pour ne pas révéler l'existence d'une fiche d'une autre entité.
+    if (!carac || (!isPrivileged && Number(carac.id_entite) !== callerEntite)) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    const [elements] = await conn.query("SELECT * FROM caracteristiques_elements WHERE id_carac=? ORDER BY 1 ASC", [id]);
+    const [illustrations] = await conn.query("SELECT * FROM caracteristiques_illustrations WHERE id_carac=? ORDER BY 1 ASC", [id]);
+    res.json({ carac: { ...carac, date_lancement: formatCaracDate(carac.date_lancement) }, elements, illustrations });
   } catch (err) {
     console.error('[GET /api/caracteristiques/:id]', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
   }
 });
 
@@ -9514,11 +9947,18 @@ app.get("/api/caracteristiques/:id", async (req, res) => {
 // =====================================================
 // CREATE CARACTERISTIQUE
 // =====================================================
+// Le code_identifiant est TOUJOURS généré par le serveur :
+//   COUNTRY_GTIN_PREFIX (619) + id_entite + numéro 0001..9999
+// Aucune saisie manuelle n'est acceptée (un éventuel code_identifiant envoyé
+// dans le body est ignoré). Il ne change plus jamais ensuite.
 app.post("/api/caracteristiques", async (req, res) => {
+  let conn;
+  let inTx = false;
   try {
     const {
-      id_entite,
+      id_entite: bodyIdEntite,
       identification,
+      brand,
       description_fr,
       description_en,
       description_ar,
@@ -9527,126 +9967,238 @@ app.post("/api/caracteristiques", async (req, res) => {
       date_lancement,
       elements = [],
       illustrations = []
-    } = req.body;
+    } = req.body || {};
 
-    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
-    const [result] = await conn.query(
-      `INSERT INTO caracteristiques 
-       (id_entite, identification, description_fr, description_en, description_ar, nature, utilite, date_lancement)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id_entite,
-        identification,
-        description_fr,
-        description_en,
-        description_ar,
-        nature,
-        utilite,
-        date_lancement
-      ]
-    );
+    const callerEntite = Number(req.user?.id_entite);
+    const isPrivileged = [111, 999].includes(callerEntite);
+    const id_entite = isPrivileged ? (Number(bodyIdEntite) || callerEntite) : callerEntite;
 
-    const id_carac = result.insertId;
-
-    for (const el of elements) {
-      await conn.query(
-        `INSERT INTO caracteristiques_elements (id_carac, nom_element, type_element, options_element, valeur_default) VALUES (?, ?, ?, ?, ?)`,
-        [id_carac, el.nom, el.type, el.options ? JSON.stringify(el.options) : null, el.defaultValue || null]
-      );
+    if (!id_entite || !identification || !String(identification).trim()) {
+      return res.status(400).json({ error: "L'identification est obligatoire." });
     }
-    for (const file of illustrations) {
-      await conn.query(
-        `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url) VALUES (?, ?, ?, ?)`,
-        [id_carac, file.filename, file.type, file.url]
-      );
-    }
-    await conn.end();
-    res.json({ success: true, id_carac });
 
+    const safeNature = nature === CARAC_NATURE_PERMANENTE ? CARAC_NATURE_PERMANENTE : 'fiche occasionnelle';
+    const approvalStatus = computeApprovalStatus(safeNature, isPrivileged);
+
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    await conn.beginTransaction();
+    inTx = true;
+
+    let id_carac;
+    let codeIdentifiant;
+    let attemptsLeft = 5; // course éventuelle sur l'index unique -> on régénère
+    while (true) {
+      attemptsLeft--;
+      codeIdentifiant = await genererCodeIdentifiant(conn, id_entite);
+      try {
+        const [result] = await conn.query(
+          `INSERT INTO caracteristiques
+           (id_entite, identification, brand, code_identifiant, description_fr, description_en, description_ar, nature, approval_status, utilite, date_lancement)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id_entite,
+            String(identification).trim(),
+            nullIfEmpty(brand),
+            codeIdentifiant,
+            nullIfEmpty(description_fr),
+            nullIfEmpty(description_en),
+            nullIfEmpty(description_ar),
+            safeNature,
+            approvalStatus,
+            nullIfEmpty(utilite),
+            cleanCaracDate(date_lancement)
+          ]
+        );
+        id_carac = result.insertId;
+        break;
+      } catch (insertErr) {
+        if (insertErr.code === 'ER_DUP_ENTRY' && attemptsLeft > 0) continue;
+        throw insertErr;
+      }
+    }
+
+    await insertCaracChildren(conn, id_carac, elements, illustrations);
+    await conn.commit();
+    inTx = false;
+
+    res.json({ success: true, id_carac, code_identifiant: codeIdentifiant, approval_status: approvalStatus });
   } catch (err) {
+    if (conn && inTx) { try { await conn.rollback(); } catch (_) { /* ignore */ } }
     console.error('[POST /api/caracteristiques]', err.message);
+    if (err.message === 'CODE_IDENTIFIANT_EXHAUSTED') {
+      return res.status(409).json({ error: 'Cette entité a atteint le maximum de 9999 fiches caractéristique.' });
+    }
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Impossible de générer un code identifiant unique, veuillez réessayer.' });
+    }
     res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
   }
 });
 
 
 // =====================================================
-// UPDATE CARACTERISTIQUE
+// UPDATE CARACTERISTIQUE (code_identifiant jamais modifié)
 // =====================================================
 app.put("/api/caracteristiques/:id", async (req, res) => {
+  let conn;
+  let inTx = false;
   try {
     const id_carac = req.params.id;
-    const { identification, description_fr, description_en, description_ar, nature, utilite, date_lancement, elements = [], illustrations = [] } = req.body;
+    const {
+      identification, brand, description_fr, description_en, description_ar,
+      nature, utilite, date_lancement, elements = [], illustrations = []
+    } = req.body || {};
 
-    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    if (!identification || !String(identification).trim()) {
+      return res.status(400).json({ error: "L'identification est obligatoire." });
+    }
+
+    const callerEntite = Number(req.user?.id_entite);
+    const isPrivileged = [111, 999].includes(callerEntite);
+
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+
+    const [[existing]] = await conn.query("SELECT id_entite FROM caracteristiques WHERE id_carac=?", [id_carac]);
+    if (!existing || (!isPrivileged && Number(existing.id_entite) !== callerEntite)) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    const safeNature = nature === CARAC_NATURE_PERMANENTE ? CARAC_NATURE_PERMANENTE : 'fiche occasionnelle';
+    const approvalStatus = computeApprovalStatus(safeNature, isPrivileged);
+
+    // Transaction : si une insertion échoue, les anciens éléments /
+    // anciennes illustrations sont conservés (rien n'est perdu).
+    await conn.beginTransaction();
+    inTx = true;
+
     await conn.query(
-      `UPDATE caracteristiques SET identification=?, description_fr=?, description_en=?, description_ar=?, nature=?, utilite=?, date_lancement=? WHERE id_carac=?`,
-      [identification, description_fr, description_en, description_ar, nature, utilite, date_lancement, id_carac]
+      `UPDATE caracteristiques SET identification=?, brand=?, description_fr=?, description_en=?, description_ar=?, nature=?, approval_status=?, utilite=?, date_lancement=? WHERE id_carac=?`,
+      [
+        String(identification).trim(),
+        nullIfEmpty(brand),
+        nullIfEmpty(description_fr),
+        nullIfEmpty(description_en),
+        nullIfEmpty(description_ar),
+        safeNature,
+        approvalStatus,
+        nullIfEmpty(utilite),
+        cleanCaracDate(date_lancement),
+        id_carac
+      ]
     );
     await conn.query("DELETE FROM caracteristiques_elements WHERE id_carac=?", [id_carac]);
     await conn.query("DELETE FROM caracteristiques_illustrations WHERE id_carac=?", [id_carac]);
+    await insertCaracChildren(conn, id_carac, elements, illustrations);
 
-    for (const el of elements) {
-      await conn.query(
-        `INSERT INTO caracteristiques_elements (id_carac, nom_element, type_element, options_element, valeur_default) VALUES (?, ?, ?, ?, ?)`,
-        [id_carac, el.nom, el.type, el.options ? JSON.stringify(el.options) : null, el.defaultValue || null]
-      );
-    }
-    for (const file of illustrations) {
-      await conn.query(
-        `INSERT INTO caracteristiques_illustrations (id_carac, filename, type, url) VALUES (?, ?, ?, ?)`,
-        [id_carac, file.filename, file.type, file.url]
-      );
-    }
-    await conn.end();
-    res.json({ success: true });
-
+    await conn.commit();
+    inTx = false;
+    res.json({ success: true, approval_status: approvalStatus });
   } catch (err) {
+    if (conn && inTx) { try { await conn.rollback(); } catch (_) { /* ignore */ } }
     console.error('[PUT /api/caracteristiques/:id]', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
   }
 });
+
+// =====================================================
+// APPROVE / REJECT CARACTERISTIQUE (111/999 uniquement)
+// =====================================================
+async function setCaracApproval(req, res, newStatus) {
+  let conn;
+  try {
+    const callerEntite = Number(req.user?.id_entite);
+    if (![111, 999].includes(callerEntite)) {
+      return res.status(403).json({ error: 'Réservé aux administrateurs.' });
+    }
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [[existing]] = await conn.query("SELECT nature FROM caracteristiques WHERE id_carac=?", [req.params.id]);
+    if (!existing) return res.status(404).json({ error: 'not_found' });
+    if (existing.nature !== CARAC_NATURE_PERMANENTE) {
+      return res.status(400).json({
+        error: newStatus === 'approved'
+          ? "Seule une fiche 'permanente' peut être approuvée."
+          : "Seule une fiche 'permanente' peut être refusée."
+      });
+    }
+    await conn.query("UPDATE caracteristiques SET approval_status=? WHERE id_carac=?", [newStatus, req.params.id]);
+    res.json({ success: true, approval_status: newStatus });
+  } catch (err) {
+    console.error(`[POST /api/caracteristiques/:id/${newStatus === 'approved' ? 'approve' : 'reject'}]`, err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
+  }
+}
+app.post("/api/caracteristiques/:id/approve", (req, res) => setCaracApproval(req, res, 'approved'));
+app.post("/api/caracteristiques/:id/reject", (req, res) => setCaracApproval(req, res, 'rejected'));
 
 
 // =====================================================
 // DELETE CARACTERISTIQUE
 // =====================================================
 app.delete("/api/caracteristiques/:id", async (req, res) => {
+  let conn;
+  let inTx = false;
   try {
-    const conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
-    await conn.query("DELETE FROM caracteristiques_elements WHERE id_carac=?", [req.params.id]);
-    await conn.query("DELETE FROM caracteristiques_illustrations WHERE id_carac=?", [req.params.id]);
-    await conn.query("DELETE FROM caracteristiques WHERE id_carac=?", [req.params.id]);
-    await conn.end();
-    res.json({ success: true });
+    const id_carac = req.params.id;
+    const callerEntite = Number(req.user?.id_entite);
+    const isPrivileged = [111, 999].includes(callerEntite);
 
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    const [[existing]] = await conn.query("SELECT id_entite FROM caracteristiques WHERE id_carac=?", [id_carac]);
+    if (!existing || (!isPrivileged && Number(existing.id_entite) !== callerEntite)) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    await conn.beginTransaction();
+    inTx = true;
+    await conn.query("DELETE FROM caracteristiques_elements WHERE id_carac=?", [id_carac]);
+    await conn.query("DELETE FROM caracteristiques_illustrations WHERE id_carac=?", [id_carac]);
+    await conn.query("DELETE FROM caracteristiques WHERE id_carac=?", [id_carac]);
+    await conn.commit();
+    inTx = false;
+    res.json({ success: true });
   } catch (err) {
+    if (conn && inTx) { try { await conn.rollback(); } catch (_) { /* ignore */ } }
+    console.error('[DELETE /api/caracteristiques/:id]', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) { /* ignore */ } }
   }
 });
 
 
 // =====================================================
-// UPLOAD ROUTE
+// UPLOAD ROUTE (champ "file") -> PRODUCTS_DIR, URL /images/products/<f>
 // =====================================================
-app.post("/api/caracteristiques/upload", caracteristiqueUpload.single("file"), (req, res) => {
-  try {
-    const file = req.file;
-
-    const type = file.mimetype.startsWith("video") ? "video" : "image";
-
-    const url = `/images/caracteristiques/${file.filename}`;
-
-    res.json({
-      success: true,
-      filename: file.filename,
-      type,
-      url
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// NB : Express compare les routes dans l'ordre de déclaration ; "/upload"
+// étant un POST et "/:id/approve" un autre chemin, pas de conflit.
+app.post("/api/caracteristiques/upload", (req, res) => {
+  caracteristiqueUpload.single("file")(req, res, (uploadErr) => {
+    if (uploadErr) {
+      const msg = uploadErr.code === 'LIMIT_FILE_SIZE'
+        ? 'Fichier trop volumineux (50 Mo maximum).'
+        : (uploadErr.message || 'Erreur upload');
+      console.error('[POST /api/caracteristiques/upload]', msg);
+      return res.status(400).json({ error: msg });
+    }
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: 'Aucun fichier reçu (champ "file").' });
+      }
+      const type = caracMediaKind(file) === 'video' ? 'video' : 'image';
+      const url = `/images/products/${file.filename}`;
+      res.json({ success: true, filename: file.filename, type, url });
+    } catch (err) {
+      console.error('[POST /api/caracteristiques/upload]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
 });
 // Create compte endpoint
 // Serve avatar images via API (new endpoint)

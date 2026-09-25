@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocalApiUrl } from '../contexts/SettingsContext';
+import Select, { StylesConfig } from 'react-select';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -11,7 +12,6 @@ type Transporteur = {
   port_debarquement: string;
   transbordement: 'Oui' | 'Non';
   satisfaction: number; // 0-5
-  commentaire: string;
 };
 
 type VolumeRow = {
@@ -32,13 +32,12 @@ type EnqueteForm = {
   secteur: string;
   flux: string;
   pays: string[];
+  pays_import: string[];
   volumes: VolumeRow[];
   groupage: 'oui' | 'non' | '';
   frequences: FrequenceRow[];
   transporteurs: Transporteur[];
   difficultes: string[];
-  foprodex: 'oui' | 'non' | '';
-  besoins_transport: string;
   classification_type: 'national' | 'gpc' | '';
 
   gsa: string;
@@ -46,12 +45,40 @@ type EnqueteForm = {
 
   segment_code: string;
   segment_libelle: string;
+
+  // Coordonnées de contact de l'entité — utilisées pour compléter le profil
+  // Entite si celle-ci n'existe pas encore.
+  personne_contact: string;
+  email: string;
+  telephone: string;
+  tel_mobile: string;
+
+  // Région / Délégation / Localité — saisies via listes déroulantes en cascade
+  // alimentées par la table Region_national (gouvernorat, delegation, localite,
+  // code_postal), stockées sur l'Entite (colonnes region / delegation / localite
+  // / postalCode), pas sur l'Enquete elle-même.
+  region: string;
+  delegation: string;
+  localite: string;
+  postalCode: string;
+
+  // Rue — champ libre saisi tel quel par la personne, enregistré tel quel sur
+  // l'Enquete (colonne "rue"), sans validation ni rapprochement avec l'Entite.
+  rue: string;
 };
 
 type Segment = {
   code: string;
   libelle: string;
 };
+
+type Localite = {
+  localite: string;
+  code_postal: string;
+};
+
+// 👉 Colle ici le lien de l'image du logo CEPEX (URL absolue, ex: 'https://.../cepex-logo.png').
+const CEPEX_LOGO_URL = 'https://edi.codeonline-info.com/images/cepex_full.png';
 
 const PERIODES_VOLUME: string[] = [
   'Global 2025',
@@ -70,10 +97,16 @@ const DIFFICULTES_OPTIONS = [
   'Financement',
 ];
 
-const PAYS_OPTIONS = [
-  'Libye', 'Sénégal', "Côte d'Ivoire", 'Mali',
-  'Burkina Faso', 'Guinée', 'Gambie',
+const PRIORITY_COUNTRIES = [
+  'Libye', 'Sénégal', "Côte d'Ivoire", 'Mali', 'Burkina Faso', 'Guinée',
 ];
+
+const COUNTRY_CODES = 'AF AX AL DZ AS AD AO AI AQ AG AR AM AW AU AT AZ BS BH BD BB BY BE BZ BJ BM BT BO BQ BA BW BV BR IO BN BG BF BI CV KH CM CA KY CF TD CL CN CX CC CO KM CG CD CK CR CI HR CU CW CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FK FO FJ FI FR GF PF TF GA GM GE DE GH GI GR GL GD GP GU GT GG GN GW GY HT HM VA HN HK HU IS IN ID IR IQ IE IM IL IT JM JP JE JO KZ KE KI KP KR KW KG LA LV LB LS LR LY LI LT LU MO MG MW MY MV ML MT MH MQ MR MU YT MX FM MD MC MN ME MS MA MZ MM NA NR NP NL NC NZ NI NE NG NU NF MK MP NO OM PK PW PS PA PG PY PE PH PN PL PT PR QA RE RO RU RW BL SH KN LC MF PM VC WS SM ST SA SN RS SC SL SG SX SK SI SB SO ZA GS SS ES LK SD SR SJ SE CH SY TW TJ TZ TH TL TG TK TO TT TN TR TM TC TV UG UA AE GB US UM UY UZ VU VE VN VG VI WF EH YE ZM ZW'.split(' ');
+const COUNTRY_NAMES = COUNTRY_CODES
+  .map(code => new Intl.DisplayNames(['fr'], { type: 'region' }).of(code))
+  .filter((name): name is string => Boolean(name))
+  .map(name => name.replace(/[\u2018\u2019]/g, "'"));
+const COUNTRY_OPTIONS = [...new Set([...PRIORITY_COUNTRIES, ...COUNTRY_NAMES])].map(country => ({ value: country, label: country }));
 
 const GSA_DATA = {
   "Agriculture et IAA": [
@@ -125,13 +158,22 @@ const defaultForm = (): EnqueteForm => ({
   secteur: '',
   flux: '',
   pays: [],
+  pays_import: [],
   volumes: PERIODES_VOLUME.map(p => ({ periode: p, vingt: '', quarante: '', frigo: '' })),
   groupage: '',
   frequences: PERIODES_VOLUME.map(p => ({ periode: p, nb_expeditions: '' })),
   transporteurs: [makeTransporteur(1)],
   difficultes: [],
-  foprodex: '',
-  besoins_transport: '',
+  personne_contact: '',
+  email: '',
+  telephone: '',
+  tel_mobile: '',
+
+  region: '',
+  delegation: '',
+  localite: '',
+  postalCode: '',
+  rue: '',
 });
 
 let _transporteurIdCounter = 1;
@@ -144,7 +186,6 @@ function makeTransporteur(id?: number): Transporteur {
     port_debarquement: '',
     transbordement: 'Non',
     satisfaction: 0,
-    commentaire: '',
   };
 }
 
@@ -158,6 +199,9 @@ const Enquete = () => {
   const API_BASE_URL = useLocalApiUrl();
 
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
+  const [delegations, setDelegations] = useState<string[]>([]);
+  const [localites, setLocalites] = useState<Localite[]>([]);
   const [form, setForm] = useState<EnqueteForm>(defaultForm());
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -179,22 +223,92 @@ const Enquete = () => {
     fetchSegments();
   }, [API_BASE_URL]);
 
+  // Gouvernorats — fetched once from Region_national.
+  useEffect(() => {
+    const fetchRegions = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/regions`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setRegions((data || []).map((r: { region: string }) => r.region).filter(Boolean));
+      } catch (err) {
+        console.error('Fetch regions error:', err);
+      }
+    };
+    fetchRegions();
+  }, [API_BASE_URL]);
+
+  // Délégations — re-fetched from Region_national every time the gouvernorat changes.
+  useEffect(() => {
+    if (!form.region) { setDelegations([]); return; }
+    const fetchDelegations = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/delegations?region=${encodeURIComponent(form.region)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setDelegations((data || []).map((d: { delegation: string }) => d.delegation).filter(Boolean));
+      } catch (err) {
+        console.error('Fetch delegations error:', err);
+      }
+    };
+    fetchDelegations();
+  }, [API_BASE_URL, form.region]);
+
+  // Localités (+ code postal) — re-fetched from Region_national every time the
+  // délégation changes.
+  useEffect(() => {
+    if (!form.delegation) { setLocalites([]); return; }
+    const fetchLocalites = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/localites`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name_delegation: form.delegation }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          // Surface the real reason instead of silently leaving the dropdown
+          // empty — visible in the browser console/network tab.
+          console.error('POST /api/localites failed:', res.status, data);
+          setLocalites([]);
+          return;
+        }
+        setLocalites(data || []);
+      } catch (err) {
+        console.error('Fetch localites error:', err);
+        setLocalites([]);
+      }
+    };
+    fetchLocalites();
+  }, [API_BASE_URL, form.delegation]);
+
   // ─── SUBMIT ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     setErrorMsg(null);
 
-    // Only "raison sociale" and "identifiant national" are required. Everything
-    // else on the survey is optional — fill in what applies, skip the rest.
+    // "Raison sociale", "identifiant national" et "flux" sont obligatoires.
+    // Selon le flux choisi, au moins un pays (destination export et/ou
+    // importation) doit également être sélectionné. Le reste du formulaire
+    // reste optionnel.
     if (!form.raison_sociale.trim()) { setErrorMsg('Raison sociale requise'); return; }
-    if (!form.identifiant_national.trim()) { setErrorMsg('Identifiant national requis'); return; }
+    if (!form.identifiant_national.trim()) { setErrorMsg('Identifiant national (RNE) requis'); return; }
+    if (!form.flux) { setErrorMsg('Merci de choisir un flux (Export, Import ou Import/Export)'); return; }
+    if ((form.flux === 'Export' || form.flux === 'Import/Export') && form.pays.length === 0) {
+      setErrorMsg('Merci de sélectionner au moins un pays de destination (Export)');
+      return;
+    }
+    if ((form.flux === 'Import' || form.flux === 'Import/Export') && form.pays_import.length === 0) {
+      setErrorMsg("Merci de sélectionner au moins un pays d'importation");
+      return;
+    }
 
     setIsSaving(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/public/enquete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, pays: form.pays.join(', ') }),
+        body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -266,6 +380,10 @@ const Enquete = () => {
   const inp = { background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%', outline: 'none', fontFamily: "'DM Sans', sans-serif" } as React.CSSProperties;
   const lbl = { fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'var(--muted)', fontWeight: 600, marginBottom: 4, display: 'block' };
   const sel = { ...inp, appearance: 'none' as const };
+  const countrySelectStyles: StylesConfig<{ value: string; label: string }, true> = {
+    control: base => ({ ...base, background: 'var(--surface2)', borderColor: 'var(--border)', borderRadius: 8, minHeight: 40, boxShadow: 'none', fontSize: 13 }),
+    menu: base => ({ ...base, zIndex: 10, fontSize: 13 }),
+  };
 
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 13, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', borderLeft: '3px solid var(--accent)', paddingLeft: 10, marginBottom: 16 }}>
@@ -300,9 +418,16 @@ const Enquete = () => {
         * { box-sizing: border-box; }
 
         .pub-shell { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
-        .pub-header { text-align: center; margin-bottom: 28px; }
+       .pub-header { display: flex; align-items: flex-start; justify-content: flex-start; gap: 20px; margin-bottom: 28px; flex-wrap: wrap; }
+.pub-logo { height: 64px; width: auto; max-width: 200px; object-fit: contain; flex-shrink: 0; margin-top: 2px; }
+.pub-title-block { text-align: left; }
         .pub-title { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
-        .pub-subtitle { font-size: 13px; color: var(--muted); margin-top: 6px; max-width: 560px; margin-left: auto; margin-right: auto; }
+        .pub-subtitle { font-size: 13px; color: var(--muted); margin-top: 6px; max-width: 480px; }
+        @media (max-width: 520px) {
+          .pub-header { justify-content: center; text-align: center; }
+          .pub-title-block { text-align: center; }
+          .pub-subtitle { margin-left: auto; margin-right: auto; }
+        }
 
         .pub-card {
           background: var(--surface); border: 1px solid var(--border);
@@ -335,8 +460,18 @@ const Enquete = () => {
 
       <div className="pub-shell">
         <div className="pub-header">
-          <div className="pub-title">Enquête Transport Logistique<br />— Afrique de l'Ouest</div>
-          <div className="pub-subtitle">CEPEX — Merci de compléter ce formulaire. Ces informations sont utilisées à des fins statistiques pour améliorer l'accompagnement des entités exportatrices.</div>
+          {CEPEX_LOGO_URL && (
+            <img
+              src={CEPEX_LOGO_URL}
+              alt="CEPEX"
+              className="pub-logo"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          )}
+          <div className="pub-title-block">
+            <div className="pub-title">Enquête Transport Logistique<br /> Zone Afrique de l'Ouest</div>
+            <div className="pub-subtitle">Merci de compléter ce formulaire. Ces informations seront utilisées à des fins d’aide à la décision pour améliorer l'accompagnement de votre commerce international.</div>
+          </div>
         </div>
 
         <div className="pub-card">
@@ -369,7 +504,7 @@ const Enquete = () => {
                   />
                 </div>
                 <div>
-                  <label style={lbl}>Identifiant national *</label>
+                  <label style={lbl}>Identifiant national (RNE) *</label>
                   <input style={inp} value={form.identifiant_national} onChange={e => setForm(f => ({ ...f, identifiant_national: e.target.value }))} />
                 </div>
                 <div>
@@ -457,8 +592,20 @@ const Enquete = () => {
                   </div>
                 )}
                 <div>
-                  <label style={lbl}>Flux</label>
-                  <select style={sel} value={form.flux} onChange={e => setForm(f => ({ ...f, flux: e.target.value }))}>
+                  <label style={lbl}>Flux *</label>
+                  <select
+                    style={sel}
+                    value={form.flux}
+                    onChange={e => {
+                      const nextFlux = e.target.value;
+                      setForm(f => ({
+                        ...f,
+                        flux: nextFlux,
+                        pays: (nextFlux === 'Export' || nextFlux === 'Import/Export') ? f.pays : [],
+                        pays_import: (nextFlux === 'Import' || nextFlux === 'Import/Export') ? f.pays_import : [],
+                      }));
+                    }}
+                  >
                     <option value="">Choisir</option>
                     <option>Export</option>
                     <option>Import</option>
@@ -467,25 +614,113 @@ const Enquete = () => {
                 </div>
               </div>
 
-              <div style={{ marginTop: 14 }}>
-                <label style={lbl}>Pays de destination</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginTop: 4 }}>
-                  {PAYS_OPTIONS.map(p => (
-                    <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: form.pays.includes(p) ? 'rgba(23,37,84,0.06)' : 'var(--surface2)', border: `1px solid ${form.pays.includes(p) ? 'rgba(23,37,84,0.25)' : 'var(--border)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', fontSize: 12, color: 'var(--text2)' }}>
-                      <input
-                        type="checkbox"
-                        checked={form.pays.includes(p)}
-                        onChange={() => setForm(f => ({
-                          ...f,
-                          pays: f.pays.includes(p)
-                            ? f.pays.filter(x => x !== p)
-                            : [...f.pays, p],
-                        }))}
-                        style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
-                      />
-                      {p}
-                    </label>
-                  ))}
+              {(form.flux === 'Export' || form.flux === 'Import/Export') && (
+                <div style={{ marginTop: 14 }}>
+                  <label style={lbl}>Pays de destination (Export) *</label>
+                  <Select
+                    isMulti
+                    isSearchable
+                    closeMenuOnSelect={false}
+                    options={COUNTRY_OPTIONS}
+                    value={form.pays.map(country => ({ value: country, label: country }))}
+                    onChange={selected => setForm(f => ({ ...f, pays: selected.map(option => option.value) }))}
+                    placeholder="Rechercher et sélectionner un ou plusieurs pays..."
+                    noOptionsMessage={() => 'Aucun pays trouvé'}
+                    styles={countrySelectStyles}
+                  />
+                </div>
+              )}
+
+              {(form.flux === 'Import' || form.flux === 'Import/Export') && (
+                <div style={{ marginTop: 14 }}>
+                  <label style={lbl}>Pays d'importation *</label>
+                  <Select
+                    isMulti
+                    isSearchable
+                    closeMenuOnSelect={false}
+                    options={COUNTRY_OPTIONS}
+                    value={form.pays_import.map(country => ({ value: country, label: country }))}
+                    onChange={selected => setForm(f => ({ ...f, pays_import: selected.map(option => option.value) }))}
+                    placeholder="Rechercher et sélectionner un ou plusieurs pays..."
+                    noOptionsMessage={() => 'Aucun pays trouvé'}
+                    styles={countrySelectStyles}
+                  />
+                </div>
+              )}
+
+              <Divider />
+              {/* ── Section 1bis: Coordonnées de contact */}
+              <SectionTitle>Coordonnées de contact</SectionTitle>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 4 }}>
+                <div>
+                  <label style={lbl}>Personne à contacter</label>
+                  <input style={inp} value={form.personne_contact} onChange={e => setForm(f => ({ ...f, personne_contact: e.target.value }))} placeholder="Nom et prénom" />
+                </div>
+                <div>
+                  <label style={lbl}>Email</label>
+                  <input type="email" style={inp} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="nom@entreprise.com" />
+                </div>
+                <div>
+                  <label style={lbl}>Téléphone mobile</label>
+                  <input style={inp} value={form.tel_mobile} onChange={e => setForm(f => ({ ...f, tel_mobile: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={lbl}>Téléphone fixe</label>
+                  <input style={inp} value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={lbl}>Région</label>
+                  <select
+                    style={sel}
+                    value={form.region}
+                    onChange={e => setForm(f => ({ ...f, region: e.target.value, delegation: '', localite: '', postalCode: '' }))}
+                  >
+                    <option value="">Choisir</option>
+                    {regions.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Délégation</label>
+                  <select
+                    style={sel}
+                    value={form.delegation}
+                    onChange={e => setForm(f => ({ ...f, delegation: e.target.value, localite: '', postalCode: '' }))}
+                    disabled={!form.region}
+                  >
+                    <option value="">{form.region ? 'Choisir' : 'Sélectionnez une région d\'abord'}</option>
+                    {delegations.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Localité / Ville</label>
+                  <select
+                    style={sel}
+                    value={form.localite}
+                    onChange={e => {
+                      const chosen = localites.find(l => l.localite === e.target.value);
+                      setForm(f => ({ ...f, localite: chosen?.localite || '', postalCode: chosen?.code_postal || '' }));
+                    }}
+                    disabled={!form.delegation}
+                  >
+                    <option value="">{form.delegation ? 'Choisir' : 'Sélectionnez une délégation d\'abord'}</option>
+                    {localites.map(l => (
+                      <option key={`${l.localite}-${l.code_postal}`} value={l.localite}>
+                        {l.localite} — {l.code_postal}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Code postal</label>
+                  <input style={{ ...inp, background: 'var(--surface3)', color: 'var(--muted)' }} value={form.postalCode} readOnly placeholder="Se remplit avec la localité" />
+                </div>
+                <div>
+                  <label style={lbl}>Rue</label>
+                  <input style={inp} value={form.rue} onChange={e => setForm(f => ({ ...f, rue: e.target.value }))} placeholder="Nom et numéro de la rue" />
                 </div>
               </div>
 
@@ -616,15 +851,6 @@ const Enquete = () => {
                       <label style={{ ...lbl, marginBottom: 8 }}>Niveau de satisfaction</label>
                       <StarRating value={t.satisfaction} onChange={v => updateTransporteur(t.id, 'satisfaction', v)} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 220 }}>
-                      <label style={lbl}>Commentaire</label>
-                      <textarea
-                        value={t.commentaire}
-                        onChange={e => updateTransporteur(t.id, 'commentaire', e.target.value)}
-                        placeholder="Qualité de service, ponctualité, communication..."
-                        style={{ ...inp, resize: 'vertical', minHeight: 70 }}
-                      />
-                    </div>
                   </div>
                 </div>
               ))}
@@ -651,31 +877,6 @@ const Enquete = () => {
                   </label>
                 ))}
               </div>
-
-              <Divider />
-
-              {/* ── Section 6: FOPRODEX */}
-              <SectionTitle>FOPRODEX</SectionTitle>
-              <div style={{ display: 'flex', gap: 20, marginTop: 4 }}>
-                {['oui', 'non'].map(v => (
-                  <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 13, color: 'var(--text2)' }}>
-                    <input type="radio" name="foprodex_public" checked={form.foprodex === v} onChange={() => setForm(f => ({ ...f, foprodex: v as any }))} style={{ accentColor: 'var(--accent)' }} />
-                    {v.charAt(0).toUpperCase() + v.slice(1)}
-                  </label>
-                ))}
-              </div>
-
-              <Divider />
-
-              {/* ── Section 7: Besoins */}
-              <SectionTitle>Besoin en transport logistiques</SectionTitle>
-              <textarea
-                value={form.besoins_transport}
-                onChange={e => setForm(f => ({ ...f, besoins_transport: e.target.value }))}
-                placeholder="Décrivez vos besoins en transport logistiques..."
-                rows={4}
-                style={{ ...inp, resize: 'vertical' }}
-              />
 
               {/* ── Submit ── */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)' }}>

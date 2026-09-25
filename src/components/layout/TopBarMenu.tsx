@@ -113,6 +113,15 @@ const activeSubmenuLinkStyle =
           </li>
         )}
 
+        <li>
+          <NavLink
+            to="/retour-enquete"
+            className={({ isActive }) => cn(linkStyle, isActive && activeLinkStyle)}
+          >
+            {t("Retour Enquête") || "Retour Enquête"}
+          </NavLink>
+        </li>
+
         {(canRead(PAGES.PRODUITS_MAPPING) ||
           canRead(PAGES.PRODUITS_GENERATEUR) ||
           canRead(PAGES.PRODUITS_CATALOGUE)) && (

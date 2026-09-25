@@ -12,6 +12,7 @@ import GenerateurModele from "./pages/GenerateurModele";
 import VueModeles from "./pages/VueModeles";
 import Login from "./pages/Login";
 import Enquete from "./pages/Enquete";
+import RetourEnquete from "./pages/RetourEnquete";
 import Profile from "./pages/Profile";
 import Comptes from "./pages/comptes";
 import Index from "./pages/Index";
@@ -205,6 +206,10 @@ const App: React.FC = () => {
                     <Route path="/catalogue" element={<ProtectedRoute><CatalogueFp /></ProtectedRoute>} />
                     <Route path="/catalogueComplet" element={<ProtectedRoute><CatalogueComplet /></ProtectedRoute>} />
                     <Route path="/tarification" element={<ProtectedRoute><Tarification /></ProtectedRoute>} />
+                    {/* Admin-only cross-entity survey console — RetourEnquete.tsx itself also
+                        gates on id_entite (999/111) and shows "Accès restreint" to everyone
+                        else, and the API enforces the same rule server-side either way. */}
+                    <Route path="/retour-enquete" element={<ProtectedRoute><RetourEnquete idEntite={currentUser?.id_entite ?? null} /></ProtectedRoute>} />
                     <Route path="/operation-edi/order" element={<ProtectedRoute><Order /></ProtectedRoute>} />
                     <Route path="/operation-edi/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
                     <Route path="/operation-edi/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />

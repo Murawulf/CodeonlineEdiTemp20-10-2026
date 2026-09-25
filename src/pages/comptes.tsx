@@ -357,6 +357,20 @@ const Comptes: React.FC = () => {
   }>({ key: null, direction: null });
   const [idCompte, setIdCompte] = useState<number | null>(null);
   const [userIdProducteur, setUserIdProducteur] = useState<number | null>(null);
+  // ─── NEW: manual override for the iPay bank-demo notice, via ?ipayDemo=1 in the URL.
+  // This exists purely so the notice can be verified/demoed on ANY account regardless of
+  // whether its id_entite actually resolves to DEMO_ENTITY_ID (useful while diagnosing why
+  // the automatic entity-based detection isn't triggering, and for showing the notice to
+  // someone whose test account isn't entity 2756). Safe to leave in: it does nothing unless
+  // that exact query param is present.
+  const [forceIpayDemo] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return new URLSearchParams(window.location.search).get('ipayDemo') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [userProducerName, setUserProducerName] = useState<string | null>(null);
   const [userAccount, setUserAccount] = useState<Account | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -418,7 +432,10 @@ const Comptes: React.FC = () => {
   // userIdProducteur is set straight from whatever the login payload / localStorage JSON
   // has for id_entite, which can come through as a string depending on how it was stored —
   // a strict `===` against the numeric constant would silently never match in that case. ───
-  const isDemoEntity = useMemo(() => Number(userIdProducteur) === DEMO_ENTITY_ID, [userIdProducteur]);
+  const isDemoEntity = useMemo(
+    () => Number(userIdProducteur) === DEMO_ENTITY_ID || forceIpayDemo,
+    [userIdProducteur, forceIpayDemo]
+  );
 
   // ─── NEW: master account — set only by 999/111, scoped to their own entity. A master
   // acts like an entity-level admin: full manage rights over accounts in `id_entite`,
@@ -664,7 +681,7 @@ const Comptes: React.FC = () => {
       // to be true. If it prints something like "2756" (string) that's already handled by
       // the Number() coercion above; if it prints a completely different id, the logged-in
       // test account's id_entite isn't actually 2756 and DEMO_ENTITY_ID below needs updating.
-      console.log('[iPay demo check]', { userIdProducteur, isDemoEntity, DEMO_ENTITY_ID });
+      console.log('[iPay demo check]', { userIdProducteur, isDemoEntity, forceIpayDemo, DEMO_ENTITY_ID, planCode });
 
       // ─── DEMO: the create call above already recorded the transaction server-side —
       // it shows up in Transactions as "En attente" exactly like any other request. For
@@ -2596,24 +2613,38 @@ const Comptes: React.FC = () => {
             that the card-entry page is unavailable pending ClicToPay's real credentials,
             while making clear the transaction itself is already recorded and will work
             end-to-end once configured. A "Continuer" button still lets anyone reach the
-            real (currently failing) iPay page on purpose. ─── */}
+            real (currently failing) iPay page on purpose.
+            ─── FULL-SCREEN: this is a full-viewport takeover (not a centered dialog with a
+            dimmed backdrop) so it reads unambiguously as an in-app modal — never as a
+            navigation to some other page — with its own sticky header/footer. ─── */}
         {ipayDemoNoticeOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-gray-200">
-              <div className="flex items-start gap-4 mb-2">
-                <div className="flex-shrink-0 w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-950 animate-spin" style={{ animationDuration: '2s' }} viewBox="0 0 24 24" fill="none">
+          <div className="fixed inset-0 z-50 bg-white flex flex-col">
+            <div className="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-8 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+                <div className="flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-blue-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-950 animate-spin" style={{ animationDuration: '2s' }} viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-blue-950">Paiement en ligne — configuration en cours</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-blue-950">Paiement en ligne — configuration en cours</h2>
                   <p className="text-xs text-gray-400 mt-0.5">Entité de démonstration {DEMO_ENTITY_ID}</p>
                 </div>
               </div>
+              <button
+                onClick={closeIpayDemoNotice}
+                aria-label="Fermer"
+                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
 
-              <div className="mt-4 space-y-3 text-sm text-gray-700 leading-relaxed">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
+              <div className="max-w-2xl mx-auto">
+
+              <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
                 <p>
                   Votre transaction {ipayDemoPlan ? <>pour l'offre <strong>{ipayDemoPlan.label}</strong></> : ''} a bien été
                   enregistrée. Comme illustré ci-dessous, elle apparaît immédiatement dans l'onglet <strong>Transactions</strong> avec
@@ -2694,7 +2725,11 @@ const Comptes: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 border-t border-gray-100 px-4 sm:px-8 py-4">
+              <div className="max-w-2xl mx-auto flex flex-col-reverse sm:flex-row justify-end gap-3">
                 <button
                   onClick={closeIpayDemoNotice}
                   className="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors"

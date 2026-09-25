@@ -134,6 +134,21 @@ export const TopNavigation: React.FC = () => {
             </NavigationMenuLink>
           </NavigationMenuItem>
           <NavigationMenuItem>
+            <NavigationMenuLink asChild>
+              <NavLink
+                to="/retour-enquete"
+                className={({ isActive }) =>
+                  cn(
+                    "px-3 py-2 rounded text-gray-700 hover:bg-gray-100",
+                    isActive ? "text-[#1c74e9] font-medium" : ""
+                  )
+                }
+              >
+                {t("Retour Enquête") || "Retour Enquête"}
+              </NavLink>
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
             <NavigationMenuTrigger className={cn("bg-transparent hover:bg-gray-100 text-gray-700", isProduitsActive ? "text-[#1c74e9] font-medium" : "")}>
               {t("Produits") || "Produits"}
             </NavigationMenuTrigger>

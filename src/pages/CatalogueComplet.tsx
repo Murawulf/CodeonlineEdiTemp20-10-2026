@@ -234,6 +234,28 @@ interface Product {
   declinaison_count?: number;
   declinaison_type: string | null;
   parents: ParentItem[]; // Integrated from declinaison table
+  // Mobile-showcase highlight request state — joined in by GET /api/products.
+  // null/undefined = never requested.
+  highlight_status?: 'pending' | 'approved' | 'rejected' | null;
+  highlight_id?: number | null;
+}
+interface HighlightRequest {
+  id: number;
+  id_produit: number;
+  id_entite: number;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_by: number | null;
+  requested_at: string;
+  reviewed_by: number | null;
+  reviewed_at: string | null;
+  reject_reason: string | null;
+  gtin: string;
+  brand: string;
+  libelle: string;
+  images: string;
+  countryOfOrigin: string;
+  entite_name: string | null;
+  requested_by_email: string | null;
 }
 interface Node {
   libelle: string;
@@ -497,6 +519,12 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
     rayonsByBrick: `${API_BASE}/api/rayongpc`,
     modelByRayon: `${API_BASE}/api/model_by_rayon`,
     templateDownload: `${API_BASE}/api/products/template-advanced`,
+    // Mobile-showcase "highlight" mechanism (products the entity wants featured
+    // on the mobile app's home screen, pending platform-admin approval).
+    highlightRequest: (id: number) => `${API_BASE}/api/products/${id}/highlight-request`,
+    highlightRequestsList: `${API_BASE}/api/products/highlight-requests`,
+    highlightApprove: (id: number) => `${API_BASE}/api/products/highlight-requests/${id}/approve`,
+    highlightReject: (id: number) => `${API_BASE}/api/products/highlight-requests/${id}/reject`,
   }), [API_BASE]);
   const [products, setProducts] = useState<Product[]>([]);
   const [classesList, setClassesList] = useState<ClassItem[]>([]);
@@ -543,6 +571,14 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [allNodes, setAllNodes] = useState<Record<number, Node>>({});
   const { addNotification } = useNotifications();
+
+  // ==================== HIGHLIGHT ("mise en avant") STATE ====================
+  const [highlightBusyIds, setHighlightBusyIds] = useState<Set<number>>(new Set());
+  const [highlightModalOpen, setHighlightModalOpen] = useState<boolean>(false);
+  const [highlightRequests, setHighlightRequests] = useState<HighlightRequest[]>([]);
+  const [highlightRequestsLoading, setHighlightRequestsLoading] = useState<boolean>(false);
+  const [highlightRequestsFilter, setHighlightRequestsFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [highlightReviewBusyId, setHighlightReviewBusyId] = useState<number | null>(null);
 
 
   const ACCENT_BG = "bg-blue-900";
@@ -1322,6 +1358,103 @@ const CatalogueInner: React.FC<{ user: User | null }> = ({ user }) => {
       addNotification("Échec de la suppression.", "error");
     }
   };
+
+  // ==================== HIGHLIGHT ("mise en avant") HANDLERS ====================
+  // Entity side: request / withdraw a highlight on one of its own products.
+  const handleRequestHighlight = async (p: Product) => {
+    setHighlightBusyIds(prev => new Set(prev).add(p.id));
+    try {
+      const res = await fetch(API.highlightRequest(p.id), { method: 'POST', credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, highlight_status: data.status || 'pending', highlight_id: data.id ?? x.highlight_id } : x));
+      addNotification("Demande de mise en avant envoyée, en attente d'approbation.", "success");
+    } catch (err: any) {
+      addNotification(err.message || "Échec de la demande de mise en avant.", "error");
+    } finally {
+      setHighlightBusyIds(prev => { const s = new Set(prev); s.delete(p.id); return s; });
+      setIsActionOpen(null);
+    }
+  };
+  const handleWithdrawHighlight = async (p: Product) => {
+    setHighlightBusyIds(prev => new Set(prev).add(p.id));
+    try {
+      const res = await fetch(API.highlightRequest(p.id), { method: 'DELETE', credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, highlight_status: null, highlight_id: null } : x));
+      addNotification("Mise en avant retirée.", "success");
+    } catch (err: any) {
+      addNotification(err.message || "Échec du retrait de la mise en avant.", "error");
+    } finally {
+      setHighlightBusyIds(prev => { const s = new Set(prev); s.delete(p.id); return s; });
+      setIsActionOpen(null);
+    }
+  };
+
+  // Admin side (999/111 only, gated server-side too): list + approve/reject.
+  const loadHighlightRequests = useCallback(async (status: string) => {
+    setHighlightRequestsLoading(true);
+    try {
+      const res = await fetch(`${API.highlightRequestsList}?status=${status}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Erreur');
+      const data = await res.json();
+      setHighlightRequests(Array.isArray(data.requests) ? data.requests : []);
+    } catch (err) {
+      addNotification("Échec du chargement des demandes de mise en avant.", "error");
+      setHighlightRequests([]);
+    } finally {
+      setHighlightRequestsLoading(false);
+    }
+  }, [API.highlightRequestsList, addNotification]);
+  // Privileged entities see a live pending-count badge without opening the modal.
+  useEffect(() => {
+    if (isPrivilegedEntite) loadHighlightRequests('pending');
+  }, [isPrivilegedEntite]);
+  const openHighlightModal = () => {
+    setHighlightModalOpen(true);
+    setHighlightRequestsFilter('pending');
+    loadHighlightRequests('pending');
+  };
+  const changeHighlightFilter = (status: 'pending' | 'approved' | 'rejected' | 'all') => {
+    setHighlightRequestsFilter(status);
+    loadHighlightRequests(status);
+  };
+  const handleApproveHighlight = async (reqId: number) => {
+    setHighlightReviewBusyId(reqId);
+    try {
+      const res = await fetch(API.highlightApprove(reqId), { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error('Erreur');
+      addNotification("Demande approuvée.", "success");
+      setHighlightRequests(prev => prev.filter(r => r.id !== reqId));
+      setRetry(r => r + 1); // refresh the main table's highlight badges too
+    } catch (err) {
+      addNotification("Échec de l'approbation.", "error");
+    } finally {
+      setHighlightReviewBusyId(null);
+    }
+  };
+  const handleRejectHighlight = async (reqId: number) => {
+    const reason = window.prompt("Motif du refus (optionnel) :") || undefined;
+    setHighlightReviewBusyId(reqId);
+    try {
+      const res = await fetch(API.highlightReject(reqId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Erreur');
+      addNotification("Demande refusée.", "success");
+      setHighlightRequests(prev => prev.filter(r => r.id !== reqId));
+      setRetry(r => r + 1);
+    } catch (err) {
+      addNotification("Échec du refus.", "error");
+    } finally {
+      setHighlightReviewBusyId(null);
+    }
+  };
+
   // ==================== STATES POUR DÉCLINAISONS ====================
 const [declinaisons, setDeclinaisons] = useState<Record<number, any[]>>({});
 
@@ -1533,22 +1666,37 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
             <p className="text-slate-500 mt-1.5">Gestion avancée des produits et hiérarchies logistiques</p>
           </div>
           
-          {!hideAddAndImport && (
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={handleAdd}
-                className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-blue-200 transition-all active:scale-95"
+          <div className="flex items-center gap-3">
+            {isPrivilegedEntite && (
+              <button
+                onClick={openHighlightModal}
+                className="relative flex items-center gap-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 px-6 py-3 rounded-2xl font-medium text-amber-800 transition-all"
               >
-                <span className="text-xl">＋</span> Nouveau Produit
+                🌟 Mises en avant
+                {highlightRequests.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 shadow">
+                    {highlightRequests.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
               </button>
-              <button 
-                onClick={handleOpenTemplateModal}
-                className="flex items-center gap-2 border border-slate-300 hover:bg-white px-6 py-3 rounded-2xl font-medium text-slate-700 transition-all"
-              >
-                📥 Modèle & Import
-              </button>
-            </div>
-          )}
+            )}
+            {!hideAddAndImport && (
+              <>
+                <button
+                  onClick={handleAdd}
+                  className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-blue-200 transition-all active:scale-95"
+                >
+                  <span className="text-xl">＋</span> Nouveau Produit
+                </button>
+                <button
+                  onClick={handleOpenTemplateModal}
+                  className="flex items-center gap-2 border border-slate-300 hover:bg-white px-6 py-3 rounded-2xl font-medium text-slate-700 transition-all"
+                >
+                  📥 Modèle & Import
+                </button>
+              </>
+            )}
+          </div>
         </div>
               <div className="bg-white rounded-3xl shadow border border-slate-100 p-8 mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">       <div>
             <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">Marque</label>
@@ -1666,13 +1814,24 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
             {declinaisons[p.id]?.length ?? p.declinaison_count ?? 0}
           </td>
           <td className="p-4">
-            <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold ${
-              p.status === 2 ? "bg-emerald-100 text-emerald-700" : 
-              p.status === 1 ? "bg-amber-100 text-amber-700" : 
-              "bg-slate-100 text-slate-600"
-            }`}>
-              {p.status === 2 ? "Validé ✓" : p.status === 1 ? "En attente ⏳" : "Enregistré 📝"}
-            </span>
+            <div className="flex flex-col gap-1.5 items-start">
+              <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold ${
+                p.status === 2 ? "bg-emerald-100 text-emerald-700" :
+                p.status === 1 ? "bg-amber-100 text-amber-700" :
+                "bg-slate-100 text-slate-600"
+              }`}>
+                {p.status === 2 ? "Validé ✓" : p.status === 1 ? "En attente ⏳" : "Enregistré 📝"}
+              </span>
+              {p.highlight_status && (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold ${
+                  p.highlight_status === 'approved' ? "bg-amber-100 text-amber-800" :
+                  p.highlight_status === 'pending' ? "bg-blue-100 text-blue-700" :
+                  "bg-red-100 text-red-700"
+                }`}>
+                  {p.highlight_status === 'approved' ? "🌟 Mis en avant" : p.highlight_status === 'pending' ? "⏳ Mise en avant en attente" : "✕ Mise en avant refusée"}
+                </span>
+              )}
+            </div>
           </td>
           <td className="p-4 text-center">
             {hasActionPermission && (
@@ -1719,6 +1878,24 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
                     {p.status !== 0 && (
                       <button className="w-full text-left px-4 py-2.5 hover:bg-orange-50 flex items-center gap-2" onClick={() => { handleSuspend(p); setIsActionOpen(null); }}>
                         ⏸️ Suspendre
+                      </button>
+                    )}
+                    {(!p.highlight_status || p.highlight_status === 'rejected') && (
+                      <button
+                        disabled={highlightBusyIds.has(p.id)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-amber-50 flex items-center gap-2 disabled:opacity-50"
+                        onClick={() => handleRequestHighlight(p)}
+                      >
+                        🌟 {p.highlight_status === 'rejected' ? "Redemander la mise en avant" : "Demander la mise en avant"}
+                      </button>
+                    )}
+                    {(p.highlight_status === 'pending' || p.highlight_status === 'approved') && (
+                      <button
+                        disabled={highlightBusyIds.has(p.id)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2 disabled:opacity-50"
+                        onClick={() => handleWithdrawHighlight(p)}
+                      >
+                        ✕ {p.highlight_status === 'pending' ? "Annuler la demande" : "Retirer de la mise en avant"}
                       </button>
                     )}
                     <button className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2" onClick={() => { handleDelete(p.id); setIsActionOpen(null); }}>
@@ -2365,6 +2542,104 @@ const handleDeleteDeclinaison = async (id: number, productId: number) => {
                     📥 Télécharger les lignes en erreur ({rapportModal.errors})
                   </button>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {/* ========== HIGHLIGHT REQUESTS MODAL (admin 999/111 only) ========== */}
+        {highlightModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={() => setHighlightModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 rounded-t-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">🌟 Mises en avant produits</h2>
+                  <p className="text-amber-50 text-sm mt-0.5">Approuvez ou refusez les demandes des entités — les produits approuvés apparaissent dans la vitrine de l'app mobile.</p>
+                </div>
+                <button onClick={() => setHighlightModalOpen(false)} className="text-2xl leading-none hover:opacity-75">✕</button>
+              </div>
+
+              <div className="px-6 pt-4 flex gap-2 border-b border-slate-100">
+                {(['pending', 'approved', 'rejected', 'all'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => changeHighlightFilter(s)}
+                    className={`px-4 py-2 rounded-t-lg text-sm font-medium transition ${
+                      highlightRequestsFilter === s
+                        ? "bg-amber-100 text-amber-800 border-b-2 border-amber-500"
+                        : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    {s === 'pending' ? 'En attente' : s === 'approved' ? 'Approuvées' : s === 'rejected' ? 'Refusées' : 'Toutes'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                {highlightRequestsLoading ? (
+                  <div className="text-center text-slate-500 py-10">Chargement...</div>
+                ) : highlightRequests.length === 0 ? (
+                  <div className="text-center text-slate-500 py-10">Aucune demande {highlightRequestsFilter === 'pending' ? 'en attente' : ''} pour le moment.</div>
+                ) : (
+                  highlightRequests.map((r) => {
+                    const firstImage = r.images ? r.images.split(';')[0] : '';
+                    return (
+                      <div key={r.id} className="flex items-center gap-4 p-4 border border-slate-200 rounded-2xl hover:shadow-sm transition">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden ring-1 ring-slate-200 flex-shrink-0 bg-slate-50">
+                          <img src={getImageUrl(firstImage)} alt={r.libelle} className="w-full h-full object-cover" onError={handleImageError} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-slate-900 truncate">{r.libelle}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            {r.brand} · GTIN {r.gtin} · <span className="font-medium text-slate-700">{r.entite_name || `Entité ${r.id_entite}`}</span>
+                          </div>
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            Demandé le {new Date(r.requested_at).toLocaleDateString('fr')} {r.requested_by_email ? `par ${r.requested_by_email}` : ''}
+                          </div>
+                          {r.status === 'rejected' && r.reject_reason && (
+                            <div className="text-xs text-red-600 mt-1">Motif du refus : {r.reject_reason}</div>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0">
+                          {r.status === 'pending' ? (
+                            <div className="flex gap-2">
+                              <button
+                                disabled={highlightReviewBusyId === r.id}
+                                onClick={() => handleApproveHighlight(r.id)}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50"
+                              >
+                                ✓ Approuver
+                              </button>
+                              <button
+                                disabled={highlightReviewBusyId === r.id}
+                                onClick={() => handleRejectHighlight(r.id)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50"
+                              >
+                                ✕ Refuser
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold ${
+                              r.status === 'approved' ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                            }`}>
+                              {r.status === 'approved' ? "🌟 Approuvée" : "✕ Refusée"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="px-6 py-4 bg-gray-50 border-t rounded-b-2xl text-right">
+                <button onClick={() => setHighlightModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                  Fermer
+                </button>
               </div>
             </motion.div>
           </div>

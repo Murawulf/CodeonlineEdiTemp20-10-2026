@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, EnvelopeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
@@ -54,26 +54,56 @@ type Company = {
   export_libye?: number;
   export_mali?: number;
   export_senegal?: number;
+  import_burkina_faso?: number;
+  import_cote_ivoire?: number;
+  import_gambie?: number;
+  import_guinee?: number;
+  import_libye?: number;
+  import_mali?: number;
+  import_senegal?: number;
 };
 
-type DestinationKey =
-  | 'export_burkina_faso'
-  | 'export_cote_ivoire'
-  | 'export_gambie'
-  | 'export_guinee'
-  | 'export_libye'
-  | 'export_mali'
-  | 'export_senegal';
+// ── Destinations: same 7 countries, but split by flow (export / import) ──
+// just like the "flux" filter on the enquête screen — pick export, import,
+// or both, then tick whichever countries matter.
+type FlowType = 'export' | 'import';
 
-const DESTINATION_OPTIONS: { key: DestinationKey; label: string }[] = [
-  { key: 'export_burkina_faso', label: 'Burkina Faso' },
-  { key: 'export_cote_ivoire', label: "Côte d'Ivoire" },
-  { key: 'export_gambie', label: 'Gambie' },
-  { key: 'export_guinee', label: 'Guinée' },
-  { key: 'export_libye', label: 'Libye' },
-  { key: 'export_mali', label: 'Mali' },
-  { key: 'export_senegal', label: 'Sénégal' },
+type BaseDestKey =
+  | 'burkina_faso'
+  | 'cote_ivoire'
+  | 'gambie'
+  | 'guinee'
+  | 'libye'
+  | 'mali'
+  | 'senegal';
+
+type DestinationKey = `${FlowType}_${BaseDestKey}`;
+
+const FLOW_TYPES: { key: FlowType; label: string }[] = [
+  { key: 'export', label: 'Export' },
+  { key: 'import', label: 'Import' },
 ];
+
+const BASE_DESTINATIONS: { key: BaseDestKey; label: string }[] = [
+  { key: 'burkina_faso', label: 'Burkina Faso' },
+  { key: 'cote_ivoire', label: "Côte d'Ivoire" },
+  { key: 'gambie', label: 'Gambie' },
+  { key: 'guinee', label: 'Guinée' },
+  { key: 'libye', label: 'Libye' },
+  { key: 'mali', label: 'Mali' },
+  { key: 'senegal', label: 'Sénégal' },
+];
+
+const destField = (flow: FlowType, base: BaseDestKey): DestinationKey => `${flow}_${base}`;
+
+// Every (flow × country) combination the company actually has flagged, in
+// display order — used for both the compact row badges and the full list.
+const getCompanyDestinations = (company: Company, flows: FlowType[] = ['export', 'import']) =>
+  flows.flatMap(flow =>
+    BASE_DESTINATIONS
+      .filter(d => Number(company[destField(flow, d.key)]) === 1)
+      .map(d => ({ flow, base: d.key, label: d.label, field: destField(flow, d.key) }))
+  );
 
 type Segment = { code: string; libelle: string };
 
@@ -109,6 +139,220 @@ const quillModules = {
   ],
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+// ENVOI MAIL (Outlook) — every entité gets its OWN Outlook message, opened on
+// the user's PC via a mailto: link: To = that entité only, subject + body already
+// filled in and personalised with its raison sociale. The user just clicks
+// "Envoyer" in Outlook. No server / SMTP involved.
+// ════════════════════════════════════════════════════════════════════════════
+type MailRecipient = {
+  id_entite: number;
+  raison_socialle: string;
+  personne_contact: string;
+  emails: string[];
+  sci: boolean;
+};
+
+const EMAIL_RE = /^[^\s@<>(),;:"\[\]]+@[^\s@<>(),;:"\[\]]+\.[a-zA-Z]{2,}$/;
+
+// An Entite.email cell can hold several addresses ("a@x.tn; b@x.tn", "a@x.tn / b@x.tn").
+// All of them belong to the SAME entité, so they all go in that entité's own To:.
+const parseEmails = (raw: string | null | undefined): string[] => {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  return String(raw)
+    .split(/[;,\s/|]+/)
+    .map(e => e.trim().replace(/^mailto:/i, '').replace(/^[<(]+|[>).]+$/g, ''))
+    .filter(e => EMAIL_RE.test(e))
+    .filter(e => { const k = e.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+};
+
+const escapeHtml = (v: string) =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const htmlHasText = (html: string) =>
+  html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+
+// Quill writes alignment / indentation as CSS classes; email clients need inline styles.
+const inlineQuillClasses = (html: string) =>
+  html
+    .replace(/class="ql-align-(center|right|justify)"/g, (_m, a) => `style="text-align:${a}"`)
+    .replace(/class="ql-indent-(\d+)"/g, (_m, n) => `style="padding-left:${Number(n) * 3}em"`)
+    .replace(/class="ql-size-small"/g, 'style="font-size:0.75em"')
+    .replace(/class="ql-size-large"/g, 'style="font-size:1.5em"')
+    .replace(/class="ql-size-huge"/g, 'style="font-size:2.5em"');
+
+const renderMailTemplate = (
+  bodyHtml: string,
+  r: { raison_socialle: string; personne_contact?: string },
+  link: string,
+) => {
+  const linkHtml = link
+    ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" style="display:inline-block;margin:12px 0;background:#172554;color:#ffffff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:bold">Répondre au questionnaire</a>`
+    : '';
+  return inlineQuillClasses(bodyHtml)
+    .replace(/\{raison_sociale\}/g, escapeHtml((r.raison_socialle || '').trim()))
+    .replace(/\{personne_contact\}/g, escapeHtml((r.personne_contact || '').trim()))
+    .replace(/\{lien_questionnaire\}/g, linkHtml)
+    .replace(/<p>\s*<\/p>/g, ''); // e.g. the questionnaire line when no link is set
+};
+
+const renderMailSubject = (subject: string, r: { raison_socialle: string; personne_contact?: string }) =>
+  subject
+    .replace(/\{raison_sociale\}/g, (r.raison_socialle || '').trim())
+    .replace(/\{personne_contact\}/g, (r.personne_contact || '').trim());
+
+const DEFAULT_MAIL_SUBJECT =
+  "Enquête CEPEX — Transport de vos marchandises vers l'Afrique subsaharienne";
+
+// Content of "Projet mailing - Enquête de transport sur l'Afrique (revue).docx".
+// {raison_sociale} is replaced by each entité's own raison sociale at send time.
+const DEFAULT_MAIL_BODY = [
+  '<p><strong>A l’attention de M. Le Directeur Général de la Société {raison_sociale},</strong></p>',
+  '<p><br></p>',
+  '<p>Dans le cadre des efforts entrepris par le CEPEX, notamment les actions visant à mieux accompagner les entreprises tunisiennes exportatrices en vue de consolider le positionnement de nos exportations sur le marché de l’Afrique subsaharienne, d’un côté, et de renforcer la compétitivité de nos produits, biens et services, sur ce marché en améliorant leur accessibilités et pénétrations sur le continent, une étude est lancée par nos services afin de recueillir votre retour d’expérience concernant les conditions et les contraintes liées au transport de vos marchandises.</p>',
+  '<p><br></p>',
+  '<p>À cet effet, nous vous invitons à répondre à un questionnaire portant notamment sur :</p>',
+  '<ul>',
+  '<li>Vos besoins en matière de transport maritime et aérien vers l’Afrique subsaharienne ;</li>',
+  '<li>Les difficultés et contraintes que vous rencontrez dans l’acheminement de vos marchandises ;</li>',
+  '<li>Les coûts, délais et fréquences des liaisons disponibles ;</li>',
+  '<li>Les difficultés liées aux formalités, à la logistique, au transit ou à la livraison ;</li>',
+  '<li>Vos attentes et suggestions pour améliorer les solutions de transport et faciliter vos opérations d’exportation.</li>',
+  '</ul>',
+  '<p>{lien_questionnaire}</p>',
+  '<p>Votre contribution est essentielle pour nous permettre d’identifier les principaux obstacles rencontrés par les exportateurs tunisiens et de dégager des pistes d’amélioration adaptées à leurs besoins, et ce, à travers des solutions totalement digitalisées.</p>',
+  '<p><br></p>',
+  '<p>Nous vous remercions par avance de bien vouloir consacrer quelques minutes à ce questionnaire et de nous faire part, de votre expérience et de vos attentes et ce <strong><u>avant le 30 Septembre 2026</u></strong>.</p>',
+  '<p><br></p>',
+  '<p>Nous vous remercions pour votre précieuse collaboration et restons à votre disposition pour toute information complémentaire.</p>',
+  '<p><br></p>',
+  '<p><strong>Cordialement,</strong></p>',
+].join('');
+
+const MAIL_PREF_PREFIX = 'entite.mailing.';
+const loadMailPref = (key: string, fallback: string): string => {
+  try {
+    const v = localStorage.getItem(MAIL_PREF_PREFIX + key);
+    return v !== null ? v : fallback;
+  } catch { return fallback; }
+};
+const saveMailPref = (key: string, value: string) => {
+  try { localStorage.setItem(MAIL_PREF_PREFIX + key, value); } catch { /* storage unavailable — ignore */ }
+};
+
+const mailQuillModules = {
+  toolbar: [
+    ['bold', 'italic', 'underline'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    [{ align: [] }],
+    ['link'],
+    ['clean'],
+  ],
+};
+
+// Plain-text version of the (personalised) HTML body — what goes into the
+// mailto: body, since mailto can only carry plain text.
+const htmlToPlainText = (html: string) =>
+  html
+    .replace(/\r?\n/g, '')
+    .replace(/<p[^>]*>\s*<br\s*\/?>\s*<\/p>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '   • ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<\/(ul|ol)>/gi, '\n')
+    .replace(/<\/(p|div|h\d)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+// Personalised body, as plain text. The questionnaire link is written out as a
+// URL (Outlook turns it into a clickable link automatically).
+const renderMailText = (bodyHtml: string, r: { raison_socialle: string; personne_contact?: string }, link: string) =>
+  htmlToPlainText(
+    bodyHtml
+      .replace(/\{raison_sociale\}/g, escapeHtml((r.raison_socialle || '').trim()))
+      .replace(/\{personne_contact\}/g, escapeHtml((r.personne_contact || '').trim()))
+      .replace(/<p>\s*\{lien_questionnaire\}\s*<\/p>/g, link ? `<p>Lien du questionnaire : ${escapeHtml(link)}</p>` : '')
+      .replace(/\{lien_questionnaire\}/g, link ? escapeHtml(link) : '')
+  );
+
+// mailto: for ONE entité. Several addresses of the same entité are separated
+// with ";" (what Outlook expects). Line breaks must be CRLF.
+const buildMailto = (emails: string[], subject: string, textBody: string) =>
+  `mailto:${emails.join(';')}` +
+  `?subject=${encodeURIComponent(subject)}` +
+  `&body=${encodeURIComponent(textBody.replace(/\n/g, '\r\n'))}`;
+
+// Put the FORMATTED message (bold, underline, bullets) on the clipboard, so a
+// Ctrl+V in Outlook gives the exact Word layout. Rich clipboard API first,
+// then the old execCommand fallback (works on plain http too).
+const copyRichToClipboard = async (html: string, text: string): Promise<boolean> => {
+  try {
+    const CI = (window as any).ClipboardItem;
+    if (navigator.clipboard && CI && window.isSecureContext) {
+      await navigator.clipboard.write([
+        new CI({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        }),
+      ]);
+      return true;
+    }
+  } catch { /* fall through to the legacy path */ }
+  try {
+    const el = document.createElement('div');
+    el.contentEditable = 'true';
+    el.innerHTML = html;
+    el.style.cssText = 'position:fixed;left:-99999px;top:0;opacity:0;white-space:normal';
+    document.body.appendChild(el);
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    const ok = document.execCommand('copy');
+    sel?.removeAllRanges();
+    document.body.removeChild(el);
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
+// Opens the user's default mail app (Outlook) with the prepared message.
+const openMailto = (url: string) => {
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+// Remembers which entités were already opened in Outlook (per browser), so the
+// user can close the window and resume later without emailing anyone twice.
+const MAIL_OPENED_KEY = 'entite.mailing.opened';
+const loadOpenedIds = (): Set<number> => {
+  try {
+    const raw = localStorage.getItem(MAIL_OPENED_KEY);
+    return new Set<number>(raw ? JSON.parse(raw) : []);
+  } catch { return new Set<number>(); }
+};
+const saveOpenedIds = (ids: Set<number>) => {
+  try { localStorage.setItem(MAIL_OPENED_KEY, JSON.stringify([...ids])); } catch { /* ignore */ }
+};
+
 const Entite = () => {
   const api = useApi();
   const API_BASE_URL = useLocalApiUrl();
@@ -141,9 +385,15 @@ const fetchPaysList = async () => {
   const [searchRegion, setSearchRegion] = useState('');
   const [searchDelegation, setSearchDelegation] = useState('');
   const [searchSegments, setSearchSegments] = useState<string[]>([]);
-  const [searchDestinations, setSearchDestinations] = useState<DestinationKey[]>([]);
+  // Empty array = "no restriction on this axis" (mirrors every other
+  // multi-select filter here). searchFlowTypes empty = export AND import
+  // both considered; searchDestinations empty = all 7 countries considered.
+  const [searchFlowTypes, setSearchFlowTypes] = useState<FlowType[]>([]);
+  const [searchDestinations, setSearchDestinations] = useState<BaseDestKey[]>([]);
   const [searchType, setSearchType] = useState('');
   const [searchText, setSearchText] = useState('');
+  // SCI filter: '' = tous, 'oui' = SCI only, 'non' = non-SCI only.
+  const [searchSci, setSearchSci] = useState<'' | 'oui' | 'non'>('');
 
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   const [regionDelExpanded, setRegionDelExpanded] = useState('');
@@ -317,12 +567,19 @@ const fetchPaysList = async () => {
     }
   };
 
+  // Sequence guard: region/délégation/type are filtered server-side, so switching
+  // them quickly fires several requests. Only the LATEST response is allowed to
+  // land — otherwise a slow, older response could overwrite the list with rows
+  // that don't match the filters currently shown (and then get exported).
+  const fetchSeqRef = useRef(0);
   const fetchCompanies = async () => {
+    const seq = ++fetchSeqRef.current;
     try {
       const response = await api.get(`/api/companies`, {
         withCredentials: true,
         params: { region: searchRegion, delegation: searchDelegation, type: searchType },
       });
+      if (seq !== fetchSeqRef.current) return; // a newer request superseded this one
       setCompanies(response.data || []);
     } catch (err) {
       console.error('Fetch companies error:', err);
@@ -401,12 +658,23 @@ const fetchPaysList = async () => {
       searchSegments.length === 0 ||
       (company.segments || []).some(code => searchSegments.includes(code));
 
-    // Multi-select: a company matches if it exports to AT LEAST ONE of the checked destinations.
+    // Flux (export/import) × Destination, both multi-select. Empty selection
+    // on either axis means "no restriction on that axis" — e.g. ticking only
+    // "Import" + "Libye" matches a company that imports FROM Libye, ticking
+    // both Export and Import + "Libye" matches either direction.
+    const effectiveFlows: FlowType[] = searchFlowTypes.length ? searchFlowTypes : ['export', 'import'];
+    const effectiveDests: BaseDestKey[] = searchDestinations.length ? searchDestinations : BASE_DESTINATIONS.map(d => d.key);
     const matchesDestination =
-      searchDestinations.length === 0 ||
-      searchDestinations.some(key => Number(company[key]) === 1);
+      (searchFlowTypes.length === 0 && searchDestinations.length === 0) ||
+      effectiveFlows.some(flow => effectiveDests.some(base => Number(company[destField(flow, base)]) === 1));
 
-    return matchesText && matchesSegment && matchesDestination;
+    const isSciCompany = Number(company.sci) === 1;
+    const matchesSci =
+      searchSci === '' ||
+      (searchSci === 'oui' && isSciCompany) ||
+      (searchSci === 'non' && !isSciCompany);
+
+    return matchesText && matchesSegment && matchesDestination && matchesSci;
   }).sort((a, b) => (Number(b.sci) === 1 ? 1 : 0) - (Number(a.sci) === 1 ? 1 : 0)); // SCI entities always float to the top, stable otherwise
 
   const paginatedCompanies = filteredCompanies.slice(
@@ -461,8 +729,20 @@ const fetchPaysList = async () => {
     setCurrentPage(1);
   };
 
-  const toggleDestinationValue = (key: DestinationKey) => {
+  const toggleFlowType = (key: FlowType) => {
+    setSearchFlowTypes(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+    setCurrentPage(1);
+  };
+
+  const toggleDestinationValue = (key: BaseDestKey) => {
     setSearchDestinations(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+    setCurrentPage(1);
+  };
+
+  const toggleAllDestinations = () => {
+    setSearchDestinations(prev =>
+      prev.length === BASE_DESTINATIONS.length ? [] : BASE_DESTINATIONS.map(d => d.key)
+    );
     setCurrentPage(1);
   };
 
@@ -568,6 +848,11 @@ const fetchPaysList = async () => {
     });
   };
 
+  // The selection is ALWAYS read through the current filters. Whatever was
+  // ticked earlier but is now hidden by a filter never leaks into an export or
+  // a mailing — this was the "I filter, select all, and get every entité" bug.
+  const selectedInView = filteredCompanies.filter(c => selectedIds.has(c.id_entite));
+
   const isAllPageSelected = paginatedCompanies.length > 0 && paginatedCompanies.every(c => selectedIds.has(c.id_entite));
   const isSomePageSelected = paginatedCompanies.some(c => selectedIds.has(c.id_entite));
 
@@ -583,83 +868,219 @@ const fetchPaysList = async () => {
     });
   };
 
+  // "Tout sélectionner" = every entité matching the CURRENT filters (all pages), nothing else.
   const selectAllFiltered = () => {
     setSelectedIds(new Set(filteredCompanies.map(c => c.id_entite)));
   };
 
   const clearSelection = () => setSelectedIds(new Set());
 
+  // Changing any structural filter starts a fresh selection, so the counter
+  // always describes exactly what is on screen. (Typing in the search box
+  // doesn't reset it — the selection is still intersected with it above.)
+  const structuralFilterKey = JSON.stringify([searchSegments, searchFlowTypes, searchDestinations, searchSci, searchRegion, searchDelegation, searchType]);
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [structuralFilterKey]);
+
+  // What the export / mailing buttons act on:
+  //   • some rows ticked  → exactly those (still limited to the current filters)
+  //   • nothing ticked    → every entité matching the current filters
+  const actionTargets = selectedInView.length > 0 ? selectedInView : filteredCompanies;
+  const actionScope: 'selection' | 'filtre' = selectedInView.length > 0 ? 'selection' : 'filtre';
+
+  const destinationsLabel = (company: Company, flow: FlowType) =>
+    BASE_DESTINATIONS
+      .filter(d => Number(company[destField(flow, d.key)]) === 1)
+      .map(d => d.label)
+      .join(', ');
+
+  const typeLabel = (company: Company) =>
+    typeOptions.find(t => t.value === String(company.type_prod))?.label || '';
+
+  // Human-readable list of the filters currently applied (also used for the
+  // chips above the table and the "Filtres" sheet of the Excel export).
+  const getActiveFilters = (): { key: string; label: string; value: string; clear: () => void }[] => {
+    const list: { key: string; label: string; value: string; clear: () => void }[] = [];
+    if (searchType) {
+      list.push({
+        key: 'type', label: "Type d'opérateur",
+        value: typeOptions.find(t => t.value === searchType)?.label || searchType,
+        clear: () => { setSearchType(''); setCurrentPage(1); },
+      });
+    }
+    if (searchSci) {
+      list.push({
+        key: 'sci', label: 'SCI', value: searchSci === 'oui' ? 'Oui' : 'Non',
+        clear: () => { setSearchSci(''); setCurrentPage(1); },
+      });
+    }
+    if (searchFlowTypes.length) {
+      list.push({
+        key: 'flux', label: 'Flux',
+        value: searchFlowTypes.map(f => FLOW_TYPES.find(x => x.key === f)?.label || f).join(' + '),
+        clear: () => { setSearchFlowTypes([]); setCurrentPage(1); },
+      });
+    }
+    if (searchDestinations.length) {
+      list.push({
+        key: 'dest', label: 'Destination',
+        value: searchDestinations.map(k => BASE_DESTINATIONS.find(d => d.key === k)?.label || k).join(', '),
+        clear: () => { setSearchDestinations([]); setCurrentPage(1); },
+      });
+    }
+    if (searchSegments.length) {
+      list.push({
+        key: 'seg', label: 'Segment',
+        value: searchSegments.map(code => segments.find(s => s.code === code)?.libelle || code).join(', '),
+        clear: () => { setSearchSegments([]); setCurrentPage(1); },
+      });
+    }
+    if (searchRegion) {
+      list.push({
+        key: 'region', label: 'Région / Délégation',
+        value: searchDelegation ? `${searchRegion} › ${searchDelegation}` : searchRegion,
+        clear: clearRegionDelegation,
+      });
+    }
+    if (searchText.trim()) {
+      list.push({
+        key: 'text', label: 'Recherche', value: `“${searchText.trim()}”`,
+        clear: () => { setSearchText(''); setCurrentPage(1); },
+      });
+    }
+    return list;
+  };
+
+  const resetAllFilters = () => {
+    setSearchType('');
+    setSearchSci('');
+    setSearchFlowTypes([]);
+    setSearchDestinations([]);
+    setSearchSegments([]);
+    setSearchText('');
+    setSearchRegion('');
+    setSearchDelegation('');
+    setRegionDelExpanded('');
+    setCurrentPage(1);
+  };
+
+  // Short, filesystem-safe suffix describing the filters, e.g. "SCI-oui_export_libye-mali".
+  const filterFileSuffix = () => {
+    const parts: string[] = [];
+    if (searchSci) parts.push(`SCI-${searchSci}`);
+    if (searchFlowTypes.length) parts.push(searchFlowTypes.join('-'));
+    if (searchDestinations.length) parts.push(searchDestinations.map(k => k.replace(/_/g, '')).join('-'));
+    if (searchRegion) parts.push(searchRegion);
+    if (actionScope === 'selection') parts.push('selection');
+    const slug = parts.join('_')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '-')
+      .slice(0, 80);
+    return slug ? `_${slug}` : '';
+  };
+
+  const appendFiltersSheet = (wb: XLSX.WorkBook, count: number) => {
+    const filters = getActiveFilters();
+    const rows: (string | number)[][] = [
+      ['Export des entités'],
+      [],
+      ['Date', new Date().toLocaleString('fr-FR')],
+      ['Périmètre', actionScope === 'selection' ? 'Lignes sélectionnées (dans les filtres actifs)' : 'Toutes les entités correspondant aux filtres'],
+      ["Nombre d'entités", count],
+      [],
+      ['Filtre', 'Valeur'],
+      ...(filters.length ? filters.map(f => [f.label, f.value]) : [['—', 'Aucun filtre (toutes les entités)']]),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 26 }, { wch: 70 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Filtres');
+  };
+
+  // ── Export contacts (Excel) — exactly what the filters / selection show ──
   const handleExportContacts = () => {
-    const selectedCompanies = companies.filter(c => selectedIds.has(c.id_entite));
-    if (selectedCompanies.length === 0) {
-      debouncedAddNotification('Aucune entité sélectionnée', 'error');
+    const targets = actionTargets;
+    if (targets.length === 0) {
+      window.alert('Aucune entité ne correspond aux filtres actuels — rien à exporter.');
       return;
     }
-    const exportData = selectedCompanies.map((company) => ({
-      'Raison sociale': company.raison_socialle,
-      'Identifiant national': company.identifiant_national || '',
+
+    const exportData = targets.map((company) => ({
+      'Raison sociale': company.raison_socialle || '',
+      'SCI': Number(company.sci) === 1 ? 'Oui' : 'Non',
       'Personne contact': company.personne_contact || '',
       'Email': company.email || '',
-      'Téléphone mobile': company.tel_mobile || '',
+      'Mobile': company.tel_mobile || '',
       'Téléphone fixe': company.telephone || '',
-      'Fax': company.fax || '',
-      'Adresse': company.adresse || '',
+      'Export vers': destinationsLabel(company, 'export'),
+      'Import depuis': destinationsLabel(company, 'import'),
+      "Type d'opérateur": typeLabel(company),
+      'Identifiant national': company.identifiant_national || '',
       'Région': company.region || '',
       'Délégation': company.delegation || '',
       'Ville': company.city || '',
-      'Localité': company.localite || '',
-      'Code postal': company.postalCode || '',
-      'Pays': paysList.find(p => p.isoNumeric === company.pays)?.libelle || company.pays || '',
-      'Site': company.site || '',
-      'Service': company.service || '',
+      'Adresse': company.adresse || '',
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     ws['!cols'] = [
-      { wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 26 }, { wch: 16 },
-      { wch: 16 }, { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 16 },
-      { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 18 },
+      { wch: 36 }, { wch: 7 }, { wch: 24 }, { wch: 32 }, { wch: 16 },
+      { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 34 }, { wch: 18 },
+      { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 34 },
     ];
+    // Excel filter arrows on the header row, so the file can be re-filtered too.
+    if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
-    XLSX.writeFile(wb, `contacts_selection_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    debouncedAddNotification(`${selectedCompanies.length} contact(s) exporté(s)`, 'success');
+    appendFiltersSheet(wb, targets.length);
+    XLSX.writeFile(wb, `contacts${filterFileSuffix()}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setIsMainActionOpen(false);
+    debouncedAddNotification(`${targets.length} contact(s) exporté(s)`, 'success');
   };
 
+  // ── Full export (all columns) — same perimeter as above ──
   const handleExport = () => {
-    const exportData = filteredCompanies.map((company) => {
+    const targets = actionTargets;
+    if (targets.length === 0) {
+      window.alert('Aucune entité ne correspond aux filtres actuels — rien à exporter.');
+      return;
+    }
+    const exportData = targets.map((company) => {
       const segmentsData = company.segments?.slice(0, 4) || [];
       return {
         id_entite: company.id_entite,
+        raison_socialle: company.raison_socialle,
+        sci: Number(company.sci) === 1 ? 'Oui' : 'Non',
+        personne_contact: company.personne_contact || '',
+        email: company.email || '',
+        tel_mobile: company.tel_mobile || '',
+        telephone: company.telephone || '',
+        export_vers: destinationsLabel(company, 'export'),
+        import_depuis: destinationsLabel(company, 'import'),
         identifiant_rex: company.identifiant_rex || '',
         date_enregistrement_rex: company.date_enregistrement_rex || '',
         debut_validite_rex: company.debut_validite_rex || '',
         fin_validite_rex: company.fin_validite_rex || '',
         etat: company.etat || '',
-        raison_socialle: company.raison_socialle,
         identifiant_national: company.identifiant_national || '',
         date_create: company.date_create || '',
         pays: paysList.find(p => p.isoNumeric === company.pays)?.libelle || company.pays || '',
         site: company.site || '',
-        personne_contact: company.personne_contact || '',
         service: company.service || '',
-        email: company.email || '',
-        tel_mobile: company.tel_mobile || '',
-        telephone: company.telephone || '',
         fax: company.fax || '',
         adresse: company.adresse || '',
         region: company.region || '',
+        delegation: company.delegation || '',
         city: company.city || '',
         localite: company.localite || '',
         postalCode: company.postalCode || '',
-        type_operateur: typeOptions.find(t => t.value === company.type_prod.toString())?.label || '',
+        type_operateur: typeLabel(company),
         date_abonnement: company.date_abonnement || '',
         date_echeance: company.date_echeance || '',
-        pwd: company.pwd,
         nb_fp: company.nb_fp,
         inscription: company.inscription,
         status_ent: company.status_ent,
-        delegation: company.delegation || '',
         titre_fr: company.titre_fr || '',
         titre_ar: company.titre_ar || '',
         titre_en: company.titre_en || '',
@@ -672,12 +1093,130 @@ const fetchPaysList = async () => {
     });
 
     const ws = XLSX.utils.json_to_sheet(exportData);
+    if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Entites');
-    XLSX.writeFile(wb, 'entites_export.xlsx');
+    appendFiltersSheet(wb, targets.length);
+    XLSX.writeFile(wb, `entites_export${filterFileSuffix()}_${new Date().toISOString().slice(0, 10)}.xlsx`);
     addNotification('Exportation réussie', 'success');
     setIsMainActionOpen(false);
   };
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ── ENVOI MAIL via Outlook — one personalised message per entité
+  // ════════════════════════════════════════════════════════════════════════
+  // Each click opens ONE new Outlook message (mailto:) addressed to ONE entité,
+  // subject + body pre-filled and personalised with its raison sociale, so no
+  // entité ever sees another. The user checks it and presses "Envoyer" in
+  // Outlook, then clicks "Suivant" here. Browsers only allow one mail window
+  // per click, hence the one-by-one flow (with progress remembered).
+  const [isMailModalOpen, setIsMailModalOpen] = useState(false);
+  const [mailSubject, setMailSubject] = useState(() => loadMailPref('subject', DEFAULT_MAIL_SUBJECT));
+  const [mailBody, setMailBody] = useState(() => loadMailPref('body', DEFAULT_MAIL_BODY));
+  const [mailLink, setMailLink] = useState(() => loadMailPref('link', ''));
+  const [mailRecipients, setMailRecipients] = useState<MailRecipient[]>([]);
+  const [mailPreviewId, setMailPreviewId] = useState<number | null>(null);
+  const [mailTab, setMailTab] = useState<'message' | 'envoi' | 'apercu'>('message');
+  const [mailInfo, setMailInfo] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [mailOpened, setMailOpened] = useState<Set<number>>(() => loadOpenedIds());
+  const [mailLastOpenedId, setMailLastOpenedId] = useState<number | null>(null);
+  const quillRef = useRef<ReactQuill | null>(null);
+
+  // Remember the last template in this browser.
+  useEffect(() => { saveMailPref('subject', mailSubject); }, [mailSubject]);
+  useEffect(() => { saveMailPref('body', mailBody); }, [mailBody]);
+  useEffect(() => { saveMailPref('link', mailLink); }, [mailLink]);
+  useEffect(() => { saveOpenedIds(mailOpened); }, [mailOpened]);
+
+  const openMailModal = () => {
+    setIsMainActionOpen(false);
+    const recipients: MailRecipient[] = actionTargets.map(c => ({
+      id_entite: c.id_entite,
+      raison_socialle: c.raison_socialle || '',
+      personne_contact: c.personne_contact || '',
+      emails: parseEmails(c.email),
+      sci: Number(c.sci) === 1,
+    }));
+    if (recipients.length === 0) {
+      window.alert('Aucune entité ne correspond aux filtres actuels.');
+      return;
+    }
+    setMailRecipients(recipients);
+    setMailPreviewId(recipients.find(r => r.emails.length > 0)?.id_entite ?? recipients[0].id_entite);
+    setMailTab('message');
+    setMailInfo(null);
+    setMailLastOpenedId(null);
+    setIsMailModalOpen(true);
+  };
+
+  const mailSendable = mailRecipients.filter(r => r.emails.length > 0);
+  const mailWithoutEmail = mailRecipients.filter(r => r.emails.length === 0);
+  const mailOpenedCount = mailSendable.filter(r => mailOpened.has(r.id_entite)).length;
+  const mailNext = mailSendable.find(r => !mailOpened.has(r.id_entite)) || null;
+
+  const insertMailToken = (token: string) => {
+    const editor = quillRef.current?.getEditor();
+    if (!editor) { setMailBody(prev => prev + token); return; }
+    const range = editor.getSelection(true);
+    const index = range ? range.index : editor.getLength();
+    editor.insertText(index, token, 'user');
+    editor.setSelection(index + token.length, 0, 'user');
+  };
+
+  const validateMailForm = (): string | null => {
+    if (!mailSubject.trim()) return "L'objet est obligatoire.";
+    if (!htmlHasText(mailBody)) return 'Le message est vide.';
+    if (mailLink.trim() && !/^https?:\/\//i.test(mailLink.trim())) return 'Le lien du questionnaire doit commencer par http:// ou https://';
+    return null;
+  };
+
+  // Open ONE entité's message in Outlook.
+  const openInOutlook = (r: MailRecipient) => {
+    const err = validateMailForm();
+    if (err) { setMailInfo({ type: 'error', text: err }); setMailTab('message'); return; }
+    if (r.emails.length === 0) return;
+
+    const link = mailLink.trim();
+    const subject = renderMailSubject(mailSubject.trim(), r);
+    const text = renderMailText(mailBody, r, link);
+    const html = `<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">${renderMailTemplate(mailBody, r, link)}</div>`;
+    const url = buildMailto(r.emails, subject, text);
+
+    // Formatted copy on the clipboard first (needs the page to still have focus),
+    // then hand over to Outlook.
+    let launched = false;
+    const launch = () => { if (launched) return; launched = true; openMailto(url); };
+    copyRichToClipboard(html, text).finally(launch);
+    setTimeout(launch, 400);
+
+    setMailOpened(prev => { const next = new Set(prev); next.add(r.id_entite); return next; });
+    setMailLastOpenedId(r.id_entite);
+    setMailPreviewId(r.id_entite);
+    setMailInfo({
+      type: 'success',
+      text: `Message ouvert dans Outlook pour « ${r.raison_socialle} » (${r.emails.join(', ')}). Vérifiez puis cliquez sur Envoyer dans Outlook.`,
+    });
+  };
+
+  const openNextInOutlook = () => {
+    if (mailNext) openInOutlook(mailNext);
+  };
+
+  const resetMailProgress = () => {
+    if (!window.confirm('Remettre à zéro le suivi (toutes les entités redeviennent « à envoyer ») ?')) return;
+    setMailOpened(prev => {
+      const next = new Set(prev);
+      mailRecipients.forEach(r => next.delete(r.id_entite));
+      return next;
+    });
+    setMailLastOpenedId(null);
+    setMailInfo(null);
+  };
+
+  const mailPreviewRecipient = mailRecipients.find(r => r.id_entite === mailPreviewId) || mailRecipients[0];
+  const mailPreviewHtml = mailPreviewRecipient
+    ? renderMailTemplate(mailBody, mailPreviewRecipient, mailLink.trim())
+    : '';
 
   const downloadTemplate = async () => {
     try {
@@ -1380,20 +1919,29 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
   color: var(--text); line-height: 1.2;
 }
 
+/* Filter bar — two tidy rows:
+   row 1 (top)   : search (wide) ………………… Actions
+   row 2 (bottom): every filter in an even, responsive grid (never cut off) */
 .ent-filters {
-  display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;
-  justify-content: space-between;
-  padding: 18px 32px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column-reverse; gap: 14px;
+  padding: 16px 24px; border-bottom: 1px solid var(--border);
   background: var(--surface3);
 }
 .ent-filters-left {
-  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
-  flex: 1 1 auto; min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 12px; align-items: end; min-width: 0;
 }
+.ent-filters-left .ent-filter-group { min-width: 0; }
+.ent-filters-left .ent-filter-btn { width: 100%; min-width: 0 !important; }
+.ent-filters-left .ent-seg-toggle { width: 100%; }
+.ent-filters-left .ent-seg-toggle button { flex: 1; }
 .ent-filters-right {
-  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
-  flex-shrink: 0;
+  display: flex; gap: 10px; align-items: flex-end; min-width: 0;
+  padding-bottom: 14px; border-bottom: 1px dashed var(--border);
 }
+.ent-search-group { flex: 1 1 auto; max-width: 560px; min-width: 0; }
+.ent-actions-group { margin-left: auto; }
 
 .ent-filter-group { display: flex; flex-direction: column; gap: 4px; }
 .ent-filter-label {
@@ -1495,7 +2043,7 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 .ent-action-btn:hover { opacity: 0.88; }
 
 .ent-results-bar {
-  padding: 10px 32px;
+  padding: 10px 24px; gap: 12px; flex-wrap: wrap;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid var(--border);
   background: var(--surface3); font-size: 12px; color: var(--muted);
@@ -1777,6 +2325,149 @@ tr.ent-row-sci td:first-child {
 .ql-editor { min-height: 150px; background: var(--surface2); color: var(--text); }
 .ql-toolbar { background: var(--surface); border-color: var(--border) !important; }
 .ql-container.ql-snow { border-color: var(--border) !important; }
+
+/* ── SCI segmented toggle ── */
+.ent-seg-toggle {
+  display: inline-flex; height: 38px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 2px;
+}
+.ent-seg-toggle button {
+  border: none; background: transparent; color: var(--text2);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 0 12px;
+  border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.ent-seg-toggle button:hover { color: var(--accent); }
+.ent-seg-toggle button.active { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+
+/* ── Active filter chips ── */
+.ent-active-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 24px; border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.ent-active-filters-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; margin-right: 4px;
+}
+.ent-filter-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 360px;
+  padding: 3px 4px 3px 10px; border-radius: 999px; font-size: 12px;
+  background: rgba(23,37,84,0.06); border: 1px solid rgba(23,37,84,0.18); color: var(--accent);
+}
+.ent-filter-chip-k { color: var(--muted); }
+.ent-filter-chip-v { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent-filter-chip button {
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
+  width: 18px; height: 18px; border-radius: 50%; line-height: 16px; font-size: 14px;
+}
+.ent-filter-chip button:hover { background: rgba(23,37,84,0.12); color: var(--accent); }
+
+.ent-link-btn {
+  background: none; border: none; color: var(--accent); cursor: pointer;
+  font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif; padding: 0;
+}
+.ent-link-btn.muted { color: var(--muted); font-weight: 500; }
+.ent-link-btn:hover { text-decoration: underline; }
+
+.ent-selection-pill {
+  display: flex; align-items: center; gap: 10px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px;
+}
+
+/* ── Bulk actions (export / envoi mail) ── */
+.ent-bulk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ent-bulk-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.ent-bulk-btn:hover:not(:disabled) { background: rgba(23,37,84,0.06); }
+.ent-bulk-btn.primary { background: var(--accent); color: var(--accent-text); }
+.ent-bulk-btn.primary:hover:not(:disabled) { opacity: 0.88; background: var(--accent); }
+.ent-bulk-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ent-bulk-count {
+  display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px;
+  font-size: 11px; line-height: 18px; text-align: center;
+  background: rgba(23,37,84,0.1); color: inherit;
+}
+.ent-bulk-btn.primary .ent-bulk-count { background: rgba(255,255,255,0.22); }
+.ent-bulk-scope { font-size: 11px; color: var(--muted); }
+
+/* ── Envoi mail modal ── */
+.ent-mail-tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.ent-mail-tabs button {
+  border: none; background: none; padding: 12px 14px; font-size: 13px; cursor: pointer;
+  color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-family: 'DM Sans', sans-serif; display: inline-flex; align-items: center; gap: 6px;
+}
+.ent-mail-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.ent-tab-warn { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(224,80,80,0.12); color: #c0392b; }
+.ent-mail-banner { margin: 12px 24px 0; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+.ent-mail-banner.success { background: rgba(58,143,110,0.12); color: #2e7d5b; border: 1px solid rgba(58,143,110,0.3); }
+.ent-mail-banner.error { background: rgba(224,80,80,0.1); color: #b83232; border: 1px solid rgba(224,80,80,0.3); }
+.ent-token-btn {
+  border: 1px dashed var(--accent); background: rgba(23,37,84,0.04); color: var(--accent);
+  border-radius: 6px; font-size: 11px; padding: 3px 8px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+}
+.ent-token-btn:hover { background: rgba(23,37,84,0.1); }
+.ent-mail-editor .ql-editor { min-height: 300px; max-height: 44vh; overflow-y: auto; background: #fff; font-size: 14px; line-height: 1.5; }
+.ent-mail-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; margin: 10px 0 12px; }
+.ent-mail-stats .ok { color: #2e7d5b; font-weight: 600; }
+.ent-mail-stats .ko { color: #b83232; font-weight: 600; }
+.ent-mail-stats .skip { color: var(--muted); font-weight: 600; }
+.ent-progress { height: 8px; background: var(--surface3); border-radius: 999px; overflow: hidden; }
+.ent-progress > div { height: 100%; background: var(--accent); transition: width 0.4s ease; }
+.ent-mail-list { border: 1px solid var(--border); border-radius: 8px; max-height: 42vh; overflow-y: auto; }
+.ent-mail-row {
+  display: grid; grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr); }
+.ent-mail-row:last-child { border-bottom: none; }
+.ent-mail-row .name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent-mail-row .addr { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent-mail-row .state { font-size: 11px; color: var(--muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent-mail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.ent-mail-row.sent .ent-mail-dot { background: #3a8f6e; }
+.ent-mail-row.sent .state { color: #2e7d5b; }
+.ent-mail-row.failed .ent-mail-dot { background: #e05050; }
+.ent-mail-row.failed .state, label.ent-mail-row.failed .addr { color: #b83232; }
+.ent-mail-row.skipped { opacity: 0.55; }
+.ent-sci-mini { margin-left: 6px; font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(212,163,42,0.15); color: #b8871a; font-weight: 700; }
+.ent-mail-preview { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.ent-mail-preview-head { background: var(--surface2); padding: 12px 16px; font-size: 12px; color: var(--text2); display: grid; gap: 4px; border-bottom: 1px solid var(--border); }
+.ent-mail-preview-head span { color: var(--muted); display: inline-block; min-width: 82px; }
+.ent-mail-preview-head em { color: var(--muted); font-size: 11px; }
+.ent-mail-preview-body {
+  padding: 20px 24px; background: #fff; max-height: 52vh; overflow-y: auto;
+  font-family: Calibri, 'Segoe UI', Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #222; text-align: justify;
+}
+.ent-mail-preview-body p { margin: 0; }
+.ent-mail-preview-body ul { list-style: disc; padding-left: 2.2em; margin: 6px 0; }
+.ent-mail-preview-body ol { list-style: decimal; padding-left: 2.2em; margin: 6px 0; }
+.ent-mail-preview-body a { color: #172554; }
+.ent-outlook-steps {
+  display: grid; gap: 8px; padding: 14px 16px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid var(--border); font-size: 13px; color: var(--text2);
+}
+.ent-outlook-steps b {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; margin-right: 8px;
+}
+.ent-outlook-steps .tip { font-size: 12px; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 8px; }
+.ent-outlook-steps kbd {
+  font-family: inherit; font-size: 11px; padding: 0 5px; border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 4px; background: #fff;
+}
+.ent-row-outlook-btn {
+  border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px;
+  font-size: 11px; font-weight: 600; padding: 4px 10px; cursor: pointer; white-space: nowrap;
+  font-family: 'DM Sans', sans-serif;
+}
+.ent-row-outlook-btn:hover { opacity: 0.88; }
+.ent-row-outlook-btn.done { background: transparent; color: #2e7d5b; border-color: rgba(58,143,110,0.4); }
+.ent-mail-row.next { background: rgba(23,37,84,0.05); }
+.ent-mail-row.last { box-shadow: inset 3px 0 0 #3a8f6e; }
+.ent-mail-row .state { max-width: none; overflow: visible; }
       `}</style>
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
@@ -1798,7 +2489,6 @@ tr.ent-row-sci td:first-child {
           <button
             type="button"
             className={`ent-filter-btn ${searchType ? 'active' : ''}`}
-            style={{ minWidth: 200 }}
             onClick={(e) => {
               const next = !isTypeOpen;
               setIsTypeOpen(next);
@@ -1883,12 +2573,12 @@ tr.ent-row-sci td:first-child {
           )}
         </div>
 
-        {/* DESTINATION — multi-select, the 7 export countries added from the importateurs/exportateurs list */}
+        {/* DESTINATION — flux (export/import) + les 7 pays, comme sur l'enquête flux */}
         <div className="ent-filter-group" ref={destinationRef}>
           <span className="ent-filter-label">Destination</span>
           <button
             type="button"
-            className={`ent-filter-btn ${searchDestinations.length ? 'active' : ''}`}
+            className={`ent-filter-btn ${(searchFlowTypes.length || searchDestinations.length) ? 'active' : ''}`}
             onClick={(e) => {
               const next = !isDestinationOpen;
               setIsDestinationOpen(next);
@@ -1897,17 +2587,57 @@ tr.ent-row-sci td:first-child {
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-              {searchDestinations.length === 0
-                ? 'Toutes les destinations'
-                : searchDestinations.length === 1
-                  ? DESTINATION_OPTIONS.find(d => d.key === searchDestinations[0])?.label
-                  : `${searchDestinations.length} destinations sélectionnées`}
+              {(() => {
+                const flowLabel = searchFlowTypes.length === 0
+                  ? null
+                  : searchFlowTypes.length === FLOW_TYPES.length
+                    ? 'Export + Import'
+                    : FLOW_TYPES.find(f => f.key === searchFlowTypes[0])?.label;
+                const destLabel = searchDestinations.length === 0
+                  ? null
+                  : searchDestinations.length === 1
+                    ? BASE_DESTINATIONS.find(d => d.key === searchDestinations[0])?.label
+                    : `${searchDestinations.length} destinations`;
+                if (!flowLabel && !destLabel) return 'Toutes les destinations';
+                return [flowLabel, destLabel].filter(Boolean).join(' · ');
+              })()}
             </span>
             <ChevronDownIcon className={`ent-chevron ${isDestinationOpen ? 'open' : ''}`} />
           </button>
           {isDestinationOpen && filterDropdownPos && (
-            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: Math.max(filterDropdownPos.width, 220) }}>
-              {DESTINATION_OPTIONS.map(d => (
+            <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: Math.max(filterDropdownPos.width, 240) }}>
+              {/* Flux: Export / Import — tick either, or both */}
+              <div style={{ padding: '8px 14px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', fontWeight: 600 }}>
+                Flux
+              </div>
+              {FLOW_TYPES.map(f => (
+                <label key={f.key} className="ent-filter-dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={searchFlowTypes.includes(f.key)}
+                    onChange={() => toggleFlowType(f.key)}
+                    style={{ accentColor: 'var(--accent)', width: 14, height: 14, flexShrink: 0 }}
+                  />
+                  <span>{f.label}</span>
+                </label>
+              ))}
+
+              <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+              <div style={{ padding: '4px 14px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', fontWeight: 600 }}>
+                Pays
+              </div>
+              <label className="ent-filter-dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={searchDestinations.length === BASE_DESTINATIONS.length}
+                  ref={el => { if (el) el.indeterminate = searchDestinations.length > 0 && searchDestinations.length < BASE_DESTINATIONS.length; }}
+                  onChange={toggleAllDestinations}
+                  style={{ accentColor: 'var(--accent)', width: 14, height: 14, flexShrink: 0 }}
+                />
+                <span>Tout sélectionner</span>
+              </label>
+              {BASE_DESTINATIONS.map(d => (
                 <label key={d.key} className="ent-filter-dropdown-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
@@ -1920,7 +2650,7 @@ tr.ent-row-sci td:first-child {
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px', borderTop: '1px solid var(--border)' }}>
                 <span
-                  onClick={() => { setSearchDestinations([]); setCurrentPage(1); }}
+                  onClick={() => { setSearchFlowTypes([]); setSearchDestinations([]); setCurrentPage(1); }}
                   style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}
                 >
                   Réinitialiser
@@ -1936,13 +2666,30 @@ tr.ent-row-sci td:first-child {
           )}
         </div>
 
+        {/* SCI — Tous / Oui / Non */}
+        <div className="ent-filter-group">
+          <span className="ent-filter-label">SCI</span>
+          <div className="ent-seg-toggle" role="group" aria-label="Filtre SCI">
+            {([['', 'Tous'], ['oui', 'Oui'], ['non', 'Non']] as const).map(([value, label]) => (
+              <button
+                key={value || 'all'}
+                type="button"
+                className={searchSci === value ? 'active' : ''}
+                aria-pressed={searchSci === value}
+                onClick={() => { setSearchSci(value); setCurrentPage(1); }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* RÉGION / DÉLÉGATION — combined: pick a région, its délégations expand right underneath */}
         <div className="ent-filter-group" ref={regionRef}>
           <span className="ent-filter-label">Région / Délégation</span>
           <button
             type="button"
             className={`ent-filter-btn ${searchRegion ? 'active' : ''}`}
-            style={{ minWidth: 220 }}
             onClick={(e) => {
               if (modalRegions.length === 0) fetchModalRegions();
               const next = !isRegionOpen;
@@ -2023,7 +2770,7 @@ tr.ent-row-sci td:first-child {
         </div>
         {/* ── right-hand cluster: search sits right beside the actions button ── */}
         <div className="ent-filters-right">
-        <div className="ent-filter-group" style={{ width: 260 }}>
+        <div className="ent-filter-group ent-search-group">
           <span className="ent-filter-label">Rechercher</span>
           <div style={{ position: 'relative' }}>
             <MagnifyingGlassIcon style={{ width: 15, height: 15, color: 'var(--accent)', position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -2040,7 +2787,7 @@ tr.ent-row-sci td:first-child {
 
         {/* ACTIONS */}
         {canWrite && (
-          <div className="ent-filter-group" style={{ position: 'relative' }} ref={mainActionRef}>
+          <div className="ent-filter-group ent-actions-group" style={{ position: 'relative' }} ref={mainActionRef}>
             <span className="ent-filter-label" style={{ opacity: 0 }}>.</span>
             <button type="button" className="ent-action-btn" onClick={() => setIsMainActionOpen(prev => !prev)}>
               Actions <ChevronDownIcon className={`ent-chevron ${isMainActionOpen ? 'open' : ''}`} style={{ color: 'rgba(255,255,255,0.85)' }} />
@@ -2049,7 +2796,9 @@ tr.ent-row-sci td:first-child {
               <div className="ent-main-action-dropdown">
                 <div className="ent-main-action-item" onClick={handleAddCompany}>+ Ajouter entité</div>
                 <div className="ent-main-action-item" onClick={handleAddMultiple}>↑ Importer plusieurs</div>
-                <div className="ent-main-action-item" onClick={handleExport}>↓ Exporter</div>
+                <div className="ent-main-action-item" onClick={handleExportContacts}>↓ Exporter contacts ({actionTargets.length})</div>
+                <div className="ent-main-action-item" onClick={handleExport}>↓ Exporter toutes les colonnes ({actionTargets.length})</div>
+                <div className="ent-main-action-item" onClick={openMailModal}>✉ Envoi mail via Outlook ({actionTargets.length})</div>
               </div>
             )}
           </div>
@@ -2057,42 +2806,78 @@ tr.ent-row-sci td:first-child {
         </div>
       </div>
 
+      {/* ── ACTIVE FILTERS (chips) ─────────────────────────────────────────── */}
+      {(() => {
+        const active = getActiveFilters();
+        if (active.length === 0) return null;
+        return (
+          <div className="ent-active-filters">
+            <span className="ent-active-filters-label">Filtres actifs</span>
+            {active.map(f => (
+              <span key={f.key} className="ent-filter-chip" title={`${f.label} : ${f.value}`}>
+                <span className="ent-filter-chip-k">{f.label}</span>
+                <span className="ent-filter-chip-v">{f.value}</span>
+                <button type="button" onClick={f.clear} aria-label={`Retirer le filtre ${f.label}`}>×</button>
+              </span>
+            ))}
+            <button type="button" className="ent-link-btn" onClick={resetAllFilters}>Tout effacer</button>
+          </div>
+        );
+      })()}
+
       {/* ── RESULTS BAR ─────────────────────────────────────────────────────── */}
       <div className="ent-results-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div><strong>{filteredCompanies.length.toLocaleString('fr')}</strong>‎  résultats</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div><strong>{filteredCompanies.length.toLocaleString('fr')}</strong>‎  résultat{filteredCompanies.length > 1 ? 's' : ''}</div>
 
-          {selectedIds.size > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px' }}>
-              <span style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
-                {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+          {selectedInView.length > 0 && (
+            <div className="ent-selection-pill">
+              <span style={{ fontWeight: 600, color: 'var(--text2)' }}>
+                {selectedInView.length} sélectionné{selectedInView.length > 1 ? 's' : ''}
               </span>
-              <button
-                type="button"
-                onClick={handleExportContacts}
-                className="ent-btn-primary"
-                style={{ padding: '4px 10px', fontSize: 12 }}
-              >
-                ↓ Exporter contacts
-              </button>
-              {selectedIds.size < filteredCompanies.length && (
-                <button
-                  type="button"
-                  onClick={selectAllFiltered}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                >
+              {selectedInView.length < filteredCompanies.length && (
+                <button type="button" className="ent-link-btn" onClick={selectAllFiltered}>
                   Tout sélectionner ({filteredCompanies.length})
                 </button>
               )}
-              <button
-                type="button"
-                onClick={clearSelection}
-                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}
-              >
+              <button type="button" className="ent-link-btn muted" onClick={clearSelection}>
                 Désélectionner
               </button>
             </div>
           )}
+
+          {/* One-click actions on exactly what is shown (selection ∩ filters, or all filtered rows) */}
+          <div className="ent-bulk-actions">
+            <button
+              type="button"
+              className="ent-bulk-btn"
+              onClick={handleExportContacts}
+              disabled={actionTargets.length === 0}
+              title={actionScope === 'selection'
+                ? 'Exporter les entités sélectionnées (Excel)'
+                : 'Exporter toutes les entités correspondant aux filtres (Excel)'}
+            >
+              <ArrowDownTrayIcon style={{ width: 15, height: 15 }} />
+              Exporter Excel
+              <span className="ent-bulk-count">{actionTargets.length}</span>
+            </button>
+            <button
+              type="button"
+              className="ent-bulk-btn primary"
+              onClick={openMailModal}
+              disabled={actionTargets.length === 0}
+              title={actionScope === 'selection'
+                ? 'Ouvrir dans Outlook un email personnalisé pour chaque entité sélectionnée'
+                : 'Ouvrir dans Outlook un email personnalisé pour chaque entité filtrée'}
+            >
+              <EnvelopeIcon style={{ width: 15, height: 15 }} />
+              Envoi mail
+              <span className="ent-bulk-count">{actionTargets.length}</span>
+            </button>
+            <span className="ent-bulk-scope">
+              {actionScope === 'selection' ? 'sur la sélection' : (getActiveFilters().length ? 'sur les résultats filtrés' : 'sur toutes les entités')}
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Afficher</span>
@@ -2128,7 +2913,7 @@ tr.ent-row-sci td:first-child {
               <th style={{ width: 160 }}>Segments</th>
               <th onClick={() => handleSort('raison_socialle')}>Raison sociale<SortToggle column="raison_socialle" /></th>
               <th onClick={() => handleSort('sci')} style={{ width: 84, textAlign: 'center' }}>SCI<SortToggle column="sci" /></th>
-              <th style={{ width: 180 }}>Destinations</th>
+              <th style={{ width: 200 }}>Destinations</th>
               <th onClick={() => handleSort('personne_contact')}>Contact<SortToggle column="personne_contact" /></th>
               <th onClick={() => handleSort('email')}>Email<SortToggle column="email" /></th>
               <th onClick={() => handleSort('tel_mobile')}>Mobile<SortToggle column="tel_mobile" /></th>
@@ -2256,29 +3041,40 @@ tr.ent-row-sci td:first-child {
                     </span>
                   </td>
 
-                  {/* Destinations (export) — swapped out of the collapsible so it's visible without expanding */}
+                  {/* Destinations (export + import) — swapped out of the collapsible so it's visible without expanding */}
                   <td onClick={e => e.stopPropagation()}>
-                    {DESTINATION_OPTIONS.some(d => Number(company[d.key]) === 1) ? (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 170, alignItems: 'center' }}>
-                        {DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).slice(0, 2).map(d => (
-                          <span key={d.key} className="ent-pill" style={{ background: 'rgba(23,37,84,0.08)', color: 'var(--accent)', borderColor: 'rgba(23,37,84,0.22)', maxWidth: 90 }} title={d.label}>
-                            {d.label}
-                          </span>
-                        ))}
-                        {DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).length > 2 && (
-                          <button
-                            type="button"
-                            className="ent-view-more"
-                            onClick={(e) => { e.stopPropagation(); toggleRow(company.id_entite); }}
-                            title="Voir toutes les destinations"
-                          >
-                            +{DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).length - 2} · voir plus
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
-                    )}
+                    {(() => {
+                      const dests = getCompanyDestinations(company);
+                      if (dests.length === 0) return <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>;
+                      return (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 180, alignItems: 'center' }}>
+                          {dests.slice(0, 2).map(d => (
+                            <span
+                              key={d.field}
+                              className="ent-pill"
+                              style={
+                                d.flow === 'export'
+                                  ? { background: 'rgba(23,37,84,0.08)', color: 'var(--accent)', borderColor: 'rgba(23,37,84,0.22)', maxWidth: 100 }
+                                  : { background: 'rgba(184,110,42,0.10)', color: '#b86e2a', borderColor: 'rgba(184,110,42,0.3)', maxWidth: 100 }
+                              }
+                              title={`${d.flow === 'export' ? 'Export' : 'Import'} · ${d.label}`}
+                            >
+                              {d.flow === 'export' ? '↑' : '↓'} {d.label}
+                            </span>
+                          ))}
+                          {dests.length > 2 && (
+                            <button
+                              type="button"
+                              className="ent-view-more"
+                              onClick={(e) => { e.stopPropagation(); toggleRow(company.id_entite); }}
+                              title="Voir toutes les destinations"
+                            >
+                              +{dests.length - 2} · voir plus
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Contact */}
@@ -2496,21 +3292,40 @@ tr.ent-row-sci td:first-child {
                           </>
                         )}
 
-                        {/* Destinations — full list, untruncated, so the rest of the destinations can be read */}
-                        {DESTINATION_OPTIONS.some(d => Number(company[d.key]) === 1) && (
+                        {/* Destinations — full list, untruncated, split Export / Import so the direction is unambiguous */}
+                        {getCompanyDestinations(company).length > 0 && (
                           <>
                             <hr className="ent-expand-divider" />
                             <div>
                               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>
-                                Destinations ({DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).length})
+                                Destinations ({getCompanyDestinations(company).length})
                               </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                                {DESTINATION_OPTIONS.filter(d => Number(company[d.key]) === 1).map(d => (
-                                  <span key={d.key} className="ent-pill" style={{ background: 'rgba(23,37,84,0.08)', color: 'var(--accent)', borderColor: 'rgba(23,37,84,0.22)' }}>
-                                    {d.label}
-                                  </span>
-                                ))}
-                              </div>
+                              {(['export', 'import'] as FlowType[]).map(flow => {
+                                const items = getCompanyDestinations(company, [flow]);
+                                if (items.length === 0) return null;
+                                return (
+                                  <div key={flow} style={{ marginBottom: 8 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: flow === 'export' ? 'var(--accent)' : '#b86e2a', marginBottom: 4 }}>
+                                      {flow === 'export' ? 'Export' : 'Import'}
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                      {items.map(d => (
+                                        <span
+                                          key={d.field}
+                                          className="ent-pill"
+                                          style={
+                                            flow === 'export'
+                                              ? { background: 'rgba(23,37,84,0.08)', color: 'var(--accent)', borderColor: 'rgba(23,37,84,0.22)' }
+                                              : { background: 'rgba(184,110,42,0.10)', color: '#b86e2a', borderColor: 'rgba(184,110,42,0.3)' }
+                                          }
+                                        >
+                                          {d.label}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </>
                         )}
@@ -2628,6 +3443,200 @@ tr.ent-row-sci td:first-child {
       </div>
       {/* end content card */}
 
+
+      {/* ─── ENVOI MAIL MODAL (Outlook) ─────────────────────────────────────── */}
+      {isMailModalOpen && (
+        <div className="ent-modal-overlay">
+          <div className="ent-modal" style={{ '--modal-max': '920px' } as React.CSSProperties}>
+            <div className="ent-modal-header" style={{ cursor: 'default' }}>
+              <div>
+                <div className="ent-modal-title">Envoi mail via Outlook</div>
+                <div className="ent-modal-subtitle">
+                  {mailSendable.length} entité{mailSendable.length > 1 ? 's' : ''} · un message Outlook séparé par entité, personnalisé avec sa raison sociale
+                </div>
+              </div>
+              <button className="ent-modal-close" onClick={() => setIsMailModalOpen(false)} title="Fermer">
+                <XMarkIcon style={{ width: 20, height: 20 }} />
+              </button>
+            </div>
+
+            <div className="ent-mail-tabs">
+              <button className={mailTab === 'message' ? 'active' : ''} onClick={() => setMailTab('message')}>1. Message</button>
+              <button className={mailTab === 'apercu' ? 'active' : ''} onClick={() => setMailTab('apercu')}>2. Aperçu</button>
+              <button className={mailTab === 'envoi' ? 'active' : ''} onClick={() => setMailTab('envoi')}>
+                3. Envoi Outlook <span className="ent-bulk-count">{mailOpenedCount}/{mailSendable.length}</span>
+                {mailWithoutEmail.length > 0 && <span className="ent-tab-warn" title="Entités sans email valide">{mailWithoutEmail.length} sans email</span>}
+              </button>
+            </div>
+
+            {mailInfo && (
+              <div className={`ent-mail-banner ${mailInfo.type}`}>{mailInfo.text}</div>
+            )}
+
+            <div className="ent-modal-body">
+              {mailTab === 'message' && (
+                <div className="ent-form-grid">
+                  <div className="ent-form-field span-2">
+                    <div style={modalLabelStyle}>Objet</div>
+                    <input className={modalInput} style={modalInputStyle} value={mailSubject} onChange={e => setMailSubject(e.target.value)} />
+                  </div>
+                  <div className="ent-form-field span-2">
+                    <div style={modalLabelStyle}>Lien du questionnaire (optionnel)</div>
+                    <input className={modalInput} style={modalInputStyle} value={mailLink} onChange={e => setMailLink(e.target.value)} placeholder="https://…" />
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                      Inséré à l'emplacement de <code>{'{lien_questionnaire}'}</code>. Laissez vide pour ne rien afficher.
+                    </div>
+                  </div>
+                  <div className="ent-form-field span-2">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <div style={modalLabelStyle}>Message</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>Insérer :</span>
+                        <button type="button" className="ent-token-btn" onClick={() => insertMailToken('{raison_sociale}')}>Raison sociale</button>
+                        <button type="button" className="ent-token-btn" onClick={() => insertMailToken('{personne_contact}')}>Personne contact</button>
+                        <button type="button" className="ent-token-btn" onClick={() => insertMailToken('{lien_questionnaire}')}>Lien questionnaire</button>
+                        <button
+                          type="button"
+                          className="ent-link-btn muted"
+                          onClick={() => {
+                            if (window.confirm('Remettre le texte du document Word (vos modifications seront perdues) ?')) {
+                              setMailBody(DEFAULT_MAIL_BODY);
+                              setMailSubject(DEFAULT_MAIL_SUBJECT);
+                            }
+                          }}
+                        >
+                          Réinitialiser le modèle
+                        </button>
+                      </div>
+                    </div>
+                    <div className="ent-mail-editor">
+                      <ReactQuill ref={quillRef} theme="snow" value={mailBody} onChange={setMailBody} modules={mailQuillModules} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {mailTab === 'apercu' && mailPreviewRecipient && (
+                <>
+                  <div className="ent-form-field" style={{ marginBottom: 12 }}>
+                    <div style={modalLabelStyle}>Aperçu pour</div>
+                    <select
+                      className={modalInput}
+                      style={modalSelectStyle}
+                      value={mailPreviewRecipient.id_entite}
+                      onChange={e => setMailPreviewId(Number(e.target.value))}
+                    >
+                      {mailRecipients.map(r => (
+                        <option key={r.id_entite} value={r.id_entite}>
+                          {r.raison_socialle}{r.emails.length ? '' : ' (sans email)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ent-mail-preview">
+                    <div className="ent-mail-preview-head">
+                      <div><span>À :</span> {mailPreviewRecipient.emails.join('; ') || '—'} <em>(seul destinataire)</em></div>
+                      <div><span>Objet :</span> <strong>{renderMailSubject(mailSubject, mailPreviewRecipient)}</strong></div>
+                    </div>
+                    <div className="ent-mail-preview-body" dangerouslySetInnerHTML={{ __html: mailPreviewHtml }} />
+                  </div>
+                </>
+              )}
+
+              {mailTab === 'envoi' && (
+                <>
+                  <div className="ent-outlook-steps">
+                    <div><b>1</b> Cliquez sur <strong>« Ouvrir dans Outlook »</strong> : un nouveau message s'ouvre, déjà adressé à l'entité, avec l'objet et le texte personnalisés.</div>
+                    <div><b>2</b> Vérifiez et cliquez sur <strong>Envoyer</strong> dans Outlook.</div>
+                    <div><b>3</b> Revenez ici et passez à l'entité suivante. La progression est mémorisée.</div>
+                    <div className="tip">
+                      Astuce : la version <strong>mise en forme</strong> (gras, souligné, puces) est aussi copiée automatiquement.
+                      Pour l'avoir dans Outlook : cliquez dans le corps du message, <kbd>Ctrl</kbd>+<kbd>A</kbd> puis <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+                      (Même chose si le texte apparaît incomplet.)
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '14px 0 8px' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {mailOpenedCount} / {mailSendable.length} ouvert{mailOpenedCount > 1 ? 's' : ''} dans Outlook
+                    </div>
+                    <button type="button" className="ent-link-btn muted" onClick={resetMailProgress}>Réinitialiser le suivi</button>
+                  </div>
+                  <div className="ent-progress">
+                    <div style={{ width: `${mailSendable.length ? Math.round((mailOpenedCount / mailSendable.length) * 100) : 0}%` }} />
+                  </div>
+
+                  <div className="ent-mail-list" style={{ marginTop: 12, maxHeight: '42vh' }}>
+                    {mailRecipients.map(r => {
+                      const hasEmail = r.emails.length > 0;
+                      const opened = mailOpened.has(r.id_entite);
+                      const isNext = mailNext?.id_entite === r.id_entite;
+                      return (
+                        <div
+                          key={r.id_entite}
+                          className={`ent-mail-row ${!hasEmail ? 'failed' : opened ? 'sent' : 'pending'} ${isNext ? 'next' : ''} ${mailLastOpenedId === r.id_entite ? 'last' : ''}`}
+                        >
+                          <span className="ent-mail-dot" />
+                          <span className="name">
+                            {r.raison_socialle}
+                            {r.sci && <span className="ent-sci-mini">SCI</span>}
+                          </span>
+                          <span className="addr">{hasEmail ? r.emails.join('; ') : 'Aucune adresse email valide'}</span>
+                          <span className="state">
+                            {hasEmail && (
+                              <button
+                                type="button"
+                                className={`ent-row-outlook-btn ${opened ? 'done' : ''}`}
+                                onClick={() => openInOutlook(r)}
+                                title={opened ? 'Déjà ouvert — rouvrir dans Outlook' : 'Ouvrir ce message dans Outlook'}
+                              >
+                                {opened ? '✓ Ouvert · rouvrir' : 'Ouvrir dans Outlook'}
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="ent-modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                {mailTab !== 'envoi'
+                  ? 'Outlook doit être votre application mail par défaut.'
+                  : mailNext ? `Suivant : ${mailNext.raison_socialle}` : (mailSendable.length ? 'Tous les messages ont été ouverts ✓' : '')}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="ent-btn-secondary" onClick={() => setIsMailModalOpen(false)}>Fermer</button>
+                {mailTab !== 'envoi' ? (
+                  <button className="ent-btn-primary" onClick={() => {
+                    const err = validateMailForm();
+                    if (err) { setMailInfo({ type: 'error', text: err }); setMailTab('message'); return; }
+                    setMailInfo(null);
+                    setMailTab(mailTab === 'message' ? 'apercu' : 'envoi');
+                  }}>
+                    Continuer →
+                  </button>
+                ) : (
+                  <button
+                    className="ent-btn-primary"
+                    disabled={!mailNext}
+                    onClick={openNextInOutlook}
+                    style={{ opacity: mailNext ? 1 : 0.5, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                  >
+                    <EnvelopeIcon style={{ width: 16, height: 16 }} />
+                    {mailNext
+                      ? `Ouvrir dans Outlook (${mailOpenedCount + 1}/${mailSendable.length})`
+                      : 'Terminé'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── BASIC CREATE MODAL ──────────────────────────────────────────────── */}
       {isBasicModalOpen && basicEditingCompany && (

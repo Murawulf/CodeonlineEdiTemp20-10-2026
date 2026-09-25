@@ -6,12 +6,44 @@ import "react-toastify/dist/ReactToastify.css";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useLocalApiUrl, useSettings } from "@/contexts/SettingsContext";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { resolveCountryKey, type CountryKey } from "@/lib/country";
+
+/* ================= LOGO PARTENAIRE PAR PAYS =================
+   Le pays est fixé au build (npm run build -- tunisia | cote_ivoire | senegal)
+   et exposé par getCurrentCountryInfo() — même source que le drapeau.
+   Pour ajouter un pays : une entrée ici + une règle dans src/lib/country.ts. */
+const PARTNER_LOGOS: Record<CountryKey, { src: string; alt: string }> = {
+  tunisia: {
+    src: "https://edi.codeonline-info.com/images/cepex_full.png",
+    alt: "CEPEX - Tunisia Export",
+  },
+  cote_ivoire: {
+    src: "https://edi.codeonline-info.com/images/LOGO-CI-EXPORT.png",
+    alt: "Côte d'Ivoire Export",
+  },
+  senegal: {
+    src: "https://civ.codeonline-edi.net/images/ASEPEX.jpg",
+    alt: "ASEPEX - Sénégal",
+  },
+};
+
+// Petit logo rond dans l'en-tête (Tunisie : icône CEPEX d'origine).
+const HEADER_LOGOS: Record<CountryKey, string> = {
+  tunisia: "https://edi.codeonline-info.com/images/cepex.png",
+  cote_ivoire: PARTNER_LOGOS.cote_ivoire.src,
+  senegal: PARTNER_LOGOS.senegal.src,
+};
 
 const Login: React.FC = () => {
   const API_BASE_URL = useLocalApiUrl();
   const { getCurrentCountryInfo } = useSettings();
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const countryInfo = getCurrentCountryInfo();
+  const countryKey = resolveCountryKey(countryInfo);
+  const partnerLogo = PARTNER_LOGOS[countryKey];
+  const headerLogo = HEADER_LOGOS[countryKey];
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -136,18 +168,18 @@ const Login: React.FC = () => {
             <LanguageSelector />
 
             <img
-              src={getCurrentCountryInfo().flagUrl}
+              src={countryInfo.flagUrl}
               className="h-6 rounded-sm"
-              alt={`${getCurrentCountryInfo().name} Flag`}
+              alt={`${countryInfo.name} Flag`}
             />
 
             <div className="w-px h-6 bg-gray-200" />
 
             <img
-              src="https://edi.codeonline-info.com/images/cepex.png"
-              alt="CEPEX"
-              title="CEPEX"
-              className="h-9 w-9 object-contain rounded-full ring-1 ring-gray-200 p-1"
+              src={headerLogo}
+              alt={partnerLogo.alt}
+              title={partnerLogo.alt}
+              className="h-9 w-9 object-contain rounded-full ring-1 ring-gray-200 p-1 bg-white"
             />
           </div>
         </div>
@@ -183,9 +215,10 @@ const Login: React.FC = () => {
               <div className="relative flex justify-center mb-8">
                 <div className="absolute w-36 h-36 bg-gradient-to-br from-red-50 to-transparent rounded-full blur-2xl" />
                 <img
-                  src="https://edi.codeonline-info.com/images/cepex_full.png"
-                  alt="Cepex - Tunisia Export"
-                  className="relative h-24 w-auto object-contain drop-shadow-sm"
+                  key={partnerLogo.src}
+                  src={partnerLogo.src}
+                  alt={partnerLogo.alt}
+                  className="relative h-24 w-auto max-w-[260px] object-contain drop-shadow-sm"
                 />
               </div>
 
@@ -273,27 +306,27 @@ const Login: React.FC = () => {
       )}
 
       {/* ================= FOOTER ================= */}
-   <footer className="w-full bg-white border-t py-4">
-  <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-sm text-gray-500">
+      <footer className="w-full bg-white border-t py-4">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-sm text-gray-500">
 
-    <div className="flex items-center gap-2">
-      <span>© {new Date().getFullYear()}</span>
+          <div className="flex items-center gap-2">
+            <span>© {new Date().getFullYear()}</span>
 
-      <span className="mx-2">|</span>
+            <span className="mx-2">|</span>
 
-      <img
-        src="/images/logo-netconsulting.png"
-        className="h-5"
-        alt="Netconsulting Europe Ltd"
-      />
+            <img
+              src="/images/logo-netconsulting.png"
+              className="h-5"
+              alt="Netconsulting Europe Ltd"
+            />
 
-      <span>
-        Netconsulting Europe Ltd. Tous droits réservés.
-      </span>
-    </div>
+            <span>
+              Netconsulting Europe Ltd. Tous droits réservés.
+            </span>
+          </div>
 
-  </div>
-</footer>
+        </div>
+      </footer>
 
     </div>
   );
