@@ -1806,33 +1806,54 @@ app.post('/api/update-classe-status', async (req, res) => {
 // ============================================================
 app.get('/api/bricks', async (req, res) => {
   const { codeClasse } = req.query;
+  let conn;
   try {
-    const conn = await mysql.createConnection(dbConfig);
-    let sql = `
-      SELECT 
-        codeBrique AS code,
-        libelleBrique AS libelle,
-        libelleBrique_en AS libelle_en,
-        libelleBrique_ar AS libelle_ar,
-        status_br AS status
-      FROM brickgpc
-    `;
+    conn = await mysql.createConnection(dbConfig);
     const params = [];
+    const where = codeClasse ? ' WHERE b.codeClasse = ?' : '';
+    if (codeClasse) params.push(codeClasse);
 
-    // If a class code is provided, filter by it
-    if (codeClasse) {
-      sql += ' WHERE codeClasse = ?';
-      params.push(codeClasse);
+    // Preferred query: brick + GPC hierarchy (segment / family / class).
+    // The hierarchy lets the auto-mapper reject matches from the wrong domain.
+    let rows;
+    try {
+      [rows] = await conn.query(`
+        SELECT
+          b.codeBrique AS code,
+          b.libelleBrique AS libelle,
+          b.libelleBrique_en AS libelle_en,
+          b.libelleBrique_ar AS libelle_ar,
+          b.status_br AS status,
+          c.libelleClasse AS class,
+          f.libelleFamille AS family,
+          s.libelleSegment AS segment
+        FROM brickgpc b
+        LEFT JOIN classegpc c ON b.codeClasse = c.codeClasse
+        LEFT JOIN famillegpc f ON c.codeFamille = f.codeFamille
+        LEFT JOIN segmentgpc s ON f.codeSegment = s.codeSegment
+        ${where}
+        ORDER BY b.ordre_brique ASC
+      `, params);
+    } catch (joinErr) {
+      console.warn('/api/bricks hierarchy join failed, falling back:', joinErr.message);
+      [rows] = await conn.query(`
+        SELECT
+          codeBrique AS code,
+          libelleBrique AS libelle,
+          libelleBrique_en AS libelle_en,
+          libelleBrique_ar AS libelle_ar,
+          status_br AS status
+        FROM brickgpc
+        ${codeClasse ? ' WHERE codeClasse = ?' : ''}
+        ORDER BY ordre_brique ASC
+      `, params);
     }
-
-    sql += ' ORDER BY ordre_brique ASC';
-
-    const [rows] = await conn.query(sql, params);
     res.json(rows);
-    await conn.end();
   } catch (err) {
-    console.error('? Error fetching bricks:', err);
+    console.error('Error fetching bricks:', err);
     res.status(500).json({ error: 'Failed to fetch bricks', details: safeErrDetails(err) });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) {} }
   }
 });
 
@@ -3251,6 +3272,383 @@ app.get('/api/companies/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
   }
 });
+
+// ==============================================================================
+// ENVOI MAIL AUX ENTITÉS — mailing personnalisé (Entite.tsx ? bouton « Envoi mail »)
+// ------------------------------------------------------------------------------
+// One SEPARATE message per entité: To = that entité's own address(es) only, so
+// no recipient ever sees another entité (no shared To/Cc/Bcc). The body is the
+// HTML template composed in the UI, with {raison_sociale} / {personne_contact} /
+// {lien_questionnaire} replaced per entité (mirrors renderMailTemplate() in
+// Entite.tsx 1:1, so the preview there is exactly what is sent).
+//
+// Sending runs as a background job (in memory) throttled to MAILING_DELAY_MS
+// between messages, so a few hundred emails neither time out the HTTP request
+// nor trip the SMTP provider's anti-spam limits. The UI polls the job status.
+//
+// Restricted to the platform admins (entités 999 / 111 — requireEnqueteAdmin),
+// and addresses are always re-read from the DB by id_entite: the client can't
+// make the server mail arbitrary addresses.
+//
+//   POST /api/entites/mailing/test        { subject, html, fromName, replyTo, link, to, sampleId }
+//   POST /api/entites/mailing             { subject, html, fromName, replyTo, link, ids: [] } ? job
+//   GET  /api/entites/mailing/:jobId      ? job status + per-entité results
+//   POST /api/entites/mailing/:jobId/cancel
+// ==============================================================================
+const MAILING_DELAY_MS = Math.max(0, Number(process.env.MAILING_DELAY_MS) || 1500);
+const MAILING_MAX_RECIPIENTS = Math.max(1, Number(process.env.MAILING_MAX_RECIPIENTS) || 5000);
+const MAILING_JOB_TTL_MS = 12 * 60 * 60 * 1000; // keep finished job reports 12h
+const mailingJobs = new Map();
+
+const MAILING_EMAIL_RE = /^[^\s@<>(),;:"\[\]]+@[^\s@<>(),;:"\[\]]+\.[a-zA-Z]{2,}$/;
+
+// Same splitting rules as parseEmails() in Entite.tsx.
+function parseEntiteEmails(raw) {
+  if (!raw) return [];
+  const seen = new Set();
+  return String(raw)
+    .split(/[;,\s/|]+/)
+    .map(e => e.trim().replace(/^mailto:/i, '').replace(/^[<(]+|[>).]+$/g, ''))
+    .filter(e => MAILING_EMAIL_RE.test(e))
+    .filter(e => { const k = e.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+function mailingEscapeHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// The template comes from an authenticated platform admin, but strip anything
+// active anyway — mail clients ignore it and it has no business in a mailing.
+function mailingSanitizeHtml(html) {
+  return String(html || '')
+    .replace(/<\s*(script|style|iframe|object|embed|form)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|iframe|object|embed|form|meta|link)[^>]*\/?>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '$1="#"');
+}
+
+function mailingInlineQuillClasses(html) {
+  return html
+    .replace(/class="ql-align-(center|right|justify)"/g, (_m, a) => `style="text-align:${a}"`)
+    .replace(/class="ql-indent-(\d+)"/g, (_m, n) => `style="padding-left:${Number(n) * 3}em"`)
+    .replace(/class="ql-size-small"/g, 'style="font-size:0.75em"')
+    .replace(/class="ql-size-large"/g, 'style="font-size:1.5em"')
+    .replace(/class="ql-size-huge"/g, 'style="font-size:2.5em"');
+}
+
+function renderMailingTemplate(bodyHtml, entite, link) {
+  const linkHtml = link
+    ? `<a href="${mailingEscapeHtml(link)}" target="_blank" rel="noopener" style="display:inline-block;margin:12px 0;background:#172554;color:#ffffff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:bold">Répondre au questionnaire</a>`
+    : '';
+  return mailingInlineQuillClasses(mailingSanitizeHtml(bodyHtml))
+    .replace(/\{raison_sociale\}/g, mailingEscapeHtml((entite.raison_socialle || '').trim()))
+    .replace(/\{personne_contact\}/g, mailingEscapeHtml((entite.personne_contact || '').trim()))
+    .replace(/\{lien_questionnaire\}/g, linkHtml)
+    .replace(/<p>\s*<\/p>/g, '');
+}
+
+function renderMailingSubject(subject, entite) {
+  return String(subject || '')
+    .replace(/\{raison_sociale\}/g, (entite.raison_socialle || '').trim())
+    .replace(/\{personne_contact\}/g, (entite.personne_contact || '').trim())
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+}
+
+// Wrap the body in an email-safe layout: inline styles only (Outlook / Gmail
+// ignore <style> blocks in many cases), paragraphs without extra margins so the
+// spacing matches the editor (Quill uses empty <p><br></p> lines as spacers).
+function wrapMailingHtml(inner) {
+  const body = inner
+    .replace(/<p(\s[^>]*)?>/g, (m, attrs) => {
+      if (attrs && /style="/.test(attrs)) return m.replace('style="', 'style="margin:0;');
+      return `<p${attrs || ''} style="margin:0">`;
+    })
+    .replace(/<ul>/g, '<ul style="margin:6px 0;padding-left:2.2em">')
+    .replace(/<ol>/g, '<ol style="margin:6px 0;padding-left:2.2em">');
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#ffffff">
+<div style="max-width:720px;padding:16px 20px;font-family:Calibri,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.5;color:#222222;text-align:justify">
+${body}
+</div>
+</body></html>`;
+}
+
+function mailingHtmlToText(html) {
+  return html
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 : $1')
+    .replace(/<li[^>]*>/gi, '\n  • ')
+    .replace(/<\/(p|div|ul|ol|h\d)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function mailingFromHeader(fromName) {
+  const address = getFromEmail();
+  const name = String(fromName || '').replace(/["\r\n<>]/g, '').trim();
+  return name ? `"${name}" <${address}>` : address;
+}
+
+// Validates the compose payload shared by /test and the real send.
+function readMailingPayload(body) {
+  const subject = String(body?.subject || '').trim();
+  const html = String(body?.html || '');
+  const fromName = String(body?.fromName || '').trim().slice(0, 120);
+  const replyTo = String(body?.replyTo || '').trim();
+  const link = String(body?.link || '').trim();
+  if (!subject) return { error: "L'objet est obligatoire." };
+  if (!html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()) return { error: 'Le message est vide.' };
+  if (html.length > 200000) return { error: 'Message trop volumineux.' };
+  if (replyTo && !MAILING_EMAIL_RE.test(replyTo)) return { error: "Adresse « Répondre à » invalide." };
+  if (link && !/^https?:\/\/[^\s"'<>]+$/i.test(link)) return { error: 'Lien du questionnaire invalide (http:// ou https://).' };
+  return { subject, html, fromName, replyTo, link };
+}
+
+function buildMailingMessage(payload, entite, to) {
+  const inner = renderMailingTemplate(payload.html, entite, payload.link);
+  const html = wrapMailingHtml(inner);
+  const msg = {
+    from: mailingFromHeader(payload.fromName),
+    to, // this entité's own address(es) ONLY
+    subject: renderMailingSubject(payload.subject, entite),
+    html,
+    text: mailingHtmlToText(inner),
+  };
+  if (payload.replyTo) msg.replyTo = payload.replyTo;
+  return msg;
+}
+
+const mailingSleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Errors worth one retry (network hiccup / temporary SMTP refusal).
+function isTransientMailError(err) {
+  const code = err && (err.code || '');
+  const rc = Number(err && err.responseCode);
+  return ['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'ECONNRESET', 'EDNS'].includes(code) || (rc >= 400 && rc < 500);
+}
+// Errors where continuing is pointless (bad credentials, account blocked).
+function isFatalMailError(err) {
+  const code = err && (err.code || '');
+  const rc = Number(err && err.responseCode);
+  return code === 'EAUTH' || rc === 535 || rc === 534 || rc === 530;
+}
+
+function mailingJobView(job) {
+  return {
+    jobId: job.jobId,
+    status: job.status,
+    total: job.total,
+    sent: job.sent,
+    failed: job.failed,
+    skipped: job.skipped,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+    error: job.error,
+    results: job.results,
+  };
+}
+
+function purgeOldMailingJobs() {
+  const now = Date.now();
+  for (const [id, job] of mailingJobs) {
+    if (job.status !== 'running' && job.finishedAtMs && now - job.finishedAtMs > MAILING_JOB_TTL_MS) {
+      mailingJobs.delete(id);
+    }
+  }
+}
+
+async function runMailingJob(job, payload, rowsById, emailsById) {
+  for (const r of job.results) {
+    if (job.cancelRequested) break;
+    if (r.status !== 'pending') continue;
+
+    const entite = rowsById.get(r.id_entite);
+    const msg = buildMailingMessage(payload, entite, emailsById.get(r.id_entite).join(', '));
+    let attempt = 0;
+    while (true) {
+      try {
+        if (!transporter) throw Object.assign(new Error("Serveur mail non configuré (SMTP_PASS manquant)."), { code: 'EAUTH' });
+        await transporter.sendMail(msg);
+        r.status = 'sent';
+        r.at = new Date().toISOString();
+        job.sent++;
+        break;
+      } catch (err) {
+        if (isFatalMailError(err)) {
+          job.status = 'error';
+          job.error = `Authentification SMTP refusée : ${err.message}`;
+          r.status = 'failed';
+          r.error = err.message;
+          r.at = new Date().toISOString();
+          job.failed++;
+          console.error('[mailing] fatal SMTP error, stopping job', job.jobId, err.message);
+          break;
+        }
+        if (attempt === 0 && isTransientMailError(err)) {
+          attempt++;
+          await mailingSleep(5000);
+          continue;
+        }
+        r.status = 'failed';
+        r.error = err.message || String(err);
+        r.at = new Date().toISOString();
+        job.failed++;
+        console.error(`[mailing] ${job.jobId} ? ${r.to} failed:`, r.error);
+        break;
+      }
+    }
+    if (job.status === 'error') break;
+    if (MAILING_DELAY_MS) await mailingSleep(MAILING_DELAY_MS);
+  }
+
+  // Whatever was not attempted (cancel / fatal error) is reported, not left "pending".
+  for (const r of job.results) {
+    if (r.status === 'pending') {
+      r.status = 'skipped';
+      r.error = job.status === 'error' ? 'Non envoyé (envoi interrompu)' : 'Non envoyé (envoi arrêté)';
+      job.skipped++;
+    }
+  }
+  if (job.status === 'running') job.status = job.cancelRequested ? 'cancelled' : 'done';
+  job.finishedAt = new Date().toISOString();
+  job.finishedAtMs = Date.now();
+  console.log(`[mailing] job ${job.jobId} ${job.status}: ${job.sent} sent, ${job.failed} failed, ${job.skipped} skipped (by compte ${job.owner})`);
+}
+
+// Send ONE test email to the admin, personalised with a sample entité.
+app.post('/api/entites/mailing/test', requireEnqueteAdmin, async (req, res) => {
+  try {
+    if (!transporter) return res.status(503).json({ error: "Serveur mail non configuré (SMTP_PASS manquant)." });
+    const payload = readMailingPayload(req.body);
+    if (payload.error) return res.status(400).json({ error: payload.error });
+    const to = String(req.body?.to || '').trim();
+    if (!MAILING_EMAIL_RE.test(to)) return res.status(400).json({ error: 'Adresse de test invalide.' });
+
+    let sample = { raison_socialle: 'Société Exemple', personne_contact: 'M. Exemple' };
+    const sampleId = Number(req.body?.sampleId);
+    if (sampleId && entiteDB) {
+      const rows = await queryDB(entiteDB, 'SELECT id_entite, raison_socialle, personne_contact FROM Entite WHERE id_entite = ?', [sampleId]);
+      if (rows[0]) sample = rows[0];
+    }
+    const msg = buildMailingMessage(payload, sample, to);
+    msg.subject = `[TEST] ${msg.subject}`;
+    await transporter.sendMail(msg);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/entites/mailing/test error:', err);
+    res.status(500).json({ error: err.message || 'Erreur envoi test' });
+  }
+});
+
+// Start a mailing job.
+app.post('/api/entites/mailing', requireEnqueteAdmin, async (req, res) => {
+  try {
+    if (!entiteDB) return res.status(503).json({ error: 'Database unavailable' });
+    if (!transporter) return res.status(503).json({ error: "Serveur mail non configuré (SMTP_PASS manquant)." });
+    purgeOldMailingJobs();
+
+    const payload = readMailingPayload(req.body);
+    if (payload.error) return res.status(400).json({ error: payload.error });
+
+    const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(Number).filter(n => Number.isInteger(n) && n > 0))]
+      .filter(id => id !== TOP_ENTITY_ID && id !== SECOND_ENTITY_ID);
+    if (ids.length === 0) return res.status(400).json({ error: 'Aucun destinataire.' });
+    if (ids.length > MAILING_MAX_RECIPIENTS) {
+      return res.status(400).json({ error: `Trop de destinataires (${ids.length}). Maximum : ${MAILING_MAX_RECIPIENTS}.` });
+    }
+
+    const owner = req.user?.id_compte ?? req.user?.id ?? 'unknown';
+    for (const job of mailingJobs.values()) {
+      if (job.status === 'running' && job.owner === owner) {
+        return res.status(409).json({ error: 'Un envoi est déjà en cours. Attendez la fin ou arrêtez-le.', jobId: job.jobId });
+      }
+    }
+
+    // Addresses are always taken from the DB, never from the client.
+    const rows = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      const chunk = ids.slice(i, i + 500);
+      const part = await queryDB(
+        entiteDB,
+        `SELECT id_entite, raison_socialle, personne_contact, email, etat
+           FROM Entite WHERE id_entite IN (${chunk.map(() => '?').join(',')})`,
+        chunk
+      );
+      rows.push(...part);
+    }
+    const rowsById = new Map(rows.map(r => [Number(r.id_entite), r]));
+
+    const results = [];
+    const emailsById = new Map();
+    let skipped = 0;
+    for (const id of ids) {
+      const row = rowsById.get(id);
+      if (!row) { results.push({ id_entite: id, raison_socialle: `#${id}`, to: '', status: 'skipped', error: 'Entité introuvable' }); skipped++; continue; }
+      if (row.etat === 'archivé') { results.push({ id_entite: id, raison_socialle: row.raison_socialle, to: '', status: 'skipped', error: 'Entité archivée' }); skipped++; continue; }
+      const emails = parseEntiteEmails(row.email);
+      if (emails.length === 0) { results.push({ id_entite: id, raison_socialle: row.raison_socialle, to: row.email || '', status: 'skipped', error: 'Pas d\'email valide' }); skipped++; continue; }
+      emailsById.set(id, emails);
+      results.push({ id_entite: id, raison_socialle: row.raison_socialle, to: emails.join(', '), status: 'pending' });
+    }
+    if (results.every(r => r.status !== 'pending')) {
+      return res.status(400).json({ error: 'Aucune des entités choisies n\'a d\'adresse email valide.' });
+    }
+
+    const job = {
+      jobId: crypto.randomUUID(),
+      owner,
+      status: 'running',
+      cancelRequested: false,
+      total: results.length,
+      sent: 0,
+      failed: 0,
+      skipped,
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      finishedAtMs: null,
+      error: null,
+      results,
+    };
+    mailingJobs.set(job.jobId, job);
+    console.log(`[mailing] job ${job.jobId} started by compte ${owner}: ${job.total - skipped} to send, ${skipped} skipped`);
+
+    runMailingJob(job, payload, rowsById, emailsById).catch(err => {
+      console.error('[mailing] job crashed', job.jobId, err);
+      job.status = 'error';
+      job.error = err.message || String(err);
+      job.finishedAt = new Date().toISOString();
+      job.finishedAtMs = Date.now();
+    });
+
+    res.status(202).json(mailingJobView(job));
+  } catch (err) {
+    console.error('POST /api/entites/mailing error:', err);
+    res.status(500).json({ error: 'Server error', details: safeErrDetails(err) });
+  }
+});
+
+app.get('/api/entites/mailing/:jobId', requireEnqueteAdmin, (req, res) => {
+  const job = mailingJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Envoi introuvable (expiré ou serveur redémarré).' });
+  res.json(mailingJobView(job));
+});
+
+app.post('/api/entites/mailing/:jobId/cancel', requireEnqueteAdmin, (req, res) => {
+  const job = mailingJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Envoi introuvable.' });
+  if (job.status === 'running') job.cancelRequested = true;
+  res.json(mailingJobView(job));
+});
+
 
 // ---------------------------------------------------------------
 // CREATE COMPANY
@@ -13646,6 +14044,55 @@ app.get('/api/rayongpc', async (req, res) => {
   } catch (err) {
     console.error('GET /api/rayongpc error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/rayongpc/bulk-save - Replace rayon mappings for the given bricks (transactional)
+app.post('/api/rayongpc/bulk-save', async (req, res) => {
+  const { mappings } = req.body || {};
+  if (!Array.isArray(mappings) || mappings.length === 0) {
+    return res.status(400).json({ success: false, error: 'mappings[] required' });
+  }
+
+  // Validate + dedupe (brick_code + rayon_code)
+  const seen = new Set();
+  const rows = [];
+  for (const m of mappings) {
+    const brick = String(m?.brick_code ?? '').trim();
+    const rayon = String(m?.rayon_code ?? '').trim();
+    if (!brick || !rayon) continue;
+    const key = brick + '|' + rayon;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push([brick, rayon, String(m?.rayon_libelle ?? '').trim()]);
+  }
+  if (rows.length === 0) {
+    return res.status(400).json({ success: false, error: 'No valid mappings' });
+  }
+  const brickCodes = [...new Set(rows.map(r => r[0]))];
+
+  let conn;
+  try {
+    conn = await mysql.createConnection(ENTITE_MYSQL_CONFIG);
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM rayongpc WHERE brick_code IN (?)', [brickCodes]);
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500);
+      const [r] = await conn.query(
+        'INSERT INTO rayongpc (brick_code, rayon_code, rayon_libelle) VALUES ?',
+        [chunk]
+      );
+      inserted += r.affectedRows || chunk.length;
+    }
+    await conn.commit();
+    res.json({ success: true, inserted, bricksUpdated: brickCodes.length });
+  } catch (err) {
+    if (conn) { try { await conn.rollback(); } catch (_) {} }
+    console.error('POST /api/rayongpc/bulk-save error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    if (conn) { try { await conn.end(); } catch (_) {} }
   }
 });
 

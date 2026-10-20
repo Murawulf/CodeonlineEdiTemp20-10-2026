@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Virtuoso } from 'react-virtuoso';
 import { ChevronRight, X, ArrowUp, Save, RefreshCw, Upload, Plus, Trash2 } from 'lucide-react';
 import { nmcData } from '../pages/nmcCodes';
-import { initialSelections } from '../pages/initialSelections';
+import { buildIndex, matchBrick, ENGINE_VERSION } from '../pages/mappingEngine';
 
-// BRICKS_API_URL is now derived from apiBaseUrl prop
+// Index NMC once (≈150 ms) – shared by every auto-map run.
+const nmcIndex = buildIndex(nmcData);
 
 // ─── Categories ────────────────────────────────────────────────────────────────
 const categories = [
@@ -23,185 +24,7 @@ const normalizeText = (text) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, '');
 
-const levenshteinDistance = (a, b) => {
-  const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-  for (let j = 1; j <= b.length; j++) {
-    for (let i = 1; i <= a.length; i++) {
-      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,
-        matrix[j - 1][i] + 1,
-        matrix[j - 1][i - 1] + indicator
-      );
-    }
-  }
-  return matrix[b.length][a.length];
-};
 
-// ─── Keyword / product mappings ────────────────────────────────────────────────
-const keywordToCategory = {
-  bijoux: 'bijouterie', bague: 'bijouterie', collier: 'bijouterie',
-  promo: 'bonnes affaires', offre: 'bonnes affaires',
-  viande: 'boucherie', boeuf: 'boucherie', poulet: 'boucherie',
-  pain: 'boulangerie-patisserie', croissant: 'boulangerie-patisserie', gâteau: 'boulangerie-patisserie',
-  outil: 'brico/auto', pneu: 'brico/auto', auto: 'brico/auto',
-  café: 'cafeteria', sandwich: 'cafeteria',
-  essence: 'carburant-gaz', gaz: 'carburant-gaz',
-  fromage: 'cremerie', lait: 'cremerie', yaourt: 'cremerie',
-  croque: 'croque', parfum: 'DHP', savon: 'DHP', shampoing: 'DHP',
-  livre: 'education', cahier: 'education',
-  eau: 'liquides', soda: 'liquides', jus: 'liquides',
-  fruits: 'FRUITS ET LEGUMES', légumes: 'FRUITS ET LEGUMES', bio: 'FRUITS ET LEGUMES',
-  poisson: 'POISSON'
-};
-
-const productToNmc = {
-  banane: ['2310401', '2310740'], pomme: ['2310301'],
-  tomate: ['2320042', '2320051', '2320033'],
-  fromage: ['2150008', '2150503', '2150607', '2150616'],
-  lait: ['2130050', '2130102', '2130122'],
-  poisson: ['2420190', '248'], légumes: ['232', '23209'],
-  pain: ['2110101', '2110202'], croissant: ['2110303'],
-  viande: ['2210101', '2210202'], parfum: ['2510101'],
-  savon: ['2510202'], eau: ['2330101'], soda: ['2330202'],
-  bijoux: ['2610101']
-};
-
-// ─── Pre-index NMC data ────────────────────────────────────────────────────────
-const nmcByCategory = nmcData.reduce((acc, nmc) => {
-  const cat = normalizeText(nmc.category);
-  acc[cat] = acc[cat] || [];
-  acc[cat].push(nmc);
-  return acc;
-}, {});
-
-const nmcByKeyTerm = nmcData.reduce((acc, nmc) => {
-  const terms = normalizeText(nmc.LibelleNmc).split(/[\s\/-]+/).filter(Boolean);
-  terms.forEach(term => {
-    const keywords = ['bio', 'frais', 'exotique', 'banane', 'pomme', 'tomate', 'fromage',
-      'lait', 'poisson', 'légumes', 'pain', 'croissant', 'viande', 'parfum', 'savon',
-      'eau', 'soda', 'bijoux'];
-    if (keywords.includes(term)) {
-      acc[term] = acc[term] || [];
-      acc[term].push(nmc);
-    }
-  });
-  return acc;
-}, {});
-
-// ─── Web Worker script ─────────────────────────────────────────────────────────
-const workerScript = `
-  const normalizeText = (text) => {
-    return text.toLowerCase().normalize('NFD')
-      .replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9\\s]/g, '');
-  };
-  const levenshteinDistance = (a, b) => {
-    const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
-    for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-    for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-    for (let j = 1; j <= b.length; j++) {
-      for (let i = 1; i <= a.length; i++) {
-        const indicator = a[i-1] === b[j-1] ? 0 : 1;
-        matrix[j][i] = Math.min(matrix[j][i-1]+1, matrix[j-1][i]+1, matrix[j-1][i-1]+indicator);
-      }
-    }
-    return matrix[b.length][a.length];
-  };
-  const calculateSimilarity = (brickLabel, nmc, brickCategoryHints, productHints) => {
-    const normBrick = normalizeText(brickLabel);
-    const normNmc = normalizeText(nmc.LibelleNmc);
-    const words1 = normBrick.split(/\\s+/).filter(Boolean);
-    const words2 = normNmc.split(/\\s+/).filter(Boolean);
-    const commonWords = words1.filter(w => words2.includes(w));
-    let similarity = commonWords.length / Math.max(words1.length, words2.length, 1);
-    const levDistance = levenshteinDistance(normBrick, normNmc);
-    const maxLength = Math.max(normBrick.length, normNmc.length);
-    similarity += (1 - levDistance / maxLength) * 0.3;
-    const brickCategories = brickCategoryHints || [];
-    const nmcCategory = normalizeText(nmc.category);
-    if (brickCategories.some(cat => nmcCategory === cat)) similarity += 0.5;
-    else if (brickCategories.some(cat => nmcCategory.includes(cat.split(' ')[0]))) similarity += 0.25;
-    const codeLength = String(nmc.CodeNmc).length;
-    if (codeLength > 5) similarity += 0.3;
-    else if (codeLength > 3) similarity += 0.15;
-    const keyTerms = ['bio','exotique','frais','emballe','legumes','fruits','poisson',
-      'cremerie','fromage','lait','pain','croissant','viande','parfum','savon','eau','soda','bijoux'];
-    if (keyTerms.some(term => normBrick.includes(term) && normNmc.includes(term))) similarity += 0.25;
-    const productMatch = productHints.some(hint =>
-      nmc.CodeNmc === hint || normNmc.includes(normalizeText(hint))
-    );
-    if (productMatch) similarity += 0.6;
-    return Math.min(similarity, 2.0);
-  };
-  self.onmessage = function(e) {
-    const { brickData, nmcData, startIndex, endIndex, pause, totalBricks,
-      keywordToCategory, productToNmc, nmcByCategory, nmcByKeyTerm,
-      initialSelections, existingSelections } = e.data;
-    if (pause) return;
-    try {
-      const selections = {};
-      const errors = [];
-      for (let i = startIndex; i < endIndex && i < brickData.length; i++) {
-        const brick = brickData[i];
-        if (!brick || !brick.code || !brick.label) {
-          errors.push(\`Invalid brick at index \${i}: \${JSON.stringify(brick)}\`);
-          continue;
-        }
-        const normalizedBrickCode = String(brick.code).trim().toLowerCase();
-        if (initialSelections[normalizedBrickCode]?.length > 0 ||
-            existingSelections[normalizedBrickCode]?.length > 0) {
-          selections[normalizedBrickCode] = existingSelections[normalizedBrickCode]
-            || initialSelections[normalizedBrickCode];
-          continue;
-        }
-        const brickWords = normalizeText(brick.label).split(/\\s+/).filter(Boolean);
-        const brickCategoryHints = brickWords
-          .filter(w => Object.keys(keywordToCategory).includes(w))
-          .map(w => normalizeText(keywordToCategory[w]));
-        const productHints = brickWords.flatMap(w => productToNmc[w] || []);
-        let relevantNmcs = [];
-        if (brickCategoryHints.length > 0) {
-          brickCategoryHints.forEach(cat => {
-            relevantNmcs.push(...(nmcByCategory[cat] || []));
-          });
-        }
-        brickWords.forEach(word => {
-          if (nmcByKeyTerm[word]) relevantNmcs.push(...nmcByKeyTerm[word]);
-        });
-        relevantNmcs = [...new Set(relevantNmcs)];
-        if (relevantNmcs.length === 0) relevantNmcs = nmcData;
-        const matchedNMCs = relevantNmcs
-          .map(nmc => ({ ...nmc,
-            similarity: calculateSimilarity(brick.label, nmc, brickCategoryHints, productHints)
-          }))
-          .filter(item => item.similarity > 0.3)
-          .sort((a, b) => {
-            const aCat = brickCategoryHints.some(cat => normalizeText(a.category) === cat) ? 1 : 0;
-            const bCat = brickCategoryHints.some(cat => normalizeText(b.category) === cat) ? 1 : 0;
-            if (aCat !== bCat) return bCat - aCat;
-            if (b.similarity !== a.similarity) return b.similarity - a.similarity;
-            return String(b.CodeNmc).length - String(a.CodeNmc).length;
-          })
-          .slice(0, 3)
-          .map(nmc => ({ CodeNmc: nmc.CodeNmc, LibelleNmc: nmc.LibelleNmc }));
-        selections[normalizedBrickCode] = matchedNMCs;
-        self.postMessage({ progress: (i+1)/totalBricks, selections, index: i, errors });
-        for (const key in selections) delete selections[key];
-      }
-      if (endIndex >= brickData.length) {
-        self.postMessage({ done: true, selections: {}, index: endIndex-1, errors });
-      } else {
-        self.postMessage({ done: false, selections: {}, index: endIndex-1, errors });
-      }
-    } catch (error) {
-      self.postMessage({ error: error.message, index: startIndex, errors: [\`Fatal: \${error.message}\`] });
-    }
-  };
-`;
-
-// ─── Component ─────────────────────────────────────────────────────────────────
 const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange }) => {
   // Bricks from DB
   const [brickData, setBrickData] = useState([]);
@@ -209,7 +32,7 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
   const [bricksError, setBricksError] = useState('');
 
   // Selections
-  const [brickNmcSelections, setBrickNmcSelections] = useState(initialSelections);
+  const [brickNmcSelections, setBrickNmcSelections] = useState({});
   const [loading, setLoading] = useState(true);
 
   // NMC picker modal
@@ -231,19 +54,17 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
   const [autoMappingStatus, setAutoMappingStatus] = useState('');
   const [progress, setProgress] = useState(0);
   const [isAutoMapping, setIsAutoMapping] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Suggestions produced by the auto-mapper. They are NEVER saved to the DB until accepted.
+  const [suggestions, setSuggestions] = useState({});
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [errorMessages, setErrorMessages] = useState([]);
   const [isSavingToDB, setIsSavingToDB] = useState(false);
   const [dbSaveStatus, setDbSaveStatus] = useState('');
 
   const virtuosoRef = useRef(null);
-  const workerRef = useRef(null);
+  const cancelRef = useRef(false);
   const fileInputRef = useRef(null);
   const errorLogRef = useRef([]);
-  const batchSizeRef = useRef(3);
-  const performanceStartRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
   const normalizeBrickCode = useCallback((code) => String(code).trim().toLowerCase(), []);
@@ -260,6 +81,9 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
         setBrickData(data.map(b => ({
           code: String(b.code),
           label: b.libelle || b.label || String(b.code),
+          segment: b.segment || '',
+          family: b.family || '',
+          class: b.class || '',
         })));
       } catch (err) {
         setBricksError(`Erreur chargement bricks: ${err.message}`);
@@ -270,94 +94,26 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
     fetchBricks();
   }, []);
 
-  // ── Web Worker ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const blob = new Blob([workerScript], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(blob);
-    workerRef.current = new Worker(workerUrl);
-    workerRef.current.onmessage = (e) => {
-      if (e.data.error) {
-        errorLogRef.current = [...errorLogRef.current, e.data.error, ...e.data.errors];
-        setErrorMessages(errorLogRef.current);
-        setIsErrorModalOpen(true);
-        setIsAutoMapping(false);
-        setIsPaused(false);
-        setAutoMappingStatus('Auto-mapping failed!');
-        setTimeout(() => setAutoMappingStatus(''), 3000);
-        batchSizeRef.current = Math.max(1, batchSizeRef.current - 1);
-        setTimeout(() => resumeFromLastIndex(), 2000);
-      } else {
-        setBrickNmcSelections(prev => ({ ...prev, ...e.data.selections }));
-        setProgress(e.data.progress);
-        setCurrentIndex(e.data.index + 1);
-        errorLogRef.current = [...errorLogRef.current, ...e.data.errors];
-        setErrorMessages(errorLogRef.current);
-        const processingTime = performance.now() - performanceStartRef.current;
-        if (processingTime > 1000) batchSizeRef.current = Math.max(1, batchSizeRef.current - 1);
-        else if (processingTime < 500) batchSizeRef.current = Math.min(10, batchSizeRef.current + 1);
-        if (e.data.done) {
-          setIsAutoMapping(false);
-          setIsPaused(false);
-          setCurrentIndex(0);
-          setProgress(1);
-          setAutoMappingStatus('Auto-mapping terminé!');
-          setTimeout(() => setAutoMappingStatus(''), 3000);
-          localStorage.setItem('brickSelections', JSON.stringify(brickNmcSelections));
-        } else if (!isPaused && e.data.index + 1 < brickData.length) {
-          setTimeout(() => {
-            performanceStartRef.current = performance.now();
-            workerRef.current.postMessage({
-              brickData, nmcData,
-              startIndex: e.data.index + 1,
-              endIndex: Math.min(e.data.index + 1 + batchSizeRef.current, brickData.length),
-              pause: false, totalBricks: brickData.length,
-              keywordToCategory, productToNmc, nmcByCategory, nmcByKeyTerm,
-              initialSelections, existingSelections: brickNmcSelections
-            });
-          }, 50);
-        }
-      }
-    };
-    return () => { workerRef.current.terminate(); URL.revokeObjectURL(workerUrl); };
-  }, [isPaused, brickNmcSelections, brickData]);
-
-  const resumeFromLastIndex = useCallback(() => {
-    if (currentIndex >= brickData.length) return;
-    setIsAutoMapping(true);
-    setIsPaused(false);
-    setAutoMappingStatus('Reprise auto-mapping...');
-    performanceStartRef.current = performance.now();
-    workerRef.current.postMessage({
-      brickData, nmcData,
-      startIndex: currentIndex,
-      endIndex: Math.min(currentIndex + batchSizeRef.current, brickData.length),
-      pause: false, totalBricks: brickData.length,
-      keywordToCategory, productToNmc, nmcByCategory, nmcByKeyTerm,
-      initialSelections, existingSelections: brickNmcSelections
-    });
-  }, [currentIndex, brickNmcSelections, brickData]);
-
-  // ── Load localStorage ─────────────────────────────────────────────────────────
+  // ── Load saved state ──────────────────────────────────────────────────────────
+  // Only ACCEPTED / manual selections are stored under the v2 key. The legacy
+  // 'brickSelections' key (old fuzzy auto-map output) is intentionally ignored.
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('brickSelections');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setBrickNmcSelections({ ...initialSelections, ...parsed });
-        setCurrentIndex(Object.keys(parsed).length);
-      } else {
-        setBrickNmcSelections(initialSelections);
+      const saved = localStorage.getItem('brickSelections_v2');
+      if (saved) setBrickNmcSelections(JSON.parse(saved));
+      const sug = localStorage.getItem('brickSuggestions_v2');
+      if (sug) {
+        const p = JSON.parse(sug);
+        if (p && p.v === ENGINE_VERSION) setSuggestions(p.data || {});
       }
-    } catch (_) {
-      setBrickNmcSelections(initialSelections);
-    }
+    } catch (_) {}
     setLoading(false);
   }, []);
 
   // ── Persist & notify parent ───────────────────────────────────────────────────
   useEffect(() => {
     try {
-      localStorage.setItem('brickSelections', JSON.stringify(brickNmcSelections));
+      localStorage.setItem('brickSelections_v2', JSON.stringify(brickNmcSelections));
       const mappedCount = Object.keys(brickNmcSelections).filter(k => brickNmcSelections[k]?.length > 0).length;
       const uniqueNmcCodes = [...new Set(
         Object.values(brickNmcSelections).flatMap(nmcs => nmcs.map(n => n.CodeNmc))
@@ -368,53 +124,90 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
     } catch (_) {}
   }, [brickNmcSelections, brickData, onProgressUpdate, onNmcUpdate, onSelectionsChange]);
 
-  // ── Auto-mapping controls ─────────────────────────────────────────────────────
+  useEffect(() => {
+    try {
+      localStorage.setItem('brickSuggestions_v2', JSON.stringify({ v: ENGINE_VERSION, data: suggestions }));
+    } catch (_) {}
+  }, [suggestions]);
+
+  // ── Auto-mapping (runs in small chunks so the UI stays responsive) ────────────
   const startAutoMapping = useCallback(() => {
-    if (isAutoMapping || brickData.length === 0) return;
+    if (!brickData.length) return;
+    cancelRef.current = false;
     setIsAutoMapping(true);
-    setIsPaused(false);
-    setProgress(currentIndex / brickData.length);
-    setAutoMappingStatus('Auto-mapping démarré...');
-    performanceStartRef.current = performance.now();
-    workerRef.current.postMessage({
-      brickData, nmcData,
-      startIndex: currentIndex,
-      endIndex: Math.min(currentIndex + batchSizeRef.current, brickData.length),
-      pause: false, totalBricks: brickData.length,
-      keywordToCategory, productToNmc, nmcByCategory, nmcByKeyTerm,
-      initialSelections, existingSelections: brickNmcSelections
-    });
-  }, [currentIndex, brickNmcSelections, isAutoMapping, brickData]);
-
-  const pauseAutoMapping = useCallback(() => {
-    if (!isAutoMapping || isPaused) return;
-    setIsPaused(true);
-    setAutoMappingStatus('Auto-mapping en pause...');
-    workerRef.current.postMessage({ pause: true });
-  }, [isAutoMapping, isPaused]);
-
-  const resumeAutoMapping = useCallback(() => {
-    if (!isAutoMapping || !isPaused) return;
-    setIsPaused(false);
-    setAutoMappingStatus('Auto-mapping repris...');
-    resumeFromLastIndex();
-  }, [isAutoMapping, isPaused, resumeFromLastIndex]);
-
-  const resetAutoMapping = useCallback(() => {
-    setIsAutoMapping(false);
-    setIsPaused(false);
     setProgress(0);
-    setCurrentIndex(0);
     setAutoMappingStatus('');
-    setErrorMessages([]);
-    errorLogRef.current = [];
-    setBrickNmcSelections(initialSelections);
-    workerRef.current.terminate();
-    const blob = new Blob([workerScript], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(blob);
-    workerRef.current = new Worker(workerUrl);
-    try { localStorage.removeItem('brickSelections'); } catch (_) {}
-  }, []);
+    const next = {};
+    let i = 0;
+    const CHUNK = 150;
+    const step = () => {
+      if (cancelRef.current) { setIsAutoMapping(false); return; }
+      const end = Math.min(i + CHUNK, brickData.length);
+      for (; i < end; i++) {
+        const b = brickData[i];
+        const nk = normalizeBrickCode(b.code);
+        if (brickNmcSelections[nk]?.length) continue; // never touch accepted / manual work
+        const r = matchBrick(b, nmcIndex);
+        if (r.picks.length) next[nk] = { status: r.status, best: r.best, picks: r.picks };
+      }
+      setProgress(i / brickData.length);
+      if (i < brickData.length) {
+        setTimeout(step, 0);
+      } else {
+        setSuggestions(next);
+        setIsAutoMapping(false);
+        const vals = Object.values(next);
+        const nAuto = vals.filter(v => v.status === 'auto').length;
+        setAutoMappingStatus(
+          `Terminé : ${nAuto} suggestion(s) haute confiance, ${vals.length - nAuto} à vérifier. ` +
+          `Rien n'est enregistré tant que vous n'acceptez pas.`
+        );
+      }
+    };
+    setTimeout(step, 0);
+  }, [brickData, brickNmcSelections, normalizeBrickCode]);
+
+  const stopAutoMapping = useCallback(() => { cancelRef.current = true; }, []);
+
+  const acceptSuggestion = useCallback((brickCode) => {
+    const nk = normalizeBrickCode(brickCode);
+    setSuggestions(prevS => {
+      const sug = prevS[nk];
+      if (!sug) return prevS;
+      setBrickNmcSelections(prev => {
+        const existing = prev[nk] || [];
+        const have = new Set(existing.map(x => x.CodeNmc));
+        const added = sug.picks.filter(p => !have.has(p.CodeNmc)).map(p => ({ CodeNmc: p.CodeNmc, LibelleNmc: p.LibelleNmc }));
+        return { ...prev, [nk]: [...existing, ...added] };
+      });
+      const { [nk]: _drop, ...rest } = prevS;
+      return rest;
+    });
+  }, [normalizeBrickCode]);
+
+  const rejectSuggestion = useCallback((brickCode) => {
+    const nk = normalizeBrickCode(brickCode);
+    setSuggestions(prev => { const { [nk]: _drop, ...rest } = prev; return rest; });
+  }, [normalizeBrickCode]);
+
+  const acceptAllAuto = useCallback(() => {
+    setBrickNmcSelections(prev => {
+      const out = { ...prev };
+      Object.entries(suggestions).forEach(([nk, sug]) => {
+        if (sug.status !== 'auto') return;
+        const existing = out[nk] || [];
+        const have = new Set(existing.map(x => x.CodeNmc));
+        out[nk] = [...existing, ...sug.picks.filter(p => !have.has(p.CodeNmc)).map(p => ({ CodeNmc: p.CodeNmc, LibelleNmc: p.LibelleNmc }))];
+      });
+      return out;
+    });
+    setSuggestions(prev => Object.fromEntries(Object.entries(prev).filter(([, v]) => v.status !== 'auto')));
+  }, [suggestions]);
+
+  const suggestionCounts = useMemo(() => {
+    const v = Object.values(suggestions);
+    return { auto: v.filter(x => x.status === 'auto').length, review: v.filter(x => x.status !== 'auto').length };
+  }, [suggestions]);
 
   // ── Import ────────────────────────────────────────────────────────────────────
   const importSelections = useCallback((event) => {
@@ -440,11 +233,9 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
         } else {
           throw new Error('Format non supporté. Utilisez JSON ou CSV.');
         }
-        setBrickNmcSelections({ ...initialSelections, ...imported });
-        localStorage.setItem('brickSelections', JSON.stringify(imported));
+        setBrickNmcSelections(prev => ({ ...prev, ...imported }));
         setAutoMappingStatus('Importation réussie!');
         setTimeout(() => setAutoMappingStatus(''), 3000);
-        setCurrentIndex(Object.keys(imported).length);
       } catch (error) {
         setErrorMessages(prev => [...prev, `Import échoué: ${error.message}`]);
         setIsErrorModalOpen(true);
@@ -668,27 +459,33 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
             className="h-8 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 text-xs"
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Auto-Map
+            Suggérer
           </Button>
         ) : (
-          <>
-            <Button
-              onClick={isPaused ? resumeAutoMapping : pauseAutoMapping}
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-            >
-              {isPaused ? '▶ Reprendre' : '⏸ Pause'}
-            </Button>
-            <Button
-              onClick={resetAutoMapping}
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs text-red-600 border-red-300 hover:bg-red-50"
-            >
-              <X className="h-3.5 w-3.5 mr-1" />Stop
-            </Button>
-          </>
+          <Button
+            onClick={stopAutoMapping}
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs text-red-600 border-red-300 hover:bg-red-50"
+          >
+            <X className="h-3.5 w-3.5 mr-1" />Stop
+          </Button>
+        )}
+        {suggestionCounts.auto > 0 && (
+          <Button
+            onClick={acceptAllAuto}
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs border-green-400 text-green-700 hover:bg-green-50"
+            title="Accepte uniquement les suggestions haute confiance"
+          >
+            ✓ Accepter {suggestionCounts.auto} haute confiance
+          </Button>
+        )}
+        {(suggestionCounts.auto > 0 || suggestionCounts.review > 0) && (
+          <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 whitespace-nowrap shrink-0">
+            {suggestionCounts.review} à vérifier
+          </span>
         )}
 
         {/* Export */}
@@ -768,6 +565,7 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
             itemContent={(_, brick) => {
               const nk = normalizeBrickCode(brick.code);
               const rayons = brickNmcSelections[nk] || [];
+              const brickSuggestion = suggestions[nk];
               return (
                 <div className="flex items-start gap-2 px-3 py-2.5 mx-2 my-1 border rounded-lg bg-white hover:bg-slate-50 transition-colors shadow-sm group">
 
@@ -802,6 +600,34 @@ const Mapping = ({ apiBaseUrl, onProgressUpdate, onNmcUpdate, onSelectionsChange
                             </button>
                           </span>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Suggestions (not saved until accepted) */}
+                    {rayons.length === 0 && brickSuggestion && (
+                      <div className="ml-6 mt-1.5 flex flex-wrap items-center gap-1">
+                        <span className={`text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 ${
+                          brickSuggestion.status === 'auto' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {brickSuggestion.status === 'auto' ? 'Haute confiance' : 'À vérifier'}
+                        </span>
+                        {brickSuggestion.picks.map(p => (
+                          <span key={p.CodeNmc} title={p.LibelleNmc}
+                            className="inline-flex items-center gap-1 bg-gray-50 border border-dashed border-gray-300 text-gray-700 text-[11px] rounded-full px-2 py-0.5">
+                            <span className="font-mono font-semibold">{p.CodeNmc}</span>
+                            <span className="text-gray-500 hidden sm:inline">— {p.LibelleNmc}</span>
+                          </span>
+                        ))}
+                        <span role="button" tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); acceptSuggestion(brick.code); }}
+                          className="text-[11px] px-2 py-0.5 rounded bg-green-600 text-white cursor-pointer hover:bg-green-700">
+                          ✓ Accepter
+                        </span>
+                        <span role="button" tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); rejectSuggestion(brick.code); }}
+                          className="text-[11px] px-2 py-0.5 rounded border border-gray-300 text-gray-600 cursor-pointer hover:bg-gray-100">
+                          ✗ Rejeter
+                        </span>
                       </div>
                     )}
                   </button>

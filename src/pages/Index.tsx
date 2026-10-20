@@ -7,8 +7,6 @@ import React, {
   useRef
 } from "react";
 
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   PieChart,
   Pie,
@@ -21,15 +19,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings } from "../contexts/SettingsContext";
 import { useApi } from "../hooks/useApi";
-
-/* ─── tiny debounce ─────────────────────────────────────────── */
-const useDebounce = (callback: () => void, delay: number) => {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  return useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(callback, delay);
-  }, [callback, delay]);
-};
+import { useNavigate } from "react-router-dom";
 
 /* ─── palette ────────────────────────────────────────────────── */
 const PALETTE = [
@@ -40,6 +30,12 @@ const PALETTE = [
 /* ─── constants ──────────────────────────────────────────────── */
 const PAGE_IDS = { ENTITE: 2, PRODUITS: 3, CATALOGUE_FP: 7, COMPTES: 17 };
 const HIDDEN_ENTITY_IDS = new Set([111, 999]);
+const PAGE_SIZE_OPTIONS = [15, 25, 50, 100];
+const PAGE_SIZE_STORAGE_KEY = "index.catalogue.pageSize";
+const VIEW_STORAGE_KEY = "index.catalogue.view";
+
+type SortKey = "recent" | "az" | "za" | "brand";
+type ViewMode = "grid" | "list";
 
 const toArray = (v: any) => Array.isArray(v) ? v : (v ? [v] : []);
 
@@ -79,6 +75,44 @@ const getLocalUserIdFromStorage = (): number | null => {
   }
 };
 
+const readStored = <T,>(key: string, fallback: T, isValid: (v: any) => boolean): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return fallback;
+    const parsed = JSON.parse(raw);
+    return isValid(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeStored = (key: string, value: any) => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+};
+
+const productTime = (p: any) => {
+  const t = new Date(p.updatedAt || p.createdAt || 0).getTime();
+  return Number.isFinite(t) ? t : 0;
+};
+
+const productImage = (p: any): string =>
+  (typeof p.images === "string" ? p.images.split(";")[0] : "") || p.image || p.image_url || "";
+
+const isPublished = (p: any) => Number(p.status) === 2;
+
+/** Page numbers with ellipsis: 1 … 4 5 6 … 20 */
+const getPageNumbers = (current: number, total: number): (number | "…")[] => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("…");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push("…");
+  pages.push(total);
+  return pages;
+};
+
 /* ─── active pie shape ───────────────────────────────────────── */
 const renderActiveShape = (props: any) => {
   const R = Math.PI / 180;
@@ -101,56 +135,120 @@ const renderActiveShape = (props: any) => {
   );
 };
 
-/* ─── PRODUCT CARD ───────────────────────────────────────────── */
+/* ─── small shared bits ──────────────────────────────────────── */
+const ImagePlaceholder: React.FC<{ size?: string }> = ({ size = "w-10 h-10" }) => (
+  <div className="w-full h-full flex items-center justify-center">
+    <svg className={`${size} text-slate-300`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  </div>
+);
+
+const StatusPill: React.FC<{ published: boolean; className?: string }> = ({ published, className = "" }) => (
+  <span
+    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${published
+      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+      : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"} ${className}`}
+  >
+    <span className={`w-1.5 h-1.5 rounded-full ${published ? "bg-emerald-500" : "bg-amber-500"}`} />
+    {published ? "Publié" : "Brouillon"}
+  </span>
+);
+
+/* ─── PRODUCT CARD (grid view) ───────────────────────────────── */
 const ProductCard: React.FC<{ p: any; isNew: boolean; index: number }> = ({ p, isNew, index }) => {
-  const img = p.images?.split(";")[0] || p.image || p.image_url || "";
+  const img = productImage(p);
   const [imgError, setImgError] = useState(false);
+  const published = isPublished(p);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.02, 0.4) }}
-      className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-slate-100 hover:border-sky-200 hover:-translate-y-0.5"
+      transition={{ duration: 0.25, delay: Math.min(index * 0.015, 0.3) }}
+      className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_32px_-8px_rgba(15,23,42,0.18)] hover:border-sky-200 hover:-translate-y-1 transition-all duration-300"
     >
       {/* Image */}
-      <div className="relative aspect-square bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
+      <div className="relative aspect-square bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-hidden">
         {img && !imgError ? (
           <img
             src={img}
             alt={p.libelle}
             loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
+          <ImagePlaceholder />
         )}
 
-        {/* New badge */}
-        {isNew && (
-          <div className="absolute top-2 left-2 px-2 py-0.5 text-[9px] font-black bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full uppercase tracking-widest shadow-lg">
-            NEW
-          </div>
-        )}
-
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Badges */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between gap-2 pointer-events-none">
+          {isNew ? (
+            <span className="px-2 py-0.5 text-[9px] font-black bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full uppercase tracking-widest shadow-md">
+              New
+            </span>
+          ) : <span />}
+          <StatusPill published={published} className="bg-white/90 backdrop-blur" />
+        </div>
       </div>
 
       {/* Info */}
-      <div className="p-2.5">
-        <p className="text-[10px] font-bold text-sky-600 truncate uppercase tracking-wide leading-none mb-0.5">
-          {p.brand || "—"}
+      <div className="flex flex-col flex-1 p-3.5 border-t border-slate-100">
+        <p className="text-[10px] font-bold text-sky-600 truncate uppercase tracking-wider mb-1">
+          {p.brand || "Sans marque"}
         </p>
-        <p className="text-[11px] text-slate-700 truncate leading-tight font-medium">
+        <p className="text-[13px] text-slate-800 font-semibold leading-snug line-clamp-2 min-h-[2.5em]" title={p.libelle}>
           {p.libelle || "Produit"}
         </p>
+        {p.gtin && (
+          <p className="mt-auto pt-2.5 text-[10px] text-slate-400 font-mono tracking-wide truncate">
+            GTIN {p.gtin}
+          </p>
+        )}
       </div>
+    </motion.div>
+  );
+};
+
+/* ─── PRODUCT ROW (list view) ────────────────────────────────── */
+const ProductRow: React.FC<{ p: any; isNew: boolean; index: number }> = ({ p, isNew, index }) => {
+  const img = productImage(p);
+  const [imgError, setImgError] = useState(false);
+  const published = isPublished(p);
+  const date = productTime(p);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.2, delay: Math.min(index * 0.01, 0.25) }}
+      className="group flex items-center gap-4 px-4 py-3 hover:bg-sky-50/50 transition"
+    >
+      <div className="w-14 h-14 flex-shrink-0 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden">
+        {img && !imgError ? (
+          <img src={img} alt={p.libelle} loading="lazy" className="w-full h-full object-contain p-1" onError={() => setImgError(true)} />
+        ) : (
+          <ImagePlaceholder size="w-6 h-6" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-slate-800 truncate">{p.libelle || "Produit"}</p>
+          {isNew && (
+            <span className="px-1.5 py-px text-[9px] font-black bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full uppercase tracking-widest flex-shrink-0">New</span>
+          )}
+        </div>
+        <p className="text-xs text-slate-500 truncate mt-0.5">
+          <span className="font-semibold text-sky-600">{p.brand || "Sans marque"}</span>
+          {p.codeClasse && <span className="text-slate-400"> · {p.codeClasse}</span>}
+        </p>
+      </div>
+      <p className="hidden md:block w-40 text-xs text-slate-400 font-mono truncate">{p.gtin || "—"}</p>
+      <p className="hidden lg:block w-28 text-xs text-slate-400 text-right">
+        {date ? new Date(date).toLocaleDateString("fr-FR") : "—"}
+      </p>
+      <StatusPill published={published} className="flex-shrink-0" />
     </motion.div>
   );
 };
@@ -178,17 +276,95 @@ const SearchBar: React.FC<{ value: string; onChange: (v: string) => void }> = ({
     </svg>
     <input
       type="text"
-      placeholder="Rechercher un produit..."
+      placeholder="Rechercher nom, marque, GTIN..."
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition shadow-sm"
+      className="w-full h-10 pl-10 pr-9 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition shadow-sm"
     />
     {value && (
-      <button onClick={() => onChange("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+      <button onClick={() => onChange("")} aria-label="Effacer" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     )}
   </div>
+);
+
+/* ─── SEGMENTED TOGGLE ───────────────────────────────────────── */
+function Segmented<T extends string | number>({ value, options, onChange, ariaLabel }: {
+  value: T;
+  options: { value: T; label: React.ReactNode; title?: string }[];
+  onChange: (v: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div role="group" aria-label={ariaLabel} className="inline-flex items-center h-10 bg-white border border-slate-200 rounded-xl p-1 shadow-sm gap-0.5">
+      {options.map(o => (
+        <button
+          key={String(o.value)}
+          type="button"
+          title={o.title}
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`h-full min-w-[34px] px-2.5 rounded-lg text-xs font-semibold transition flex items-center justify-center ${value === o.value
+            ? "bg-sky-500 text-white shadow-sm"
+            : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── PAGINATION ─────────────────────────────────────────────── */
+const Pagination: React.FC<{ page: number; totalPages: number; onChange: (p: number) => void }> = ({ page, totalPages, onChange }) => {
+  if (totalPages <= 1) return null;
+  const btn = "h-9 min-w-[36px] px-2 rounded-lg text-sm font-semibold transition flex items-center justify-center";
+  return (
+    <nav aria-label="Pagination" className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        aria-label="Page précédente"
+        className={`${btn} text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed`}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+      </button>
+      {getPageNumbers(page, totalPages).map((n, i) =>
+        n === "…" ? (
+          <span key={`e${i}`} className="px-1 text-slate-400 text-sm select-none">…</span>
+        ) : (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-current={n === page ? "page" : undefined}
+            className={`${btn} ${n === page ? "bg-sky-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
+          >
+            {n}
+          </button>
+        )
+      )}
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        aria-label="Page suivante"
+        className={`${btn} text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed`}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </nav>
+  );
+};
+
+/* ─── icons for the view toggle ──────────────────────────────── */
+const GridIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>
+);
+const ListIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
 );
 
 /* ════════════════════════════════════════════════════════════════
@@ -197,22 +373,34 @@ const SearchBar: React.FC<{ value: string; onChange: (v: string) => void }> = ({
 const Index: React.FC = () => {
   const { settings } = useSettings();
   const api = useApi();
+  const navigate = useNavigate();
 
   const [accountRecord, setAccountRecord] = useState<any>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [enquetes, setEnquetes] = useState<any[]>([]);
 
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [showOnlyPublished, setShowOnlyPublished] = useState(true);
   const [activePieIndex, setActivePieIndex] = useState<number>(-1);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const [displayedCount, setDisplayedCount] = useState(40);
+  /* catalogue controls */
+  const catalogueRef = useRef<HTMLElement>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(() =>
+    readStored(PAGE_SIZE_STORAGE_KEY, 25, v => PAGE_SIZE_OPTIONS.includes(v)));
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    readStored<ViewMode>(VIEW_STORAGE_KEY, "grid", v => v === "grid" || v === "list"));
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+
+  useEffect(() => { writeStored(PAGE_SIZE_STORAGE_KEY, pageSize); }, [pageSize]);
+  useEffect(() => { writeStored(VIEW_STORAGE_KEY, viewMode); }, [viewMode]);
 
   /* ── is ASEPEX ────────────────────────────────────────── */
   const isAsepex = useMemo(() => {
@@ -247,11 +435,13 @@ const Index: React.FC = () => {
   useEffect(() => {
     if (!accountRecord || !hasRead(PAGE_IDS.ENTITE)) return;
     (async () => {
-      const url = isAsepex ? `/api/companies` : `/api/companies?id_entite=${accountRecord.id_entite}`;
-      const resp = await api.get(url, { withCredentials: true });
-      // Filter out hidden entity IDs
-      const all = toArray(resp.data).filter((c: any) => !HIDDEN_ENTITY_IDS.has(Number(c.id_entite)));
-      setCompanies(all);
+      try {
+        const url = isAsepex ? `/api/companies` : `/api/companies?id_entite=${accountRecord.id_entite}`;
+        const resp = await api.get(url, { withCredentials: true });
+        // Filter out hidden entity IDs
+        const all = toArray(resp.data).filter((c: any) => !HIDDEN_ENTITY_IDS.has(Number(c.id_entite)));
+        setCompanies(all);
+      } catch { setCompanies([]); }
     })();
   }, [accountRecord, hasRead, isAsepex]);
 
@@ -259,21 +449,52 @@ const Index: React.FC = () => {
   useEffect(() => {
     if (!accountRecord) return;
     (async () => {
-      const resp = await api.get(`/api/companies`, { withCredentials: true });
-      const match = toArray(resp.data).find((c: any) => Number(c.id_entite) === Number(accountRecord.id_entite));
-      if (match?.logo) setCompanyLogo(match.logo);
+      try {
+        const resp = await api.get(`/api/companies`, { withCredentials: true });
+        const match = toArray(resp.data).find((c: any) => Number(c.id_entite) === Number(accountRecord.id_entite));
+        if (match?.logo) setCompanyLogo(match.logo);
+      } catch { /* logo is optional */ }
     })();
   }, [accountRecord]);
+
+  /* ── LOAD: enquêtes (retour enquêtes counter) ────────── */
+  // Admins (999/111) → all enquêtes; others → only their own entité's
+  // (matches the access rules on /api/enquetes and /api/enquetes/by-entite in server.js)
+  useEffect(() => {
+    if (!accountRecord) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = isAsepex
+          ? `/api/enquetes`
+          : `/api/enquetes/by-entite/${accountRecord.id_entite}`;
+        const resp = await api.get(url, { withCredentials: true });
+        if (!cancelled) setEnquetes(toArray(resp.data));
+      } catch {
+        if (!cancelled) setEnquetes([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [accountRecord, isAsepex]);
 
   /* ── LOAD: products ──────────────────────────────────── */
   useEffect(() => {
     if (!accountRecord || (!hasRead(PAGE_IDS.PRODUITS) && !hasRead(PAGE_IDS.CATALOGUE_FP))) return;
+    let cancelled = false;
     (async () => {
-      const idParam = isAsepex ? "" : `&id_entite=${accountRecord.id_entite}`;
-      const resp = await api.get(`/api/products?page=1&limit=10000${idParam}`, { withCredentials: true });
-      const list = toArray(resp.data?.products ?? resp.data ?? []);
-      setProducts(list);
+      try {
+        setIsLoadingProducts(true);
+        const idParam = isAsepex ? "" : `&id_entite=${accountRecord.id_entite}`;
+        const resp = await api.get(`/api/products?page=1&limit=10000${idParam}`, { withCredentials: true });
+        const list = toArray(resp.data?.products ?? resp.data ?? []);
+        if (!cancelled) setProducts(list);
+      } catch {
+        if (!cancelled) setProducts([]);
+      } finally {
+        if (!cancelled) setIsLoadingProducts(false);
+      }
     })();
+    return () => { cancelled = true; };
   }, [accountRecord, hasRead, isAsepex]);
 
   /* ── DERIVED DATA ────────────────────────────────────── */
@@ -282,7 +503,7 @@ const Index: React.FC = () => {
   const accountsArr = toArray(accounts);
 
   const totalEntities = companiesArr.length;
-  const publishedProductsList = productsArr.filter(p => Number(p.status) === 2);
+  const publishedProductsList = useMemo(() => productsArr.filter(isPublished), [productsArr]);
   const unpublishedCount = productsArr.length - publishedProductsList.length;
 
   const regionData = useMemo(() => {
@@ -311,56 +532,66 @@ const Index: React.FC = () => {
     [isAsepex, regionData, categoryData]
   );
 
+  /* "NEW" = the 8 most recently updated published products */
+  const newIds = useMemo(() => new Set(
+    [...publishedProductsList]
+      .sort((a, b) => productTime(b) - productTime(a))
+      .slice(0, 8)
+      .map(p => p.id)
+  ), [publishedProductsList]);
+
   const filteredProducts = useMemo(() => {
     let base = showOnlyPublished ? publishedProductsList : productsArr;
 
     if (selectedFilter) {
       if (isAsepex) {
-        const ids = companiesArr
+        const ids = new Set(companiesArr
           .filter(c => normalizeRegion(c.region) === selectedFilter)
-          .map(c => Number(c.id_entite));
-        base = base.filter(p => ids.includes(Number(p.idEntreprise)));
+          .map(c => Number(c.id_entite)));
+        base = base.filter(p => ids.has(Number(p.idEntreprise)));
       } else {
         base = base.filter(p => (p.codeClasse || p.brand || p.libelle || "") === selectedFilter);
       }
     }
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.trim().toLowerCase();
       base = base.filter(p =>
         (p.libelle || "").toLowerCase().includes(q) ||
         (p.brand || "").toLowerCase().includes(q) ||
-        (p.gtin || "").includes(q)
+        String(p.gtin || "").includes(q)
       );
     }
 
-    return base.sort((a, b) =>
-      new Date(b.updatedAt || b.createdAt).getTime() -
-      new Date(a.updatedAt || a.createdAt).getTime()
-    );
-  }, [productsArr, publishedProductsList, showOnlyPublished, selectedFilter, searchQuery, isAsepex, companiesArr]);
+    // copy before sorting so we never mutate state arrays
+    const sorted = [...base];
+    const byName = (a: any, b: any) => (a.libelle || "").localeCompare(b.libelle || "", "fr", { sensitivity: "base" });
+    switch (sortKey) {
+      case "az": sorted.sort(byName); break;
+      case "za": sorted.sort((a, b) => byName(b, a)); break;
+      case "brand": sorted.sort((a, b) =>
+        (a.brand || "~").localeCompare(b.brand || "~", "fr", { sensitivity: "base" }) || byName(a, b)); break;
+      default: sorted.sort((a, b) => productTime(b) - productTime(a));
+    }
+    return sorted;
+  }, [productsArr, publishedProductsList, showOnlyPublished, selectedFilter, searchQuery, isAsepex, companiesArr, sortKey]);
 
-  const displayedProducts = filteredProducts.slice(0, displayedCount);
-  const hasMore = displayedCount < filteredProducts.length;
-  const last8Ids = new Set(publishedProductsList.slice(0, 8).map(p => p.id));
+  /* ── pagination ──────────────────────────────────────── */
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = (safePage - 1) * pageSize;
+  const pageItems = filteredProducts.slice(startIdx, startIdx + pageSize);
 
-  /* ── infinite scroll ─────────────────────────────────── */
-  const loadMore = useCallback(() => {
-    if (hasMore) setDisplayedCount(prev => Math.min(prev + 40, filteredProducts.length));
-  }, [hasMore, filteredProducts.length]);
+  // back to page 1 whenever the result set or page size changes
+  useEffect(() => { setPage(1); }, [showOnlyPublished, selectedFilter, searchQuery, sortKey, pageSize]);
 
-  const debouncedLoadMore = useDebounce(loadMore, 100);
+  const goToPage = useCallback((p: number) => {
+    setPage(Math.min(Math.max(1, p), totalPages));
+    catalogueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [totalPages]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const el = gridContainerRef.current;
-      if (!el) return;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 400) debouncedLoadMore();
-    };
-    const el = gridContainerRef.current;
-    el?.addEventListener("scroll", handleScroll);
-    return () => el?.removeEventListener("scroll", handleScroll);
-  }, [debouncedLoadMore]);
+  const resetFilters = () => { setSearchQuery(""); setSelectedFilter(null); };
 
   /* ── LOADING STATE ───────────────────────────────────── */
   if (isLoadingUser) {
@@ -373,6 +604,8 @@ const Index: React.FC = () => {
       </div>
     );
   }
+
+  const selectCls = "h-10 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 cursor-pointer appearance-none bg-no-repeat bg-[right_0.6rem_center] bg-[length:12px] bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 24 24%22 stroke=%22%2394a3b8%22%3E%3Cpath stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%223%22 d=%22M19 9l-7 7-7-7%22/%3E%3C/svg%3E')]";
 
   /* ══════════════════════════════════════════════════════
      RENDER
@@ -414,19 +647,38 @@ const Index: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.15 }}
-              className="grid grid-cols-3 gap-4 w-full md:w-auto"
+              className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto"
             >
               {[
+                { label: "Retour Enquêtes", value: enquetes.length, icon: "📋", to: "/retour-enquete" },
                 { label: "Entités", value: totalEntities, icon: "🏢" },
                 { label: "Produits", value: productsArr.length, icon: "📦" },
                 { label: "Comptes", value: accountsArr.length, icon: "👤" },
-              ].map(({ label, value, icon }) => (
-                <div key={label} className="bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-5 text-center min-w-[90px]">
-                  <div className="text-2xl mb-1">{icon}</div>
-                  <div className="text-3xl font-black text-white">{value.toLocaleString()}</div>
-                  <div className="text-xs text-slate-400 mt-1 font-medium">{label}</div>
-                </div>
-              ))}
+              ].map(({ label, value, icon, to }: { label: string; value: number; icon: string; to?: string }) => {
+                const content = (
+                  <>
+                    <div className="text-2xl mb-1">{icon}</div>
+                    <div className="text-3xl font-black text-white">{value.toLocaleString()}</div>
+                    <div className="text-xs text-slate-400 mt-1 font-medium whitespace-nowrap">{label}</div>
+                  </>
+                );
+                return to ? (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => navigate(to)}
+                    title="Voir les retours d'enquêtes"
+                    className="group relative bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-5 text-center min-w-[90px] cursor-pointer transition hover:bg-white/15 hover:border-sky-400/50 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  >
+                    <svg className="absolute top-2.5 right-2.5 w-3.5 h-3.5 text-white/30 group-hover:text-sky-300 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 17L17 7M17 7H8M17 7v9" /></svg>
+                    {content}
+                  </button>
+                ) : (
+                  <div key={label} className="bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-5 text-center min-w-[90px]">
+                    {content}
+                  </div>
+                );
+              })}
             </motion.div>
 
           </div>
@@ -495,7 +747,7 @@ const Index: React.FC = () => {
               </div>
               {/* Legend chips */}
               <div className="px-6 pb-6 flex flex-wrap gap-2">
-                {pieData.map((d, i) => (
+                {pieData.map((d) => (
                   <button
                     key={d.name}
                     onClick={() => setSelectedFilter(prev => prev === d.name ? null : d.name)}
@@ -519,7 +771,7 @@ const Index: React.FC = () => {
                 <p className="text-xs text-slate-400 mt-0.5">{companiesArr.length} enregistrées</p>
               </div>
               <div className="p-4 space-y-1 overflow-y-auto max-h-80">
-                {companiesArr.slice(0, 12).map((c, i) => (
+                {companiesArr.slice(0, 12).map((c) => (
                   <div key={c.id_entite} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-slate-50 transition cursor-default">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-100 to-indigo-100 flex items-center justify-center text-xs font-black text-sky-600 flex-shrink-0">
                       {(c.raison_socialle || "?").charAt(0).toUpperCase()}
@@ -536,91 +788,149 @@ const Index: React.FC = () => {
         </div>
 
         {/* ── PRODUCT CATALOGUE SECTION ─────────────────── */}
-        <section>
-          {/* Section header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-xl font-black text-slate-800">Catalogue Produits</h2>
-              <p className="text-sm text-slate-400 mt-0.5">
-                {filteredProducts.length.toLocaleString()} produits
-                {selectedFilter && <span className="text-sky-500 font-medium"> • {selectedFilter}</span>}
-              </p>
-            </div>
+        <section ref={catalogueRef} className="scroll-mt-6">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-              {/* Search */}
-              <div className="sm:w-64">
-                <SearchBar value={searchQuery} onChange={setSearchQuery} />
-              </div>
-
-              {/* Toggle */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm gap-1 self-start sm:self-auto">
-                <button
-                  onClick={() => setShowOnlyPublished(true)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${showOnlyPublished ? "bg-sky-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                >
-                  Publiés
-                </button>
-                <button
-                  onClick={() => setShowOnlyPublished(false)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${!showOnlyPublished ? "bg-sky-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                >
-                  Tous
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* The beautiful grid */}
-          {filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="text-6xl mb-4">📦</div>
-              <p className="text-slate-500 font-medium">Aucun produit trouvé</p>
-              <p className="text-slate-400 text-sm mt-1">Essayez de modifier votre recherche</p>
-              {(searchQuery || selectedFilter) && (
-                <button
-                  onClick={() => { setSearchQuery(""); setSelectedFilter(null); }}
-                  className="mt-4 px-4 py-2 bg-sky-50 text-sky-600 text-sm font-semibold rounded-xl hover:bg-sky-100 transition"
-                >
-                  Réinitialiser les filtres
-                </button>
-              )}
-            </div>
-          ) : (
-            <div
-              ref={gridContainerRef}
-              className="max-h-[80vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
-            >
-              <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-                {displayedProducts.map((p, i) => (
-                  <ProductCard
-                    key={p.id || p.gtin || i}
-                    p={p}
-                    isNew={last8Ids.has(p.id)}
-                    index={i}
-                  />
-                ))}
-              </div>
-
-              {/* Loading more spinner */}
-              {hasMore && (
-                <div className="flex justify-center py-10">
-                  <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-sky-500 animate-spin" />
-                </div>
-              )}
-
-              {/* End of list */}
-              {!hasMore && filteredProducts.length > 0 && (
-                <div className="flex items-center gap-4 py-10">
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <p className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                    {filteredProducts.length.toLocaleString()} produits affichés
+            {/* Header */}
+            <div className="px-5 md:px-6 pt-6 pb-5 border-b border-slate-100 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 tracking-tight">Catalogue Produits</h2>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    <span className="font-semibold text-slate-600">{totalItems.toLocaleString()}</span> produit{totalItems > 1 ? "s" : ""}
+                    {selectedFilter && <span className="text-sky-500 font-medium"> · {selectedFilter}</span>}
+                    {searchQuery.trim() && <span className="text-sky-500 font-medium"> · « {searchQuery.trim()} »</span>}
                   </p>
-                  <div className="flex-1 h-px bg-slate-200" />
                 </div>
+                <div className="w-full md:w-80">
+                  <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                </div>
+              </div>
+
+              {/* Toolbar */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Segmented
+                  ariaLabel="Statut"
+                  value={showOnlyPublished ? "pub" : "all"}
+                  onChange={v => setShowOnlyPublished(v === "pub")}
+                  options={[
+                    { value: "pub", label: <>Publiés <span className="ml-1 opacity-70">{publishedProductsList.length.toLocaleString()}</span></> },
+                    { value: "all", label: <>Tous <span className="ml-1 opacity-70">{productsArr.length.toLocaleString()}</span></> },
+                  ]}
+                />
+
+                <label className="sr-only" htmlFor="catalogue-sort">Trier par</label>
+                <select
+                  id="catalogue-sort"
+                  value={sortKey}
+                  onChange={e => setSortKey(e.target.value as SortKey)}
+                  className={selectCls}
+                >
+                  <option value="recent">Plus récents</option>
+                  <option value="az">Nom A → Z</option>
+                  <option value="za">Nom Z → A</option>
+                  <option value="brand">Marque</option>
+                </select>
+
+                <div className="flex items-center gap-2 sm:ml-auto">
+                  <span className="text-xs text-slate-400 font-medium hidden sm:inline">Par page</span>
+                  <Segmented
+                    ariaLabel="Produits par page"
+                    value={pageSize}
+                    onChange={setPageSize}
+                    options={PAGE_SIZE_OPTIONS.map(n => ({ value: n, label: n, title: `${n} produits par page` }))}
+                  />
+                </div>
+
+                <Segmented
+                  ariaLabel="Affichage"
+                  value={viewMode}
+                  onChange={setViewMode}
+                  options={[
+                    { value: "grid", label: <GridIcon />, title: "Vue grille" },
+                    { value: "list", label: <ListIcon />, title: "Vue liste" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 md:p-6 bg-slate-50/60">
+              {isLoadingProducts ? (
+                /* skeleton */
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse">
+                      <div className="aspect-square bg-slate-100" />
+                      <div className="p-3.5 space-y-2">
+                        <div className="h-2.5 w-1/3 bg-slate-100 rounded" />
+                        <div className="h-3 w-full bg-slate-100 rounded" />
+                        <div className="h-3 w-2/3 bg-slate-100 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : totalItems === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-3xl mb-4 shadow-sm">📦</div>
+                  <p className="text-slate-700 font-semibold">Aucun produit trouvé</p>
+                  <p className="text-slate-400 text-sm mt-1">Essayez de modifier votre recherche ou vos filtres</p>
+                  {(searchQuery || selectedFilter) && (
+                    <button
+                      onClick={resetFilters}
+                      className="mt-5 px-4 py-2 bg-sky-500 text-white text-sm font-semibold rounded-xl hover:bg-sky-600 transition shadow-sm"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${viewMode}-${safePage}-${pageSize}-${sortKey}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {viewMode === "grid" ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {pageItems.map((p, i) => (
+                          <ProductCard key={p.id || p.gtin || `${startIdx + i}`} p={p} isNew={newIds.has(p.id)} index={i} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
+                        <div className="hidden md:flex items-center gap-4 px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <span className="w-14" />
+                          <span className="flex-1">Produit</span>
+                          <span className="w-40">GTIN</span>
+                          <span className="hidden lg:block w-28 text-right">Mis à jour</span>
+                          <span className="w-[74px] text-right">Statut</span>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {pageItems.map((p, i) => (
+                            <ProductRow key={p.id || p.gtin || `${startIdx + i}`} p={p} isNew={newIds.has(p.id)} index={i} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               )}
             </div>
-          )}
+
+            {/* Footer: range + pagination */}
+            {!isLoadingProducts && totalItems > 0 && (
+              <div className="px-5 md:px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  Affichage <span className="font-semibold text-slate-700">{(startIdx + 1).toLocaleString()}–{Math.min(startIdx + pageSize, totalItems).toLocaleString()}</span> sur <span className="font-semibold text-slate-700">{totalItems.toLocaleString()}</span>
+                  {totalPages > 1 && <span className="text-slate-400"> · page {safePage}/{totalPages}</span>}
+                </p>
+                <Pagination page={safePage} totalPages={totalPages} onChange={goToPage} />
+              </div>
+            )}
+          </div>
         </section>
 
       </main>

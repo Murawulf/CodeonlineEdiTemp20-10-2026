@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, EnvelopeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, EnvelopeIcon, ArrowDownTrayIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
@@ -140,10 +140,20 @@ const quillModules = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-// ENVOI MAIL (Outlook) — every entité gets its OWN Outlook message, opened on
-// the user's PC via a mailto: link: To = that entité only, subject + body already
-// filled in and personalised with its raison sociale. The user just clicks
-// "Envoyer" in Outlook. No server / SMTP involved.
+// ENVOI MAIL — everything goes through the Outlook account logged in on the PC
+// (mailto:), never through the server's SMTP:
+//
+//  1. "Outlook — tous en 1 clic (Cci)" (default): ONE Outlook message with every
+//     selected entité in Bcc (Cci) → the user presses Envoyer once. Nobody sees
+//     the other addresses. Big lists are split in batches (Outlook / anti-spam
+//     limits). Same text for everybody (the company name can't be personalised
+//     in a shared message).
+//
+//  2. "Outlook — un par un (personnalisé)": one Outlook message per entité,
+//     personalised with its raison sociale.
+//
+//  + "Publipostage Word": exports the list so Word's mail merge sends a
+//    personalised email to every entité through Outlook in one go.
 // ════════════════════════════════════════════════════════════════════════════
 type MailRecipient = {
   id_entite: number;
@@ -152,6 +162,14 @@ type MailRecipient = {
   emails: string[];
   sci: boolean;
 };
+
+type MailMode = 'bcc' | 'outlook';
+
+// Bcc batches: Outlook / Windows truncate very long mailto: links, and sending
+// to hundreds of people in one message looks like spam — so at most 50
+// entités per message, and the link is kept under ~1 900 characters.
+const MAX_BCC_PER_BATCH = 50;
+const MAX_MAILTO_LENGTH = 1900;
 
 const EMAIL_RE = /^[^\s@<>(),;:"\[\]]+@[^\s@<>(),;:"\[\]]+\.[a-zA-Z]{2,}$/;
 
@@ -293,22 +311,46 @@ const buildMailto = (emails: string[], subject: string, textBody: string) =>
   `?subject=${encodeURIComponent(subject)}` +
   `&body=${encodeURIComponent(textBody.replace(/\n/g, '\r\n'))}`;
 
-// Put the FORMATTED message (bold, underline, bullets) on the clipboard, so a
-// Ctrl+V in Outlook gives the exact Word layout. Rich clipboard API first,
-// then the old execCommand fallback (works on plain http too).
-const copyRichToClipboard = async (html: string, text: string): Promise<boolean> => {
-  try {
-    const CI = (window as any).ClipboardItem;
-    if (navigator.clipboard && CI && window.isSecureContext) {
-      await navigator.clipboard.write([
-        new CI({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([text], { type: 'text/plain' }),
-        }),
-      ]);
-      return true;
+// Same message for everybody (Bcc mode): the company name can't be personalised,
+// so "… de la Société {raison_sociale}," becomes a neutral greeting.
+const genericizeBody = (bodyHtml: string) =>
+  bodyHtml
+    .replace(/\s*de la Soci[ée]t[ée]\s*\{raison_sociale\}/gi, '')
+    .replace(/\{raison_sociale\}/g, 'votre société')
+    .replace(/\{personne_contact\}/g, 'Madame, Monsieur');
+
+const genericizeSubject = (subject: string) =>
+  subject.replace(/\{raison_sociale\}|\{personne_contact\}/g, '').replace(/\s{2,}/g, ' ').trim();
+
+// mailto: with every address in Bcc (Cci) and the subject. The body is NOT put
+// in the link (too long for a mailto with many addresses): the formatted text is
+// copied to the clipboard instead and pasted with Ctrl+V.
+const buildBccMailto = (emails: string[], subject: string) =>
+  `mailto:?bcc=${emails.map(e => encodeURIComponent(e)).join(';')}` +
+  `&subject=${encodeURIComponent(subject)}`;
+
+const splitIntoBccBatches = (recipients: MailRecipient[], subject: string): MailRecipient[][] => {
+  const batches: MailRecipient[][] = [];
+  let current: MailRecipient[] = [];
+  for (const r of recipients) {
+    const next = [...current, r];
+    const url = buildBccMailto(next.flatMap(x => x.emails), subject);
+    if (current.length && (next.length > MAX_BCC_PER_BATCH || url.length > MAX_MAILTO_LENGTH)) {
+      batches.push(current);
+      current = [r];
+    } else {
+      current = next;
     }
-  } catch { /* fall through to the legacy path */ }
+  }
+  if (current.length) batches.push(current);
+  return batches;
+};
+
+// Copies the FORMATTED message (bold, underline, bullets) to the clipboard,
+// synchronously — so it still happens inside the user's click, and the mailto:
+// that follows can open immediately (a delayed mailto gets blocked by the
+// browser after a few messages).
+const copyRichSync = (html: string): boolean => {
   try {
     const el = document.createElement('div');
     el.contentEditable = 'true';
@@ -479,20 +521,11 @@ const fetchPaysList = async () => {
   const canWrite = true;
 
   // ── CURRENT USER'S id_entite ────────────────────────────────────────────
-  // Previously hardcoded as `{ id_entite: 123 }` — never wired to the real
-  // logged-in account, which is why privileged users saw nothing and
-  // everyone else's own-entity filter was meaningless.
-  //
-  // Source of truth, in priority order (mirrors how the rest of the app
-  // already resolves the current user, e.g. the "Fetching all comptes for
-  // id_compte..." / "Found id_entite: ..." logic run elsewhere on login):
+  // Source of truth, in priority order:
   //   1. The user object your login flow stores in localStorage/sessionStorage
-  //      (POST /api/login already returns id_entite directly in its JSON, so
-  //      if that whole response — or a user object built from it — is what
-  //      gets persisted, it's already there with zero extra requests).
+  //      (POST /api/login already returns id_entite directly in its JSON).
   //   2. Fallback: call GET /api/comptes (JWT-scoped server-side) and match
-  //      the row for the current id_compte, exactly like the rest of the app
-  //      does.
+  //      the row for the current id_compte.
   const getStoredUser = (): any | null => {
     try {
       const raw =
@@ -568,9 +601,7 @@ const fetchPaysList = async () => {
   };
 
   // Sequence guard: region/délégation/type are filtered server-side, so switching
-  // them quickly fires several requests. Only the LATEST response is allowed to
-  // land — otherwise a slow, older response could overwrite the list with rows
-  // that don't match the filters currently shown (and then get exported).
+  // them quickly fires several requests. Only the LATEST response is allowed to land.
   const fetchSeqRef = useRef(0);
   const fetchCompanies = async () => {
     const seq = ++fetchSeqRef.current;
@@ -659,9 +690,7 @@ const fetchPaysList = async () => {
       (company.segments || []).some(code => searchSegments.includes(code));
 
     // Flux (export/import) × Destination, both multi-select. Empty selection
-    // on either axis means "no restriction on that axis" — e.g. ticking only
-    // "Import" + "Libye" matches a company that imports FROM Libye, ticking
-    // both Export and Import + "Libye" matches either direction.
+    // on either axis means "no restriction on that axis".
     const effectiveFlows: FlowType[] = searchFlowTypes.length ? searchFlowTypes : ['export', 'import'];
     const effectiveDests: BaseDestKey[] = searchDestinations.length ? searchDestinations : BASE_DESTINATIONS.map(d => d.key);
     const matchesDestination =
@@ -695,7 +724,6 @@ const fetchPaysList = async () => {
 
   // Clicking a region in the combined Région/Délégation dropdown selects that
   // region and expands its délégations inline underneath, in the same list.
-  // Clicking it again while already expanded just collapses the sub-list.
   const handleRegionPick = (region: string) => {
     const willExpand = regionDelExpanded !== region;
     setSearchRegion(region);
@@ -813,8 +841,7 @@ const fetchPaysList = async () => {
       const created = createdResponse.data;
 
       if (created) {
-        // Prepend locally so the new entity appears first in the table,
-        // instead of refetching the whole list (which would re-sort it alphabetically).
+        // Prepend locally so the new entity appears first in the table.
         setCompanies(prev => [created, ...prev.filter(c => c.id_entite !== created.id_entite)]);
 
         window.alert("Veuillez compléter les détails de votre entité");
@@ -823,7 +850,6 @@ const fetchPaysList = async () => {
         setModalSegments(created.segments || []);
         setIsModalOpen(true);
       } else {
-        // Fallback: if for some reason we couldn't refetch the created entity, refresh the list normally.
         await fetchCompanies();
       }
     } catch (err: any) {
@@ -848,27 +874,19 @@ const fetchPaysList = async () => {
     });
   };
 
-  // The selection is ALWAYS read through the current filters. Whatever was
-  // ticked earlier but is now hidden by a filter never leaks into an export or
-  // a mailing — this was the "I filter, select all, and get every entité" bug.
+  // The selection is ALWAYS read through the current filters, so nothing hidden
+  // by a filter ever leaks into an export or a mailing.
   const selectedInView = filteredCompanies.filter(c => selectedIds.has(c.id_entite));
 
-  const isAllPageSelected = paginatedCompanies.length > 0 && paginatedCompanies.every(c => selectedIds.has(c.id_entite));
-  const isSomePageSelected = paginatedCompanies.some(c => selectedIds.has(c.id_entite));
+  // The header checkbox selects EVERY entité matching the current filters —
+  // all pages, not only the 10/25/50 rows visible on screen.
+  const isAllFilteredSelected = filteredCompanies.length > 0 && selectedInView.length === filteredCompanies.length;
+  const isSomeSelected = selectedInView.length > 0;
 
-  const toggleSelectAllOnPage = () => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (isAllPageSelected) {
-        paginatedCompanies.forEach(c => next.delete(c.id_entite));
-      } else {
-        paginatedCompanies.forEach(c => next.add(c.id_entite));
-      }
-      return next;
-    });
+  const toggleSelectAllFiltered = () => {
+    setSelectedIds(isAllFilteredSelected ? new Set() : new Set(filteredCompanies.map(c => c.id_entite)));
   };
 
-  // "Tout sélectionner" = every entité matching the CURRENT filters (all pages), nothing else.
   const selectAllFiltered = () => {
     setSelectedIds(new Set(filteredCompanies.map(c => c.id_entite)));
   };
@@ -876,8 +894,7 @@ const fetchPaysList = async () => {
   const clearSelection = () => setSelectedIds(new Set());
 
   // Changing any structural filter starts a fresh selection, so the counter
-  // always describes exactly what is on screen. (Typing in the search box
-  // doesn't reset it — the selection is still intersected with it above.)
+  // always describes exactly what is on screen.
   const structuralFilterKey = JSON.stringify([searchSegments, searchFlowTypes, searchDestinations, searchSci, searchRegion, searchDelegation, searchType]);
   useEffect(() => {
     setSelectedIds(new Set());
@@ -898,8 +915,7 @@ const fetchPaysList = async () => {
   const typeLabel = (company: Company) =>
     typeOptions.find(t => t.value === String(company.type_prod))?.label || '';
 
-  // Human-readable list of the filters currently applied (also used for the
-  // chips above the table and the "Filtres" sheet of the Excel export).
+  // Human-readable list of the filters currently applied.
   const getActiveFilters = (): { key: string; label: string; value: string; clear: () => void }[] => {
     const list: { key: string; label: string; value: string; clear: () => void }[] = [];
     if (searchType) {
@@ -1028,7 +1044,6 @@ const fetchPaysList = async () => {
       { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 34 }, { wch: 18 },
       { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 34 },
     ];
-    // Excel filter arrows on the header row, so the file can be re-filtered too.
     if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
 
     const wb = XLSX.utils.book_new();
@@ -1103,13 +1118,8 @@ const fetchPaysList = async () => {
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  // ── ENVOI MAIL via Outlook — one personalised message per entité
+  // ── ENVOI MAIL — through the Outlook account logged in on this PC
   // ════════════════════════════════════════════════════════════════════════
-  // Each click opens ONE new Outlook message (mailto:) addressed to ONE entité,
-  // subject + body pre-filled and personalised with its raison sociale, so no
-  // entité ever sees another. The user checks it and presses "Envoyer" in
-  // Outlook, then clicks "Suivant" here. Browsers only allow one mail window
-  // per click, hence the one-by-one flow (with progress remembered).
   const [isMailModalOpen, setIsMailModalOpen] = useState(false);
   const [mailSubject, setMailSubject] = useState(() => loadMailPref('subject', DEFAULT_MAIL_SUBJECT));
   const [mailBody, setMailBody] = useState(() => loadMailPref('body', DEFAULT_MAIL_BODY));
@@ -1122,10 +1132,15 @@ const fetchPaysList = async () => {
   const [mailLastOpenedId, setMailLastOpenedId] = useState<number | null>(null);
   const quillRef = useRef<ReactQuill | null>(null);
 
-  // Remember the last template in this browser.
+  // Send mode + which Bcc batches were already opened in Outlook.
+  const [mailMode, setMailMode] = useState<MailMode>(() => (loadMailPref('mode', 'bcc') === 'outlook' ? 'outlook' : 'bcc'));
+  const [bccOpened, setBccOpened] = useState<Set<number>>(new Set());
+
+  // Remember the last template / settings in this browser.
   useEffect(() => { saveMailPref('subject', mailSubject); }, [mailSubject]);
   useEffect(() => { saveMailPref('body', mailBody); }, [mailBody]);
   useEffect(() => { saveMailPref('link', mailLink); }, [mailLink]);
+  useEffect(() => { saveMailPref('mode', mailMode); }, [mailMode]);
   useEffect(() => { saveOpenedIds(mailOpened); }, [mailOpened]);
 
   const openMailModal = () => {
@@ -1146,6 +1161,7 @@ const fetchPaysList = async () => {
     setMailTab('message');
     setMailInfo(null);
     setMailLastOpenedId(null);
+    setBccOpened(new Set());
     setIsMailModalOpen(true);
   };
 
@@ -1153,6 +1169,10 @@ const fetchPaysList = async () => {
   const mailWithoutEmail = mailRecipients.filter(r => r.emails.length === 0);
   const mailOpenedCount = mailSendable.filter(r => mailOpened.has(r.id_entite)).length;
   const mailNext = mailSendable.find(r => !mailOpened.has(r.id_entite)) || null;
+
+  const genericSubject = genericizeSubject(mailSubject);
+  const bccBatches = splitIntoBccBatches(mailSendable, genericSubject);
+  const bccNextIndex = bccBatches.findIndex((_, i) => !bccOpened.has(i));
 
   const insertMailToken = (token: string) => {
     const editor = quillRef.current?.getEditor();
@@ -1170,7 +1190,55 @@ const fetchPaysList = async () => {
     return null;
   };
 
-  // Open ONE entité's message in Outlook.
+  // ── TOUS EN 1 CLIC: one Outlook message, every entité of the batch in Bcc ──
+  const openBccBatch = (index: number) => {
+    const err = validateMailForm();
+    if (err) { setMailInfo({ type: 'error', text: err }); setMailTab('message'); return; }
+    const batch = bccBatches[index];
+    if (!batch || batch.length === 0) return;
+
+    const link = mailLink.trim();
+    const html = `<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">${renderMailTemplate(genericizeBody(mailBody), { raison_socialle: '' }, link)}</div>`;
+    const url = buildBccMailto(batch.flatMap(r => r.emails), genericSubject);
+
+    // Both done immediately, inside the click — the browser never blocks it.
+    copyRichSync(html);
+    openMailto(url);
+
+    setBccOpened(prev => { const next = new Set(prev); next.add(index); return next; });
+    setMailInfo({
+      type: 'success',
+      text: `Message ${index + 1}/${bccBatches.length} ouvert dans Outlook avec ${batch.length} entité${batch.length > 1 ? 's' : ''} en Cci. Cliquez dans le corps du message, faites Ctrl+V (le texte est déjà copié), puis Envoyer.`,
+    });
+  };
+
+  const openNextBccBatch = () => {
+    if (bccNextIndex >= 0) openBccBatch(bccNextIndex);
+  };
+
+  // ── PUBLIPOSTAGE WORD: personalised emails for everybody, sent by Outlook ──
+  // One row per address; Word's mail merge sends one email per row.
+  const exportMergeList = () => {
+    const rows = mailSendable.flatMap(r =>
+      r.emails.map(email => ({
+        Raison_sociale: r.raison_socialle,
+        Personne_contact: r.personne_contact,
+        Email: email,
+      }))
+    );
+    if (rows.length === 0) {
+      setMailInfo({ type: 'error', text: "Aucune des entités choisies n'a d'adresse email valide." });
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 42 }, { wch: 28 }, { wch: 40 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Publipostage');
+    XLSX.writeFile(wb, `liste_publipostage_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setMailInfo({ type: 'success', text: `Liste exportée (${rows.length} adresse${rows.length > 1 ? 's' : ''}). Suivez les étapes « Publipostage Word » ci-dessous.` });
+  };
+
+  // ── OUTLOOK: open ONE entité's message in the PC's Outlook ──
   const openInOutlook = (r: MailRecipient) => {
     const err = validateMailForm();
     if (err) { setMailInfo({ type: 'error', text: err }); setMailTab('message'); return; }
@@ -1182,12 +1250,9 @@ const fetchPaysList = async () => {
     const html = `<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">${renderMailTemplate(mailBody, r, link)}</div>`;
     const url = buildMailto(r.emails, subject, text);
 
-    // Formatted copy on the clipboard first (needs the page to still have focus),
-    // then hand over to Outlook.
-    let launched = false;
-    const launch = () => { if (launched) return; launched = true; openMailto(url); };
-    copyRichToClipboard(html, text).finally(launch);
-    setTimeout(launch, 400);
+    // Both done immediately, inside the click — the browser never blocks it.
+    copyRichSync(html);
+    openMailto(url);
 
     setMailOpened(prev => { const next = new Set(prev); next.add(r.id_entite); return next; });
     setMailLastOpenedId(r.id_entite);
@@ -1214,9 +1279,11 @@ const fetchPaysList = async () => {
   };
 
   const mailPreviewRecipient = mailRecipients.find(r => r.id_entite === mailPreviewId) || mailRecipients[0];
-  const mailPreviewHtml = mailPreviewRecipient
-    ? renderMailTemplate(mailBody, mailPreviewRecipient, mailLink.trim())
-    : '';
+  const mailPreviewHtml = mailMode === 'bcc'
+    ? renderMailTemplate(genericizeBody(mailBody), { raison_socialle: '' }, mailLink.trim())
+    : mailPreviewRecipient
+      ? renderMailTemplate(mailBody, mailPreviewRecipient, mailLink.trim())
+      : '';
 
   const downloadTemplate = async () => {
     try {
@@ -1713,7 +1780,7 @@ const fetchPaysList = async () => {
 
   const shouldShowDescriptions = (company: Company) => [2, 6].includes(company.type_prod);
 
-  const totalColumns = 12 + (canWrite ? 1 : 0); // +1 vs before: new "Segments" column, +1 again: new "SCI" column, +1 again: selection checkbox column
+  const totalColumns = 12 + (canWrite ? 1 : 0);
 
   const openSiteModal = (site?: Site) => {
     if (!selectedCompany) return;
@@ -1869,8 +1936,6 @@ const fetchPaysList = async () => {
 
   --pill-bg: #eff6ff;
 
-
-
   --header-border: #cbd5e1;
   --header-bg: #eef2f9;
 
@@ -1919,9 +1984,6 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
   color: var(--text); line-height: 1.2;
 }
 
-/* Filter bar — two tidy rows:
-   row 1 (top)   : search (wide) ………………… Actions
-   row 2 (bottom): every filter in an even, responsive grid (never cut off) */
 .ent-filters {
   display: flex; flex-direction: column-reverse; gap: 14px;
   padding: 16px 24px; border-bottom: 1px solid var(--border);
@@ -1984,7 +2046,6 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 .ent-filter-dropdown-item:last-child { border-bottom: none; }
 .ent-filter-dropdown-item:hover { background: var(--surface2); color: var(--accent); }
 
-/* chevron on filter buttons — smooth rotate instead of flipping glyphs */
 .ent-chevron {
   width: 13px; height: 13px; color: var(--muted); flex-shrink: 0;
   transition: transform 0.22s cubic-bezier(.4,0,.2,1), color 0.15s;
@@ -1992,21 +2053,18 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
 .ent-chevron.open { transform: rotate(180deg); }
 .ent-filter-btn.active .ent-chevron, .ent-filter-btn:hover .ent-chevron { color: var(--accent); }
 
-/* dropdown entrance animation */
 @keyframes entDropIn {
   from { opacity: 0; transform: translateY(-6px) scale(.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .ent-filter-dropdown { animation: entDropIn .16s cubic-bezier(.16,1,.3,1); transform-origin: top center; }
 
-/* nested delegation accordion — slides open smoothly */
 @keyframes entSlideDown {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .ent-sub-accordion { animation: entSlideDown .18s ease-out; }
 
-/* segment picker — two per row, indented checkboxes */
 .ent-segment-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; padding: 6px;
 }
@@ -2018,7 +2076,6 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* asc / desc segmented toggle on sortable table headers */
 .ent-sort-toggle {
   display: inline-flex; margin-left: 7px; border-radius: 5px; overflow: hidden;
   border: 1px solid rgba(255,255,255,0.32); vertical-align: middle;
@@ -2118,14 +2175,12 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
   background: rgba(122,128,144,0.12); color: var(--muted); border-color: rgba(122,128,144,0.3);
 }
 
-/* SCI column value — plain Oui / Non, no badge */
 .ent-sci-value {
   font-size: 12px; font-weight: 600;
 }
 .ent-sci-value.oui { color: #d4a32a; }
 .ent-sci-value.non { color: var(--muted); font-weight: 500; }
 
-/* SCI group header — shown once above the contiguous block of SCI entities */
 .ent-sci-group-header td {
   padding: 10px 12px 8px !important;
   border-bottom: none !important;
@@ -2151,7 +2206,6 @@ body { font-family: 'DM Sans', sans-serif; font-size: 14px; }
   letter-spacing: 0.02em; color: #b8901f;
 }
 
-/* Rows belonging to the SCI group — subtle indent + accent so membership reads without repeating the label */
 tr.ent-row-sci {
   border-left: 2px solid rgba(212,163,42,0.35);
 }
@@ -2159,7 +2213,6 @@ tr.ent-row-sci td:first-child {
   padding-left: 14px;
 }
 
-/* Destinations "view more" affordance */
 .ent-view-more {
   background: none; border: none; cursor: pointer;
   color: var(--accent); font-size: 11px; font-weight: 600;
@@ -2293,6 +2346,7 @@ tr.ent-row-sci td:first-child {
   cursor: pointer; transition: all 0.15s;
 }
 .ent-btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.ent-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ent-btn-primary {
   padding: 8px 20px; border-radius: 8px;
@@ -2301,6 +2355,7 @@ tr.ent-row-sci td:first-child {
   cursor: pointer; transition: opacity 0.15s;
 }
 .ent-btn-primary:hover { opacity: 0.88; }
+.ent-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ent-btn-danger {
   padding: 8px 20px; border-radius: 8px;
@@ -2326,7 +2381,6 @@ tr.ent-row-sci td:first-child {
 .ql-toolbar { background: var(--surface); border-color: var(--border) !important; }
 .ql-container.ql-snow { border-color: var(--border) !important; }
 
-/* ── SCI segmented toggle ── */
 .ent-seg-toggle {
   display: inline-flex; height: 38px; background: var(--surface);
   border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 2px;
@@ -2339,7 +2393,6 @@ tr.ent-row-sci td:first-child {
 .ent-seg-toggle button:hover { color: var(--accent); }
 .ent-seg-toggle button.active { background: var(--accent); color: var(--accent-text); font-weight: 600; }
 
-/* ── Active filter chips ── */
 .ent-active-filters {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   padding: 10px 24px; border-bottom: 1px solid var(--border); background: var(--surface);
@@ -2372,7 +2425,6 @@ tr.ent-row-sci td:first-child {
   border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px;
 }
 
-/* ── Bulk actions (export / envoi mail) ── */
 .ent-bulk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ent-bulk-btn {
   display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
@@ -2392,7 +2444,6 @@ tr.ent-row-sci td:first-child {
 .ent-bulk-btn.primary .ent-bulk-count { background: rgba(255,255,255,0.22); }
 .ent-bulk-scope { font-size: 11px; color: var(--muted); }
 
-/* ── Envoi mail modal ── */
 .ent-mail-tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .ent-mail-tabs button {
   border: none; background: none; padding: 12px 14px; font-size: 13px; cursor: pointer;
@@ -2421,16 +2472,15 @@ tr.ent-row-sci td:first-child {
   display: grid; grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr) auto; align-items: center; gap: 10px;
   padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px;
 }
-label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr); }
 .ent-mail-row:last-child { border-bottom: none; }
 .ent-mail-row .name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ent-mail-row .addr { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ent-mail-row .state { font-size: 11px; color: var(--muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ent-mail-row .state { font-size: 11px; color: var(--muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ent-mail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
 .ent-mail-row.sent .ent-mail-dot { background: #3a8f6e; }
-.ent-mail-row.sent .state { color: #2e7d5b; }
+.ent-mail-row.sent .state { color: #2e7d5b; font-weight: 600; }
 .ent-mail-row.failed .ent-mail-dot { background: #e05050; }
-.ent-mail-row.failed .state, label.ent-mail-row.failed .addr { color: #b83232; }
+.ent-mail-row.failed .state { color: #b83232; }
 .ent-mail-row.skipped { opacity: 0.55; }
 .ent-sci-mini { margin-left: 6px; font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(212,163,42,0.15); color: #b8871a; font-weight: 700; }
 .ent-mail-preview { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -2467,15 +2517,40 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
 .ent-row-outlook-btn.done { background: transparent; color: #2e7d5b; border-color: rgba(58,143,110,0.4); }
 .ent-mail-row.next { background: rgba(23,37,84,0.05); }
 .ent-mail-row.last { box-shadow: inset 3px 0 0 #3a8f6e; }
-.ent-mail-row .state { max-width: none; overflow: visible; }
+
+/* ── Send mode switch + automatic send panel ── */
+.ent-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.ent-mode-card {
+  text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px;
+  padding: 12px 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ent-mode-card:hover { border-color: var(--accent); }
+.ent-mode-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(23,37,84,0.1); background: rgba(23,37,84,0.03); }
+.ent-mode-card .t { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.ent-mode-card .d { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.ent-auto-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.ent-auto-test { display: flex; gap: 8px; align-items: flex-end; grid-column: span 2; }
+.ent-auto-test .grow { flex: 1; }
+.ent-auto-summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); margin-bottom: 10px;
+}
+.ent-auto-summary .big { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+.ent-send-all-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.ent-send-all-btn:hover:not(:disabled) { opacity: 0.88; }
+.ent-send-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ent-send-all-btn.stop { background: var(--danger); }
       `}</style>
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
            <nav className="flex items-center gap-1.5 text-sm font-medium text-blue-600 px-6 pt-3 pb-2 mb-1">
         <span className="text-blue-600 font-medium">Entités</span>
-        
+
       </nav>
-      
+
 
       {/* ── CONTENT CARD (filters + table + pagination) ───────────────────────── */}
       <div className="mx-4 md:mx-6 my-4 bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
@@ -2573,7 +2648,7 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
           )}
         </div>
 
-        {/* DESTINATION — flux (export/import) + les 7 pays, comme sur l'enquête flux */}
+        {/* DESTINATION — flux (export/import) + les 7 pays */}
         <div className="ent-filter-group" ref={destinationRef}>
           <span className="ent-filter-label">Destination</span>
           <button
@@ -2606,7 +2681,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
           </button>
           {isDestinationOpen && filterDropdownPos && (
             <div className="ent-filter-dropdown" style={{ top: filterDropdownPos.top, left: filterDropdownPos.left, width: Math.max(filterDropdownPos.width, 240) }}>
-              {/* Flux: Export / Import — tick either, or both */}
               <div style={{ padding: '8px 14px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', fontWeight: 600 }}>
                 Flux
               </div>
@@ -2684,7 +2758,7 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
           </div>
         </div>
 
-        {/* RÉGION / DÉLÉGATION — combined: pick a région, its délégations expand right underneath */}
+        {/* RÉGION / DÉLÉGATION */}
         <div className="ent-filter-group" ref={regionRef}>
           <span className="ent-filter-label">Région / Délégation</span>
           <button
@@ -2798,7 +2872,7 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                 <div className="ent-main-action-item" onClick={handleAddMultiple}>↑ Importer plusieurs</div>
                 <div className="ent-main-action-item" onClick={handleExportContacts}>↓ Exporter contacts ({actionTargets.length})</div>
                 <div className="ent-main-action-item" onClick={handleExport}>↓ Exporter toutes les colonnes ({actionTargets.length})</div>
-                <div className="ent-main-action-item" onClick={openMailModal}>✉ Envoi mail via Outlook ({actionTargets.length})</div>
+                <div className="ent-main-action-item" onClick={openMailModal}>✉ Envoi mail ({actionTargets.length})</div>
               </div>
             )}
           </div>
@@ -2834,6 +2908,7 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
             <div className="ent-selection-pill">
               <span style={{ fontWeight: 600, color: 'var(--text2)' }}>
                 {selectedInView.length} sélectionné{selectedInView.length > 1 ? 's' : ''}
+                {isAllFilteredSelected && filteredCompanies.length > itemsPerPage ? ' (toutes les pages)' : ''}
               </span>
               {selectedInView.length < filteredCompanies.length && (
                 <button type="button" className="ent-link-btn" onClick={selectAllFiltered}>
@@ -2867,8 +2942,8 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
               onClick={openMailModal}
               disabled={actionTargets.length === 0}
               title={actionScope === 'selection'
-                ? 'Ouvrir dans Outlook un email personnalisé pour chaque entité sélectionnée'
-                : 'Ouvrir dans Outlook un email personnalisé pour chaque entité filtrée'}
+                ? 'Envoyer un email personnalisé à chaque entité sélectionnée'
+                : 'Envoyer un email personnalisé à chaque entité filtrée'}
             >
               <EnvelopeIcon style={{ width: 15, height: 15 }} />
               Envoi mail
@@ -2902,11 +2977,11 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
               <th style={{ width: 36, textAlign: 'center' }}>
                 <input
                   type="checkbox"
-                  checked={isAllPageSelected}
-                  ref={el => { if (el) el.indeterminate = !isAllPageSelected && isSomePageSelected; }}
-                  onChange={toggleSelectAllOnPage}
+                  checked={isAllFilteredSelected}
+                  ref={el => { if (el) el.indeterminate = !isAllFilteredSelected && isSomeSelected; }}
+                  onChange={toggleSelectAllFiltered}
                   style={{ accentColor: 'var(--accent)', width: 15, height: 15, cursor: 'pointer' }}
-                  title="Sélectionner tout sur cette page"
+                  title={`Tout sélectionner (${filteredCompanies.length} entités, toutes les pages)`}
                 />
               </th>
               <th style={{ width: 52 }}>Logo</th>
@@ -2995,7 +3070,7 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                     )}
                   </td>
 
-                  {/* Segments — shown right before Raison sociale so the entity's activity segments are visible at a glance */}
+                  {/* Segments */}
                   <td>
                     {company.segments?.length > 0 ? (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 150 }}>
@@ -3034,14 +3109,14 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                     )}
                   </td>
 
-                  {/* SCI — plain Oui / Non. The visual highlight + grouping now lives once, above the group. */}
+                  {/* SCI */}
                   <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                     <span className={Number(company.sci) === 1 ? 'ent-sci-value oui' : 'ent-sci-value non'}>
                       {Number(company.sci) === 1 ? 'Oui' : 'Non'}
                     </span>
                   </td>
 
-                  {/* Destinations (export + import) — swapped out of the collapsible so it's visible without expanding */}
+                  {/* Destinations (export + import) */}
                   <td onClick={e => e.stopPropagation()}>
                     {(() => {
                       const dests = getCompanyDestinations(company);
@@ -3195,7 +3270,8 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                           {company.email && (
                             <div className="action-dropdown-item" onClick={() => handleSendConnection(company.email!)}>Envoyer connexion</div>
                           )}
-                        <div className="action-dropdown-item danger" style={{ color: 'var(--danger)' }} onClick={() => handleArchiveCompany(company.id_entite)}>Archiver</div>     </div>
+                          <div className="action-dropdown-item danger" style={{ color: 'var(--danger)' }} onClick={() => handleArchiveCompany(company.id_entite)}>Archiver</div>
+                        </div>
                       )}
                     </td>
                   )}
@@ -3206,7 +3282,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                   <tr>
                     <td colSpan={totalColumns} style={{ padding: '0 12px 6px' }}>
                       <div className="ent-expand-content">
-                        {/* Info Grid */}
                         <div className="ent-expand-grid">
                           <div className="ent-expand-section">
                             <h4>Identifiant national</h4>
@@ -3276,7 +3351,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                           </div>
                         </div>
 
-                        {/* Segments */}
                         {company.segments?.length > 0 && (
                           <>
                             <hr className="ent-expand-divider" />
@@ -3292,7 +3366,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                           </>
                         )}
 
-                        {/* Destinations — full list, untruncated, split Export / Import so the direction is unambiguous */}
                         {getCompanyDestinations(company).length > 0 && (
                           <>
                             <hr className="ent-expand-divider" />
@@ -3330,7 +3403,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                           </>
                         )}
 
-                        {/* Descriptions */}
                         {shouldShowDescriptions(company) && (
                           <>
                             <hr className="ent-expand-divider" />
@@ -3348,7 +3420,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                           </>
                         )}
 
-                        {/* Sites */}
                         <hr className="ent-expand-divider" />
                         <div
                           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', transition: 'border-color 0.15s' }}
@@ -3444,15 +3515,15 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
       {/* end content card */}
 
 
-      {/* ─── ENVOI MAIL MODAL (Outlook) ─────────────────────────────────────── */}
+      {/* ─── ENVOI MAIL MODAL ────────────────────────────────────────────────── */}
       {isMailModalOpen && (
         <div className="ent-modal-overlay">
           <div className="ent-modal" style={{ '--modal-max': '920px' } as React.CSSProperties}>
             <div className="ent-modal-header" style={{ cursor: 'default' }}>
               <div>
-                <div className="ent-modal-title">Envoi mail via Outlook</div>
+                <div className="ent-modal-title">Envoi mail</div>
                 <div className="ent-modal-subtitle">
-                  {mailSendable.length} entité{mailSendable.length > 1 ? 's' : ''} · un message Outlook séparé par entité, personnalisé avec sa raison sociale
+                  {mailSendable.length} entité{mailSendable.length > 1 ? 's' : ''} · un message séparé par entité, personnalisé avec sa raison sociale
                 </div>
               </div>
               <button className="ent-modal-close" onClick={() => setIsMailModalOpen(false)} title="Fermer">
@@ -3464,7 +3535,12 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
               <button className={mailTab === 'message' ? 'active' : ''} onClick={() => setMailTab('message')}>1. Message</button>
               <button className={mailTab === 'apercu' ? 'active' : ''} onClick={() => setMailTab('apercu')}>2. Aperçu</button>
               <button className={mailTab === 'envoi' ? 'active' : ''} onClick={() => setMailTab('envoi')}>
-                3. Envoi Outlook <span className="ent-bulk-count">{mailOpenedCount}/{mailSendable.length}</span>
+                3. Envoi{' '}
+                <span className="ent-bulk-count">
+                  {mailMode === 'bcc'
+                    ? `${bccOpened.size}/${bccBatches.length} msg`
+                    : `${mailOpenedCount}/${mailSendable.length}`}
+                </span>
                 {mailWithoutEmail.length > 0 && <span className="ent-tab-warn" title="Entités sans email valide">{mailWithoutEmail.length} sans email</span>}
               </button>
             </div>
@@ -3535,8 +3611,18 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                   </div>
                   <div className="ent-mail-preview">
                     <div className="ent-mail-preview-head">
-                      <div><span>À :</span> {mailPreviewRecipient.emails.join('; ') || '—'} <em>(seul destinataire)</em></div>
-                      <div><span>Objet :</span> <strong>{renderMailSubject(mailSubject, mailPreviewRecipient)}</strong></div>
+                      {mailMode === 'bcc' ? (
+                        <>
+                          <div><span>Cci :</span> {mailSendable.length} entité{mailSendable.length > 1 ? 's' : ''} <em>(personne ne voit les autres adresses)</em></div>
+                          <div><span>Objet :</span> <strong>{genericSubject}</strong></div>
+                          <div><em>Mode « tous en 1 clic » : même texte pour tous, sans le nom de la société.</em></div>
+                        </>
+                      ) : (
+                        <>
+                          <div><span>À :</span> {mailPreviewRecipient.emails.join('; ') || '—'} <em>(seul destinataire)</em></div>
+                          <div><span>Objet :</span> <strong>{renderMailSubject(mailSubject, mailPreviewRecipient)}</strong></div>
+                        </>
+                      )}
                     </div>
                     <div className="ent-mail-preview-body" dangerouslySetInnerHTML={{ __html: mailPreviewHtml }} />
                   </div>
@@ -3545,59 +3631,154 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
 
               {mailTab === 'envoi' && (
                 <>
-                  <div className="ent-outlook-steps">
-                    <div><b>1</b> Cliquez sur <strong>« Ouvrir dans Outlook »</strong> : un nouveau message s'ouvre, déjà adressé à l'entité, avec l'objet et le texte personnalisés.</div>
-                    <div><b>2</b> Vérifiez et cliquez sur <strong>Envoyer</strong> dans Outlook.</div>
-                    <div><b>3</b> Revenez ici et passez à l'entité suivante. La progression est mémorisée.</div>
-                    <div className="tip">
-                      Astuce : la version <strong>mise en forme</strong> (gras, souligné, puces) est aussi copiée automatiquement.
-                      Pour l'avoir dans Outlook : cliquez dans le corps du message, <kbd>Ctrl</kbd>+<kbd>A</kbd> puis <kbd>Ctrl</kbd>+<kbd>V</kbd>.
-                      (Même chose si le texte apparaît incomplet.)
-                    </div>
+                  {/* ── Choose how to send ── */}
+                  <div className="ent-mode-switch">
+                    <button type="button" className={`ent-mode-card ${mailMode === 'bcc' ? 'active' : ''}`} onClick={() => setMailMode('bcc')}>
+                      <div className="t">⚡ Outlook — tous en 1 clic (Cci)</div>
+                      <div className="d">Un seul message Outlook avec toutes les entités en copie cachée : vous cliquez « Envoyer » une fois. Texte identique pour tous.</div>
+                    </button>
+                    <button type="button" className={`ent-mode-card ${mailMode === 'outlook' ? 'active' : ''}`} onClick={() => setMailMode('outlook')}>
+                      <div className="t">✉ Outlook — un par un (personnalisé)</div>
+                      <div className="d">Un message par entité avec le nom de sa société ; vous cliquez « Envoyer » pour chacun.</div>
+                    </button>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '14px 0 8px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>
-                      {mailOpenedCount} / {mailSendable.length} ouvert{mailOpenedCount > 1 ? 's' : ''} dans Outlook
-                    </div>
-                    <button type="button" className="ent-link-btn muted" onClick={resetMailProgress}>Réinitialiser le suivi</button>
-                  </div>
-                  <div className="ent-progress">
-                    <div style={{ width: `${mailSendable.length ? Math.round((mailOpenedCount / mailSendable.length) * 100) : 0}%` }} />
-                  </div>
-
-                  <div className="ent-mail-list" style={{ marginTop: 12, maxHeight: '42vh' }}>
-                    {mailRecipients.map(r => {
-                      const hasEmail = r.emails.length > 0;
-                      const opened = mailOpened.has(r.id_entite);
-                      const isNext = mailNext?.id_entite === r.id_entite;
-                      return (
-                        <div
-                          key={r.id_entite}
-                          className={`ent-mail-row ${!hasEmail ? 'failed' : opened ? 'sent' : 'pending'} ${isNext ? 'next' : ''} ${mailLastOpenedId === r.id_entite ? 'last' : ''}`}
-                        >
-                          <span className="ent-mail-dot" />
-                          <span className="name">
-                            {r.raison_socialle}
-                            {r.sci && <span className="ent-sci-mini">SCI</span>}
-                          </span>
-                          <span className="addr">{hasEmail ? r.emails.join('; ') : 'Aucune adresse email valide'}</span>
-                          <span className="state">
-                            {hasEmail && (
-                              <button
-                                type="button"
-                                className={`ent-row-outlook-btn ${opened ? 'done' : ''}`}
-                                onClick={() => openInOutlook(r)}
-                                title={opened ? 'Déjà ouvert — rouvrir dans Outlook' : 'Ouvrir ce message dans Outlook'}
-                              >
-                                {opened ? '✓ Ouvert · rouvrir' : 'Ouvrir dans Outlook'}
-                              </button>
-                            )}
-                          </span>
+                  {mailMode === 'bcc' ? (
+                    <>
+                      <div className="ent-outlook-steps">
+                        <div><b>1</b> Cliquez sur <strong>« Ouvrir dans Outlook »</strong> : un message s'ouvre dans votre Outlook, avec toutes les entités en <strong>Cci</strong> et l'objet rempli.</div>
+                        <div><b>2</b> Cliquez dans le corps du message et faites <kbd>Ctrl</kbd>+<kbd>V</kbd> : le texte mis en forme (gras, puces, lien) est collé.</div>
+                        <div><b>3</b> Cliquez sur <strong>Envoyer</strong>. {bccBatches.length > 1 && <>Puis recommencez pour le message suivant ({bccBatches.length} au total).</>}</div>
+                        <div className="tip">
+                          Les entités sont réparties par messages de {MAX_BCC_PER_BATCH} maximum pour respecter les limites d'Outlook et éviter le classement en spam.
+                          Les destinataires ne voient pas les adresses des autres (Cci).
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+
+                      <div className="ent-auto-summary" style={{ marginTop: 14 }}>
+                        <div>
+                          <div className="big">
+                            {bccBatches.length === 0
+                              ? 'Aucun destinataire avec email valide'
+                              : bccNextIndex === -1
+                                ? 'Tous les messages ont été ouverts ✓'
+                                : `${mailSendable.length} entité${mailSendable.length > 1 ? 's' : ''} → ${bccBatches.length} message${bccBatches.length > 1 ? 's' : ''} Outlook`}
+                          </div>
+                          {mailWithoutEmail.length > 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                              {mailWithoutEmail.length} entité{mailWithoutEmail.length > 1 ? 's' : ''} sans email valide ne recevront rien.
+                            </div>
+                          )}
+                        </div>
+                        {bccNextIndex >= 0 && (
+                          <button type="button" className="ent-send-all-btn" onClick={openNextBccBatch}>
+                            <PaperAirplaneIcon style={{ width: 16, height: 16 }} />
+                            {bccBatches.length > 1
+                              ? `Ouvrir dans Outlook (message ${bccNextIndex + 1}/${bccBatches.length})`
+                              : `Ouvrir dans Outlook (${mailSendable.length})`}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="ent-progress" style={{ marginBottom: 12 }}>
+                        <div style={{ width: `${bccBatches.length ? Math.round((bccOpened.size / bccBatches.length) * 100) : 0}%` }} />
+                      </div>
+
+                      <div className="ent-mail-list" style={{ maxHeight: '30vh' }}>
+                        {bccBatches.map((batch, i) => {
+                          const opened = bccOpened.has(i);
+                          return (
+                            <div key={i} className={`ent-mail-row ${opened ? 'sent' : ''} ${i === bccNextIndex ? 'next' : ''}`}>
+                              <span className="ent-mail-dot" />
+                              <span className="name">Message {i + 1} — {batch.length} entité{batch.length > 1 ? 's' : ''}</span>
+                              <span className="addr" title={batch.map(r => r.raison_socialle).join(', ')}>
+                                {batch.map(r => r.raison_socialle).join(', ')}
+                              </span>
+                              <span className="state" style={{ overflow: 'visible' }}>
+                                <button
+                                  type="button"
+                                  className={`ent-row-outlook-btn ${opened ? 'done' : ''}`}
+                                  onClick={() => openBccBatch(i)}
+                                >
+                                  {opened ? '✓ Ouvert · rouvrir' : 'Ouvrir dans Outlook'}
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Personalised for everybody, still through Outlook: Word mail merge */}
+                      <details style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', background: 'var(--surface2)' }}>
+                        <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                          Besoin du nom de la société dans chaque email, tout en une fois ? → Publipostage Word (via Outlook)
+                        </summary>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', display: 'grid', gap: 6, marginTop: 10 }}>
+                          <div>1. <button type="button" className="ent-link-btn" onClick={exportMergeList}>Exporter la liste pour le publipostage ({mailSendable.length})</button></div>
+                          <div>2. Ouvrez le courrier dans <strong>Word</strong> → onglet <strong>Publipostage</strong> → <strong>Démarrer la fusion et le publipostage</strong> → <strong>Messages électroniques</strong>.</div>
+                          <div>3. <strong>Sélection des destinataires</strong> → <strong>Utiliser une liste existante</strong> → choisissez le fichier exporté.</div>
+                          <div>4. À la place du nom de la société, cliquez <strong>Insérer un champ de fusion</strong> → <strong>Raison_sociale</strong>.</div>
+                          <div>5. <strong>Terminer et fusionner</strong> → <strong>Envoyer des messages électroniques</strong> → À : <strong>Email</strong>, Objet : votre objet, Format : <strong>HTML</strong> → OK.</div>
+                          <div style={{ color: 'var(--muted)' }}>Outlook envoie alors un email personnalisé à chaque entité, depuis le compte connecté. (Nécessite Outlook « classique » comme messagerie par défaut.)</div>
+                        </div>
+                      </details>
+                    </>
+                  ) : (
+                    <>
+                      <div className="ent-outlook-steps">
+                        <div><b>1</b> Cliquez sur <strong>« Ouvrir dans Outlook »</strong> : un nouveau message s'ouvre, déjà adressé à l'entité, avec l'objet et le texte personnalisés.</div>
+                        <div><b>2</b> Vérifiez et cliquez sur <strong>Envoyer</strong> dans Outlook.</div>
+                        <div><b>3</b> Revenez ici et passez à l'entité suivante. La progression est mémorisée.</div>
+                        <div className="tip">
+                          Astuce : la version <strong>mise en forme</strong> (gras, souligné, puces) est aussi copiée automatiquement.
+                          Pour l'avoir dans Outlook : cliquez dans le corps du message, <kbd>Ctrl</kbd>+<kbd>A</kbd> puis <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '14px 0 8px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                          {mailOpenedCount} / {mailSendable.length} ouvert{mailOpenedCount > 1 ? 's' : ''} dans Outlook
+                        </div>
+                        <button type="button" className="ent-link-btn muted" onClick={resetMailProgress}>Réinitialiser le suivi</button>
+                      </div>
+                      <div className="ent-progress">
+                        <div style={{ width: `${mailSendable.length ? Math.round((mailOpenedCount / mailSendable.length) * 100) : 0}%` }} />
+                      </div>
+
+                      <div className="ent-mail-list" style={{ marginTop: 12, maxHeight: '42vh' }}>
+                        {mailRecipients.map(r => {
+                          const hasEmail = r.emails.length > 0;
+                          const opened = mailOpened.has(r.id_entite);
+                          const isNext = mailNext?.id_entite === r.id_entite;
+                          return (
+                            <div
+                              key={r.id_entite}
+                              className={`ent-mail-row ${!hasEmail ? 'failed' : opened ? 'sent' : 'pending'} ${isNext ? 'next' : ''} ${mailLastOpenedId === r.id_entite ? 'last' : ''}`}
+                            >
+                              <span className="ent-mail-dot" />
+                              <span className="name">
+                                {r.raison_socialle}
+                                {r.sci && <span className="ent-sci-mini">SCI</span>}
+                              </span>
+                              <span className="addr">{hasEmail ? r.emails.join('; ') : 'Aucune adresse email valide'}</span>
+                              <span className="state" style={{ overflow: 'visible' }}>
+                                {hasEmail && (
+                                  <button
+                                    type="button"
+                                    className={`ent-row-outlook-btn ${opened ? 'done' : ''}`}
+                                    onClick={() => openInOutlook(r)}
+                                    title={opened ? 'Déjà ouvert — rouvrir dans Outlook' : 'Ouvrir ce message dans Outlook'}
+                                  >
+                                    {opened ? '✓ Ouvert · rouvrir' : 'Ouvrir dans Outlook'}
+                                  </button>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -3605,8 +3786,10 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
             <div className="ent-modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                 {mailTab !== 'envoi'
-                  ? 'Outlook doit être votre application mail par défaut.'
-                  : mailNext ? `Suivant : ${mailNext.raison_socialle}` : (mailSendable.length ? 'Tous les messages ont été ouverts ✓' : '')}
+                  ? `${mailSendable.length} destinataire${mailSendable.length > 1 ? 's' : ''}`
+                  : mailMode === 'bcc'
+                    ? 'Les emails partent depuis le compte Outlook connecté sur ce PC.'
+                    : mailNext ? `Suivant : ${mailNext.raison_socialle}` : (mailSendable.length ? 'Tous les messages ont été ouverts ✓' : '')}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button className="ent-btn-secondary" onClick={() => setIsMailModalOpen(false)}>Fermer</button>
@@ -3619,12 +3802,24 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                   }}>
                     Continuer →
                   </button>
+                ) : mailMode === 'bcc' ? (
+                  <button
+                    className="ent-btn-primary"
+                    disabled={bccNextIndex === -1}
+                    onClick={openNextBccBatch}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                  >
+                    <PaperAirplaneIcon style={{ width: 16, height: 16 }} />
+                    {bccNextIndex === -1
+                      ? 'Terminé'
+                      : `Ouvrir dans Outlook (${bccNextIndex + 1}/${bccBatches.length})`}
+                  </button>
                 ) : (
                   <button
                     className="ent-btn-primary"
                     disabled={!mailNext}
                     onClick={openNextInOutlook}
-                    style={{ opacity: mailNext ? 1 : 0.5, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
                   >
                     <EnvelopeIcon style={{ width: 16, height: 16 }} />
                     {mailNext
@@ -3973,7 +4168,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
               </div>
 
               <div className="ent-modal-body">
-                {/* Step 1: upload UI */}
                 {!importResult && !isLoading && (
                   <>
                     <button
@@ -4009,7 +4203,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                   </>
                 )}
 
-                {/* Step 2: loading */}
                 {isLoading && (
                   <div style={{ padding: '48px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                     <div style={{ width: 44, height: 44, border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -4018,7 +4211,6 @@ label.ent-mail-row { grid-template-columns: 16px minmax(0, 1.2fr) minmax(0, 1fr)
                   </div>
                 )}
 
-                {/* Step 3: result */}
                 {importResult && !isLoading && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div style={{ borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 12, background: importResult.added > 0 ? 'rgba(58,143,110,0.1)' : 'rgba(224,80,80,0.1)', border: `1px solid ${importResult.added > 0 ? 'rgba(58,143,110,0.3)' : 'rgba(224,80,80,0.3)'}` }}>
